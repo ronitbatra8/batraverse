@@ -1,0 +1,284 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-playfair), ui-serif, Georgia, serif;
+}
+
+@theme {
+  /* Maison dark — matte black family */
+  --color-abyss: #050506;
+  --color-onyx: #0b0b0e;
+  --color-graphite: #14141a;
+  --color-smoke: #1e1e24;
+
+  /* Maison dark — gilded gold family */
+  --color-gold: #d4af37;
+  --color-gold-light: #f0d98c;
+  --color-gold-pale: #f8e9bd;
+  --color-gold-deep: #9a7b1e;
+  --color-gold-dark: #6b5316;
+
+  /* Maison dark — ivory cream neutrals */
+  --color-cream: #f7f2e7;
+  --color-cream-dim: #cbc4b4;
+  --color-powder: #fdfbf4;
+
+  /* Status */
+  --color-success: #4ade80;
+  --color-danger: #f87171;
+  --color-info: #7dd3fc;
+
+  /* Light-mode accent — dark glow blue */
+  --color-sapphire: #1e3a8a;
+  --color-sapphire-light: #3b5bdb;
+  --color-sapphire-deep: #172254;
+
+  /* Admin dashboard (e-commerce reference) — neutral dark family */
+  --color-dark-50: #f8f8f8;
+  --color-dark-100: #f0f0f0;
+  --color-dark-200: #e4e4e7;
+  --color-dark-300: #d4d4d8;
+  --color-dark-400: #a1a1aa;
+  --color-dark-500: #71717a;
+  --color-dark-600: #52525b;
+  --color-dark-700: #3f3f46;
+  --color-dark-800: #27272a;
+  --color-dark-900: #18181b;
+  --color-dark-950: #09090b;
+
+  /* Admin dashboard — BATRAVERSE premium gold scale (anchored on --color-gold: #d4af37) */
+  --color-gold-50: #fcf8e9;
+  --color-gold-100: #f8e9bd;
+  --color-gold-200: #f0d98c;
+  --color-gold-300: #e4c668;
+  --color-gold-400: #d8b84e;
+  --color-gold-500: #d4af37;
+  --color-gold-600: #b8942a;
+  --color-gold-700: #9a7b1e;
+  --color-gold-800: #6b5316;
+  --color-gold-900: #4a390e;
+}
+
+:root {
+  --color-background: var(--color-abyss);
+  --color-foreground: var(--color-cream);
+}
+
+/* Light mode — toggled by the lamp's pull cord (`light` class on <html>).
+   Deliberately surgical: only the page background switches to subtle white
+   and the navbar turns into a light frosted blur (see Navbar.tsx). All the
+   maison-dark content — hero scene, marble, gold ink — keeps its drama. */
+:root.light {
+  color-scheme: light;
+}
+
+html.light {
+  background: #fbfaf7;
+}
+
+html.light body {
+  background: #fbfaf7;
+  color: #17140f;
+}
+
+html {
+  background: var(--color-abyss);
+  color-scheme: dark;
+}
+
+/* Boot scroll lock */
+html.scroll-locked {
+  overflow: hidden !important;
+}
+
+body {
+  background: var(--color-abyss);
+  color: var(--color-cream);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: clip;
+}
+
+::selection {
+  background: rgba(212, 175, 55, 0.35);
+  color: var(--color-powder);
+}
+
+/* Thin, quiet scrollbar — a dark gold blade on hover */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #6b5316 #050506;
+}
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #050506;
+}
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(
+    180deg,
+    #6b5316,
+    #9a7b1e 45%,
+    #6b5316 55%,
+    #3a2f10
+  );
+  border: 2px solid #050506;
+  border-radius: 8px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(
+    180deg,
+    #9a7b1e,
+    #d4af37 45%,
+    #9a7b1e 55%,
+    #6b5316
+  );
+}
+::-webkit-scrollbar-corner {
+  background: #050506;
+}
+
+/* ---------- Utilities ---------- */
+
+@utility text-gold-gradient {
+  background: linear-gradient(
+    100deg,
+    #f8e9bd 0%,
+    #d4af37 30%,
+    #9a7b1e 52%,
+    #f0d98c 74%,
+    #d4af37 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Deep blue companion for light mode — the VERSE glow */
+@utility text-sapphire-gradient {
+  background: linear-gradient(
+    100deg,
+    #16295e 0%,
+    #1e3a8a 32%,
+    #3b5bdb 55%,
+    #27449c 78%,
+    #16295e 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@utility hairline-gold {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(212, 175, 55, 0.9),
+    transparent
+  );
+}
+
+@utility glass-panel {
+  background: color-mix(in srgb, var(--color-onyx) 72%, transparent);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(212, 175, 55, 0.14);
+}
+
+@utility gold-glow {
+  filter: drop-shadow(0 0 16px rgba(212, 175, 55, 0.55));
+}
+
+/* ---------- Admin dashboard (e-commerce reference) ---------- */
+
+.page-transition {
+  animation: pageIn 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes pageIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.3s ease-out;
+}
+
+@keyframes slide-in-right {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+html {
+  --bg-page: var(--color-abyss);
+}
+html.light {
+  --bg-page: white;
+}
+
+/* Rolls-Royce cursor — exact match */
+*, *::before, *::after {
+  cursor: none !important;
+}
+html.scroll-locked * {
+  cursor: default !important;
+}
+.rrmc-cursor {
+  display: none;
+  filter: saturate(0) contrast(2) brightness(1.5) invert(0.2);
+  height: 15px;
+  left: 0;
+  mix-blend-mode: difference;
+  pointer-events: none;
+  position: fixed;
+  top: 0;
+  width: 15px;
+  z-index: 6000;
+}
+
+.rrmc-cursor-inner {
+  height: 100%;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  position: relative;
+  transform: translate3d(-50%, -50%, 0);
+  width: 100%;
+}
+
+.rrmc-cursor-border {
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  border-radius: 50%;
+  display: block;
+  height: 100%;
+  left: 0;
+  position: absolute;
+  top: 0;
+  width: 100%;
+  z-index: 10;
+  background: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 0 8px 2px rgba(255, 255, 255, 0.6),
+              0 0 24px 6px rgba(255, 255, 255, 0.25);
+}
+

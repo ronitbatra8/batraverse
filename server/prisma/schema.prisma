@@ -1,0 +1,505 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  SELLER
+  DELIVERY
+  ADMIN
+}
+
+enum OrderStatus {
+  pending
+  confirmed
+  shipped
+  packed
+  out_for_delivery
+  delivered
+  cancelled
+  return_requested
+  returned
+}
+
+enum PaymentStatus {
+  PENDING
+  APPROVED
+  FAILED
+  EXPIRED
+}
+
+enum PaymentMethod {
+  CARD
+  UPI
+  COD
+  NETBANKING
+  WALLET
+}
+
+enum MessageStatus {
+  pending
+  replied
+  resolved
+}
+
+enum PrivateViewingStatus {
+  requested
+  confirmed
+  completed
+  cancelled
+}
+
+enum ResetMethod {
+  email
+  sms
+}
+
+enum ResetStatus {
+  requested
+  verified
+  completed
+  failed
+}
+
+model User {
+  id            String   @id @default(cuid())
+  name          String
+  email         String   @unique
+  phone         String   @unique
+  passwordHash  String
+  role          Role     @default(USER)
+  approved      Boolean  @default(false)
+  shopName      String?
+  shopDescription String?
+  cardNumber    String?  @unique // unique card/account number e.g. BV-XXXX-XXXX
+  cardPinHash   String?  // optional separate PIN for card login (bcrypt hash)
+  cardLevel     String?  // "owner" for admin override; otherwise level derived from walletBalance
+  cardExpiry    DateTime? // unused now (kept for owner override)
+  walletBalance     Float    @default(0)
+  peakWalletBalance Float    @default(0) // highest balance ever reached — level never downgrades
+  freeDeliveryUsed Int   @default(0) // free deliveries used this month
+  freeDeliveryMonth String? // "YYYY-MM" — resets when month changes
+  createdAt     DateTime @default(now())
+
+  orders           Order[]      @relation("PlacedOrders")
+  assignedOrders   Order[]      @relation("AssignedOrders")
+  savedAddresses   Address[]
+  reviews          Review[]
+  wishlists        Wishlist[]
+  cartItems        CartItem[]
+  messages         Message[]
+  passwordResets   PasswordReset[]
+  products         Product[]
+  cardUpgrades     CardUpgradeRequest[]
+  walletTopUps     WalletTopUp[]
+  deliveryComplaints DeliveryComplaint[] @relation("ComplaintsAgainst")
+  categoryRequests CategoryRequest[]
+
+  @@index([role])
+}
+
+model Order {
+  id                String   @id @default(cuid())
+  orderId           String?  @unique
+  items             Json
+  totalAmount       Float
+  status            OrderStatus @default(pending)
+  paymentMethod     String?
+  paymentStatus     PaymentStatus @default(PENDING)
+  transactionId     String?
+  paymentApprovedAt DateTime?
+  cancelledAt       DateTime?
+  cancelReason      String?
+  returnRequestedAt DateTime?
+  returnReason      String?
+  returnedAt        DateTime?
+
+  shippingName     String
+  shippingPhone    String
+  shippingAddress  String
+  shippingCity     String
+  shippingState    String?
+  shippingPincode  String?
+
+  userId     String
+  user       User     @relation("PlacedOrders", fields: [userId], references: [id])
+  assignedTo String?
+  assignedAt DateTime?
+  deliveryExecutive User? @relation("AssignedOrders", fields: [assignedTo], references: [id])
+
+  createdAt DateTime @default(now())
+  deliveredAt DateTime?
+
+  signatureData String?
+  signedAt      DateTime?
+  securityPhotos String?
+
+  source String @default("store")
+  deliveryMode String @default("standard")
+
+  @@index([status])
+  @@index([paymentStatus])
+  @@index([userId])
+  @@index([assignedTo])
+}
+
+model Product {
+  id            String   @id @default(cuid())
+  name          String
+  brand         String?
+  category      String?
+  subCategory   String?
+  price         Float
+  originalPrice Float?
+  description   String?
+  images        Json     @default("[]")
+  inStock       Boolean  @default(true)
+  badge         String?
+  rating        Float    @default(0)
+  reviewCount   Int      @default(0)
+
+  specifications Json     @default("[]")
+  keyFeatures    Json     @default("[]")
+  colorOptions   Json     @default("[]")
+  sizeOptions    Json     @default("{}")
+
+  sellerId String?
+  seller   User?    @relation(fields: [sellerId], references: [id])
+  source   String?  @default("store")
+
+  reviews   Review[]
+  wishlists Wishlist[]
+
+  @@index([category])
+  @@index([subCategory])
+  @@index([sellerId])
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  source    String
+  icon      String?
+  sortOrder Int      @default(0)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  subcategories Subcategory[]
+}
+
+model Subcategory {
+  id         String   @id @default(cuid())
+  name       String
+  slug       String
+  icon       String?
+  sortOrder  Int      @default(0)
+  active     Boolean  @default(true)
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([categoryId, slug])
+  @@index([categoryId])
+}
+
+model CategoryRequest {
+  id          String   @id @default(cuid())
+  sellerId    String
+  seller      User     @relation(fields: [sellerId], references: [id])
+  type        String
+  source      String
+  categoryName    String
+  subCategoryName String?
+  reason      String?
+  status      String   @default("pending")
+  reviewedBy  String?
+  reviewedAt  DateTime?
+  createdAt   DateTime @default(now())
+
+  @@index([sellerId])
+  @@index([status])
+}
+
+model Address {
+  id             String   @id @default(cuid())
+  address        String
+  apartment      String?
+  city           String
+  state          String?
+  pincode        String?
+  alternatePhone String?
+  isDefault      Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+
+  userId    String
+  user      User    @relation(fields: [userId], references: [id])
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+
+  @@index([productId])
+  @@index([userId])
+}
+
+model Wishlist {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  userId    String
+  user      User    @relation(fields: [userId], references: [id])
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+
+  @@unique([userId, productId])
+  @@index([productId])
+}
+
+model CartItem {
+  id        String   @id @default(cuid())
+  productId String
+  name      String
+  price     Float
+  color     String?
+  colorHex  String?
+  size      String?
+  qty       Int      @default(1)
+  createdAt DateTime @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@unique([userId, productId, color, size])
+  @@index([userId])
+}
+
+model Message {
+  id           String        @id @default(cuid())
+  name         String
+  email        String
+  altEmail     String?
+  subject      String
+  message      String
+  status       MessageStatus @default(pending)
+  read         Boolean       @default(false)
+  replyMessage String?
+  repliedAt    DateTime?
+  createdAt    DateTime      @default(now())
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id])
+
+  @@index([status])
+  @@index([userId])
+}
+
+model Newsletter {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
+model PrivateViewing {
+  id        String               @id @default(cuid())
+  name      String
+  phone     String
+  note      String?
+  reply     String?
+  status    PrivateViewingStatus @default(requested)
+  read      Boolean              @default(false)
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt @default(now())
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([phone])
+}
+
+model PasswordReset {
+  id          String       @id @default(cuid())
+  method      ResetMethod
+  status      ResetStatus  @default(requested)
+  failReason  String?
+  ipAddress   String?
+  requestedAt DateTime     @default(now())
+  verifiedAt  DateTime?
+  completedAt DateTime?
+  createdAt   DateTime     @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+model Otp {
+  email     String   @id
+  code      String
+  name      String?
+  password  String?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+enum UpgradeDuration {
+  ONE_MONTH
+  THREE_MONTH
+  SIX_MONTH
+}
+
+enum UpgradeRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EXPIRED
+}
+
+enum WalletTopUpStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model WalletTopUp {
+  id            String            @id @default(cuid())
+  amount        Float
+  transactionId String            // customer-provided UPI txn ID
+  upiId         String?           // customer's UPI ID they paid from
+  status        WalletTopUpStatus @default(PENDING)
+  adminNote     String?
+  createdAt     DateTime          @default(now())
+  processedAt   DateTime?
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([status])
+}
+
+model CardUpgradePricing {
+  id        String          @id @default(cuid())
+  fromLevel String          // "silver","gold","platinum","diamond","black"
+  toLevel   String          // "gold","platinum","diamond","black"
+  duration  UpgradeDuration
+  price     Float
+  active    Boolean         @default(true)
+  createdAt DateTime        @default(now())
+
+  @@unique([fromLevel, toLevel, duration])
+}
+
+model CardUpgradeRequest {
+  id           String              @id @default(cuid())
+  fromLevel    String
+  toLevel      String
+  duration     UpgradeDuration
+  price        Float
+  paymentMethod String?            // COD, UPI_DELIVERY, CARD, UPI, NETBANKING, WALLET
+  paymentStatus PaymentStatus @default(PENDING)
+  status       UpgradeRequestStatus @default(PENDING)
+  note         String?             // admin note
+  createdAt    DateTime            @default(now())
+  processedAt  DateTime?
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([status])
+}
+
+model DeliveryComplaint {
+  id          String   @id @default(cuid())
+  orderId     String
+  execId      String
+  reason      String
+  orderSource String
+  createdAt   DateTime @default(now())
+
+  exec  User @relation("ComplaintsAgainst", fields: [execId], references: [id])
+
+  @@index([execId])
+  @@index([orderId])
+}
+
+model DeliveryOTP {
+  id        String   @id @default(cuid())
+  orderId   String
+  code      String
+  expiresAt DateTime
+  verified  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([orderId])
+}
+
+model Visit {
+  id        String   @id @default(cuid())
+  visitorId String
+  page      String
+  referrer  String?
+  userAgent String?
+  ip        String?
+  duration  Int?
+  createdAt DateTime @default(now())
+
+  @@index([visitorId])
+  @@index([page])
+  @@index([createdAt])
+}
+
+model SpotlightAd {
+  id        String   @id @default(cuid())
+  img       String
+  tagline   String
+  line      String
+  href      String   @default("/store")
+  page      String   @default("home")
+  duration  Int      @default(7)
+  active    Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([active])
+  @@index([sortOrder])
+  @@index([page, active])
+}
+
+model AdRequest {
+  id        String   @id @default(cuid())
+  sellerId  String
+  sellerName String  @default("")
+  img       String
+  tagline   String
+  line      String
+  href      String   @default("/store")
+  page      String   @default("home")
+  duration  Int      @default(7)
+  status    String   @default("pending")
+  note      String   @default("")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sellerId])
+  @@index([status])
+}

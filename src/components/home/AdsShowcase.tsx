@@ -1,0 +1,331 @@
+"use client";
+
+import { AnimatePresence, motion } from "framer-motion";
+import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
+import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
+import { useTheme } from "@/components/theme/ThemeProvider";
+import { cn } from "@/lib/utils";
+import { API_URL } from "@/lib/api";
+
+const EASE = [0.16, 1, 0.3, 1] as const;
+const DEFAULT_DURATION = 7;
+
+interface Billboard {
+  img: string;
+  tagline: string;
+  line: string;
+  href: string;
+  duration: number;
+}
+
+const FALLBACK: Billboard[] = [
+  {
+    img: "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=1920&h=1080&fit=crop",
+    tagline: "The Fall Edit",
+    line: "Where light meets fabric — a season cast in shadow and gold.",
+    href: "/store",
+    duration: DEFAULT_DURATION,
+  },
+  {
+    img: "https://images.unsplash.com/photo-1521334884684-d80222895322?w=1920&h=1080&fit=crop",
+    tagline: "Fine Watches",
+    line: "Hand-finished calibers for those who measure their days in moments, not minutes.",
+    href: "/store",
+    duration: DEFAULT_DURATION,
+  },
+  {
+    img: "https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=1920&h=1080&fit=crop",
+    tagline: "Heritage Leather",
+    line: "Full-grain hides, tanned over seasons and made to outlive them.",
+    href: "/store",
+    duration: DEFAULT_DURATION,
+  },
+];
+
+export default function AdsShowcase({ page = "home", hideHeader = false }: { page?: string; hideHeader?: boolean }) {
+  const { theme } = useTheme();
+  const light = theme === "light";
+
+  const [billboards, setBillboards] = useState<Billboard[]>([]);
+  const [index, setIndex] = useState(0);
+  const [hovered, setHovered] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const speedRef = useRef(1);
+  const elapsedRef = useRef(0);
+  const lastTickRef = useRef(0);
+
+  useEffect(() => {
+    fetch(`${API_URL}/spotlight-ads?page=${page}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setBillboards(
+            data.map((ad: { img: string; tagline: string; line: string; href: string; duration: number }) => ({
+              img: ad.img,
+              tagline: ad.tagline,
+              line: ad.line,
+              href: ad.href || "/store",
+              duration: ad.duration || DEFAULT_DURATION,
+            }))
+          );
+        }
+      })
+      .catch(() => {});
+  }, [page]);
+
+  useEffect(() => {
+    speedRef.current = hovered ? 0.5 : 1;
+  }, [hovered]);
+
+  useEffect(() => {
+    if (billboards.length === 0) return;
+    const base = (billboards[index]?.duration || DEFAULT_DURATION) * 1000;
+    elapsedRef.current = 0;
+    lastTickRef.current = performance.now();
+    speedRef.current = hovered ? 0.5 : 1;
+
+    const t = setInterval(() => {
+      const now = performance.now();
+      const dt = now - lastTickRef.current;
+      lastTickRef.current = now;
+      elapsedRef.current += dt * speedRef.current;
+      const p = Math.min(1, elapsedRef.current / base);
+      setProgress(p);
+      if (elapsedRef.current >= base) {
+        setIndex((i) => (i + 1) % billboards.length);
+      }
+    }, 30);
+
+    return () => clearInterval(t);
+  }, [billboards.length, index]);
+
+  const go = (dir: 1 | -1) =>
+    setIndex((i) => (i + dir + billboards.length) % billboards.length);
+
+  const current = billboards[index];
+  if (!current) return null;
+
+  return (
+    <section className={cn("relative overflow-hidden", hideHeader ? "py-4 pb-10" : "py-16")}>
+      <div className="mx-auto w-full max-w-7xl px-6 sm:px-8">
+        {/* Header */}
+        {!hideHeader && (
+        <div className="flex flex-wrap items-end justify-between gap-6">
+          <div>
+            <motion.div
+              initial={{ opacity: 0, y: 30, filter: "blur(8px)" }}
+              whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              viewport={{ once: true, margin: "-80px" }}
+              transition={{ duration: 0.9, ease: EASE }}
+              className="flex items-center gap-3"
+            >
+              <span
+                className={cn(
+                  "h-px w-10",
+                  light ? "bg-sapphire" : "bg-gold"
+                )}
+              />
+              <p
+                className={cn(
+                  "text-[10px] font-medium uppercase tracking-[0.4em]",
+                  light ? "text-sapphire" : "text-gold"
+                )}
+              >
+                Featured Campaigns
+              </p>
+            </motion.div>
+            <motion.h2
+              initial={{ opacity: 0, y: 30, filter: "blur(8px)" }}
+              whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              viewport={{ once: true, margin: "-80px" }}
+              transition={{ duration: 0.9, delay: 0.1, ease: EASE }}
+              className={cn(
+                "mt-5 whitespace-nowrap font-display text-2xl leading-[1.1] sm:text-3xl md:text-4xl",
+                light ? "font-bold text-onyx" : "font-semibold text-cream"
+              )}
+            >
+              <span
+                className={cn(
+                  light ? "text-sapphire-gradient" : "text-gold-gradient"
+                )}
+              >
+                The Brand Spotlight
+              </span>
+            </motion.h2>
+            <motion.p
+              initial={{ opacity: 0, y: 30, filter: "blur(8px)" }}
+              whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              viewport={{ once: true, margin: "-80px" }}
+              transition={{ duration: 0.9, delay: 0.2, ease: EASE }}
+              className={cn(
+                "mt-4 max-w-xl text-sm leading-relaxed transition-colors duration-500",
+                light ? "font-medium text-onyx/85" : "text-cream-dim"
+              )}
+            >
+              Featured houses take the floor — one luminous campaign at a time,
+              curated for the Batra Verse collector.
+            </motion.p>
+          </div>
+
+          {/* Arrows */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.8, delay: 0.3 }}
+            className="flex items-center gap-3"
+          >
+            <button
+              aria-label="Previous campaign"
+              onClick={() => go(-1)}
+              className={cn(
+                "grid h-11 w-11 place-items-center rounded-full border transition-all duration-300 active:scale-95",
+                light
+                  ? "border-onyx/20 text-onyx hover:border-sapphire hover:text-sapphire"
+                  : "border-white/15 text-cream-dim hover:border-gold hover:text-gold-light"
+              )}
+            >
+              <ChevronLeft size={18} strokeWidth={1.5} />
+            </button>
+            <button
+              aria-label="Next campaign"
+              onClick={() => go(1)}
+              className={cn(
+                "grid h-11 w-11 place-items-center rounded-full border transition-all duration-300 active:scale-95",
+                light
+                  ? "border-onyx/20 text-onyx hover:border-sapphire hover:text-sapphire"
+                  : "border-white/15 text-cream-dim hover:border-gold hover:text-gold-light"
+              )}
+            >
+              <ChevronRight size={18} strokeWidth={1.5} />
+            </button>
+          </motion.div>
+        </div>
+        )}
+
+        {/* Billboard */}
+        <motion.div
+          initial={{ opacity: 0, y: 40 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-80px" }}
+          transition={{ duration: 1, delay: 0.15, ease: EASE }}
+          className="relative mt-12 overflow-hidden"
+          onMouseEnter={() => setHovered(true)}
+          onMouseLeave={() => setHovered(false)}
+        >
+          <div className="relative aspect-[16/10] w-full overflow-hidden sm:aspect-[21/9]">
+            <AnimatePresence mode="popLayout">
+              <motion.div
+                key={index}
+                className="absolute inset-0"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 1, ease: "easeInOut" }}
+              >
+                <motion.div
+                  className="absolute inset-0"
+                  initial={{ scale: 1.1 }}
+                  animate={{ scale: 1 }}
+                  transition={{ duration: (billboards[index]?.duration || DEFAULT_DURATION), ease: "linear" }}
+                >
+                  <img
+                    src={current.img}
+                    alt=""
+                    className="absolute inset-0 w-full h-full object-cover"
+                  />
+                </motion.div>
+              </motion.div>
+            </AnimatePresence>
+
+            {/* Scrims */}
+            <div className="absolute inset-0 bg-gradient-to-r from-abyss/85 via-abyss/40 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-abyss/80 via-transparent to-abyss/30" />
+
+            {/* Progress hairline */}
+            <div className="absolute inset-x-0 top-0 h-px bg-white/10">
+                <div
+                  className={cn(
+                    "h-full origin-left",
+                    light ? "bg-sapphire" : "bg-gold"
+                  )}
+                  style={{ transform: `scaleX(${progress})` }}
+                />
+            </div>
+
+            {/* AD badge */}
+            <div className="absolute left-6 top-6 flex items-center gap-2">
+              <span className="grid h-6 w-6 place-items-center border border-white/25 bg-abyss/50 text-[9px] font-medium tracking-[0.2em] text-cream backdrop-blur-sm">
+                AD
+              </span>
+            </div>
+
+            {/* Copy */}
+            <div className="absolute inset-x-0 bottom-0 p-8 sm:p-12">
+              <AnimatePresence mode="popLayout">
+                <motion.div
+                  key={index}
+                  className="max-w-lg"
+                  initial={{ opacity: 0, y: 24 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -16 }}
+                  transition={{ duration: 0.8, delay: 0.15, ease: EASE }}
+                >
+                  <h3 className="font-display text-3xl font-semibold text-cream sm:text-4xl">
+                    {current.tagline}
+                  </h3>
+                  <p className="mt-3 max-w-md text-sm leading-relaxed text-cream-dim">
+                    {current.line}
+                  </p>
+                  <Link
+                    href={current.href}
+                    className="group relative mt-6 inline-flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.25em] text-gold-light transition-colors duration-300 hover:text-cream"
+                  >
+                    View Campaign
+                    <ArrowRight
+                      size={14}
+                      strokeWidth={1.75}
+                      className="transition-transform duration-300 group-hover:translate-x-1"
+                    />
+                    <span className="absolute -bottom-1.5 left-0 h-px w-0 bg-gold transition-all duration-700 group-hover:w-full" />
+                  </Link>
+                </motion.div>
+              </AnimatePresence>
+            </div>
+
+            {/* Tabs */}
+            <div className="absolute bottom-0 right-0 hidden items-end gap-5 p-8 sm:flex sm:p-12">
+              {billboards.map((b, i) => (
+                <button
+                  key={b.tagline}
+                  onClick={() => setIndex(i)}
+                  className="group flex flex-col items-start gap-1.5"
+                >
+                  <span
+                    className={cn(
+                      "text-[9px] font-medium uppercase tracking-[0.3em] transition-colors duration-300",
+                      i === index
+                        ? "text-gold-light"
+                        : "text-cream-dim/50 group-hover:text-cream-dim"
+                    )}
+                  >
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                  <span
+                    className={cn(
+                      "h-px transition-all duration-500",
+                      i === index
+                        ? "w-10 bg-gold"
+                        : "w-5 bg-white/25 group-hover:w-8 group-hover:bg-white/40"
+                    )}
+                  />
+                </button>
+              ))}
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    </section>
+  );
+}

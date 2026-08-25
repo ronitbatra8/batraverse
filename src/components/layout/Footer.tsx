@@ -1,0 +1,315 @@
+"use client";
+
+import { useEffect, useRef } from "react";
+import Link from "next/link";
+import {
+  BadgePercent,
+  Eye,
+  FileText,
+  Heart,
+  HelpCircle,
+  LayoutGrid,
+  Mail,
+  MapPin,
+  Package,
+  Phone,
+  Receipt,
+  ShieldCheck,
+  ShoppingBag,
+  Sparkles,
+  Store,
+  User,
+  type LucideIcon,
+} from "lucide-react";
+import { useTheme } from "@/components/theme/ThemeProvider";
+import Brand from "@/components/brand/Brand";
+import { cn } from "@/lib/utils";
+
+const SHOP_LINKS = [
+  { label: "All Products", href: "/products", icon: ShoppingBag },
+  { label: "Store", href: "/store", icon: LayoutGrid },
+  { label: "New Arrivals", href: "/products?sort=new", icon: Sparkles },
+  { label: "Deals", href: "/products?sort=deals", icon: BadgePercent },
+] as const;
+
+const COMPANY_LINKS = [
+  { label: "About Us", href: "/about", icon: Store },
+  { label: "Contact", href: "/contact", icon: Mail },
+  { label: "Terms & Services", href: "/terms", icon: FileText },
+  { label: "Privacy Policy", href: "/privacy", icon: ShieldCheck },
+] as const;
+
+const SUPPORT_LINKS = [
+  { label: "Track Order", href: "/tracking/demo", icon: Package },
+  { label: "My Orders", href: "/orders", icon: Receipt },
+  { label: "Private Viewing", href: "/private-viewing", icon: Eye },
+  { label: "Wishlist", href: "/wishlist", icon: Heart },
+  { label: "My Account", href: "/account", icon: User },
+] as const;
+
+type FooterLink = {
+  label: string;
+  href: string;
+  icon: LucideIcon;
+};
+
+const BOTTOM_LINKS = [
+  { label: "Terms", href: "/terms", icon: FileText },
+  { label: "Privacy", href: "/privacy", icon: ShieldCheck },
+  { label: "Help", href: "/contact", icon: HelpCircle },
+] as const;
+
+const SOCIALS = [
+  {
+    label: "Instagram",
+    icon: (
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+        <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+        <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
+      </svg>
+    ),
+  },
+  {
+    label: "Facebook",
+    icon: (
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
+      </svg>
+    ),
+  },
+  {
+    label: "X",
+    icon: (
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <path d="M4 4l16 16" />
+        <path d="M20 4L4 20" />
+      </svg>
+    ),
+  },
+] as const;
+
+export default function Footer() {
+  const { theme } = useTheme();
+  const light = theme === "light";
+
+  const rootRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => {
+      document.documentElement.style.setProperty(
+        "--footer-height",
+        `${entry.borderBoxSize?.[0]?.blockSize ?? el.offsetHeight}px`
+      );
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  return (
+    <footer
+      ref={rootRef}
+      className={cn(
+        "fixed inset-x-0 bottom-0 z-0 border-t",
+        light ? "border-black/10 bg-white" : "border-white/10 bg-abyss"
+      )}
+    >
+      <div
+        className={cn(
+          "mx-auto max-w-7xl px-6 py-16 sm:px-8"
+        )}
+      >
+        {/* Top grid */}
+        <div className="grid gap-12 md:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
+          {/* Brand block */}
+          <div>
+            <Link href="/" aria-label="Batraverse — home" className="inline-block">
+              <Brand boot={false} light={light} size="lg" />
+            </Link>
+            <p
+              className={cn(
+                "mt-5 max-w-sm text-sm leading-relaxed transition-colors duration-500",
+                light ? "font-medium text-onyx/85" : "text-cream-dim"
+              )}
+            >
+              A curated marketplace for the world&apos;s finest goods —
+              exceptional quality, verified sellers, and a buying experience
+              worthy of the products themselves.
+            </p>
+            <div
+              className={cn(
+                "mt-6 space-y-2.5 text-sm transition-colors duration-500",
+                light ? "font-medium text-onyx/85" : "text-cream-dim"
+              )}
+            >
+              <p className="flex items-center gap-3">
+                <MapPin
+                  size={15}
+                  className={cn("shrink-0", light ? "text-sapphire" : "text-gold")}
+                />
+                India
+              </p>
+              <p className="flex items-center gap-3">
+                <Mail
+                  size={15}
+                  className={cn("shrink-0", light ? "text-sapphire" : "text-gold")}
+                />
+                <a
+                  href="mailto:support@batraverse.com"
+                  className={cn(
+                    "group relative transition-colors",
+                    light ? "hover:text-sapphire" : "hover:text-gold-light"
+                  )}
+                >
+                  support@batraverse.com
+                  <span
+                    className={cn(
+                      "absolute bottom-0 left-0 h-px w-0 transition-all duration-700 group-hover:w-full",
+                      light ? "bg-sapphire" : "bg-gold"
+                    )}
+                  />
+                </a>
+              </p>
+              <p className="flex items-center gap-3">
+                <Phone
+                  size={15}
+                  className={cn("shrink-0", light ? "text-sapphire" : "text-gold")}
+                />
+                +91 00000 00000
+              </p>
+            </div>
+
+            {/* Socials */}
+            <div className="mt-7 flex items-center gap-3">
+              {SOCIALS.map((s) => (
+                <a
+                  key={s.label}
+                  href="#"
+                  aria-label={s.label}
+                  className={cn(
+                    "grid h-9 w-9 place-items-center rounded-full border transition-all duration-300 hover:scale-105",
+                    light
+                      ? "border-onyx/15 text-onyx/70 hover:border-sapphire hover:text-sapphire"
+                      : "border-white/15 text-cream-dim hover:border-gold hover:text-gold-light"
+                  )}
+                >
+                  {s.icon}
+                </a>
+              ))}
+            </div>
+          </div>
+
+          {/* Link columns */}
+          <FooterColumn title="Shop" links={SHOP_LINKS} light={light} />
+          <FooterColumn title="Company" links={COMPANY_LINKS} light={light} />
+          <FooterColumn title="Support" links={SUPPORT_LINKS} light={light} />
+        </div>
+
+        {/* Bottom bar */}
+        <div
+          className={cn(
+            "mt-14 flex flex-col items-center justify-between gap-4 border-t pt-6 sm:flex-row",
+            light ? "border-black/10" : "border-white/5"
+          )}
+        >
+          <p
+            className={cn(
+              "text-xs tracking-wider transition-colors duration-500",
+              light ? "font-semibold text-onyx/85" : "text-cream-dim/70"
+            )}
+          >
+            © {new Date().getFullYear()} Batra Verse. All rights reserved.
+          </p>
+          <div
+            className={cn(
+              "flex items-center gap-6 text-[11px] uppercase tracking-[0.2em] transition-colors duration-500",
+              light ? "font-semibold text-onyx/85" : "text-cream-dim/70"
+            )}
+          >
+            {BOTTOM_LINKS.map((l) => {
+              const Icon = l.icon;
+              return (
+                <Link
+                  key={l.label}
+                  href={l.href}
+                  className={cn(
+                    "group relative inline-flex items-center gap-1.5 transition-colors",
+                    light ? "hover:text-sapphire" : "hover:text-gold-light"
+                  )}
+                >
+                  <Icon size={13} strokeWidth={1.75} />
+                  {l.label}
+                  <span
+                    className={cn(
+                      "absolute bottom-0 left-0 h-px w-0 transition-all duration-700 group-hover:w-full",
+                      light ? "bg-sapphire" : "bg-gold"
+                    )}
+                  />
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </footer>
+  );
+}
+
+function FooterColumn({
+  title,
+  links,
+  light,
+}: {
+  title: string;
+  links: readonly FooterLink[];
+  light: boolean;
+}) {
+  return (
+    <div>
+      <h3
+        className={cn(
+          "text-[11px] font-semibold uppercase tracking-[0.3em]",
+          light ? "text-sapphire" : "text-gold-light"
+        )}
+      >
+        {title}
+      </h3>
+      <ul className="mt-5 space-y-3">
+        {links.map((link) => {
+          const Icon = link.icon;
+          return (
+            <li key={link.label}>
+              <Link
+                href={link.href}
+                className={cn(
+                  "group relative inline-flex items-center gap-2.5 text-sm transition-colors duration-300",
+                  light
+                    ? "font-semibold text-onyx/85 hover:text-sapphire"
+                    : "text-cream-dim hover:text-gold-light"
+                )}
+              >
+                <span
+                  className={cn(
+                    "shrink-0 transition-all duration-300 group-hover:translate-x-0.5",
+                    light ? "text-sapphire/80" : "text-gold/80"
+                  )}
+                >
+                  <Icon size={14} strokeWidth={1.75} />
+                </span>
+                {link.label}
+                <span
+                  className={cn(
+                    "absolute bottom-0 left-0 h-px w-0 transition-all duration-700 group-hover:w-full",
+                    light ? "bg-sapphire" : "bg-gold"
+                  )}
+                />
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
