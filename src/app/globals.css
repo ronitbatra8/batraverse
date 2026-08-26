@@ -239,15 +239,17 @@ html.light {
 }
 
 /* Rolls-Royce cursor — exact match */
-*, *::before, *::after {
-  cursor: none !important;
-}
-html.scroll-locked * {
-  cursor: default !important;
+@media (pointer: fine) {
+  html {
+    cursor: none !important;
+  }
+  html.scroll-locked,
+  html.scroll-locked * {
+    cursor: default !important;
+  }
 }
 .rrmc-cursor {
   display: none;
-  filter: saturate(0) contrast(2) brightness(1.5) invert(0.2);
   height: 15px;
   left: 0;
   mix-blend-mode: difference;
@@ -278,7 +280,22 @@ html.scroll-locked * {
   width: 100%;
   z-index: 10;
   background: rgba(255, 255, 255, 0.15);
-  box-shadow: 0 0 8px 2px rgba(255, 255, 255, 0.6),
-              0 0 24px 6px rgba(255, 255, 255, 0.25);
 }
+
+/* Performance: CSS keyframe animations replacing Framer Motion infinite loops */
+@keyframes sweep {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+@keyframes marquee {
+  0% { transform: translateX(0%); }
+  100% { transform: translateX(-50%); }
+}
+@keyframes swing {
+  0%, 100% { transform: rotate(-2.5deg); }
+  50% { transform: rotate(2.5deg); }
+}
+.anim-sweep { animation: sweep 3.5s ease-in-out infinite; }
+.anim-marquee { animation: marquee 28s linear infinite; }
+.anim-swing { animation: swing 4s ease-in-out infinite; }
 

@@ -368,7 +368,7 @@ export default function OrdersPage() {
                             <p className={cn("mb-3 text-[10px] font-semibold uppercase tracking-[0.25em]", light ? "text-dark-500" : "text-cream-dim/70")}>
                               Order Tracking
                             </p>
-                            <div className="flex items-start gap-0">
+                            <div className="flex items-start gap-0 overflow-x-auto">
                               {steps.map((step, i) => {
                                 const isCompleted = i <= trackIdx;
                                 const isCurrent = i === trackIdx;
@@ -444,7 +444,7 @@ export default function OrdersPage() {
                                 </div>
                               </div>
                             ) : (
-                              <div className="flex items-center gap-3">
+                              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                                 <Shield size={18} className={cn(light ? "text-sapphire" : "text-gold")} />
                                 <div className="flex-1">
                                   <p className={cn("text-xs font-medium", light ? "text-dark-900" : "text-cream")}>Delivery verification required</p>
@@ -485,7 +485,7 @@ export default function OrdersPage() {
                               return (
                                 <div key={idx} className={cn("flex items-center justify-between rounded-xl px-4 py-3", itemStatus === "cancelled" ? (light ? "bg-red-50/80 opacity-60" : "bg-red-500/5 opacity-60") : light ? "bg-dark-50/80" : "bg-onyx/50")}>
                                   <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex flex-wrap items-center gap-1.5">
                                       <p className={cn("text-xs font-medium truncate", itemStatus === "cancelled" && "line-through", light ? "text-dark-900" : "text-cream")}>{item.name}</p>
                                       <span className={cn("inline-block px-1.5 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider border", itemStatusColors[itemStatus] || "")}>
                                         {itemStatus.replace(/_/g, " ")}
@@ -501,7 +501,7 @@ export default function OrdersPage() {
                                       Qty: {item.quantity}{item.color ? ` · ${item.color}` : ""}{item.size ? ` · ${item.size}` : ""}
                                     </p>
                                   </div>
-                                  <div className="flex items-center gap-3">
+                                  <div className="flex flex-wrap items-center gap-3">
                                     <span className={cn("text-xs font-medium tabular-nums", light ? "text-dark-900" : "text-cream")}>
                                       {formatPrice(item.price * item.quantity)}
                                     </span>
@@ -562,7 +562,7 @@ export default function OrdersPage() {
                               Delivery Signature
                             </p>
                             <div className={cn("rounded-lg border p-2 inline-block", light ? "border-dark-200 bg-dark-100" : "border-white/10 bg-dark-800")}>
-                              <img src={order.signatureData} alt="Delivery signature" className="h-16" />
+                              <img src={order.signatureData} alt="Delivery signature" className="h-16 w-auto max-w-full" />
                             </div>
                             {order.signedAt && (
                               <p className={cn("text-[10px] mt-2", light ? "text-dark-400" : "text-cream-dim/40")}>
@@ -576,7 +576,7 @@ export default function OrdersPage() {
                         {canCancel && (
                           <div>
                             {confirmCancelId === order.id ? (
-                              <div className={cn("flex items-center gap-3 rounded-xl border px-4 py-3", light ? "border-red-200 bg-red-50" : "border-red-500/20 bg-red-500/5")}>
+                              <div className={cn("flex flex-col gap-3 rounded-xl border px-4 py-3 sm:flex-row sm:items-center", light ? "border-red-200 bg-red-50" : "border-red-500/20 bg-red-500/5")}>
                                 <p className={cn("flex-1 text-xs", light ? "text-red-600" : "text-red-400")}>
                                   Are you sure? This action cannot be undone.
                                 </p>

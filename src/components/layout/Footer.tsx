@@ -87,6 +87,14 @@ const SOCIALS = [
       </svg>
     ),
   },
+  {
+    label: "WhatsApp",
+    icon: (
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+      </svg>
+    ),
+  },
 ] as const;
 
 export default function Footer() {
@@ -116,140 +124,226 @@ export default function Footer() {
         light ? "border-black/10 bg-white" : "border-white/10 bg-abyss"
       )}
     >
-      <div
-        className={cn(
-          "mx-auto max-w-7xl px-6 py-16 sm:px-8"
-        )}
-      >
-        {/* Top grid */}
-        <div className="grid gap-12 md:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
-          {/* Brand block */}
-          <div>
-            <Link href="/" aria-label="Batraverse — home" className="inline-block">
-              <Brand boot={false} light={light} size="lg" />
+      {/* MOBILE: New simplified layout (below sm) */}
+      <div className="sm:hidden">
+        <div className="mx-auto max-w-7xl px-6 py-10">
+          {/* Logo centered */}
+          <div className="flex justify-center">
+            <Link href="/" aria-label="Batraverse — home">
+              <Brand boot={false} light={light} size="lg" mobileWordmark />
             </Link>
+          </div>
+
+          {/* Divider */}
+          <div className={cn("mx-auto mt-8 h-px max-w-xl", light ? "bg-black/10" : "bg-white/10")} />
+
+          {/* Two columns */}
+          <div className="mx-auto mt-8 grid max-w-xl grid-cols-2 gap-8">
+            <FooterColumn title="Shop" links={SHOP_LINKS} light={light} />
+            <FooterColumn title="Company" links={COMPANY_LINKS} light={light} />
+          </div>
+
+          {/* Divider */}
+          <div className={cn("mx-auto mt-8 h-px max-w-xl", light ? "bg-black/10" : "bg-white/10")} />
+
+          {/* Social icons */}
+          <div className="mt-8 flex items-center justify-center gap-4">
+            {SOCIALS.map((s) => (
+              <a
+                key={s.label}
+                href="#"
+                aria-label={s.label}
+                className={cn(
+                  "grid h-9 w-9 place-items-center rounded-full border transition-all duration-300 hover:scale-105",
+                  light
+                    ? "border-onyx/15 text-onyx/70 hover:border-sapphire hover:text-sapphire"
+                    : "border-white/15 text-cream-dim hover:border-gold hover:text-gold-light"
+                )}
+              >
+                {s.icon}
+              </a>
+            ))}
+          </div>
+
+          {/* Divider */}
+          <div className={cn("mx-auto mt-8 h-px max-w-xl", light ? "bg-black/10" : "bg-white/10")} />
+
+          {/* Bottom bar */}
+          <div className="mt-6 flex flex-col items-center justify-between gap-4">
             <p
               className={cn(
-                "mt-5 max-w-sm text-sm leading-relaxed transition-colors duration-500",
-                light ? "font-medium text-onyx/85" : "text-cream-dim"
+                "text-xs tracking-wider transition-colors duration-500",
+                light ? "font-semibold text-onyx/85" : "text-cream-dim/70"
               )}
             >
-              A curated marketplace for the world&apos;s finest goods —
-              exceptional quality, verified sellers, and a buying experience
-              worthy of the products themselves.
+              © {new Date().getFullYear()} Batra Verse. All rights reserved.
             </p>
             <div
               className={cn(
-                "mt-6 space-y-2.5 text-sm transition-colors duration-500",
-                light ? "font-medium text-onyx/85" : "text-cream-dim"
+                "flex items-center gap-6 text-[11px] uppercase tracking-[0.2em] transition-colors duration-500",
+                light ? "font-semibold text-onyx/85" : "text-cream-dim/70"
               )}
             >
-              <p className="flex items-center gap-3">
-                <MapPin
-                  size={15}
-                  className={cn("shrink-0", light ? "text-sapphire" : "text-gold")}
-                />
-                India
-              </p>
-              <p className="flex items-center gap-3">
-                <Mail
-                  size={15}
-                  className={cn("shrink-0", light ? "text-sapphire" : "text-gold")}
-                />
-                <a
-                  href="mailto:support@batraverse.com"
-                  className={cn(
-                    "group relative transition-colors",
-                    light ? "hover:text-sapphire" : "hover:text-gold-light"
-                  )}
-                >
-                  support@batraverse.com
-                  <span
+              {BOTTOM_LINKS.map((l) => {
+                const Icon = l.icon;
+                return (
+                  <Link
+                    key={l.label}
+                    href={l.href}
                     className={cn(
-                      "absolute bottom-0 left-0 h-px w-0 transition-all duration-700 group-hover:w-full",
-                      light ? "bg-sapphire" : "bg-gold"
+                      "group relative inline-flex items-center gap-1.5 transition-colors",
+                      light ? "hover:text-sapphire" : "hover:text-gold-light"
                     )}
-                  />
-                </a>
-              </p>
-              <p className="flex items-center gap-3">
-                <Phone
-                  size={15}
-                  className={cn("shrink-0", light ? "text-sapphire" : "text-gold")}
-                />
-                +91 00000 00000
-              </p>
-            </div>
-
-            {/* Socials */}
-            <div className="mt-7 flex items-center gap-3">
-              {SOCIALS.map((s) => (
-                <a
-                  key={s.label}
-                  href="#"
-                  aria-label={s.label}
-                  className={cn(
-                    "grid h-9 w-9 place-items-center rounded-full border transition-all duration-300 hover:scale-105",
-                    light
-                      ? "border-onyx/15 text-onyx/70 hover:border-sapphire hover:text-sapphire"
-                      : "border-white/15 text-cream-dim hover:border-gold hover:text-gold-light"
-                  )}
-                >
-                  {s.icon}
-                </a>
-              ))}
+                  >
+                    <Icon size={13} strokeWidth={1.75} />
+                    {l.label}
+                    <span
+                      className={cn(
+                        "absolute bottom-0 left-0 h-px w-0 transition-all duration-700 group-hover:w-full",
+                        light ? "bg-sapphire" : "bg-gold"
+                      )}
+                    />
+                  </Link>
+                );
+              })}
             </div>
           </div>
-
-          {/* Link columns */}
-          <FooterColumn title="Shop" links={SHOP_LINKS} light={light} />
-          <FooterColumn title="Company" links={COMPANY_LINKS} light={light} />
-          <FooterColumn title="Support" links={SUPPORT_LINKS} light={light} />
         </div>
+      </div>
 
-        {/* Bottom bar */}
-        <div
-          className={cn(
-            "mt-14 flex flex-col items-center justify-between gap-4 border-t pt-6 sm:flex-row",
-            light ? "border-black/10" : "border-white/5"
-          )}
-        >
-          <p
-            className={cn(
-              "text-xs tracking-wider transition-colors duration-500",
-              light ? "font-semibold text-onyx/85" : "text-cream-dim/70"
-            )}
-          >
-            © {new Date().getFullYear()} Batra Verse. All rights reserved.
-          </p>
+      {/* DESKTOP: Original layout (sm+) */}
+      <div className="hidden sm:block">
+        <div className="mx-auto max-w-7xl px-8 py-16">
+          {/* Top grid */}
+          <div className="grid grid-cols-2 gap-8 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
+            {/* Brand block */}
+            <div className="sm:col-span-2 lg:col-span-1">
+              <Link href="/" aria-label="Batraverse — home" className="inline-block">
+                <Brand boot={false} light={light} size="lg" />
+              </Link>
+              <p
+                className={cn(
+                  "mt-5 max-w-sm text-sm leading-relaxed transition-colors duration-500",
+                  light ? "font-medium text-onyx/85" : "text-cream-dim"
+                )}
+              >
+                A curated marketplace for the world&apos;s finest goods —
+                exceptional quality, verified sellers, and a buying experience
+                worthy of the products themselves.
+              </p>
+              <div
+                className={cn(
+                  "mt-6 space-y-2.5 text-sm transition-colors duration-500",
+                  light ? "font-medium text-onyx/85" : "text-cream-dim"
+                )}
+              >
+                <p className="flex items-center gap-3">
+                  <MapPin
+                    size={15}
+                    className={cn("shrink-0", light ? "text-sapphire" : "text-gold")}
+                  />
+                  India
+                </p>
+                <p className="flex items-center gap-3">
+                  <Mail
+                    size={15}
+                    className={cn("shrink-0", light ? "text-sapphire" : "text-gold")}
+                  />
+                  <a
+                    href="mailto:support@batraverse.com"
+                    className={cn(
+                      "group relative transition-colors",
+                      light ? "hover:text-sapphire" : "hover:text-gold-light"
+                    )}
+                  >
+                    support@batraverse.com
+                    <span
+                      className={cn(
+                        "absolute bottom-0 left-0 h-px w-0 transition-all duration-700 group-hover:w-full",
+                        light ? "bg-sapphire" : "bg-gold"
+                      )}
+                    />
+                  </a>
+                </p>
+                <p className="flex items-center gap-3">
+                  <Phone
+                    size={15}
+                    className={cn("shrink-0", light ? "text-sapphire" : "text-gold")}
+                  />
+                  +91 00000 00000
+                </p>
+              </div>
+
+              {/* Socials */}
+              <div className="mt-7 flex items-center gap-3">
+                {SOCIALS.map((s) => (
+                  <a
+                    key={s.label}
+                    href="#"
+                    aria-label={s.label}
+                    className={cn(
+                      "grid h-9 w-9 place-items-center rounded-full border transition-all duration-300 hover:scale-105",
+                      light
+                        ? "border-onyx/15 text-onyx/70 hover:border-sapphire hover:text-sapphire"
+                        : "border-white/15 text-cream-dim hover:border-gold hover:text-gold-light"
+                    )}
+                  >
+                    {s.icon}
+                  </a>
+                ))}
+              </div>
+            </div>
+
+            {/* Link columns */}
+            <FooterColumn title="Shop" links={SHOP_LINKS} light={light} />
+            <FooterColumn title="Company" links={COMPANY_LINKS} light={light} />
+            <FooterColumn title="Support" links={SUPPORT_LINKS} light={light} />
+          </div>
+
+          {/* Bottom bar */}
           <div
             className={cn(
-              "flex items-center gap-6 text-[11px] uppercase tracking-[0.2em] transition-colors duration-500",
-              light ? "font-semibold text-onyx/85" : "text-cream-dim/70"
+              "mt-14 flex flex-col items-center justify-between gap-4 border-t pt-6 sm:flex-row",
+              light ? "border-black/10" : "border-white/5"
             )}
           >
-            {BOTTOM_LINKS.map((l) => {
-              const Icon = l.icon;
-              return (
-                <Link
-                  key={l.label}
-                  href={l.href}
-                  className={cn(
-                    "group relative inline-flex items-center gap-1.5 transition-colors",
-                    light ? "hover:text-sapphire" : "hover:text-gold-light"
-                  )}
-                >
-                  <Icon size={13} strokeWidth={1.75} />
-                  {l.label}
-                  <span
+            <p
+              className={cn(
+                "text-xs tracking-wider transition-colors duration-500",
+                light ? "font-semibold text-onyx/85" : "text-cream-dim/70"
+              )}
+            >
+              © {new Date().getFullYear()} Batra Verse. All rights reserved.
+            </p>
+            <div
+              className={cn(
+                "flex items-center gap-6 text-[11px] uppercase tracking-[0.2em] transition-colors duration-500",
+                light ? "font-semibold text-onyx/85" : "text-cream-dim/70"
+              )}
+            >
+              {BOTTOM_LINKS.map((l) => {
+                const Icon = l.icon;
+                return (
+                  <Link
+                    key={l.label}
+                    href={l.href}
                     className={cn(
-                      "absolute bottom-0 left-0 h-px w-0 transition-all duration-700 group-hover:w-full",
-                      light ? "bg-sapphire" : "bg-gold"
+                      "group relative inline-flex items-center gap-1.5 transition-colors",
+                      light ? "hover:text-sapphire" : "hover:text-gold-light"
                     )}
-                  />
-                </Link>
-              );
-            })}
+                  >
+                    <Icon size={13} strokeWidth={1.75} />
+                    {l.label}
+                    <span
+                      className={cn(
+                        "absolute bottom-0 left-0 h-px w-0 transition-all duration-700 group-hover:w-full",
+                        light ? "bg-sapphire" : "bg-gold"
+                      )}
+                    />
+                  </Link>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>
@@ -276,7 +370,7 @@ function FooterColumn({
       >
         {title}
       </h3>
-      <ul className="mt-5 space-y-3">
+      <ul className="mt-3 space-y-1.5 sm:mt-4 sm:space-y-3">
         {links.map((link) => {
           const Icon = link.icon;
           return (

@@ -7,6 +7,7 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
   const token = typeof window !== "undefined" ? getAuth("bt-token") : null;
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
+    "ngrok-skip-browser-warning": "true",
     ...((options.headers as Record<string, string>) || {}),
   };
   if (token) headers["Authorization"] = `Bearer ${token}`;
@@ -32,7 +33,7 @@ export function apiUrl(path: string) {
 
 export async function apiUpload(path: string, formData: FormData) {
   const token = typeof window !== "undefined" ? getAuth("bt-token") : null;
-  const headers: Record<string, string> = {};
+  const headers: Record<string, string> = { "ngrok-skip-browser-warning": "true" };
   if (token) headers["Authorization"] = `Bearer ${token}`;
 
   const res = await fetch(`${API_URL}${path}`, { method: "POST", headers, body: formData });

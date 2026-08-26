@@ -142,7 +142,7 @@ export default function PrivacyPage() {
             <Link
               href="/contact"
               className={cn(
-                "group inline-flex items-center gap-3 rounded-full px-8 py-4 text-[11px] font-semibold uppercase tracking-[0.3em] transition-all duration-500",
+                "group inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-[10px] font-semibold uppercase tracking-[0.3em] transition-all duration-500 sm:gap-3 sm:px-8 sm:py-4 sm:text-[11px]",
                 light
                   ? "bg-sapphire text-white hover:shadow-[0_0_50px_rgba(30,58,138,0.3)]"
                   : "bg-gold text-abyss hover:shadow-[0_0_50px_rgba(212,175,55,0.4)]"

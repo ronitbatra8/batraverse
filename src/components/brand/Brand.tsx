@@ -24,11 +24,13 @@ export default function Brand({
   light = false,
   heroWhite = false,
   size = "md",
+  mobileWordmark = false,
 }: {
   boot: boolean;
   light?: boolean;
   heroWhite?: boolean;
   size?: "md" | "lg";
+  mobileWordmark?: boolean;
 }) {
   const lg = size === "lg";
   const cardSize = lg ? "h-10 w-10 sm:h-11 sm:w-11" : "h-9 w-9 sm:h-10 sm:w-10";
@@ -57,7 +59,7 @@ export default function Brand({
       </motion.div>
 
       {/* Wordmark — BATRA cream (onyx bold in light), VERSE gilded (dark-glow blue in light) */}
-      <span className="flex items-baseline gap-[0.28em]">
+      <span className={`${mobileWordmark ? "flex" : "hidden sm:flex"} items-baseline gap-[0.28em]`}>
         <motion.span
           variants={wordStagger}
           className="flex items-baseline gap-[0.16em]"

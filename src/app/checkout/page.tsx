@@ -141,7 +141,7 @@ export default function CheckoutPage() {
 
   const updateShip = (field: keyof ShippingForm, value: string) => setShip((p) => ({ ...p, [field]: value }));
 
-  const shipValid = ship.firstName && ship.lastName && ship.email && ship.phone && ship.address && ship.city;
+  const shipValid = ship.firstName && ship.email && ship.phone && ship.address && ship.city;
   const payValid = payMethod !== "" && (
     payMethod === "cod" || payMethod === "upi_delivery" || payMethod === "wallet_balance" ||
     (payMethod === "online" && onlineSub !== "" && (
@@ -392,7 +392,7 @@ export default function CheckoutPage() {
 
         {/* Checkout content — only rendered when signed in */}
         {(!mounted || user) && (
-        <div className="mx-auto mt-10 grid max-w-[100rem] gap-10 px-5 sm:px-10 lg:grid-cols-3">
+        <div className="mx-auto mt-10 grid max-w-[100rem] gap-6 px-5 sm:gap-10 sm:px-10 lg:grid-cols-3">
           {/* Form area */}
           <div className="lg:col-span-2">
             {/* Step 1: Shipping */}
@@ -412,7 +412,7 @@ export default function CheckoutPage() {
                   </div>
                   <div>
                     <label className={labelCls}>Last Name</label>
-                    <input type="text" value={ship.lastName} readOnly className={cn(inputCls, "opacity-70 cursor-not-allowed")} />
+                    <input type="text" value={ship.lastName} readOnly placeholder="Optional" className={cn(inputCls, "opacity-70 cursor-not-allowed")} />
                   </div>
                   <div className="sm:col-span-2">
                     <label className={labelCls}>Email</label>
@@ -652,7 +652,7 @@ export default function CheckoutPage() {
                   </div>
                 )}
 
-                <div className="mt-8 flex justify-between">
+                <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
                   <button type="button" onClick={() => setStep("shipping")} className={cn("rounded-xl border px-6 py-3.5 text-[11px] font-bold uppercase tracking-[0.25em] transition-all duration-300", light ? "border-dark-200 text-dark-500 hover:border-sapphire hover:text-sapphire" : "border-white/10 text-cream-dim hover:border-gold hover:text-gold-light")}>Back</button>
                   <button type="button" onClick={() => setStep("confirm")} disabled={!payValid}
                     className={cn("rounded-xl px-8 py-3.5 text-[11px] font-bold uppercase tracking-[0.25em] transition-all duration-300", !payValid ? "opacity-40 cursor-not-allowed" : "", light ? "bg-sapphire text-white hover:bg-sapphire-light hover:shadow-[0_0_30px_rgba(30,58,138,0.3)]" : "bg-gold text-abyss hover:bg-gold-light hover:shadow-[0_0_30px_rgba(212,175,55,0.3)]")}>Review Order</button>
@@ -745,10 +745,10 @@ export default function CheckoutPage() {
                   </div>
                 </div>
 
-                <div className="flex justify-between">
+                <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
                   <button type="button" onClick={() => setStep("payment")} className={cn("rounded-xl border px-6 py-3.5 text-[11px] font-bold uppercase tracking-[0.25em] transition-all duration-300", light ? "border-dark-200 text-dark-500 hover:border-sapphire hover:text-sapphire" : "border-white/10 text-cream-dim hover:border-gold hover:text-gold-light")}>Back</button>
                   <button type="button" onClick={handlePlaceOrder} disabled={processing}
-                    className={cn("flex items-center gap-2 rounded-xl px-8 py-3.5 text-[11px] font-bold uppercase tracking-[0.25em] transition-all duration-300", processing ? "opacity-60 cursor-not-allowed" : "", light ? "bg-dark-900 text-white hover:bg-dark-800 hover:shadow-[0_0_30px_rgba(0,0,0,0.25)]" : "bg-gold text-abyss hover:bg-gold-light hover:shadow-[0_0_30px_rgba(212,175,55,0.35)]")}>
+                    className={cn("flex items-center justify-center gap-2 rounded-xl px-6 py-3.5 text-[11px] font-bold uppercase tracking-[0.25em] transition-all duration-300", processing ? "opacity-60 cursor-not-allowed" : "", light ? "bg-dark-900 text-white hover:bg-dark-800 hover:shadow-[0_0_30px_rgba(0,0,0,0.25)]" : "bg-gold text-abyss hover:bg-gold-light hover:shadow-[0_0_30px_rgba(212,175,55,0.35)]")}>
                     {processing ? (<><svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>Processing...</>) : (<><Lock size={12} /> Place Order — {formatPrice(total)}</>)}
                   </button>
                 </div>
@@ -825,7 +825,7 @@ export default function CheckoutPage() {
                     <p className={cn("text-[9px] font-semibold uppercase tracking-[0.2em] mb-2", light ? "text-dark-500" : "text-cream-dim/60")}>
                       {hasMartItems && hasMediverseItems ? "Quick Delivery" : hasMartItems ? "Mart Delivery" : "Mediverse Delivery"}
                     </p>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                       <button
                         type="button"
                         onClick={() => setDeliveryMode("standard")}

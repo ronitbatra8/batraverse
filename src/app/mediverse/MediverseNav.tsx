@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { Search } from "lucide-react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/components/theme/ThemeProvider";
@@ -98,6 +97,21 @@ export default function MediverseNav({
   useEffect(() => { fetchCategories(); }, [fetchCategories]);
 
   const hasSub = subCategories[active];
+  const [navHidden, setNavHidden] = useState(false);
+  const lastY = useRef(0);
+
+  useEffect(() => {
+    const onScroll = () => {
+      const y = window.scrollY;
+      const diff = y - lastY.current;
+      if (Math.abs(diff) < 10) return;
+      if (diff > 0 && y > 120) setNavHidden(true);
+      else setNavHidden(false);
+      lastY.current = y;
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   const handleCategory = (id: string) => {
     onCategoryChange(id);
@@ -106,7 +120,11 @@ export default function MediverseNav({
   };
 
   return (
-    <div className={cn("sticky z-30 border-b backdrop-blur-xl transition-colors duration-500", light ? "border-dark-200/50 bg-white/70" : "border-white/10 bg-abyss/70")} style={{ top: "84px" }}>
+    <div className={cn(        "sticky z-30 border-b backdrop-blur-xl transition-all duration-500 max-sm:duration-300",
+        light
+          ? "border-dark-200/50 bg-white/70"
+          : "border-white/10 bg-abyss/70",
+        navHidden && (hasSub ? "max-sm:-translate-y-[calc(100%+84px)]" : "max-sm:-translate-y-[calc(100%+5px)]"))} style={{ top: "84px" }}>
       <div className="mx-auto flex w-full max-w-[100rem] items-center justify-between gap-3 px-5 sm:px-10">
         <div className="flex items-center gap-2.5 overflow-x-auto py-3 [&::-webkit-scrollbar]:hidden">
           {categories.map((cat) => {
@@ -123,13 +141,6 @@ export default function MediverseNav({
             );
           })}
         </div>
-
-        <Link href="/search?focus=1" className="relative shrink-0">
-          <Search size={15} strokeWidth={1.5} className={cn("pointer-events-none absolute left-4 top-1/2 -translate-y-1/2", light ? "text-dark-400" : "text-cream-dim/50")} />
-          <span className={cn("flex w-40 items-center rounded-full border py-2.5 pl-10 pr-9 text-xs font-light tracking-wide backdrop-blur-md sm:w-56",
-            light ? "border-dark-200 bg-dark-50/80 text-dark-400" : "border-white/10 bg-onyx/60 text-cream-dim/40"
-          )}>Search health products...</span>
-        </Link>
       </div>
 
       {hasSub && (

@@ -240,7 +240,7 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="min-h-screen bg-dark-950 page-transition">
+    <div className="min-h-screen bg-dark-950 page-transition overflow-x-hidden">
       <Sidebar tab={tab} setTab={setTab} loading={loading} onRefresh={loadAll} onSignOut={handleSignOut} badges={badges} />
 
       <main className="pt-40 min-h-screen lg:pl-56">

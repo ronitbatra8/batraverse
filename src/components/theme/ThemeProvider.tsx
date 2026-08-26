@@ -2,8 +2,10 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
+  useMemo,
   useState,
   type ReactNode,
 } from "react";
@@ -24,13 +26,15 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     document.documentElement.classList.toggle("light", theme === "light");
   }, [theme]);
 
+  const toggle = useCallback(
+    () => setTheme((t) => (t === "dark" ? "light" : "dark")),
+    []
+  );
+
+  const value = useMemo(() => ({ theme, toggle }), [theme, toggle]);
+
   return (
-    <ThemeContext.Provider
-      value={{
-        theme,
-        toggle: () => setTheme((t) => (t === "dark" ? "light" : "dark")),
-      }}
-    >
+    <ThemeContext.Provider value={value}>
       {children}
     </ThemeContext.Provider>
   );

@@ -73,7 +73,7 @@ export default function ProductShelf({
         <motion.h2
           variants={rise}
           className={cn(
-            "mt-5 whitespace-nowrap font-display text-2xl leading-[1.1] sm:text-3xl md:text-4xl",
+            "mt-5 font-display text-2xl leading-[1.1] sm:text-3xl sm:whitespace-nowrap md:text-4xl",
             light ? "font-bold text-onyx" : "font-semibold text-cream"
           )}
         >

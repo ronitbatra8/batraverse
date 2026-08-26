@@ -257,7 +257,7 @@ export default function Newsletter() {
             </motion.p>
             <motion.h2
               variants={animItem}
-              className="mt-4 max-w-md whitespace-nowrap font-display text-4xl tracking-wide text-cream sm:text-5xl"
+              className="mt-4 max-w-md font-display text-3xl tracking-wide text-cream sm:text-4xl sm:whitespace-nowrap md:text-5xl"
             >
               One Letter{" "}
               <span className="text-gold-gradient">Each Season</span>
@@ -279,6 +279,7 @@ export default function Newsletter() {
           whileInView="show"
           viewport={{ once: true, margin: "-80px" }}
           className="flex flex-col justify-center gap-6 p-8 sm:p-12 lg:p-16"
+          style={{ minHeight: "100%" }}
         >
           {/* Subscribe card */}
           <motion.div
@@ -310,22 +311,22 @@ export default function Newsletter() {
                 <p className={cn("text-[10px] uppercase tracking-[0.2em]", light ? "text-onyx/40" : "text-cream-dim/40")}>Checking status…</p>
               </div>
             ) : isSubscribed ? (
-              <div className={cn("mt-8 flex items-center gap-3 border py-4 pl-4 pr-6", light ? "border-emerald-500/25 bg-emerald-500/5" : "border-emerald-400/25 bg-emerald-400/5")}>
-                <span className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-full", light ? "bg-emerald-500 text-white" : "bg-emerald-400 text-abyss")}>
-                  <Check size={14} strokeWidth={2} />
+              <div className={cn("mt-8 flex flex-col items-center gap-4 border py-8 text-center", light ? "border-emerald-500/25 bg-emerald-500/5" : "border-emerald-400/25 bg-emerald-400/5")}>
+                <span className={cn("flex h-12 w-12 shrink-0 items-center justify-center rounded-full", light ? "bg-emerald-500 text-white" : "bg-emerald-400 text-abyss")}>
+                  <Check size={20} strokeWidth={2} />
                 </span>
-                <div className="flex-1">
-                  <p className={cn("text-[11px] font-medium uppercase tracking-[0.25em]", light ? "text-emerald-600" : "text-emerald-400")}>
+                <div>
+                  <p className={cn("text-sm font-semibold uppercase tracking-[0.2em]", light ? "text-emerald-600" : "text-emerald-400")}>
                     {subMessage || "You are subscribed"}
                   </p>
-                  <p className={cn("mt-1 text-[9px] uppercase tracking-[0.2em]", light ? "text-onyx/40" : "text-cream-dim/40")}>
+                  <p className={cn("mt-2 text-xs", light ? "text-onyx/40" : "text-cream-dim/40")}>
                     {user.email}
                   </p>
                 </div>
                 <button
                   onClick={handleUnsubscribe}
                   disabled={subscribing}
-                  className={cn("text-[9px] font-semibold uppercase tracking-[0.2em] transition-colors disabled:opacity-50", light ? "text-onyx/40 hover:text-red-500" : "text-cream-dim/40 hover:text-red-400")}
+                  className={cn("text-[10px] font-semibold uppercase tracking-[0.2em] transition-colors disabled:opacity-50", light ? "text-onyx/40 hover:text-red-500" : "text-cream-dim/40 hover:text-red-400")}
                 >
                   {subscribing ? "…" : "Unsubscribe"}
                 </button>
@@ -395,21 +396,21 @@ export default function Newsletter() {
                 <p className={cn("text-[10px] uppercase tracking-[0.2em]", light ? "text-onyx/40" : "text-cream-dim/40")}>Checking status…</p>
               </div>
             ) : hasPendingView ? (
-              <div className={cn("mt-8 flex flex-col gap-3", light ? "" : "")}>
-                <div className={cn("flex items-center gap-3 border py-4 pl-4 pr-6", light ? "border-amber-500/25 bg-amber-500/5" : "border-amber-400/25 bg-amber-400/5")}>
-                  <span className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-full", light ? "bg-amber-500 text-white" : "bg-amber-400 text-abyss")}>
-                    <Clock size={14} strokeWidth={2} />
+              <div className={cn("mt-8 flex flex-col gap-4", light ? "" : "")}>
+                <div className={cn("flex flex-col items-center gap-3 border py-8 text-center", light ? "border-amber-500/25 bg-amber-500/5" : "border-amber-400/25 bg-amber-400/5")}>
+                  <span className={cn("flex h-12 w-12 shrink-0 items-center justify-center rounded-full", light ? "bg-amber-500 text-white" : "bg-amber-400 text-abyss")}>
+                    <Clock size={20} strokeWidth={2} />
                   </span>
                   <div>
-                    <p className={cn("text-[11px] font-medium uppercase tracking-[0.25em]", light ? "text-amber-600" : "text-amber-400")}>
+                    <p className={cn("text-sm font-semibold uppercase tracking-[0.2em]", light ? "text-amber-600" : "text-amber-400")}>
                       Request Pending
                     </p>
-                    <p className={cn("mt-1 text-[9px] uppercase tracking-[0.2em]", light ? "text-onyx/40" : "text-cream-dim/40")}>
+                    <p className={cn("mt-2 text-xs", light ? "text-onyx/40" : "text-cream-dim/40")}>
                       A member of the maison will contact you shortly
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-col gap-3 sm:flex-row">
                 <Link
                   href="/private-viewing"
                   className={cn(

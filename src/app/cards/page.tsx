@@ -132,11 +132,11 @@ function CardsContent() {
         }}
       />
 
-      <div className="relative z-10 mx-auto w-full max-w-3xl">
-        <div className="space-y-6">
-          <div className="flex justify-center">
-            <div className="w-full max-w-sm">
-              <MemberCard
+      <div className="relative z-10 mx-auto w-full max-w-5xl">
+          <div className="space-y-6">
+          <div className="mx-auto max-w-sm">
+            <div className="-mx-6 px-[3px] sm:mx-0 sm:px-0">
+                <MemberCard
               walletBalance={user.walletBalance ?? 0}
               peakWalletBalance={user.peakWalletBalance ?? 0}
               name={user.name}

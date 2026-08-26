@@ -102,7 +102,7 @@ export function AuthCard({
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-2xl border px-8 py-10",
+        "relative overflow-hidden rounded-2xl border px-5 py-8 sm:px-8 sm:py-10",
         light
           ? "border-onyx/10 bg-gradient-to-br from-white via-[#fdfdfb] to-[#f2efe7]"
           : "border-gold/15 bg-gradient-to-br from-[#0e0e11] via-[#0a0a0d] to-[#050507]",

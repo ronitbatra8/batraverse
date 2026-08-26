@@ -181,7 +181,7 @@ export default function ContactPage() {
           </p>
           <h1
             className={cn(
-              "font-display text-6xl font-medium tracking-wide sm:text-7xl md:text-8xl lg:text-9xl",
+              "font-display text-4xl font-medium tracking-wide sm:text-6xl md:text-8xl lg:text-9xl",
               "text-gold-gradient"
             )}
           >

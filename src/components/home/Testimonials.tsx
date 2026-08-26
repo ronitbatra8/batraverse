@@ -200,7 +200,7 @@ function PinnedTestimonials({ light }: { light: boolean }) {
         />
         <div
           aria-hidden
-          className="pointer-events-none absolute -bottom-24 left-1/2 h-64 w-[36rem] -translate-x-1/2 rounded-full blur-3xl"
+          className="pointer-events-none absolute -bottom-24 left-1/2 h-64 w-[20rem] sm:w-[36rem] -translate-x-1/2 rounded-full blur-3xl"
           style={{
             background: light
               ? "radial-gradient(closest-side, rgba(30,58,138,0.06), transparent)"
@@ -281,7 +281,7 @@ function MobileTestimonials({ light }: { light: boolean }) {
     >
       <div
         aria-hidden
-        className="pointer-events-none absolute -bottom-24 left-1/2 h-64 w-[36rem] -translate-x-1/2 rounded-full blur-3xl"
+        className="pointer-events-none absolute -bottom-24 left-1/2 h-64 w-[20rem] sm:w-[36rem] -translate-x-1/2 rounded-full blur-3xl"
         style={{
           background: light
             ? "radial-gradient(closest-side, rgba(30,58,138,0.05), transparent)"

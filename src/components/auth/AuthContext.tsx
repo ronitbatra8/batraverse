@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
 import { apiFetch } from "@/lib/api";
 import { getAuth, setAuth, removeAuth, getAuthJSON, setAuthJSON } from "@/lib/authStorage";
 
@@ -93,12 +93,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [currentIndex, setCurrentIndex] = useState(0);
 
   const loadUser = useCallback(async () => {
+    if (typeof window !== "undefined" && !localStorage.getItem("bt-accounts-cleaned")) {
+      localStorage.removeItem("bt-accounts");
+      localStorage.removeItem("bt-current");
+      localStorage.removeItem("bt-token");
+      localStorage.removeItem("bt-current-user-id");
+      localStorage.setItem("bt-accounts-cleaned", "1");
+    }
+
     const stored = loadAccounts();
     const idx = loadCurrentIndex();
     setAccounts(stored);
     setCurrentIndex(idx);
 
-    if (typeof window !== "undefined" && sessionStorage.getItem("bt-guest") === "1") {
+    if (typeof window !== "undefined" && localStorage.getItem("bt-guest") === "1") {
       setIsGuest(true);
       setLoading(false);
       return;
@@ -129,6 +137,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration-safe: restore the signed-in session only once, after mount
     loadUser();
+
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === "bt-accounts") {
+        const updated = loadAccounts();
+        const idx = loadCurrentIndex();
+        setAccounts(updated);
+        if (updated.length === 0 || !updated[idx]) {
+          setCurrentIndex(0);
+          removeAuth("bt-token");
+          removeAuth("bt-current-user-id");
+          setUser(null);
+        } else {
+          setCurrentIndex(idx);
+          setAuth("bt-token", updated[idx].token);
+          setAuth("bt-current-user-id", updated[idx].user.id);
+          setUser(updated[idx].user);
+        }
+      }
+    };
+
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
   }, [loadUser]);
 
   const register = async (data: {
@@ -170,11 +200,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setAccounts(updated);
       setCurrentIndex(exists);
     } else {
-      const updated = [...stored, { token: res.token, user: res.user }];
+      const updated = [{ token: res.token, user: res.user }];
       saveAccounts(updated);
-      saveCurrentIndex(updated.length - 1);
+      saveCurrentIndex(0);
       setAccounts(updated);
-      setCurrentIndex(updated.length - 1);
+      setCurrentIndex(0);
     }
     setAuth("bt-token", res.token);
     setAuth("bt-current-user-id", res.user.id);
@@ -183,12 +213,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const enterAsGuest = () => {
-    sessionStorage.setItem("bt-guest", "1");
+    localStorage.setItem("bt-guest", "1");
     setIsGuest(true);
   };
 
   const logout = () => {
-    sessionStorage.removeItem("bt-guest");
+    localStorage.removeItem("bt-guest");
     setIsGuest(false);
     const stored = loadAccounts();
     const idx = loadCurrentIndex();
@@ -300,9 +330,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const value = useMemo(
+    () => ({ user, loading, isGuest, accounts, currentIndex, register, login, enterAsGuest, logout, switchAccount, addAccount, removeAccount, updateUser, refreshUser }),
+    [user, loading, isGuest, accounts, currentIndex, register, login, enterAsGuest, logout, switchAccount, addAccount, removeAccount, updateUser, refreshUser]
+  );
+
   return (
     <AuthContext.Provider
-      value={{ user, loading, isGuest, accounts, currentIndex, register, login, enterAsGuest, logout, switchAccount, addAccount, removeAccount, updateUser, refreshUser }}
+      value={value}
     >
       {children}
     </AuthContext.Provider>

@@ -5,7 +5,7 @@ export type AuthKey = (typeof AUTH_KEYS)[number];
 function getStore(): Storage {
   if (typeof window === "undefined") return localStorage;
   try {
-    return sessionStorage;
+    return localStorage;
   } catch {
     return localStorage;
   }

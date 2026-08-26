@@ -24,5 +24,5 @@ export const msgStatusColors: Record<string, string> = {
 };
 
 export function adminHeaders(key: string) {
-  return { "x-admin-key": key, "Content-Type": "application/json" };
+  return { "x-admin-key": key, "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" };
 }

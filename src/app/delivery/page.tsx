@@ -441,7 +441,7 @@ export default function DeliveryPage() {
                         {(canPickup || canDeliver) && otpOrderId !== order.id && (
                           <div className="flex gap-3 pt-2">
                             {confirmAction?.orderId === order.id ? (
-                              <div className={cn("flex items-center gap-3 rounded-xl border px-4 py-3 flex-1", light ? "border-amber-200 bg-amber-50" : "border-amber-500/20 bg-amber-500/5")}>
+                              <div className={cn("flex flex-wrap items-center gap-3 rounded-xl border px-4 py-3 flex-1", light ? "border-amber-200 bg-amber-50" : "border-amber-500/20 bg-amber-500/5")}>
                                 <p className={cn("flex-1 text-xs", light ? "text-amber-600" : "text-amber-400")}>
                                   {confirmAction.status === "out_for_delivery" ? "Start delivery for this order?" : "Send verification code to customer?"}
                                 </p>
@@ -504,11 +504,10 @@ export default function DeliveryPage() {
                             <p className={cn("text-xs font-medium", light ? "text-amber-700" : "text-amber-400")}>
                               Verification code sent to customer. Enter the code they received:
                             </p>
-                            <div className="flex items-center gap-3">
+                            <div className="flex flex-wrap items-center gap-3">
                               <input
                                 type="text"
                                 value={otpCode}
-                                onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
                                 placeholder="Enter code"
                                 maxLength={6}
                                 className={cn(
@@ -595,7 +594,7 @@ export default function DeliveryPage() {
                         {!["delivered", "cancelled", "returned"].includes(order.status) && (
                           <div className="pt-2">
                             {confirmUnassign === order.id ? (
-                              <div className={cn("flex items-center gap-3 rounded-xl border px-4 py-3", light ? "border-red-200 bg-red-50" : "border-red-500/20 bg-red-500/5")}>
+                              <div className={cn("flex flex-col gap-3 rounded-xl border px-4 py-3 sm:flex-row sm:items-center", light ? "border-red-200 bg-red-50" : "border-red-500/20 bg-red-500/5")}>
                                 <p className={cn("flex-1 text-xs", light ? "text-red-600" : "text-red-400")}>
                                   {order.source === "mart" || order.source === "mediverse"
                                     ? "Unassign within 5 min? After that a violation is recorded."

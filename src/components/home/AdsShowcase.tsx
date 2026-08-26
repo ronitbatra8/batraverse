@@ -84,8 +84,9 @@ export default function AdsShowcase({ page = "home", hideHeader = false }: { pag
     elapsedRef.current = 0;
     lastTickRef.current = performance.now();
     speedRef.current = hovered ? 0.5 : 1;
+    let raf: number;
 
-    const t = setInterval(() => {
+    const tick = () => {
       const now = performance.now();
       const dt = now - lastTickRef.current;
       lastTickRef.current = now;
@@ -94,10 +95,13 @@ export default function AdsShowcase({ page = "home", hideHeader = false }: { pag
       setProgress(p);
       if (elapsedRef.current >= base) {
         setIndex((i) => (i + 1) % billboards.length);
+        return;
       }
-    }, 30);
+      raf = requestAnimationFrame(tick);
+    };
 
-    return () => clearInterval(t);
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
   }, [billboards.length, index]);
 
   const go = (dir: 1 | -1) =>
@@ -141,7 +145,7 @@ export default function AdsShowcase({ page = "home", hideHeader = false }: { pag
               viewport={{ once: true, margin: "-80px" }}
               transition={{ duration: 0.9, delay: 0.1, ease: EASE }}
               className={cn(
-                "mt-5 whitespace-nowrap font-display text-2xl leading-[1.1] sm:text-3xl md:text-4xl",
+                "mt-5 font-display text-2xl leading-[1.1] sm:text-3xl sm:whitespace-nowrap md:text-4xl",
                 light ? "font-bold text-onyx" : "font-semibold text-cream"
               )}
             >

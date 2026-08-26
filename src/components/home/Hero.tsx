@@ -21,6 +21,7 @@ const EASE = [0.16, 1, 0.3, 1] as const;
 /* Full-bleed luxury backdrop — one atelier image for both modes; the night
    overlays deepen it in dark mode, day keeps it original. */
 const HERO_IMG = "/hero.jpg";
+const HERO_IMG_MOBILE = "https://thumbs.dreamstime.com/b/beautiful-happy-female-model-long-brown-hair-posing-cowb-cowboy-hat-fashion-green-top-dark-background-closeup-84024984.jpg";
 
 const TRUST = [
   { icon: Truck, label: "White-Glove Delivery" },
@@ -42,7 +43,7 @@ export default function Hero() {
   });
 
   return (
-    <section className="relative -mt-16 flex min-h-screen flex-1 items-center overflow-hidden">
+    <section className="relative -mt-16 flex min-h-[96vh] sm:min-h-screen flex-1 items-center overflow-hidden">
       {/* Backdrop */}
       <motion.div
         className="absolute inset-0"
@@ -56,7 +57,15 @@ export default function Hero() {
           fill
           priority
           sizes="100vw"
-          className="object-cover"
+          className="object-cover hidden sm:block"
+        />
+        <Image
+          src={HERO_IMG_MOBILE}
+          alt=""
+          fill
+          priority
+          sizes="100vw"
+          className="object-cover block sm:hidden"
         />
       </motion.div>
 
@@ -86,7 +95,7 @@ export default function Hero() {
       </div>
 
       {/* Copy block — always left-aligned */}
-      <div className="relative z-10 mx-auto w-full max-w-7xl px-6 pb-32 pt-40 sm:px-8">
+      <div className="relative z-10 mx-auto w-full max-w-7xl px-6 pb-24 pt-24 sm:px-8 sm:pb-32 sm:pt-40">
         <div className="relative w-fit">
           <div className="relative">
             {/* Eyebrow */}
@@ -113,7 +122,7 @@ export default function Hero() {
             {/* Headline */}
             <motion.h1
               {...line(0.35)}
-              className="mt-6 font-display text-5xl font-semibold leading-[1.05] text-white sm:text-7xl"
+              className="mt-5 font-display text-4xl font-semibold leading-[1.05] text-white sm:mt-6 sm:text-7xl"
             >
               Timeless Pieces,
               <br />
@@ -130,21 +139,26 @@ export default function Hero() {
             <motion.p
               {...line(0.6)}
               className={cn(
-                "mt-7 max-w-xl text-lg font-light leading-relaxed",
+                "mt-5 max-w-xl text-sm font-light leading-relaxed sm:mt-7 sm:text-lg",
                 light ? "text-white/80" : "text-white/70"
               )}
             >
-              Rare, hand-selected goods from verified ateliers across the globe —
-              curated for the discerning few who accept nothing less than
-              extraordinary.
+              <span className="sm:hidden">
+                Hand-selected goods from the world&apos;s finest ateliers.
+              </span>
+              <span className="hidden sm:inline">
+                Rare, hand-selected goods from verified ateliers across the globe —
+                curated for the discerning few who accept nothing less than
+                extraordinary.
+              </span>
             </motion.p>
 
             {/* CTAs */}
-            <motion.div {...line(0.85)} className="mt-10 flex flex-wrap items-center gap-4">
+            <motion.div {...line(0.85)} className="mt-7 flex flex-wrap items-center gap-4 sm:mt-10">
               <Link
                 href="/products"
                 className={cn(
-                  "group relative inline-flex items-center gap-2.5 overflow-hidden rounded-xl border px-9 py-4 text-[11px] font-semibold uppercase tracking-[0.28em] transition-all duration-300 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]",
+                  "group relative inline-flex items-center gap-2.5 overflow-hidden rounded-xl border px-6 py-3 sm:px-9 sm:py-4 text-[11px] font-semibold uppercase tracking-[0.28em] transition-all duration-300 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]",
                   light
                     ? "border-sapphire-light/40 bg-gradient-to-b from-sapphire-light via-sapphire to-sapphire-deep text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_10px_30px_-10px_rgba(30,58,138,0.55)] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.45),0_16px_44px_-10px_rgba(30,58,138,0.7)]"
                     : "border-gold-light/40 bg-gradient-to-b from-gold-light via-gold to-gold-deep text-abyss shadow-[inset_0_1px_0_rgba(255,255,255,0.45),0_10px_30px_-10px_rgba(212,175,55,0.55)] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.55),0_16px_44px_-10px_rgba(212,175,55,0.7)]"
@@ -164,7 +178,7 @@ export default function Hero() {
               <Link
                 href="/about"
                 className={cn(
-                  "group relative inline-flex items-center gap-2.5 overflow-hidden rounded-xl border px-9 py-4 text-[11px] font-medium uppercase tracking-[0.28em] text-white backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]",
+                  "group relative inline-flex items-center gap-2.5 overflow-hidden rounded-xl border px-6 py-3 sm:px-9 sm:py-4 text-[11px] font-medium uppercase tracking-[0.28em] text-white backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]",
                   light
                     ? "border-white/30 bg-white/[0.08] hover:border-white/50 hover:bg-white/[0.15] hover:shadow-[0_0_30px_-8px_rgba(255,255,255,0.4)]"
                     : "border-white/30 bg-white/[0.06] hover:border-gold/50 hover:bg-gold/10 hover:text-gold-light hover:shadow-[0_0_30px_-8px_rgba(212,175,55,0.5)]"
@@ -193,11 +207,8 @@ export default function Hero() {
           <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent" />
           <div className="absolute inset-0 h-[2px] bg-gradient-to-r from-transparent via-gold/60 to-transparent blur-[1px]" />
           <div className="absolute inset-x-0 top-1/2 h-[3px] -translate-y-1/2 overflow-hidden">
-            <motion.div
-              className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
-              initial={{ x: "-100%" }}
-              animate={{ x: ["-100%", "100%"] }}
-              transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut" }}
+            <div
+              className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent anim-sweep"
             />
           </div>
         </div>
@@ -220,10 +231,8 @@ export default function Hero() {
                 : "radial-gradient(ellipse 55% 100% at 50% 0%, rgba(212,175,55,0.16), transparent 70%)",
             }}
           />
-          <motion.div
-            className="flex w-max items-center"
-            animate={{ x: ["0%", "-50%"] }}
-            transition={{ duration: 28, repeat: Infinity, ease: "linear" }}
+          <div
+            className="flex w-max items-center anim-marquee"
           >
             {[...TRUST, ...TRUST].map((item, i) => (
               <span key={i} className="flex items-center">
@@ -254,7 +263,7 @@ export default function Hero() {
                 </span>
               </span>
             ))}
-          </motion.div>
+          </div>
         </div>
       </motion.div>
 
@@ -380,15 +389,18 @@ function Lamp({ active }: { active: boolean }) {
 
           {/* On/off pull cord */}
           <motion.div
-            className="absolute left-[72%] top-[96%] flex origin-top cursor-pointer flex-col items-center"
+            className={cn(
+              "absolute left-[72%] top-[96%] flex origin-top cursor-pointer flex-col items-center",
+              !pulled && "anim-swing"
+            )}
             role="switch"
             aria-label="Toggle light mode"
             aria-checked={theme === "light"}
-            animate={pulled ? { rotate: 0 } : { rotate: [-2.5, 2.5, -2.5] }}
+            animate={pulled ? { rotate: 0 } : undefined}
             transition={
               pulled
                 ? { duration: 0.3 }
-                : { duration: 4, repeat: Infinity, ease: "easeInOut" }
+                : undefined
             }
           >
             <motion.div

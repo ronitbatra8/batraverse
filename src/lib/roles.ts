@@ -2,7 +2,7 @@ export const ROLE_DASHBOARDS = {
   ADMIN: {
     label: "Owner Dashboard",
     short: "Owner",
-    href: "/admin/orders",
+    href: "/owner",
     desc: "Manage users, orders, inventory and everything else from the owner panel.",
   },
   SELLER: {

@@ -18,75 +18,41 @@ function getHref(id: string) {
 
 function getImageSrc(p: Product): string {
   const raw = p.dbImages?.[0] || p.colors?.[0]?.images?.[0] || "";
-  if (!raw) return `https://placehold.co/600x400/14141a/d4af37?text=${encodeURIComponent(p.name.slice(0, 12))}`;
+  if (!raw) return "";
   if (raw.startsWith("http")) return raw;
   return `${API_BASE}${raw}`;
 }
 
-function ProductCard({ product, light }: { product: Product; light: boolean }) {
+function WishlistRow({ product, light }: { product: Product; light: boolean }) {
   const { remove } = useWishlist();
   const { addItem } = useCart();
+  const imgSrc = getImageSrc(product);
 
   return (
     <Link href={getHref(product.id)} className="group block">
+      {/* Mobile: row */}
       <div className={cn(
-        "relative overflow-hidden rounded-2xl border transition-all duration-300",
-        light ? "border-dark-100 bg-white hover:shadow-lg hover:shadow-dark-200/40" : "border-white/5 bg-graphite hover:shadow-lg hover:shadow-black/40"
+        "flex flex-col rounded-xl border overflow-hidden transition-all duration-300 sm:hidden",
+        light ? "border-dark-100 bg-white" : "border-white/5 bg-graphite"
       )}>
-        {/* Image */}
-        <div className="relative aspect-[3/2] overflow-hidden">
-          <img
-            src={getImageSrc(product)}
-            alt={product.name}
-            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-          />
-          {/* Remove button */}
-          <button
-            onClick={(e) => { e.preventDefault(); e.stopPropagation(); remove(product.id); }}
-            className={cn(
-              "absolute top-3 right-3 z-10 flex h-8 w-8 items-center justify-center rounded-full transition-all",
-              light ? "bg-white/90 text-rose-500 hover:bg-rose-50 hover:text-rose-600 shadow-sm" : "bg-abyss/80 text-rose-400 hover:bg-rose-500/20 hover:text-rose-300 shadow-sm"
+        <div className="flex gap-3 p-3">
+          <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg">
+            {imgSrc ? (
+              <img src={imgSrc} alt={product.name} className="h-full w-full object-cover" />
+            ) : (
+              <div className={cn("h-full w-full bg-gradient-to-br", product.gradient)} />
             )}
-          >
-            <Heart size={14} fill="currentColor" />
-          </button>
-          {product.badge && (
-            <span className="absolute top-3 left-3 rounded-full bg-rose-500 px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white">
-              {product.badge}
+          </div>
+          <div className="flex min-w-0 flex-1 flex-col justify-center">
+            <h3 className={cn("text-xs font-semibold leading-snug line-clamp-2", light ? "text-dark-900" : "text-cream")}>
+              {product.name}
+            </h3>
+            <span className={cn("mt-1.5 text-sm font-bold", light ? "text-dark-900" : "text-cream")}>
+              {formatPrice(product.price)}
             </span>
-          )}
+          </div>
         </div>
-
-        {/* Info */}
-        <div className="p-4">
-          <p className={cn("text-[9px] font-medium uppercase tracking-[0.2em] mb-1", light ? "text-dark-400" : "text-cream-dim/50")}>
-            {product.category}
-          </p>
-          <h3 className={cn("text-sm font-semibold leading-snug line-clamp-2 mb-2", light ? "text-dark-900" : "text-cream")}>
-            {product.name}
-          </h3>
-          <div className="flex items-center gap-1.5 mb-3">
-            <div className="flex items-center gap-0.5">
-              <Star size={10} className="fill-gold text-gold" />
-              <span className={cn("text-[10px] font-medium", light ? "text-dark-700" : "text-cream")}>
-                {product.rating}
-              </span>
-            </div>
-            <span className={cn("text-[10px]", light ? "text-dark-300" : "text-cream-dim/30")}>({product.reviews})</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <div className="flex items-baseline gap-2">
-              <span className={cn("text-base font-bold", light ? "text-dark-900" : "text-cream")}>
-                {formatPrice(product.price)}
-              </span>
-              {product.originalPrice && (
-                <span className={cn("text-[10px] line-through", light ? "text-dark-300" : "text-cream-dim/40")}>
-                  {formatPrice(product.originalPrice)}
-                </span>
-              )}
-            </div>
-          </div>
-          {/* Quick Add */}
+        <div className={cn("flex gap-2 border-t px-3 py-2.5", light ? "border-dark-100" : "border-white/5")}>
           <button
             onClick={(e) => {
               e.preventDefault();
@@ -99,15 +65,81 @@ function ProductCard({ product, light }: { product: Product; light: boolean }) {
               });
             }}
             className={cn(
-              "mt-3 flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-[10px] font-bold uppercase tracking-[0.2em] transition-all duration-300",
-              light
-                ? "bg-dark-900 text-white hover:bg-dark-800"
-                : "bg-gold text-abyss hover:bg-gold-light"
+              "flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-[9px] font-bold uppercase tracking-[0.2em]",
+              light ? "bg-dark-900 text-white" : "bg-gold text-abyss"
             )}
           >
-            <ShoppingBag size={12} />
+            <ShoppingBag size={10} />
             Add to Cart
           </button>
+          <button
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); remove(product.id); }}
+            className={cn(
+              "flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-[9px] font-bold transition-all",
+              light ? "bg-dark-100/60 text-rose-500" : "bg-white/5 text-rose-400"
+            )}
+          >
+            <Heart size={12} fill="currentColor" />
+            Remove
+          </button>
+        </div>
+      </div>
+
+      {/* Desktop: compact card */}
+      <div className={cn(
+        "hidden sm:block overflow-hidden rounded-2xl border transition-all duration-300 hover:shadow-lg",
+        light ? "border-dark-100 bg-white hover:shadow-dark-200/40" : "border-white/5 bg-graphite hover:shadow-black/40"
+      )}>
+        <div className="relative aspect-[5/3] overflow-hidden">
+          {imgSrc ? (
+            <img src={imgSrc} alt={product.name} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+          ) : (
+            <div className={cn("h-full w-full bg-gradient-to-br transition-transform duration-500 group-hover:scale-105", product.gradient)} />
+          )}
+          {product.badge && (
+            <span className="absolute top-2.5 left-2.5 rounded-full bg-rose-500 px-2 py-0.5 text-[8px] font-bold uppercase tracking-wider text-white">
+              {product.badge}
+            </span>
+          )}
+        </div>
+        <div className="p-3">
+          <h3 className={cn("text-xs font-semibold leading-snug line-clamp-1", light ? "text-dark-900" : "text-cream")}>
+            {product.name}
+          </h3>
+          <span className={cn("mt-1 block text-sm font-bold", light ? "text-dark-900" : "text-cream")}>
+            {formatPrice(product.price)}
+          </span>
+          <div className="mt-2.5 flex gap-2">
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                addItem(product, {
+                  color: product.colors?.[0]?.name || "",
+                  colorHex: product.colors?.[0]?.value || "#0a0a0a",
+                  qty: 1,
+                  source: product.id.startsWith("m") ? "mart" : "store",
+                });
+              }}
+              className={cn(
+                "flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-[9px] font-bold uppercase tracking-[0.2em] transition-all duration-300",
+                light ? "bg-dark-900 text-white hover:bg-dark-800" : "bg-gold text-abyss hover:bg-gold-light"
+              )}
+            >
+              <ShoppingBag size={10} />
+              Add to Cart
+            </button>
+            <button
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); remove(product.id); }}
+              className={cn(
+                "flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-[9px] font-bold transition-all",
+                light ? "bg-dark-100/60 text-rose-500 hover:bg-rose-50" : "bg-white/5 text-rose-400 hover:bg-rose-500/20"
+              )}
+            >
+              <Heart size={12} fill="currentColor" />
+              Remove
+            </button>
+          </div>
         </div>
       </div>
     </Link>
@@ -165,9 +197,9 @@ export default function WishlistPage() {
               </Link>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-4 sm:gap-5 lg:grid-cols-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-3 lg:grid-cols-4">
               {items.map((product) => (
-                <ProductCard key={product.id} product={product} light={light} />
+                <WishlistRow key={product.id} product={product} light={light} />
               ))}
             </div>
           )}

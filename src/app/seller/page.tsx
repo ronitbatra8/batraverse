@@ -279,7 +279,7 @@ export default function SellerDashboardPage() {
         apiFetch("/seller/stats"),
         apiFetch("/seller/products"),
         apiFetch("/seller/orders"),
-        fetch(`${API_URL.replace("/api", "")}/api/categories`).then((r) => r.json()),
+        apiFetch("/categories"),
         apiFetch("/seller/category-requests"),
         apiFetch("/seller/ad-requests"),
       ]);
@@ -452,7 +452,7 @@ export default function SellerDashboardPage() {
   return (
     <SiteLayout>
       <div className="min-h-screen bg-dark-950">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-8">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
             <div>
               <p className="text-xs text-gold-400 uppercase tracking-[0.2em] font-semibold mb-1">Seller Dashboard</p>
@@ -1093,44 +1093,44 @@ function AddProductTab({
 
   return (
     <div>
-      <div className="flex items-center gap-4 mb-6">
-        <button onClick={onBack} className="flex items-center gap-2 text-dark-400 hover:text-white transition-colors text-sm">
-          <ArrowLeft size={16} />
+      <div className="flex flex-wrap items-center gap-2 sm:gap-4 mb-4 sm:mb-6">
+        <button onClick={onBack} className="flex items-center gap-2 text-dark-400 hover:text-white transition-colors text-xs sm:text-sm">
+          <ArrowLeft size={14} />
           Back to Products
         </button>
-        <div className="h-4 w-px bg-dark-700/50" />
-        <h2 className="text-lg font-semibold text-white">{editing ? "Edit Product" : "Add New Product"}</h2>
+        <div className="h-4 w-px bg-dark-700/50 hidden sm:block" />
+        <h2 className="text-base sm:text-lg font-semibold text-white">{editing ? "Edit Product" : "Add New Product"}</h2>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
         {/* Left column � main info (2 cols wide) */}
         <div className="lg:col-span-2 space-y-6">
-          <div className="bg-dark-900/60 border border-dark-800/50 rounded-2xl p-6 space-y-5">
+          <div className="bg-dark-900/60 border border-dark-800/50 rounded-2xl p-4 sm:p-6 space-y-4 sm:space-y-5">
             <div>
               <label className="text-xs text-dark-500 uppercase tracking-wider font-semibold mb-1.5 block">Product Name</label>
               <input type="text" value={form.name} onChange={(e) => onChange({ ...form, name: e.target.value })}
-                className="w-full bg-dark-800/60 border border-dark-700/50 rounded-xl px-4 py-3 text-white text-sm placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50"
+                className="w-full bg-dark-800/60 border border-dark-700/50 rounded-xl px-3 sm:px-4 py-3 text-white text-sm placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50"
                 placeholder="Enter product name" />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="text-xs text-dark-500 uppercase tracking-wider font-semibold mb-1.5 block">Sell On</label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-3 sm:grid-cols-3 gap-2">
                   <button type="button" onClick={() => handleSourceChange("store")}
-                    className={cn("flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border text-xs font-medium transition-all",
+                    className={cn("flex flex-col items-center justify-center gap-1 px-2 py-2.5 rounded-xl border text-[11px] font-medium transition-all",
                       form.source === "store" ? "bg-sky-500/10 border-sky-500/40 text-sky-400" : "bg-dark-800/60 border-dark-700/50 text-dark-400 hover:text-dark-200")}>
-                    <Store size={14} /> Store
+                    <Store size={16} /> Store
                   </button>
                   <button type="button" onClick={() => handleSourceChange("mart")}
-                    className={cn("flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border text-xs font-medium transition-all",
+                    className={cn("flex flex-col items-center justify-center gap-1 px-2 py-2.5 rounded-xl border text-[11px] font-medium transition-all",
                       form.source === "mart" ? "bg-emerald-500/10 border-emerald-500/40 text-emerald-400" : "bg-dark-800/60 border-dark-700/50 text-dark-400 hover:text-dark-200")}>
-                    <ShoppingCart size={14} /> Mart
+                    <ShoppingCart size={16} /> Mart
                   </button>
                   <button type="button" onClick={() => handleSourceChange("mediverse")}
-                    className={cn("flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border text-xs font-medium transition-all",
+                    className={cn("flex flex-col items-center justify-center gap-1 px-2 py-2.5 rounded-xl border text-[11px] font-medium transition-all",
                       form.source === "mediverse" ? "bg-violet-500/10 border-violet-500/40 text-violet-400" : "bg-dark-800/60 border-dark-700/50 text-dark-400 hover:text-dark-200")}>
-                    <Heart size={14} /> Mediverse
+                    <Heart size={16} /> Mediverse
                   </button>
                 </div>
               </div>
@@ -1141,7 +1141,7 @@ function AddProductTab({
                   placeholder="Brand name" />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="text-xs text-dark-500 uppercase tracking-wider font-semibold mb-1.5 block">Category</label>
                 <select value={form.category} onChange={(e) => onChange({ ...form, category: e.target.value, subCategory: "" })}
@@ -1170,11 +1170,11 @@ function AddProductTab({
           </div>
 
           {/* Product Images */}
-          <div className="bg-dark-900/60 border border-dark-800/50 rounded-2xl p-6">
+          <div className="bg-dark-900/60 border border-dark-800/50 rounded-2xl p-4 sm:p-6">
             <label className="text-xs text-dark-500 uppercase tracking-wider font-semibold mb-3 block">Product Images</label>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div onDragOver={(e) => { e.preventDefault(); setDragOver(true); }} onDragLeave={() => setDragOver(false)} onDrop={handleDrop}
-                className={cn("border-2 border-dashed rounded-xl p-5 text-center transition-all cursor-pointer",
+                className={cn("border-2 border-dashed rounded-xl p-4 sm:p-5 text-center transition-all cursor-pointer",
                   dragOver ? "border-gold-500/50 bg-gold-500/5" : "border-dark-700/50 bg-dark-800/30 hover:border-dark-600")}
                 onClick={() => fileInputRef.current?.click()}>
                 {uploading ? (
@@ -1206,7 +1206,7 @@ function AddProductTab({
             {form.images.length > 0 && (
               <div className="flex gap-2 mt-3 flex-wrap">
                 {form.images.map((url, i) => (
-                  <div key={i} className="relative w-20 h-20 rounded-xl overflow-hidden border border-dark-700/50 bg-dark-800 group/img">
+                  <div key={i} className="relative w-14 h-14 sm:w-20 sm:h-20 rounded-xl overflow-hidden border border-dark-700/50 bg-dark-800 group/img">
                     <img src={getImageUrl(url)} alt="" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                     <button onClick={(e) => { e.stopPropagation(); removeImage(i); }}
                       className="absolute inset-0 bg-black/50 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center">
@@ -1220,7 +1220,7 @@ function AddProductTab({
 
           {/* Color Variants */}
           {form.source === "store" && (
-            <div className="bg-dark-900/60 border border-dark-800/50 rounded-2xl p-6">
+            <div className="bg-dark-900/60 border border-dark-800/50 rounded-2xl p-4 sm:p-6">
               <div className="flex items-center justify-between mb-4">
                 <label className="text-xs text-dark-500 uppercase tracking-wider font-semibold">Color Variants</label>
                 <button type="button" onClick={() => onChange({ ...form, colorOptions: [...form.colorOptions, { name: "", hex: "#000000", colors: [], images: [], specifications: [], keyFeatures: [] }] })}
@@ -1238,9 +1238,9 @@ function AddProductTab({
                   const isMultiple = form.colorOptions.length > 1;
 
                   return (
-                    <div key={i} className={`rounded-2xl border border-dark-700/50 bg-dark-800/30 p-5 space-y-4 ${isMultiple && i > 0 ? "border-t-2 border-t-dark-600/30" : ""}`}>
+                    <div key={i} className={`rounded-2xl border border-dark-700/50 bg-dark-800/30 p-4 sm:p-5 space-y-3 sm:space-y-4 ${isMultiple && i > 0 ? "border-t-2 border-t-dark-600/30" : ""}`}>
 
-                      <div className="flex gap-3 items-center">
+                      <div className="flex flex-wrap gap-3 items-center">
                         <div className="relative shrink-0">
                           <input type="color" value={color.hex}
                             onChange={(e) => { const u = [...form.colorOptions]; u[i] = { ...u[i], hex: e.target.value }; onChange({ ...form, colorOptions: u }); }}
@@ -1261,7 +1261,7 @@ function AddProductTab({
                         </div>
                         <input type="text" value={color.name}
                           onChange={(e) => { const u = [...form.colorOptions]; const oldName = u[i].name; u[i] = { ...u[i], name: e.target.value }; const so = { ...form.sizeOptions }; if (oldName && so[oldName]) { so[e.target.value] = so[oldName]; delete so[oldName]; } onChange({ ...form, colorOptions: u, sizeOptions: so }); }}
-                          className="flex-1 bg-dark-800/60 border border-dark-700/50 rounded-xl px-4 py-3 text-white text-sm placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50"
+                          className="flex-1 min-w-0 bg-dark-800/60 border border-dark-700/50 rounded-xl px-4 py-3 text-white text-sm placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50"
                           placeholder="Color name (e.g. Midnight Black)" />
                         <button type="button" onClick={() => { const deletedName = form.colorOptions[i]?.name; const so = { ...form.sizeOptions }; if (deletedName && so[deletedName]) delete so[deletedName]; onChange({ ...form, colorOptions: form.colorOptions.filter((_, j) => j !== i), sizeOptions: so }); }}
                           className="px-3 py-3 bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl hover:bg-red-500/20 transition-all shrink-0">
@@ -1293,7 +1293,7 @@ function AddProductTab({
 
                       <div>
                         <label className="text-xs text-dark-500 uppercase tracking-wider font-semibold mb-2 block">Images</label>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <div className="flex flex-col gap-2">
                             <input type="file" accept="image/*" multiple className="hidden" id={`color-img-${i}`}
                               onChange={async (e) => {
@@ -1303,7 +1303,7 @@ function AddProductTab({
                                 try { const result = await apiUpload("/seller/upload", fd); const u = [...form.colorOptions]; u[i] = { ...u[i], images: [...(u[i].images || []), ...result.urls] }; onChange({ ...form, colorOptions: u }); } catch { /* ignore */ }
                               }} />
                             <label htmlFor={`color-img-${i}`}
-                              className="border-2 border-dashed border-dark-700/50 bg-dark-800/30 hover:border-dark-600 rounded-xl p-5 text-center cursor-pointer transition-all">
+                              className="border-2 border-dashed border-dark-700/50 bg-dark-800/30 hover:border-dark-600 rounded-xl p-4 sm:p-5 text-center cursor-pointer transition-all">
                               <div className="flex flex-col items-center gap-1.5">
                                 <Upload size={20} className="text-dark-500" />
                                 <p className="text-xs text-dark-300 font-medium">Upload images</p>
@@ -1348,7 +1348,7 @@ function AddProductTab({
                         {(color.images || []).length > 0 && (
                           <div className="flex gap-2 mt-3 flex-wrap">
                             {(color.images || []).map((img, ii) => (
-                              <div key={ii} className="relative w-20 h-20 rounded-xl overflow-hidden border border-dark-700/50 bg-dark-800 group/ci">
+                                <div key={ii} className="relative w-14 h-14 sm:w-20 sm:h-20 rounded-xl overflow-hidden border border-dark-700/50 bg-dark-800 group/ci">
                                 <img src={img.startsWith("http") ? img : `${API_URL.replace("/api", "")}${img}`} alt="" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                                 <button onClick={() => { const u = [...form.colorOptions]; u[i] = { ...u[i], images: (u[i].images || []).filter((_, j) => j !== ii) }; onChange({ ...form, colorOptions: u }); }}
                                   className="absolute inset-0 bg-black/50 opacity-0 group-hover/ci:opacity-100 transition-opacity flex items-center justify-center">
@@ -1361,7 +1361,7 @@ function AddProductTab({
                       </div>
 
                       {!hasColorSizes && (
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           <div>
                             <label className="text-xs text-dark-500 uppercase tracking-wider font-semibold mb-1.5 block">Price (₹)</label>
                             <input type="number" value={color.price || ""}
@@ -1412,15 +1412,15 @@ function AddProductTab({
                               <div className="space-y-2 mb-3">
                                 <label className="text-xs text-dark-500 uppercase tracking-wider font-semibold block">Added Sizes</label>
                                 {colorSizes.map((sz, si) => (
-                                  <div key={si} className="flex items-center gap-2">
-                                    <span className="text-sm text-white font-medium bg-dark-800/60 border border-dark-700/50 rounded-xl px-4 py-2.5 min-w-[60px] text-center">{sz.name}</span>
+                                  <div key={si} className="flex flex-wrap gap-2">
+                                    <span className="text-sm text-white font-medium bg-dark-800/60 border border-dark-700/50 rounded-xl px-4 py-2.5 min-w-[60px] text-center shrink-0">{sz.name}</span>
                                     <input type="number" value={sz.price ?? ""}
                                       onChange={(e) => { const updated = { ...form.sizeOptions }; const sizes = [...(updated[colorName] || [])]; sizes[si] = { ...sizes[si], price: e.target.value ? Number(e.target.value) : undefined }; updated[colorName] = sizes; onChange({ ...form, sizeOptions: updated }); }}
-                                      className="flex-1 bg-dark-800/60 border border-dark-700/50 rounded-xl px-4 py-3 text-white text-sm placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50"
+                                      className="w-full sm:flex-1 sm:min-w-[80px] bg-dark-800/60 border border-dark-700/50 rounded-xl px-3 py-2.5 text-white text-sm placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50"
                                       placeholder="Price ₹" min={0} />
                                     <input type="number" value={sz.originalPrice ?? ""}
                                       onChange={(e) => { const updated = { ...form.sizeOptions }; const sizes = [...(updated[colorName] || [])]; sizes[si] = { ...sizes[si], originalPrice: e.target.value ? Number(e.target.value) : undefined }; updated[colorName] = sizes; onChange({ ...form, sizeOptions: updated }); }}
-                                      className="flex-1 bg-dark-800/60 border border-dark-700/50 rounded-xl px-4 py-3 text-white text-sm placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50"
+                                      className="w-full sm:flex-1 sm:min-w-[80px] bg-dark-800/60 border border-dark-700/50 rounded-xl px-3 py-2.5 text-white text-sm placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50"
                                       placeholder="M.R.P ₹" min={0} />
                                     <button type="button" onClick={() => { const updated = { ...form.sizeOptions }; updated[colorName] = (updated[colorName] || []).filter((_, j) => j !== si); onChange({ ...form, sizeOptions: updated }); }}
                                       className="px-3 py-3 bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl hover:bg-red-500/20 transition-all shrink-0">
@@ -1446,7 +1446,7 @@ function AddProductTab({
                       })()}
 
                       {/* Color specs & features */}
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                           <div className="flex items-center justify-between mb-2">
                             <label className="text-xs text-dark-500 uppercase tracking-wider font-semibold">Specifications</label>
@@ -1504,8 +1504,8 @@ function AddProductTab({
           )}
           {/* Specifications & Features */}
           {form.source === "store" && !hasColors && (
-            <div className="bg-dark-900/60 border border-dark-800/50 rounded-2xl p-6">
-              <div className="grid grid-cols-2 gap-6">
+            <div className="bg-dark-900/60 border border-dark-800/50 rounded-2xl p-4 sm:p-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div>
                   <div className="flex items-center justify-between mb-3">
                     <label className="text-xs text-dark-500 uppercase tracking-wider font-semibold">Specifications</label>
@@ -1556,7 +1556,7 @@ function AddProductTab({
         <div className="space-y-6 lg:sticky lg:top-6 lg:self-start">
           {/* Price */}
           {!hasSizes && (
-            <div className="bg-dark-900/60 border border-dark-800/50 rounded-2xl p-6 space-y-4">
+            <div className="bg-dark-900/60 border border-dark-800/50 rounded-2xl p-4 sm:p-6 space-y-4">
               <label className="text-xs text-dark-500 uppercase tracking-wider font-semibold block">Price</label>
               <div>
                 <label className="text-[10px] text-dark-500 uppercase tracking-wider font-semibold mb-1 block">Selling Price (?)</label>
@@ -1575,7 +1575,7 @@ function AddProductTab({
           )}
 
           {/* Badge + Stock */}
-          <div className="bg-dark-900/60 border border-dark-800/50 rounded-2xl p-6 space-y-4">
+          <div className="bg-dark-900/60 border border-dark-800/50 rounded-2xl p-4 sm:p-6 space-y-4">
             <div>
               <label className="text-xs text-dark-500 uppercase tracking-wider font-semibold mb-1.5 block">Badge</label>
               <input type="text" value={form.badge} onChange={(e) => onChange({ ...form, badge: e.target.value })}
@@ -1596,7 +1596,7 @@ function AddProductTab({
       </div>
 
       {/* Action bar */}
-      <div className="flex gap-3 mt-6">
+      <div className="flex flex-col sm:flex-row gap-3 mt-6">
         <button onClick={onBack} className="px-6 py-3 bg-dark-800 hover:bg-dark-700 text-dark-300 rounded-xl text-sm font-medium transition-all">
           Cancel
         </button>
@@ -1640,13 +1640,13 @@ function AdRequestsTab({ requests, form, onChange, saving, onSubmit, onDelete }:
             <div><label className="block text-xs font-medium text-dark-400 mb-1.5">Link URL</label><input type="text" value={form.href} onChange={(e) => onChange({ ...form, href: e.target.value })} placeholder="/store" className={inputCls} /></div>
           </div>
           <div><label className="block text-xs font-medium text-dark-400 mb-1.5">Description</label><textarea value={form.line} onChange={(e) => onChange({ ...form, line: e.target.value })} placeholder="Where light meets fabric..." rows={2} className={inputCls + " resize-none"} /></div>
-          <div className="flex flex-wrap gap-4 items-end">
-            <div className="w-36"><label className="block text-xs font-medium text-dark-400 mb-1.5">Page</label>
+          <div className="flex flex-col sm:flex-row flex-wrap gap-4 items-stretch sm:items-end">
+            <div className="w-full sm:w-36"><label className="block text-xs font-medium text-dark-400 mb-1.5">Page</label>
               <select value={form.page} onChange={(e) => onChange({ ...form, page: e.target.value })} className={inputCls}>
                 <option value="home">Home</option><option value="store">Store</option><option value="mart">Mart</option><option value="mediverse">Mediverse</option>
               </select>
             </div>
-            <div className="w-28"><label className="block text-xs font-medium text-dark-400 mb-1.5">Duration (sec)</label>
+            <div className="w-full sm:w-28"><label className="block text-xs font-medium text-dark-400 mb-1.5">Duration (sec)</label>
               <input type="number" min={1} max={30} value={form.duration} onChange={(e) => { const v = parseInt(e.target.value, 10); if (!isNaN(v) && v >= 1 && v <= 30) onChange({ ...form, duration: v }); else if (e.target.value === "") onChange({ ...form, duration: 1 }); }} className={inputCls} />
             </div>
             <button onClick={onSubmit} disabled={saving || !form.img || !form.tagline || !form.line} className="px-5 py-2.5 rounded-xl text-sm font-semibold bg-gold-500/20 text-gold-400 border border-gold-500/30 hover:bg-gold-500/30 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
@@ -1660,8 +1660,8 @@ function AdRequestsTab({ requests, form, onChange, saving, onSubmit, onDelete }:
           <h3 className="text-lg font-serif text-white mb-3">Your Requests</h3>
           <div className="space-y-2">
             {requests.map((r) => (
-              <div key={r.id} className="bg-dark-900/60 border border-dark-800/50 rounded-xl p-4 flex items-stretch gap-4">
-                <div className="w-32 h-20 rounded-xl overflow-hidden bg-dark-800/60 shrink-0 border border-dark-700/30">
+              <div key={r.id} className="bg-dark-900/60 border border-dark-800/50 rounded-xl p-4 flex flex-col sm:flex-row items-stretch gap-4">
+                <div className="w-full sm:w-32 h-32 sm:h-20 rounded-xl overflow-hidden bg-dark-800/60 shrink-0 border border-dark-700/30">
                   <img src={r.img} alt="" className="w-full h-full object-cover" />
                 </div>
                 <div className="flex-1 min-w-0 flex flex-col justify-center">
@@ -1733,7 +1733,7 @@ function CategoryRequestsTab({
 
       <div className="bg-dark-900/60 border border-dark-800/50 rounded-2xl p-6 space-y-4">
         <h3 className="text-sm font-display font-bold text-white">Request New Category</h3>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="text-xs text-dark-500 uppercase tracking-wider font-semibold mb-1.5 block">Type</label>
             <div className="grid grid-cols-2 gap-2">

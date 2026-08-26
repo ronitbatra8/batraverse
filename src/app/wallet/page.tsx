@@ -135,12 +135,12 @@ function WalletContent() {
             {/* Step 1: UPI */}
             <div className={cn("rounded-xl border p-4 mb-5", light ? "border-dark-200 bg-dark-50/50" : "border-white/5 bg-onyx/50")}>
               <p className={cn("text-[10px] font-semibold uppercase tracking-wider mb-3", light ? "text-dark-500" : "text-cream-dim/60")}>Step 1: Pay via UPI</p>
-              <div className="flex items-center gap-3">
-                <div className={cn("flex-1 rounded-lg border px-3 py-2 font-mono text-sm", light ? "border-dark-200 bg-white text-dark-900" : "border-white/10 bg-onyx text-cream")}>
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
+                <div className={cn("flex-1 rounded-lg border px-3 py-2 font-mono text-sm break-all", light ? "border-dark-200 bg-white text-dark-900" : "border-white/10 bg-onyx text-cream")}>
                   ronit.batra@ptyes
                 </div>
                 <button type="button" onClick={copyUpiId}
-                  className={cn("flex items-center gap-1.5 rounded-lg border px-3 py-2 text-[10px] font-bold uppercase tracking-wider transition-all",
+                  className={cn("flex items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-[10px] font-bold uppercase tracking-wider transition-all shrink-0",
                     light ? "border-dark-200 text-dark-500 hover:border-sapphire hover:text-sapphire" : "border-white/10 text-cream-dim hover:border-gold hover:text-gold")}>
                   <Copy size={12} /> Copy
                 </button>
@@ -218,13 +218,13 @@ function WalletContent() {
                   <div className="space-y-2 pt-4">
                     {history.map((t) => (
                       <div key={t.id} className={cn("flex items-center justify-between rounded-xl p-3", light ? "bg-dark-50/80" : "bg-onyx/50")}>
-                        <div>
+                        <div className="min-w-0 flex-1">
                           <p className={cn("text-sm font-semibold", light ? "text-dark-900" : "text-cream")}>{formatPrice(t.amount)}</p>
-                          <p className={cn("text-[10px]", light ? "text-dark-400" : "text-cream-dim/40")}>
+                          <p className={cn("text-[10px] truncate", light ? "text-dark-400" : "text-cream-dim/40")}>
                             Txn: {t.transactionId} · {new Date(t.createdAt).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
                           </p>
                         </div>
-                        <span className={cn("flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full",
+                        <span className={cn("shrink-0 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full",
                           t.status === "APPROVED" ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" :
                           t.status === "REJECTED" ? "bg-red-500/10 text-red-400 border border-red-500/20" :
                           "bg-amber-500/10 text-amber-400 border border-amber-500/20"

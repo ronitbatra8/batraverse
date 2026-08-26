@@ -159,15 +159,18 @@ function AccountContent() {
       <div className="relative z-10 mx-auto w-full max-w-5xl">
         <div className="grid gap-8 lg:grid-cols-5">
           <div className="space-y-6 lg:col-span-2">
-            <MemberCard
-              walletBalance={user.walletBalance ?? 0}
-              peakWalletBalance={user.peakWalletBalance ?? 0}
-              name={user.name}
-              cardNumber={user.cardNumber}
-              cardLevel={user.cardLevel}
-              cardExpiry={user.cardExpiry}
-            />
+            <div className="-mx-6 px-[3px] sm:mx-0 sm:px-0 lg:max-w-none">
+              <MemberCard
+                walletBalance={user.walletBalance ?? 0}
+                peakWalletBalance={user.peakWalletBalance ?? 0}
+                name={user.name}
+                cardNumber={user.cardNumber}
+                cardLevel={user.cardLevel}
+                cardExpiry={user.cardExpiry}
+              />
+            </div>
 
+            <div className="space-y-6 -mx-6 px-[3px] sm:mx-0 sm:px-0 lg:max-w-none">
             <Link
               href="/cards"
               className={cn(
@@ -262,6 +265,7 @@ function AccountContent() {
             >
               Sign Out
             </button>
+            </div>
           </div>
 
           {/* Right: tabs */}

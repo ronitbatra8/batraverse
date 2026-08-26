@@ -337,7 +337,7 @@ function SearchContent() {
         </div>
 
         {/* Grid */}
-        <div className="mx-auto px-8 sm:px-12">
+        <div className="mx-auto px-4 sm:px-8 lg:px-12">
           <div className="mt-8">
             {filtered.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-32">
@@ -347,7 +347,7 @@ function SearchContent() {
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 gap-x-8 gap-y-6 sm:gap-x-12 sm:gap-y-8 lg:grid-cols-4">
+              <div className="grid grid-cols-2 gap-x-3 gap-y-4 sm:gap-x-8 sm:gap-y-6 lg:grid-cols-4">
                 {filtered.map((p) => (
                   <SearchCard key={`${p.source}-${p.id}`} product={p} light={light} />
                 ))}

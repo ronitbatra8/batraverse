@@ -44,7 +44,7 @@ export default function MediverseGrid({ category, subCategory }: MediverseGridPr
   }, [filtered]);
 
   return (
-    <div className="mx-auto max-w-[100rem] px-5 py-10 sm:px-10">
+    <div className="mx-auto max-w-[100rem] px-0 py-10 sm:px-5 md:px-10">
       {filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-32">
           <p className={cn("text-sm uppercase tracking-[0.3em]", light ? "text-dark-400" : "text-cream-dim/50")}>
@@ -59,7 +59,7 @@ export default function MediverseGrid({ category, subCategory }: MediverseGridPr
                 {CATEGORY_LABELS[cat] || cat}
               </h2>
             )}
-            <div className="grid grid-cols-2 gap-4 sm:gap-5 lg:grid-cols-4">
+            <div className="grid grid-cols-2 gap-px sm:gap-5 lg:grid-cols-4">
               {products.map((product) => (
                 <MediverseProductCard key={product.id} product={product} light={light} />
               ))}
@@ -76,13 +76,13 @@ function MediverseProductCard({ product, light }: { product: MediverseProduct; l
     <Link
       href={`/mediverse/${product.id}`}
       className={cn(
-        "group block overflow-hidden rounded-2xl border transition-all duration-500",
+        "group block overflow-hidden rounded-none border-0 transition-all duration-500 sm:rounded-2xl sm:border",
         light
           ? "border-dark-200/60 bg-white hover:border-sapphire/30 hover:shadow-[0_8px_40px_rgba(30,58,138,0.1)]"
           : "border-white/5 bg-graphite hover:border-gold/20 hover:shadow-[0_8px_40px_rgba(212,175,55,0.08)]"
       )}
     >
-      <div className="relative aspect-[4/3] overflow-hidden">
+      <div className="relative aspect-[4/5] sm:aspect-[4/3] overflow-hidden">
         <div
           className={cn(
             "absolute inset-0 bg-gradient-to-br transition-transform duration-700 group-hover:scale-105",
@@ -104,20 +104,18 @@ function MediverseProductCard({ product, light }: { product: MediverseProduct; l
       </div>
 
       <div className="p-4">
-        <div className="flex items-start justify-between gap-2">
-          <h3 className={cn("text-sm font-medium leading-tight", light ? "text-dark-900" : "text-cream")}>
-            {product.name}
-          </h3>
-          <span className={cn("shrink-0 text-sm font-semibold tabular-nums", light ? "text-sapphire" : "text-gold-light")}>
-            {formatPrice(product.price)}
-          </span>
-        </div>
+        <h3 className={cn("text-sm font-medium leading-tight", light ? "text-dark-900" : "text-cream")}>
+          {product.name}
+        </h3>
+        <span className={cn("mt-1 block text-sm font-semibold tabular-nums", light ? "text-sapphire" : "text-gold-light")}>
+          {formatPrice(product.price)}
+        </span>
         {product.originalPrice && (
           <span className={cn("text-xs line-through", light ? "text-dark-400" : "text-cream-dim/40")}>
             {formatPrice(product.originalPrice)}
           </span>
         )}
-        <div className="mt-2 flex items-center gap-1.5">
+        <div className="mt-2 hidden sm:flex items-center gap-1.5">
           <div className="flex items-center gap-0.5">
             {[0, 1, 2, 3, 4].map((i) => (
               <Star

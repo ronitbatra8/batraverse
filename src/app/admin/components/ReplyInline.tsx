@@ -15,7 +15,7 @@ export default function ReplyInline({ msgId, msgName, adminKey, onSent }: { msgI
     setSending(true);
     setError("");
     try {
-      const res = await fetch(`${API}/api/messages/${msgId}/reply`, { method: "POST", headers: { "x-admin-key": adminKey, "Content-Type": "application/json" }, body: JSON.stringify({ replyMessage: reply.trim() }) });
+      const res = await fetch(`${API}/api/messages/${msgId}/reply`, { method: "POST", headers: { "x-admin-key": adminKey, "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" }, body: JSON.stringify({ replyMessage: reply.trim() }) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to send");
       setReply("");

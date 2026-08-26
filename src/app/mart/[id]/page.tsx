@@ -136,7 +136,7 @@ export default function MartProductPage() {
       if (p.category !== product.category || p.id === product.id || seen.has(p.id)) return false;
       seen.add(p.id);
       return true;
-    }).slice(0, 4);
+    }).slice(0, 10);
   })();
 
   const hasImages = product.dbImages && product.dbImages.length > 0;
@@ -285,8 +285,8 @@ export default function MartProductPage() {
             </div>
 
             {/* Price */}
-            <div className="mt-5 flex items-baseline gap-3">
-              <span className={cn("text-3xl font-semibold tabular-nums", light ? "text-dark-900" : "text-cream")}>
+            <div className="mt-5 flex flex-wrap items-baseline gap-2 sm:gap-3">
+              <span className={cn("text-2xl font-semibold tabular-nums sm:text-3xl", light ? "text-dark-900" : "text-cream")}>
                 {formatPrice(product.price)}
               </span>
               {product.originalPrice && (
@@ -437,23 +437,25 @@ export default function MartProductPage() {
 
         {/* Related products */}
         {related.length > 0 && (
-          <div className="mx-auto mt-16 max-w-[100rem] px-5 sm:px-10">
-            <h2 className={cn("mb-6 text-[11px] font-semibold uppercase tracking-[0.35em]", light ? "text-dark-400" : "text-cream-dim/60")}>
+          <div className="mt-16 sm:mx-auto sm:max-w-[100rem] sm:px-5 sm:px-10">
+            <h2 className={cn("mb-6 px-5 text-[11px] font-semibold uppercase tracking-[0.35em] sm:px-0", light ? "text-dark-400" : "text-cream-dim/60")}>
               You May Also Like
             </h2>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              {related.map((rp) => (
-                <Link
-                  key={rp.id}
-                  href={`/mart/${rp.id}`}
-                  className={cn(
-                    "group block overflow-hidden rounded-2xl border transition-all duration-300",
+            <div className="flex flex-col gap-3 sm:gap-5">
+              {[related.slice(0, 5), related.slice(5, 10)].filter(row => row.length > 0).map((row, ri) => (
+                <div key={ri} className="flex overflow-x-auto snap-x snap-mandatory sm:grid sm:grid-cols-2 sm:gap-5 sm:overflow-visible sm:grid-cols-4">
+                  {row.map((rp) => (
+                    <Link
+                      key={rp.id}
+                      href={`/mart/${rp.id}`}
+                      className={cn(
+                        "group block shrink-0 w-[44vw] snap-start overflow-hidden rounded-none border-0 transition-all duration-300 sm:w-auto sm:shrink sm:rounded-2xl sm:border",
                     light
                       ? "border-dark-200/60 bg-white hover:border-sapphire/20 hover:shadow-[0_4px_24px_rgba(30,58,138,0.08)]"
                       : "border-white/5 bg-graphite hover:border-gold/15 hover:shadow-[0_4px_24px_rgba(212,175,55,0.06)]"
                   )}
                 >
-                  <div className="relative aspect-square overflow-hidden">
+                  <div className="relative aspect-[4/5] sm:aspect-square overflow-hidden">
                     <div className={cn("absolute inset-0 bg-gradient-to-br transition-transform duration-500 group-hover:scale-105", rp.gradient)} />
                     {rp.badge && (
                       <span className={cn("absolute left-2 top-2 rounded-full px-2 py-1 text-[7px] font-bold uppercase tracking-[0.15em]", light ? "bg-white/90 text-dark-900 shadow-sm" : "bg-abyss/80 text-gold-light backdrop-blur-sm")}>
@@ -462,22 +464,16 @@ export default function MartProductPage() {
                     )}
                   </div>
                   <div className="p-3">
-                    <p className={cn("text-[9px] font-medium uppercase tracking-wider", light ? "text-dark-400" : "text-cream-dim/50")}>
-                      {rp.brand}
-                    </p>
-                    <h3 className={cn("mt-0.5 text-xs font-medium leading-tight line-clamp-2", light ? "text-dark-900" : "text-cream")}>
+                    <h3 className={cn("text-xs font-medium leading-tight line-clamp-2", light ? "text-dark-900" : "text-cream")}>
                       {rp.name}
                     </h3>
-                    <div className="mt-2 flex items-end justify-between">
-                      <span className={cn("text-sm font-bold tabular-nums", light ? "text-dark-900" : "text-cream")}>
-                        {formatPrice(rp.price)}
-                      </span>
-                      <span className={cn("text-[9px]", light ? "text-dark-400" : "text-cream-dim/40")}>
-                        {rp.unit}
-                      </span>
-                    </div>
+                    <span className={cn("mt-1 block text-sm font-bold tabular-nums", light ? "text-dark-900" : "text-cream")}>
+                      {formatPrice(rp.price)}
+                    </span>
                   </div>
                 </Link>
+                  ))}
+                </div>
               ))}
             </div>
           </div>

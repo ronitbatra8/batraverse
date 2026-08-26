@@ -35,7 +35,7 @@ export default function MemberCard({
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-2xl border border-white/10 p-5 sm:p-6",
+        "relative overflow-hidden rounded-2xl border border-white/10 p-[18px] sm:p-6",
         className
       )}
       style={{ backgroundColor: "#050506" }}
@@ -56,11 +56,11 @@ export default function MemberCard({
           Batra Verse · Members
         </p>
 
-        <p className="mt-6 font-mono text-lg font-semibold tracking-widest text-white sm:text-xl">
+        <p className="mt-4 font-mono text-lg font-semibold tracking-widest text-white sm:mt-6 sm:text-xl truncate">
           {name || "—"}
         </p>
 
-        <div className="mt-3 flex items-center gap-2">
+        <div className="mt-3 flex flex-wrap items-center gap-2">
           {meta.name && LevelIcon && (
             <span
               className={cn(
@@ -78,27 +78,27 @@ export default function MemberCard({
             </span>
           )}
           {meta.discount > 0 && (
-            <span className="inline-flex items-center rounded-full bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 text-[9px] font-bold text-emerald-300">
+            <span className="hidden sm:inline-flex items-center rounded-full bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 text-[9px] font-bold text-emerald-300">
               {meta.discount}% OFF
             </span>
           )}
           {meta.freeDeliveries > 0 && (
-            <span className="inline-flex items-center rounded-full bg-sky-500/10 border border-sky-500/30 px-2 py-0.5 text-[9px] font-bold text-sky-300">
+            <span className="hidden sm:inline-flex items-center rounded-full bg-sky-500/10 border border-sky-500/30 px-2 py-0.5 text-[9px] font-bold text-sky-300">
               {meta.freeDeliveries} Free Delivery/mo
             </span>
           )}
         </div>
 
-        <div className="mt-6 flex items-end justify-between">
-          <div>
+        <div className="mt-4 flex items-end justify-between gap-2 sm:mt-6">
+          <div className="min-w-0 flex-1">
             <p className="text-[9px] uppercase tracking-[0.3em] text-white/50">
               Card Number
             </p>
-            <p className="font-mono text-lg font-bold tracking-[0.15em] text-white sm:text-xl">
+            <p className="font-mono text-lg font-bold tracking-[0.15em] text-white sm:text-xl truncate">
               {cardNumber || "—"}
             </p>
           </div>
-          <div className="text-right text-[10px] leading-relaxed text-white/60">
+          <div className="text-right text-[10px] leading-relaxed text-white/60 shrink-0">
             {nextLevel && remaining > 0 && (
               <>
                 ₹{remaining.toLocaleString("en-IN")} more

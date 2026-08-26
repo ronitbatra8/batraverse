@@ -202,7 +202,7 @@ export default function ProductPage() {
       if (p.category !== product.category || p.id === product.id || seen.has(p.id)) return false;
       seen.add(p.id);
       return true;
-    }).slice(0, 4);
+    }).slice(0, 10);
   })();
   const mockReviews = getProductReviews(product.id);
   const mockStats = getReviewStats(mockReviews);
@@ -455,8 +455,8 @@ export default function ProductPage() {
             </div>
 
             {/* Price */}
-            <div className="mt-5 flex items-baseline gap-3">
-              <span className={cn("text-3xl font-semibold tabular-nums", light ? "text-dark-900" : "text-cream")}>
+            <div className="mt-5 flex flex-wrap items-baseline gap-2 sm:gap-3">
+              <span className={cn("text-2xl font-semibold tabular-nums sm:text-3xl", light ? "text-dark-900" : "text-cream")}>
                 {formatPrice(effectivePrice)}
               </span>
               {effectiveOriginalPrice && (
@@ -623,7 +623,7 @@ export default function ProductPage() {
                 type="button"
                 onClick={() => product && toggleWishlist(product.id)}
                 className={cn(
-                  "inline-flex items-center justify-center rounded-xl border p-3.5 transition-all duration-300",
+                  "inline-flex items-center justify-center gap-2 rounded-xl border px-3.5 py-3 text-[10px] font-semibold uppercase tracking-[0.2em] transition-all duration-300 sm:px-3.5 sm:text-inherit",
                   product && isWishlisted(product.id)
                     ? "border-rose-500 bg-rose-500/10 text-rose-500"
                     : light
@@ -632,6 +632,7 @@ export default function ProductPage() {
                 )}
               >
                 <Heart size={16} fill={product && isWishlisted(product.id) ? "currentColor" : "none"} />
+                <span className="sm:hidden">Wishlist</span>
               </button>
             </div>
 
@@ -659,11 +660,11 @@ export default function ProductPage() {
                 </p>
                 <div className={cn("rounded-xl border divide-y", light ? "border-dark-200/60 divide-dark-100" : "border-white/5 divide-white/5")}>
                   {colorSpecs!.map((s) => (
-                    <div key={s.label} className="flex items-center justify-between px-4 py-2.5">
-                      <span className={cn("text-[11px] font-medium", light ? "text-dark-500" : "text-cream-dim/60")}>
+                    <div key={s.label} className="flex items-center justify-between gap-4 px-4 py-2.5">
+                      <span className={cn("min-w-0 shrink-0 text-[11px] font-medium", light ? "text-dark-500" : "text-cream-dim/60")}>
                         {s.label}
                       </span>
-                      <span className={cn("text-[11px] font-medium tabular-nums", light ? "text-dark-900" : "text-cream")}>
+                      <span className={cn("min-w-0 text-right text-[11px] font-medium tabular-nums", light ? "text-dark-900" : "text-cream")}>
                         {s.value}
                       </span>
                     </div>
@@ -924,31 +925,31 @@ export default function ProductPage() {
 
         {/* Related */}
         {related.length > 0 && (
-          <div className="mx-auto mt-16 max-w-[100rem] px-5 sm:px-10">
-            <h2 className={cn("mb-6 text-[11px] font-semibold uppercase tracking-[0.35em]", light ? "text-dark-400" : "text-cream-dim/60")}>
+          <div className="mt-16 sm:mx-auto sm:max-w-[100rem] sm:px-5 sm:px-10">
+            <h2 className={cn("mb-6 px-5 text-[11px] font-semibold uppercase tracking-[0.35em] sm:px-0", light ? "text-dark-400" : "text-cream-dim/60")}>
               You May Also Like
             </h2>
-            <div className="grid grid-cols-2 gap-4 sm:gap-5 lg:grid-cols-4">
-              {related.map((p) => (
-                <Link
-                  key={p.id}
-                  href={`/store/${p.id}`}
-                  className={cn(
-                    "group overflow-hidden rounded-2xl border transition-all duration-500",
+            <div className="flex flex-col gap-3 sm:gap-5">
+              {[related.slice(0, 5), related.slice(5, 10)].filter(row => row.length > 0).map((row, ri) => (
+                <div key={ri} className="flex overflow-x-auto snap-x snap-mandatory sm:grid sm:grid-cols-2 sm:gap-5 sm:overflow-visible lg:grid-cols-4">
+                  {row.map((p) => (
+                    <Link
+                      key={p.id}
+                      href={`/store/${p.id}`}
+                      className={cn(
+                        "group shrink-0 w-[44vw] snap-start overflow-hidden rounded-none border-0 transition-all duration-500 sm:w-auto sm:shrink sm:rounded-2xl sm:border",
                     light
                       ? "border-dark-200/60 bg-white hover:border-sapphire/30 hover:shadow-[0_8px_40px_rgba(30,58,138,0.1)]"
                       : "border-white/5 bg-graphite hover:border-gold/20 hover:shadow-[0_8px_40px_rgba(212,175,55,0.08)]"
                   )}
                 >
-                  <div className="relative aspect-[4/3] overflow-hidden">
+                  <div className="relative aspect-[4/5] sm:aspect-[4/3] overflow-hidden">
                     <div className={cn("absolute inset-0 bg-gradient-to-br transition-transform duration-700 group-hover:scale-105", p.gradient)} />
                   </div>
                   <div className="p-4">
-                    <div className="flex items-start justify-between gap-2">
-                      <h3 className={cn("text-sm font-medium leading-tight", light ? "text-dark-900" : "text-cream")}>{p.name}</h3>
-                      <span className={cn("shrink-0 text-sm font-semibold tabular-nums", light ? "text-sapphire" : "text-gold-light")}>{formatPrice(p.price)}</span>
-                    </div>
-                    <div className="mt-2 flex items-center gap-1.5">
+                    <h3 className={cn("text-sm font-medium leading-tight", light ? "text-dark-900" : "text-cream")}>{p.name}</h3>
+                    <span className={cn("mt-1 block text-sm font-semibold tabular-nums", light ? "text-sapphire" : "text-gold-light")}>{formatPrice(p.price)}</span>
+                    <div className="mt-2 hidden sm:flex items-center gap-1.5">
                       <div className="flex items-center gap-0.5">
                         {[...Array(5)].map((_, i) => (
                           <Star key={i} size={10} className={cn(i < Math.floor(p.rating) ? light ? "fill-sapphire text-sapphire" : "fill-gold text-gold" : light ? "fill-dark-200 text-dark-200" : "fill-white/10 text-white/10")} />
@@ -957,6 +958,8 @@ export default function ProductPage() {
                     </div>
                   </div>
                 </Link>
+                  ))}
+                </div>
               ))}
             </div>
           </div>

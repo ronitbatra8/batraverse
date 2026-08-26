@@ -33,7 +33,7 @@ export default function CartPage() {
 
   return (
     <SiteLayout>
-      <div className="min-h-screen pb-20">
+      <div className="min-h-screen pb-20 overflow-x-hidden">
         {/* Breadcrumb */}
         <div className="mx-auto max-w-[100rem] px-5 pt-6 sm:px-10">
           <nav className="flex items-center gap-2 text-[10px] uppercase tracking-[0.2em]">
@@ -75,7 +75,7 @@ export default function CartPage() {
             </Link>
           </div>
         ) : (
-          <div className="mx-auto mt-8 grid max-w-[100rem] gap-10 px-5 sm:px-10 lg:grid-cols-3">
+          <div className="mx-auto mt-8 grid max-w-[100rem] gap-6 px-5 sm:gap-10 sm:px-10 lg:grid-cols-3">
             {/* Items */}
             <div className="lg:col-span-2">
               <div className="flex items-center justify-between">

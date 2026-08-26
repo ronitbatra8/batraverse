@@ -7,6 +7,7 @@ import {
   AnimatePresence,
   motion,
   useAnimationControls,
+  useMotionValueEvent,
   useScroll,
 } from "framer-motion";
 import {
@@ -19,6 +20,7 @@ import {
   Package,
   Search,
   ShoppingBag,
+  Store,
   Sun,
   User as UserIcon,
   UserPlus,
@@ -26,6 +28,9 @@ import {
   X,
   MessageSquare,
   Wallet,
+  Home,
+  ShoppingCart,
+  Stethoscope,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Brand from "@/components/brand/Brand";
@@ -50,6 +55,13 @@ const NAV_LINKS = [
   { label: "Contact", href: "/contact" },
 ] as const;
 
+const BOTTOM_TABS = [
+  { label: "Home", href: "/", icon: Home },
+  { label: "Store", href: "/store", icon: Store },
+  { label: "Mart", href: "/mart", icon: ShoppingCart },
+  { label: "Mediverse", href: "/mediverse", icon: Stethoscope },
+] as const;
+
 export default function Navbar() {
   const phase = useBootPhase();
   const boot = useBoot();
@@ -67,8 +79,9 @@ export default function Navbar() {
   const dash = roleDashboard(user?.role);
 
   const [scrolled, setScrolled] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
   const [shopOpen, setShopOpen] = useState(false);
+  const [tabHidden, setTabHidden] = useState(false);
+  const lastScrollY = useRef(0);
 
   /* Light mode: the nav chrome turns dark-and-sapphire immediately — it sits
      over the light hero at the top too — and grows a frosted white pill only
@@ -88,22 +101,22 @@ export default function Navbar() {
      MAISON DARK flight. On refresh it just slides in from the top, no bounce. */
   const brandRef = useRef<HTMLDivElement>(null);
   const brandControls = useAnimationControls();
-  const { scrollYProgress } = useScroll();
+  const { scrollYProgress, scrollY } = useScroll();
 
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 24);
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+  /* Derive scrolled from the existing useScroll motion value — no extra listener */
+  useMotionValueEvent(scrollYProgress, "change", (v) => {
+    setScrolled(v > 0.01);
+  });
 
-  /* Lock body scroll while the mobile menu is open */
-  useEffect(() => {
-    document.body.style.overflow = menuOpen ? "hidden" : "";
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [menuOpen]);
+  /* Hide/show bottom tab bar on scroll direction */
+  useMotionValueEvent(scrollY, "change", (y) => {
+    const prev = lastScrollY.current;
+    const diff = y - prev;
+    if (Math.abs(diff) < 10) return;
+    if (diff > 0 && y > 80) setTabHidden(true);
+    else setTabHidden(false);
+    lastScrollY.current = y;
+  });
 
   /* Close the shop dropdown on outside click or Escape */
   useEffect(() => {
@@ -206,8 +219,8 @@ export default function Navbar() {
             "relative flex h-16 items-center justify-between px-5 transition-[margin,padding,border-radius,box-shadow,background-color] duration-500 sm:px-10",
             scrolled
               ? lightNav
-                ? "mx-3 mt-3 rounded-2xl border border-white/60 bg-white/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_12px_40px_rgba(0,0,0,0.10)] backdrop-blur-2xl sm:mx-6"
-                : "mx-3 mt-3 rounded-2xl bg-onyx/70 shadow-[inset_0_1px_0_rgba(212,175,55,0.12),0_12px_40px_rgba(0,0,0,0.5)] backdrop-blur-2xl sm:mx-6"
+                ? "mt-3 border border-white/60 bg-white/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_12px_40px_rgba(0,0,0,0.10)] backdrop-blur-2xl"
+                : "mt-3 border border-gold/15 bg-onyx/70 shadow-[inset_0_1px_0_rgba(212,175,55,0.12),0_12px_40px_rgba(0,0,0,0.5)] backdrop-blur-2xl"
               : "bg-transparent"
           )}
         >
@@ -278,7 +291,7 @@ export default function Navbar() {
                 type="button"
                 onClick={() => router.push("/account")}
                 className={cn(
-                  "hidden items-center gap-2 rounded-full border px-3.5 py-2 transition-all duration-300 sm:inline-flex",
+                  "inline-flex items-center gap-2 rounded-full border px-2.5 py-1.5 transition-all duration-300 sm:px-3.5 sm:py-2",
                   lightNav
                     ? "border-sapphire/25 bg-sapphire/10 hover:border-sapphire/45 hover:bg-sapphire/15"
                     : "border-gold/25 bg-gold/10 hover:border-gold/45 hover:bg-gold/15"
@@ -294,7 +307,7 @@ export default function Navbar() {
                 </span>
                 <span
                   className={cn(
-                    "max-w-24 truncate text-[10px] font-semibold uppercase tracking-[0.2em]",
+                    "hidden max-w-24 truncate text-[10px] font-semibold uppercase tracking-[0.2em] sm:inline-block",
                     lightNav ? "text-sapphire" : "text-gold-light"
                   )}
                 >
@@ -317,14 +330,14 @@ export default function Navbar() {
             ) : (
               <Link
                 href="/login"
-                className="hidden items-center rounded-full bg-rose-500 px-5 py-2 text-[10px] font-semibold uppercase tracking-[0.28em] text-abyss transition-all duration-300 hover:bg-rose-400 hover:shadow-[0_0_30px_rgba(244,63,94,0.45)] sm:inline-flex"
+                className="items-center rounded-full bg-rose-500 px-3.5 py-1.5 text-[9px] font-semibold uppercase tracking-[0.28em] text-abyss transition-all duration-300 hover:bg-rose-400 hover:shadow-[0_0_30px_rgba(244,63,94,0.45)] sm:inline-flex sm:px-5 sm:py-2 sm:text-[10px]"
               >
                 Sign In
               </Link>
             )}
 
             {/* Expandable shop dropdown — cart, wishlist, account */}
-            <div ref={shopRef} className="relative z-10 hidden sm:block">
+            <div ref={shopRef} className="relative z-10">
               <button
                 type="button"
                 onClick={() => setShopOpen((o) => !o)}
@@ -367,12 +380,12 @@ export default function Navbar() {
                 </AnimatePresence>
               </button>
 
-              <AnimatePresence mode="popLayout">
+              <AnimatePresence>
                 {shopOpen && (
                   <motion.div
-                    initial={{ opacity: 0, scale: 0.35, filter: "blur(6px)" }}
-                    animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
-                    exit={{ opacity: 0, scale: 0.4, filter: "blur(6px)" }}
+                    initial={{ opacity: 0, scale: 0.35 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.4 }}
                     transition={{
                       type: "spring",
                       stiffness: 400,
@@ -381,10 +394,10 @@ export default function Navbar() {
                     }}
                     style={{ transformOrigin: "top right" }}
                     className={cn(
-                      "absolute right-0 top-0.5 w-56 overflow-hidden rounded-2xl border p-2 backdrop-blur-2xl",
+                      "absolute right-0 top-0.5 w-56 overflow-hidden rounded-2xl border p-2",
                       lightNav
-                        ? "border-black/10 bg-white/95 shadow-[0_30px_80px_rgba(0,0,0,0.18)]"
-                        : "border-gold/15 bg-onyx/95 shadow-[0_30px_80px_rgba(0,0,0,0.6)]"
+                        ? "border-black/10 bg-white shadow-[0_30px_80px_rgba(0,0,0,0.18)]"
+                        : "border-gold/15 bg-onyx shadow-[0_30px_80px_rgba(0,0,0,0.6)]"
                     )}
                   >
                     {/* soft accent lighting — sapphire in light mode, gold in dark */}
@@ -689,15 +702,6 @@ export default function Navbar() {
                 )}
               </AnimatePresence>
             </div>
-
-            <IconBtn
-              label="Menu"
-              className="lg:hidden"
-              lightNav={lightNav}
-              onClick={() => setMenuOpen(true)}
-            >
-              <Menu size={18} strokeWidth={1.5} />
-            </IconBtn>
           </motion.div>
 
           {/* Scroll progress */}
@@ -714,214 +718,54 @@ export default function Navbar() {
         </nav>
       </motion.header>
 
-      {/* Mobile menu */}
-      <AnimatePresence>
-        {menuOpen && (
-          <motion.div
-            key="mobile-menu"
-            className={cn(
-              "fixed inset-0 z-[90] flex flex-col backdrop-blur-2xl lg:hidden",
-              lightNav ? "bg-white/95" : "bg-abyss/95"
-            )}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.4, ease: EASE }}
-          >
-            <div className="flex items-center justify-between px-5 pt-6 sm:px-10">
-              <span
+      {/* Mobile bottom tab bar */}
+      <div
+        className={cn(
+          "fixed inset-x-0 bottom-0 z-50 rounded-none border-t border-x-0 border-b-0 backdrop-blur-2xl transition-transform duration-500 ease-[cubic-bezier(0.33,1,0.68,1)] lg:hidden",
+          lightNav
+            ? "border-white/60 bg-white/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_-12px_40px_rgba(0,0,0,0.10)]"
+            : "border-gold/15 bg-onyx/70 shadow-[inset_0_1px_0_rgba(212,175,55,0.12),0_-12px_40px_rgba(0,0,0,0.5)]",
+          tabHidden && "translate-y-full"
+        )}
+      >
+        <nav className="flex items-center justify-evenly px-4 py-4">
+          {BOTTOM_TABS.map((t) => {
+            const Icon = t.icon;
+            const active =
+              t.href === "/"
+                ? pathname === "/"
+                : pathname.startsWith(t.href);
+            return (
+              <Link
+                key={t.href}
+                href={t.href}
                 className={cn(
-                  "font-display text-base font-light tracking-[0.3em]",
-                  lightNav ? "text-onyx" : "text-cream"
+                  "relative flex flex-1 flex-col items-center gap-1 py-0.5 transition-colors duration-300",
+                  active
+                    ? lightNav
+                      ? "text-sapphire"
+                      : "text-gold-light"
+                    : lightNav
+                      ? "text-onyx/60 hover:text-onyx"
+                      : "text-cream-dim/60 hover:text-cream"
                 )}
               >
-                BATRA <span className={cn("font-medium", lightNav ? "text-sapphire" : "text-gold-light")}>VERSE</span>
-              </span>
-              <IconBtn label="Close" onClick={() => setMenuOpen(false)} lightNav={lightNav}>
-                <X size={20} strokeWidth={1.5} />
-              </IconBtn>
-            </div>
-
-            <nav className="flex flex-1 flex-col items-center justify-center gap-8">
-              {NAV_LINKS.map((l, i) => (
-                <MotionLink
-                  key={l.href}
-                  href={l.href}
-                  onClick={() => setMenuOpen(false)}
+                <Icon size={17} strokeWidth={1.5} />
+                <span className="text-[9px] font-semibold uppercase tracking-[0.2em]">
+                  {t.label}
+                </span>
+                <span
                   className={cn(
-                    "font-display text-3xl font-light tracking-[0.25em] transition-colors",
-                    lightNav ? "text-onyx hover:text-sapphire" : "text-cream hover:text-gold-light"
+                    "absolute -top-1 left-1/2 h-[2px] -translate-x-1/2 rounded-full transition-all duration-500",
+                    lightNav ? "bg-sapphire" : "bg-gold-light",
+                    active ? "w-full" : "w-0"
                   )}
-                  initial={{ opacity: 0, y: 24, filter: "blur(8px)" }}
-                  animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                  transition={{
-                    duration: 0.7,
-                    delay: 0.1 + i * 0.07,
-                    ease: EASE,
-                  }}
-                >
-                  {l.label}
-                </MotionLink>
-              ))}
-
-              <div className="flex flex-col items-center gap-5">
-                {user ? (
-                  <>
-                    {dash && (
-                      <MotionLink
-                        href={dash.href}
-                        onClick={() => setMenuOpen(false)}
-                        className={cn(
-                          "font-display text-2xl font-light tracking-[0.25em] transition-colors",
-                          lightNav ? "text-sapphire hover:text-sapphire-light" : "text-gold-light hover:text-gold"
-                        )}
-                        initial={{ opacity: 0, y: 24, filter: "blur(8px)" }}
-                        animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                        transition={{ duration: 0.7, delay: 0.1 + NAV_LINKS.length * 0.07, ease: EASE }}
-                      >
-                        {dash.label}
-                      </MotionLink>
-                    )}
-                    <MotionLink
-                      href="/account"
-                      onClick={() => setMenuOpen(false)}
-                      className={cn(
-                        "font-display text-2xl font-light tracking-[0.25em] transition-colors",
-                        lightNav ? "text-sapphire hover:text-sapphire-light" : "text-gold-light hover:text-gold"
-                      )}
-                      initial={{ opacity: 0, y: 24, filter: "blur(8px)" }}
-                      animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                      transition={{ duration: 0.7, delay: 0.1 + NAV_LINKS.length * 0.07, ease: EASE }}
-                    >
-                      My Account
-                    </MotionLink>
-                    <MotionLink
-                      href="/wallet"
-                      onClick={() => setMenuOpen(false)}
-                      className={cn(
-                        "font-display text-2xl font-light tracking-[0.25em] transition-colors",
-                        lightNav ? "text-sapphire hover:text-sapphire-light" : "text-gold-light hover:text-gold"
-                      )}
-                      initial={{ opacity: 0, y: 24, filter: "blur(8px)" }}
-                      animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                      transition={{ duration: 0.7, delay: 0.1 + NAV_LINKS.length * 0.07 + 0.07, ease: EASE }}
-                    >
-                      Wallet
-                    </MotionLink>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setMenuOpen(false);
-                        logout();
-                        router.push("/");
-                      }}
-                      className={cn(
-                        "font-display text-2xl font-light tracking-[0.25em] transition-colors",
-                        lightNav ? "text-onyx/70 hover:text-rose-500" : "text-cream-dim hover:text-rose-300"
-                      )}
-                    >
-                      Sign Out
-                    </button>
-                    {accounts.length > 1 && (
-                      <div className="flex flex-col items-center gap-3 mt-2">
-                        <span
-                          className={cn(
-                            "text-[10px] font-bold uppercase tracking-[0.3em]",
-                            lightNav ? "text-onyx/40" : "text-cream-dim/40"
-                          )}
-                        >
-                          Switch Account
-                        </span>
-                        {accounts.map((acc, i) => (
-                          <button
-                            key={acc.user.id}
-                            type="button"
-                            onClick={() => {
-                              setMenuOpen(false);
-                              switchAccount(i);
-                            }}
-                            className={cn(
-                              "flex items-center gap-3 rounded-xl px-5 py-2 transition-all duration-300",
-                              i === currentIndex
-                                ? lightNav
-                                  ? "bg-sapphire/15 text-sapphire"
-                                  : "bg-gold/15 text-gold-light"
-                                : lightNav
-                                  ? "text-onyx/70 hover:text-sapphire hover:bg-black/5"
-                                  : "text-cream-dim hover:text-gold-light hover:bg-white/5"
-                            )}
-                          >
-                            <span
-                              className={cn(
-                                "flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-bold",
-                                i === currentIndex
-                                  ? lightNav
-                                    ? "bg-sapphire text-white"
-                                    : "bg-gold text-abyss"
-                                  : lightNav
-                                    ? "bg-dark-200 text-dark-600"
-                                    : "bg-white/10 text-cream-dim"
-                              )}
-                            >
-                              {acc.user.name?.charAt(0)?.toUpperCase() || "?"}
-                            </span>
-                            <span className="flex flex-col text-left">
-                              <span className="text-sm tracking-wider">{acc.user.name?.split(" ")[0]}</span>
-                              {acc.user.cardNumber && (
-                                <span className={cn("text-[9px] tracking-wider", lightNav ? "text-onyx/40" : "text-cream-dim/40")}>
-                                  {acc.user.cardNumber}
-                                </span>
-                              )}
-                            </span>
-                            {i === currentIndex && (
-                              <Check size={14} strokeWidth={2} className={cn("ml-2 shrink-0", lightNav ? "text-sapphire" : "text-gold-light")} />
-                            )}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                    <MotionLink
-                      href="/login?add=1"
-                      onClick={() => setMenuOpen(false)}
-                      className={cn(
-                        "text-lg font-light tracking-[0.25em] transition-colors mt-2",
-                        lightNav ? "text-onyx/50 hover:text-sapphire" : "text-cream-dim/50 hover:text-gold-light"
-                      )}
-                    >
-                      Add Account
-                    </MotionLink>
-                  </>
-                ) : (
-                  <MotionLink
-                    href="/login"
-                    onClick={() => setMenuOpen(false)}
-                    className={cn(
-                      "rounded-full px-8 py-3 text-[11px] font-semibold uppercase tracking-[0.3em] text-abyss transition-all duration-500",
-                      lightNav
-                        ? "bg-sapphire hover:shadow-[0_0_40px_rgba(30,58,138,0.45)]"
-                        : "bg-gold hover:shadow-[0_0_40px_rgba(212,175,55,0.45)]"
-                    )}
-                    initial={{ opacity: 0, y: 24, filter: "blur(8px)" }}
-                    animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                    transition={{ duration: 0.7, delay: 0.1 + NAV_LINKS.length * 0.07, ease: EASE }}
-                  >
-                    Sign In
-                  </MotionLink>
-                )}
-              </div>
-            </nav>
-
-            <p
-              className={cn(
-                "pb-10 text-center text-[9px] uppercase tracking-[0.5em]",
-                lightNav ? "text-onyx/40" : "text-cream-dim/50"
-              )}
-            >
-              Batra Verse · MMXXVI
-            </p>
-          </motion.div>
-        )}
-      </AnimatePresence>
+                />
+              </Link>
+            );
+          })}
+        </nav>
+      </div>
     </>
   );
 }
