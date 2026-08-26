@@ -772,7 +772,7 @@ function ProductsTab({
               </div>
               <div className="p-4 space-y-3">
                 <div>
-                  <p className="text-xs text-dark-500 uppercase tracking-wider">{p.brand}{p.category ? ` � ${p.category}` : ""}</p>
+                  <p className="text-xs text-dark-500 uppercase tracking-wider">{p.brand}{p.category ? ` / ${p.category}` : ""}{p.subCategory ? ` / ${p.subCategory}` : ""}</p>
                   <h3 className="text-sm font-semibold text-white mt-0.5 truncate">{p.name}</h3>
                 </div>
                 <div className="flex items-baseline gap-2">

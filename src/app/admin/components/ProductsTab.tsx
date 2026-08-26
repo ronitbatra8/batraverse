@@ -256,7 +256,7 @@ export default function ProductsTab({ adminKey }: { adminKey: string }) {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-white truncate">{p.name}</p>
                     <p className="text-[11px] text-dark-500 truncate">
-                      {p.brand || "No brand"} &middot; {p.category || "uncategorized"} &middot; {p.source || "store"}
+                      {p.brand || "No brand"} &middot; {p.category || "uncategorized"}{p.subCategory ? ` / ${p.subCategory}` : ""} &middot; {p.source || "store"}
                     </p>
                   </div>
                   <div className="text-right shrink-0">
