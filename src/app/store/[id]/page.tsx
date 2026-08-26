@@ -560,6 +560,11 @@ export default function ProductPage() {
             )}
 
             {/* Quantity + Actions */}
+            {!product.inStock ? (
+              <div className={cn("mt-8 flex items-center justify-center gap-3 rounded-xl border px-6 py-4 text-sm font-semibold uppercase tracking-[0.2em]", light ? "border-red-200 bg-red-50 text-red-500" : "border-red-500/20 bg-red-500/10 text-red-400")}>
+                <ShoppingBag size={18} /> Out of Stock
+              </div>
+            ) : (
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
               {/* Qty */}
               <div className={cn("flex items-center rounded-xl border", light ? "border-dark-200" : "border-white/10")}>
@@ -586,15 +591,13 @@ export default function ProductPage() {
               <button
                 type="button"
                 onClick={handleAddToCart}
-                disabled={!product.inStock}
                 className={cn(
                   "flex flex-1 items-center justify-center gap-2.5 rounded-xl px-8 py-3.5 text-[11px] font-bold uppercase tracking-[0.25em] transition-all duration-300",
                   addedToCart
                     ? "bg-emerald-500 text-white"
                     : light
                       ? "border border-sapphire bg-sapphire/10 text-sapphire hover:bg-sapphire hover:text-white hover:shadow-[0_0_30px_rgba(30,58,138,0.3)]"
-                      : "border border-gold/40 bg-gold/10 text-gold-light hover:bg-gold hover:text-abyss hover:shadow-[0_0_30px_rgba(212,175,55,0.3)]",
-                  !product.inStock && "opacity-40 cursor-not-allowed"
+                      : "border border-gold/40 bg-gold/10 text-gold-light hover:bg-gold hover:text-abyss hover:shadow-[0_0_30px_rgba(212,175,55,0.3)]"
                 )}
               >
                 {addedToCart ? (
@@ -603,7 +606,7 @@ export default function ProductPage() {
                   </>
                 ) : (
                   <>
-                    <ShoppingBag size={14} /> {product.inStock ? "Add to Cart" : "Out of Stock"}
+                    <ShoppingBag size={14} /> Add to Cart
                   </>
                 )}
               </button>
@@ -612,13 +615,11 @@ export default function ProductPage() {
               <button
                 type="button"
                 onClick={handleBuyNow}
-                disabled={!product.inStock}
                 className={cn(
                   "flex flex-1 items-center justify-center gap-2.5 rounded-xl px-8 py-3.5 text-[11px] font-bold uppercase tracking-[0.25em] transition-all duration-300",
                   light
                     ? "bg-dark-900 text-white hover:bg-dark-800 hover:shadow-[0_0_30px_rgba(0,0,0,0.25)]"
-                    : "bg-gold text-abyss hover:bg-gold-light hover:shadow-[0_0_30px_rgba(212,175,55,0.35)]",
-                  !product.inStock && "opacity-40 cursor-not-allowed"
+                    : "bg-gold text-abyss hover:bg-gold-light hover:shadow-[0_0_30px_rgba(212,175,55,0.35)]"
                 )}
               >
                 <Zap size={14} /> Buy Now
@@ -641,6 +642,7 @@ export default function ProductPage() {
                 <span className="sm:hidden">Wishlist</span>
               </button>
             </div>
+            )}
 
             {/* Trust badges */}
             <div className={cn("mt-8 grid grid-cols-3 gap-3 rounded-2xl border p-4", light ? "border-dark-100 bg-dark-50/50" : "border-white/5 bg-graphite/50")}>
