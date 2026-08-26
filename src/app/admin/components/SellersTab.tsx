@@ -146,15 +146,22 @@ export default function SellersTab({ adminKey }: { adminKey: string }) {
                               const colorImgs = Array.isArray(product.colorOptions) ? product.colorOptions.flatMap((c: any) => Array.isArray(c.images) ? c.images : typeof c.images === "string" ? [c.images] : []) : [];
                               const effectiveImg = (Array.isArray(rawImgs) && rawImgs[0]) || colorImgs[0] || "";
                               let effectivePrice = product.price || 0;
-                              if (effectivePrice <= 0 && Array.isArray(product.colorOptions)) {
-                                const withPrice = product.colorOptions.find((c: any) => c.price > 0);
-                                if (withPrice) effectivePrice = withPrice.price;
+                              if (effectivePrice <= 0 && product.sizeOptions && typeof product.sizeOptions === "object") {
+                                const firstName = Array.isArray(product.colorOptions) && product.colorOptions.length > 0 ? product.colorOptions[0].name : "";
+                                const firstSizes = product.sizeOptions[firstName] || Object.values(product.sizeOptions)[0] || [];
+                                const withPrice = firstSizes.find((s: any) => s.price != null && s.price > 0);
+                                if (withPrice && withPrice.price != null) effectivePrice = withPrice.price;
                               }
                               let effectiveOriginalPrice = product.originalPrice;
-                              if ((!effectiveOriginalPrice || effectiveOriginalPrice <= effectivePrice) && Array.isArray(product.colorOptions)) {
-                                const withOP = product.colorOptions.find((c: any) => c.originalPrice > (c.price || 0));
-                                if (withOP) effectiveOriginalPrice = withOP.originalPrice;
+                              if (effectivePrice <= 0 || (!effectiveOriginalPrice || effectiveOriginalPrice <= effectivePrice)) {
+                                if (product.sizeOptions && typeof product.sizeOptions === "object") {
+                                  const firstName = Array.isArray(product.colorOptions) && product.colorOptions.length > 0 ? product.colorOptions[0].name : "";
+                                  const firstSizes = product.sizeOptions[firstName] || Object.values(product.sizeOptions)[0] || [];
+                                  const withOP = firstSizes.find((s: any) => s.originalPrice != null && s.originalPrice > (s.price || 0));
+                                  if (withOP && withOP.originalPrice != null) effectiveOriginalPrice = withOP.originalPrice;
+                                }
                               }
+                              const viewUrl = product.source === "mart" ? `/mart/db-${product.id}` : `/store/db-${product.id}`;
                               return (
                               <div key={product.id} className="bg-dark-900/40 border border-dark-800/30 rounded-xl p-4 space-y-2">
                                 <div className="flex items-start gap-3">
@@ -185,7 +192,7 @@ export default function SellersTab({ adminKey }: { adminKey: string }) {
                                 {product.description && (
                                   <p className="text-[10px] text-dark-500 line-clamp-2">{product.description}</p>
                                 )}
-                                <a href={`/products/${product.id}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[10px] text-gold-400 hover:text-gold-300 transition-colors">
+                                <a href={viewUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[10px] text-gold-400 hover:text-gold-300 transition-colors">
                                   <Eye className="w-3 h-3" /> View product
                                 </a>
                               </div>

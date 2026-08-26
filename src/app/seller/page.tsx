@@ -751,14 +751,17 @@ function ProductsTab({
           {products.map((p) => {
             const cardImage = (p.images && p.images.length > 0 && p.images[0]) || (p.colorOptions && p.colorOptions.length > 0 && p.colorOptions[0].images && p.colorOptions[0].images.length > 0 && p.colorOptions[0].images[0]) || "";
             let cardPrice = p.price;
-            if (cardPrice <= 0 && p.colorOptions && p.colorOptions.length > 0) {
-              const firstWithPrice = p.colorOptions.find((c) => c.price != null && c.price > 0);
-              if (firstWithPrice && firstWithPrice.price != null) cardPrice = firstWithPrice.price;
-            }
-            let cardOriginalPrice = p.originalPrice;
-            if (cardPrice <= 0 || (!cardOriginalPrice || cardOriginalPrice <= cardPrice)) {
-              const firstWithOP = p.colorOptions?.find((c) => c.originalPrice != null && c.originalPrice > (c.price || 0));
-              if (firstWithOP && firstWithOP.originalPrice != null) cardOriginalPrice = firstWithOP.originalPrice;
+            let cardOriginalPrice = p.originalPrice || 0;
+            if (cardPrice <= 0 && p.sizeOptions && typeof p.sizeOptions === "object") {
+              const firstColorName = p.colorOptions && p.colorOptions.length > 0 ? p.colorOptions[0].name : "";
+              const firstSizes = p.sizeOptions[firstColorName] || Object.values(p.sizeOptions)[0] || [];
+              const withPrice = firstSizes.find((s) => s.price != null && s.price > 0);
+              if (withPrice && withPrice.price != null) {
+                cardPrice = withPrice.price;
+                if (withPrice.originalPrice != null && withPrice.originalPrice > cardPrice) {
+                  cardOriginalPrice = withPrice.originalPrice;
+                }
+              }
             }
             return (
             <div key={p.id} className="bg-dark-900/60 border border-dark-800/50 rounded-2xl overflow-hidden group">

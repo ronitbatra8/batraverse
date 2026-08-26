@@ -34,6 +34,7 @@ interface SellerProduct {
   sellerId: string | null;
   seller: { id: string; name: string; email: string; shopName?: string | null } | null;
   colorOptions: { name: string; hex: string; images?: string | string[]; price?: number; originalPrice?: number }[] | null;
+  sizeOptions: Record<string, { name: string; price?: number; originalPrice?: number }[]> | null;
 }
 
 function parseAdminImages(raw: unknown): string[] {
@@ -55,18 +56,22 @@ function getEffectiveAdminImage(p: SellerProduct): string {
 
 function getEffectiveAdminPrice(p: SellerProduct): number {
   if (p.price > 0) return p.price;
-  if (p.colorOptions) {
-    const first = p.colorOptions.find((c) => c.price && c.price > 0);
-    if (first) return first.price!;
+  if (p.sizeOptions && typeof p.sizeOptions === "object") {
+    const firstName = p.colorOptions && p.colorOptions.length > 0 ? p.colorOptions[0].name : "";
+    const firstSizes = p.sizeOptions[firstName] || Object.values(p.sizeOptions)[0] || [];
+    const withPrice = firstSizes.find((s) => s.price != null && s.price > 0);
+    if (withPrice && withPrice.price != null) return withPrice.price;
   }
   return p.price;
 }
 
 function getEffectiveAdminOriginalPrice(p: SellerProduct): number | null {
   if (p.originalPrice && p.originalPrice > 0) return p.originalPrice;
-  if (p.colorOptions) {
-    const first = p.colorOptions.find((c) => c.originalPrice && c.originalPrice > 0);
-    if (first) return first.originalPrice!;
+  if (p.sizeOptions && typeof p.sizeOptions === "object") {
+    const firstName = p.colorOptions && p.colorOptions.length > 0 ? p.colorOptions[0].name : "";
+    const firstSizes = p.sizeOptions[firstName] || Object.values(p.sizeOptions)[0] || [];
+    const withOP = firstSizes.find((s) => s.originalPrice != null && s.originalPrice > (s.price || 0));
+    if (withOP && withOP.originalPrice != null) return withOP.originalPrice;
   }
   return null;
 }
