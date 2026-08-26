@@ -173,8 +173,8 @@ function SearchContent() {
   const fetchDb = useCallback(async () => {
     try {
       const [storeRes, martRes] = await Promise.all([
-        fetch(`${API_BASE}/categories/products/store`),
-        fetch(`${API_BASE}/categories/products/mart`),
+        fetch(`${API_BASE}/categories/products/store`, { headers: { "ngrok-skip-browser-warning": "true" } }),
+        fetch(`${API_BASE}/categories/products/mart`, { headers: { "ngrok-skip-browser-warning": "true" } }),
       ]);
       if (storeRes.ok) {
         const data: DbProduct[] = await storeRes.json();

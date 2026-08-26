@@ -93,7 +93,9 @@ export default function StoreNav({
 
   const fetchCategories = useCallback(async () => {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"}/categories`);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"}/categories`, {
+        headers: { "ngrok-skip-browser-warning": "true" },
+      });
       const data = await res.json();
       if (data?.store && Array.isArray(data.store) && data.store.length > 0) {
         const cats = [{ id: "all", label: "All" }, ...data.store.map((c: { slug: string; name: string; subcategories: { slug: string; name: string }[] }) => ({

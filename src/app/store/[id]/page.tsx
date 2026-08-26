@@ -36,7 +36,9 @@ export default function ProductPage() {
     const rawId = id.replace("db-", "");
     setDbLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/categories/products/store`);
+      const res = await fetch(`${API_BASE}/api/categories/products/store`, {
+        headers: { "ngrok-skip-browser-warning": "true" },
+      });
       if (!res.ok) return;
       const data = await res.json();
       if (!Array.isArray(data)) return;

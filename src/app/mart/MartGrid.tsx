@@ -85,7 +85,9 @@ export default function MartGrid({ category, subCategory, searchQuery }: MartGri
 
   const fetchDbProducts = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/categories/products/mart`);
+      const res = await fetch(`${API_BASE}/categories/products/mart`, {
+        headers: { "ngrok-skip-browser-warning": "true" },
+      });
       if (!res.ok) return;
       const data: DbProduct[] = await res.json();
       if (Array.isArray(data)) setDbProducts(data.map(dbToMartProduct));

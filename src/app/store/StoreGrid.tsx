@@ -119,7 +119,9 @@ export default function StoreGrid({ category, subCategory }: StoreGridProps) {
 
   const fetchDbProducts = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/categories/products/store`);
+      const res = await fetch(`${API_BASE}/categories/products/store`, {
+        headers: { "ngrok-skip-browser-warning": "true" },
+      });
       if (!res.ok) return;
       const data: DbProduct[] = await res.json();
       if (Array.isArray(data)) setDbProducts(data.map(dbToStoreProduct));

@@ -35,7 +35,9 @@ export default function PrivateViewingPage() {
       setLoading(false);
       return;
     }
-    fetch(`${API_URL}/private-viewing/my?phone=${encodeURIComponent(user.phone)}`)
+    fetch(`${API_URL}/private-viewing/my?phone=${encodeURIComponent(user.phone)}`, {
+        headers: { "ngrok-skip-browser-warning": "true" },
+      })
       .then((r) => r.json())
       .then((data) => setRequests(data.requests || []))
       .catch(() => {})

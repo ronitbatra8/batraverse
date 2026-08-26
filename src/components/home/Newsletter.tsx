@@ -99,7 +99,9 @@ export default function Newsletter() {
 
   useEffect(() => {
     if (!user?.email) { setCheckingStatus(false); return; }
-    fetch(`${API}/api/newsletter/status?email=${encodeURIComponent(user.email)}`)
+    fetch(`${API}/api/newsletter/status?email=${encodeURIComponent(user.email)}`, {
+        headers: { "ngrok-skip-browser-warning": "true" },
+      })
       .then((r) => r.json())
       .then((d) => setIsSubscribed(d.subscribed))
       .catch(() => {})
@@ -108,7 +110,9 @@ export default function Newsletter() {
 
   useEffect(() => {
     if (!user?.phone) { setViewChecking(false); return; }
-    fetch(`${API}/api/private-viewing/status?phone=${encodeURIComponent(user.phone)}`)
+    fetch(`${API}/api/private-viewing/status?phone=${encodeURIComponent(user.phone)}`, {
+        headers: { "ngrok-skip-browser-warning": "true" },
+      })
       .then((r) => r.json())
       .then((d) => setHasPendingView(d.hasPendingRequest))
       .catch(() => {})
@@ -130,7 +134,7 @@ export default function Newsletter() {
     try {
       const res = await fetch(`${API}/api/newsletter/subscribe`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
         body: JSON.stringify({ email: user.email, name: user.name }),
       });
       const data = await res.json();
@@ -150,7 +154,7 @@ export default function Newsletter() {
     try {
       const res = await fetch(`${API}/api/newsletter/unsubscribe`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
         body: JSON.stringify({ email: user.email }),
       });
       const data = await res.json();
@@ -175,7 +179,7 @@ export default function Newsletter() {
     try {
       const res = await fetch(`${API}/api/private-viewing/request`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
         body: JSON.stringify({
           name: viewName.trim(),
           phone: viewPhone.trim(),
@@ -198,7 +202,7 @@ export default function Newsletter() {
     try {
       const res = await fetch(`${API}/api/private-viewing/request`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
         body: JSON.stringify({
           name: viewName.trim(),
           phone: viewPhone.trim(),

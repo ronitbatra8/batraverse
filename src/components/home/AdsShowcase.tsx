@@ -56,7 +56,7 @@ export default function AdsShowcase({ page = "home", hideHeader = false }: { pag
   const lastTickRef = useRef(0);
 
   useEffect(() => {
-    fetch(`${API_URL}/spotlight-ads?page=${page}`)
+    fetch(`${API_URL}/spotlight-ads?page=${page}`, { headers: { "ngrok-skip-browser-warning": "true" } })
       .then((r) => r.json())
       .then((data) => {
         if (Array.isArray(data) && data.length > 0) {
