@@ -101,6 +101,11 @@ function MediverseProductCard({ product, light }: { product: MediverseProduct; l
             {product.badge}
           </span>
         )}
+        {!product.inStock && (
+          <span className="absolute left-3 top-3 rounded-full px-3 py-1 text-[8px] font-bold uppercase tracking-[0.2em] bg-red-500/90 text-white backdrop-blur-sm">
+            Out of Stock
+          </span>
+        )}
       </div>
 
       <div className="p-4">

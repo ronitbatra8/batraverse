@@ -245,7 +245,7 @@ export default function MediverseProductPage() {
                   </>
                 ) : (
                   <>
-                    <ShoppingBag size={14} /> Add to Cart
+                    <ShoppingBag size={14} /> {product.inStock ? "Add to Cart" : "Out of Stock"}
                   </>
                 )}
               </button>

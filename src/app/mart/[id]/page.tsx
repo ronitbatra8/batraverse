@@ -384,13 +384,15 @@ export default function MartProductPage() {
               <button
                 type="button"
                 onClick={handleAddToCart}
+                disabled={!product.inStock}
                 className={cn(
                   "flex flex-1 items-center justify-center gap-2.5 rounded-xl px-8 py-3.5 text-[11px] font-bold uppercase tracking-[0.25em] transition-all duration-300",
                   addedToCart
                     ? "bg-emerald-500 text-white"
                     : light
                       ? "border border-sapphire bg-sapphire/10 text-sapphire hover:bg-sapphire hover:text-white hover:shadow-[0_0_30px_rgba(30,58,138,0.3)]"
-                      : "border border-gold/40 bg-gold/10 text-gold-light hover:bg-gold hover:text-abyss hover:shadow-[0_0_30px_rgba(212,175,55,0.3)]"
+                      : "border border-gold/40 bg-gold/10 text-gold-light hover:bg-gold hover:text-abyss hover:shadow-[0_0_30px_rgba(212,175,55,0.3)]",
+                  !product.inStock && "opacity-40 cursor-not-allowed"
                 )}
               >
                 {addedToCart ? (
@@ -399,7 +401,7 @@ export default function MartProductPage() {
                   </>
                 ) : (
                   <>
-                    <ShoppingBag size={14} /> Add to Cart
+                    <ShoppingBag size={14} /> {product.inStock ? "Add to Cart" : "Out of Stock"}
                   </>
                 )}
               </button>
@@ -408,11 +410,13 @@ export default function MartProductPage() {
               <button
                 type="button"
                 onClick={handleBuyNow}
+                disabled={!product.inStock}
                 className={cn(
                   "flex flex-1 items-center justify-center gap-2.5 rounded-xl px-8 py-3.5 text-[11px] font-bold uppercase tracking-[0.25em] transition-all duration-300",
                   light
                     ? "bg-dark-900 text-white hover:bg-dark-800 hover:shadow-[0_0_30px_rgba(0,0,0,0.25)]"
-                    : "bg-gold text-abyss hover:bg-gold-light hover:shadow-[0_0_30px_rgba(212,175,55,0.35)]"
+                    : "bg-gold text-abyss hover:bg-gold-light hover:shadow-[0_0_30px_rgba(212,175,55,0.35)]",
+                  !product.inStock && "opacity-40 cursor-not-allowed"
                 )}
               >
                 <Zap size={14} /> Buy Now

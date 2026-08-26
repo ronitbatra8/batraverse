@@ -394,7 +394,7 @@ router.get("/users/:id", async (req, res) => {
         },
         products: {
           orderBy: { name: "asc" },
-          select: { id: true, name: true, brand: true, category: true, price: true, originalPrice: true, description: true, images: true, inStock: true, badge: true, rating: true, reviewCount: true },
+          select: { id: true, name: true, brand: true, category: true, subCategory: true, source: true, price: true, originalPrice: true, description: true, images: true, inStock: true, badge: true, rating: true, reviewCount: true, colorOptions: true, sizeOptions: true },
         },
       },
     });

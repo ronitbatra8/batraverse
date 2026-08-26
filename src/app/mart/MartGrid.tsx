@@ -224,7 +224,16 @@ function MartProductCard({ product, light }: { product: MartProduct; light: bool
             {product.badge}
           </span>
         )}
-        {/* Quick add overlay */}
+        {!product.inStock && (
+          <span className="absolute left-3 top-3 rounded-full px-3 py-1 text-[8px] font-bold uppercase tracking-[0.2em] bg-red-500/90 text-white backdrop-blur-sm">
+            Out of Stock
+          </span>
+        )}
+        {!product.inStock ? (
+          <span className="absolute inset-x-0 bottom-0 flex items-center justify-center bg-gradient-to-t from-red-900/60 to-transparent py-8 text-[9px] font-bold uppercase tracking-[0.25em] text-white/80">
+            Out of Stock
+          </span>
+        ) : (
         <div
           className={cn(
             "absolute inset-x-0 bottom-0 flex translate-y-full items-center justify-center gap-2 bg-gradient-to-t from-black/60 to-transparent py-6 transition-transform duration-500 group-hover:translate-y-0"
@@ -251,6 +260,7 @@ function MartProductCard({ product, light }: { product: MartProduct; light: bool
             )}
           </button>
         </div>
+        )}
       </div>
 
       {/* Info */}
