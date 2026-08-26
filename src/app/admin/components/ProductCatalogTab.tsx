@@ -23,6 +23,54 @@ interface SellerProduct {
   reviewCount: number;
   sellerId: string | null;
   seller: { id: string; name: string; email: string } | null;
+  colorOptions: { name: string; hex: string; images?: string | string[]; price?: number; originalPrice?: number }[] | null;
+}
+
+function parseCatalogImages(raw: unknown): string[] {
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw === "string") { try { const p = JSON.parse(raw); return Array.isArray(p) ? p : []; } catch { return []; } }
+  return [];
+}
+
+function getCatalogImage(p: SellerProduct): string {
+  if (p.images && p.images.length > 0 && p.images[0]) return p.images[0];
+  if (p.colorOptions) {
+    for (const c of p.colorOptions) {
+      const imgs = parseCatalogImages(c.images);
+      if (imgs.length > 0 && imgs[0]) return imgs[0];
+    }
+  }
+  return "";
+}
+
+function getCatalogPrice(p: SellerProduct): number {
+  if (p.price > 0) return p.price;
+  if (p.colorOptions) {
+    const first = p.colorOptions.find((c) => c.price && c.price > 0);
+    if (first) return first.price!;
+  }
+  return p.price;
+}
+
+function getCatalogOriginalPrice(p: SellerProduct): number | null {
+  if (p.originalPrice && p.originalPrice > 0) return p.originalPrice;
+  if (p.colorOptions) {
+    const first = p.colorOptions.find((c) => c.originalPrice && c.originalPrice > 0);
+    if (first) return first.originalPrice!;
+  }
+  return null;
+}
+
+function getAllCatalogImages(p: SellerProduct): string[] {
+  const top = (p.images || []).filter(Boolean);
+  if (top.length > 0) return top;
+  if (p.colorOptions) {
+    for (const c of p.colorOptions) {
+      const imgs = parseCatalogImages(c.images);
+      if (imgs.length > 0) return imgs;
+    }
+  }
+  return [];
 }
 
 export default function ProductCatalogTab({ adminKey }: { adminKey: string }) {
@@ -284,8 +332,8 @@ export default function ProductCatalogTab({ adminKey }: { adminKey: string }) {
               <div className="px-4 py-3 flex items-center gap-4">
                 {/* Thumbnail */}
                 <div className="w-12 h-12 rounded-xl overflow-hidden bg-dark-700/50 shrink-0 flex items-center justify-center">
-                  {p.images?.[0] ? (
-                    <img src={getImageUrl(p.images[0])} alt="" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                  {getCatalogImage(p) ? (
+                    <img src={getImageUrl(getCatalogImage(p))} alt="" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                   ) : (
                     <Package size={16} className="text-dark-500" />
                   )}
@@ -328,8 +376,8 @@ export default function ProductCatalogTab({ adminKey }: { adminKey: string }) {
 
                 {/* Price */}
                 <div className="text-right shrink-0 w-24">
-                  <p className="text-sm font-semibold text-gold-400">{formatPrice(p.price)}</p>
-                  {p.originalPrice && <p className="text-[10px] text-dark-500 line-through">{formatPrice(p.originalPrice)}</p>}
+                  <p className="text-sm font-semibold text-gold-400">{formatPrice(getCatalogPrice(p))}</p>
+                  {getCatalogOriginalPrice(p) && <p className="text-[10px] text-dark-500 line-through">{formatPrice(getCatalogOriginalPrice(p)!)}</p>}
                 </div>
 
                 {/* Stock badge */}
@@ -360,9 +408,9 @@ export default function ProductCatalogTab({ adminKey }: { adminKey: string }) {
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     {/* Images */}
                     <div>
-                      <p className="text-[10px] text-dark-500 uppercase tracking-wider mb-2">Images ({p.images?.length || 0})</p>
+                      <p className="text-[10px] text-dark-500 uppercase tracking-wider mb-2">Images ({getAllCatalogImages(p).length})</p>
                       <div className="flex gap-2 flex-wrap">
-                        {p.images?.length > 0 ? p.images.map((img, i) => (
+                        {getAllCatalogImages(p).length > 0 ? getAllCatalogImages(p).map((img, i) => (
                           <div key={i} className="w-16 h-16 rounded-lg overflow-hidden border border-dark-700/50">
                             <img src={getImageUrl(img)} alt="" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                           </div>

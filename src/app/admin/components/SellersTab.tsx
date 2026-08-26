@@ -141,11 +141,25 @@ export default function SellersTab({ adminKey }: { adminKey: string }) {
                           <p className="text-dark-500 text-xs py-4 text-center">No products listed yet</p>
                         ) : (
                           <div className="grid gap-3 sm:grid-cols-2">
-                            {products.map((product: any) => (
+                            {products.map((product: any) => {
+                              const rawImgs = product.images;
+                              const colorImgs = Array.isArray(product.colorOptions) ? product.colorOptions.flatMap((c: any) => Array.isArray(c.images) ? c.images : typeof c.images === "string" ? [c.images] : []) : [];
+                              const effectiveImg = (Array.isArray(rawImgs) && rawImgs[0]) || colorImgs[0] || "";
+                              let effectivePrice = product.price || 0;
+                              if (effectivePrice <= 0 && Array.isArray(product.colorOptions)) {
+                                const withPrice = product.colorOptions.find((c: any) => c.price > 0);
+                                if (withPrice) effectivePrice = withPrice.price;
+                              }
+                              let effectiveOriginalPrice = product.originalPrice;
+                              if ((!effectiveOriginalPrice || effectiveOriginalPrice <= effectivePrice) && Array.isArray(product.colorOptions)) {
+                                const withOP = product.colorOptions.find((c: any) => c.originalPrice > (c.price || 0));
+                                if (withOP) effectiveOriginalPrice = withOP.originalPrice;
+                              }
+                              return (
                               <div key={product.id} className="bg-dark-900/40 border border-dark-800/30 rounded-xl p-4 space-y-2">
                                 <div className="flex items-start gap-3">
-                                  {product.images?.[0] ? (
-                                    <img src={product.images[0]} alt={product.name} className="w-12 h-12 rounded-lg object-cover shrink-0" />
+                                  {effectiveImg ? (
+                                    <img src={effectiveImg} alt={product.name} className="w-12 h-12 rounded-lg object-cover shrink-0" />
                                   ) : (
                                     <div className="w-12 h-12 rounded-lg bg-dark-800/50 flex items-center justify-center shrink-0">
                                       <Package className="w-5 h-5 text-dark-600" />
@@ -155,9 +169,9 @@ export default function SellersTab({ adminKey }: { adminKey: string }) {
                                     <p className="text-sm text-white font-medium truncate">{product.name}</p>
                                     <p className="text-xs text-dark-400">{product.brand}</p>
                                     <div className="flex items-center gap-2 mt-1">
-                                      <span className="text-xs text-gold-400 font-semibold">{formatPrice(product.price)}</span>
-                                      {product.originalPrice > product.price && (
-                                        <span className="text-[10px] text-dark-500 line-through">{formatPrice(product.originalPrice)}</span>
+                                      <span className="text-xs text-gold-400 font-semibold">{formatPrice(effectivePrice)}</span>
+                                      {effectiveOriginalPrice > effectivePrice && (
+                                        <span className="text-[10px] text-dark-500 line-through">{formatPrice(effectiveOriginalPrice)}</span>
                                       )}
                                     </div>
                                   </div>
@@ -175,7 +189,8 @@ export default function SellersTab({ adminKey }: { adminKey: string }) {
                                   <Eye className="w-3 h-3" /> View product
                                 </a>
                               </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         )}
 

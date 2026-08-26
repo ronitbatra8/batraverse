@@ -32,7 +32,43 @@ interface SellerProduct {
   rating: number;
   reviewCount: number;
   sellerId: string | null;
-  seller: { id: string; name: string; email: string } | null;
+  seller: { id: string; name: string; email: string; shopName?: string | null } | null;
+  colorOptions: { name: string; hex: string; images?: string | string[]; price?: number; originalPrice?: number }[] | null;
+}
+
+function parseAdminImages(raw: unknown): string[] {
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw === "string") { try { const p = JSON.parse(raw); return Array.isArray(p) ? p : []; } catch { return []; } }
+  return [];
+}
+
+function getEffectiveAdminImage(p: SellerProduct): string {
+  if (p.images && p.images.length > 0 && p.images[0]) return p.images[0];
+  if (p.colorOptions) {
+    for (const c of p.colorOptions) {
+      const imgs = parseAdminImages(c.images);
+      if (imgs.length > 0 && imgs[0]) return imgs[0];
+    }
+  }
+  return "";
+}
+
+function getEffectiveAdminPrice(p: SellerProduct): number {
+  if (p.price > 0) return p.price;
+  if (p.colorOptions) {
+    const first = p.colorOptions.find((c) => c.price && c.price > 0);
+    if (first) return first.price!;
+  }
+  return p.price;
+}
+
+function getEffectiveAdminOriginalPrice(p: SellerProduct): number | null {
+  if (p.originalPrice && p.originalPrice > 0) return p.originalPrice;
+  if (p.colorOptions) {
+    const first = p.colorOptions.find((c) => c.originalPrice && c.originalPrice > 0);
+    if (first) return first.originalPrice!;
+  }
+  return null;
 }
 
 export default function ProductsTab({ adminKey }: { adminKey: string }) {
@@ -246,9 +282,9 @@ export default function ProductsTab({ adminKey }: { adminKey: string }) {
             <div className="space-y-2">
               {filteredProducts.map((p) => (
                 <div key={p.id} className="bg-dark-800/40 border border-dark-700/50 rounded-xl px-4 py-3 flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-lg bg-dark-700/50 flex items-center justify-center text-dark-400 text-xs font-bold shrink-0">
-                    {p.images?.[0] ? (
-                      <img src={p.images[0]} alt="" className="w-full h-full object-cover rounded-lg" />
+                  <div className="w-10 h-10 rounded-lg bg-dark-700/50 flex items-center justify-center text-dark-400 text-xs font-bold shrink-0 overflow-hidden">
+                    {getEffectiveAdminImage(p) ? (
+                      <img src={getEffectiveAdminImage(p)} alt="" className="w-full h-full object-cover rounded-lg" />
                     ) : (
                       p.name.slice(0, 2).toUpperCase()
                     )}
@@ -260,8 +296,8 @@ export default function ProductsTab({ adminKey }: { adminKey: string }) {
                     </p>
                   </div>
                   <div className="text-right shrink-0">
-                    <p className="text-sm font-semibold text-gold-400">{formatPrice(p.price)}</p>
-                    {p.originalPrice && <p className="text-[10px] text-dark-500 line-through">{formatPrice(p.originalPrice)}</p>}
+                    <p className="text-sm font-semibold text-gold-400">{formatPrice(getEffectiveAdminPrice(p))}</p>
+                    {getEffectiveAdminOriginalPrice(p) && <p className="text-[10px] text-dark-500 line-through">{formatPrice(getEffectiveAdminOriginalPrice(p)!)}</p>}
                   </div>
                   <div className="text-right shrink-0 w-24">
                     <p className="text-[11px] text-dark-400">{p.seller?.name || "Unknown"}</p>

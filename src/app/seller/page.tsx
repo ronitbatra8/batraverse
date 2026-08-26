@@ -291,7 +291,13 @@ export default function SellerDashboardPage() {
           images: parseImages(item.images),
           specifications: parseJsonArray(item.specifications) as Product["specifications"],
           keyFeatures: parseJsonArray(item.keyFeatures) as Product["keyFeatures"],
-          colorOptions: Array.isArray(item.colorOptions) ? item.colorOptions as Product["colorOptions"] : [],
+          colorOptions: Array.isArray(item.colorOptions) ? (item.colorOptions as Product["colorOptions"]).map((c) => ({
+            ...c,
+            images: parseImages(c.images),
+            colors: parseImages(c.colors),
+            specifications: Array.isArray(c.specifications) ? c.specifications : [],
+            keyFeatures: Array.isArray(c.keyFeatures) ? c.keyFeatures : [],
+          })) : [],
           sizeOptions: (item.sizeOptions && typeof item.sizeOptions === "object" && !Array.isArray(item.sizeOptions)) ? item.sizeOptions as Product["sizeOptions"] : {},
         }))
       );
@@ -742,11 +748,23 @@ function ProductsTab({
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {products.map((p) => (
+          {products.map((p) => {
+            const cardImage = (p.images && p.images.length > 0 && p.images[0]) || (p.colorOptions && p.colorOptions.length > 0 && p.colorOptions[0].images && p.colorOptions[0].images.length > 0 && p.colorOptions[0].images[0]) || "";
+            let cardPrice = p.price;
+            if (cardPrice <= 0 && p.colorOptions && p.colorOptions.length > 0) {
+              const firstWithPrice = p.colorOptions.find((c) => c.price != null && c.price > 0);
+              if (firstWithPrice && firstWithPrice.price != null) cardPrice = firstWithPrice.price;
+            }
+            let cardOriginalPrice = p.originalPrice;
+            if (cardPrice <= 0 || (!cardOriginalPrice || cardOriginalPrice <= cardPrice)) {
+              const firstWithOP = p.colorOptions?.find((c) => c.originalPrice != null && c.originalPrice > (c.price || 0));
+              if (firstWithOP && firstWithOP.originalPrice != null) cardOriginalPrice = firstWithOP.originalPrice;
+            }
+            return (
             <div key={p.id} className="bg-dark-900/60 border border-dark-800/50 rounded-2xl overflow-hidden group">
               <div className="aspect-[4/3] bg-dark-800 relative overflow-hidden">
-                {p.images && p.images.length > 0 && p.images[0] ? (
-                  <img src={getImageUrl(p.images[0])} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                {cardImage ? (
+                  <img src={getImageUrl(cardImage)} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
                     <ImageIcon size={32} className="text-dark-600" />
@@ -776,9 +794,9 @@ function ProductsTab({
                   <h3 className="text-sm font-semibold text-white mt-0.5 truncate">{p.name}</h3>
                 </div>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-lg font-bold text-white">{formatPrice(p.price)}</span>
-                  {p.originalPrice > p.price && (
-                    <span className="text-sm text-dark-500 line-through">{formatPrice(p.originalPrice)}</span>
+                  <span className="text-lg font-bold text-white">{formatPrice(cardPrice)}</span>
+                  {cardOriginalPrice && cardOriginalPrice > cardPrice && (
+                    <span className="text-sm text-dark-500 line-through">{formatPrice(cardOriginalPrice)}</span>
                   )}
                 </div>
                 {p.description && (
@@ -808,7 +826,8 @@ function ProductsTab({
                 </div>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
