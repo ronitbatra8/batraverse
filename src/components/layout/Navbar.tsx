@@ -5,17 +5,23 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { motion, useAnimationControls, useMotionValueEvent, useScroll } from "framer-motion";
 import {
+  Heart,
   Home,
+  Moon,
   Search,
-  ShoppingCart,
+  ShoppingBag,
+  ShoppingBasket,
   Stethoscope,
   Store,
+  Sun,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Brand from "@/components/brand/Brand";
 import { useBoot, useBootPhase } from "@/components/boot/BootContext";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import { useAuth } from "@/components/auth/AuthContext";
+import { useCart } from "@/components/cart/CartContext";
+import { useWishlist } from "@/components/wishlist/WishlistContext";
 import { LEVELS, getLevelFromBalance } from "@/lib/levels";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
@@ -31,20 +37,15 @@ const NAV_LINKS = [
   { label: "Contact", href: "/contact" },
 ] as const;
 
-const BOTTOM_TABS = [
-  { label: "Home", href: "/", icon: Home },
-  { label: "Store", href: "/store", icon: Store },
-  { label: "Mart", href: "/mart", icon: ShoppingCart },
-  { label: "Mediverse", href: "/mediverse", icon: Stethoscope },
-] as const;
-
 export default function Navbar() {
   const phase = useBootPhase();
   const boot = useBoot();
   const pathname = usePathname();
   const router = useRouter();
-  const { theme } = useTheme();
+  const { theme, toggle } = useTheme();
   const { user } = useAuth();
+  const { totalItems } = useCart();
+  const { count: wishlistCount } = useWishlist();
 
   const walletBalance = user?.walletBalance ?? 0;
   const levelKey = getLevelFromBalance(user?.peakWalletBalance ?? walletBalance);
@@ -237,6 +238,55 @@ export default function Navbar() {
               <Search size={17} strokeWidth={1.5} />
             </IconBtn>
 
+            <IconBtn
+              label="Wishlist"
+              badge={wishlistCount > 0 ? wishlistCount : undefined}
+              lightNav={lightNav}
+              onClick={() => router.push("/wishlist")}
+            >
+              <Heart size={17} strokeWidth={1.5} />
+            </IconBtn>
+
+            <IconBtn
+              label="Cart"
+              badge={totalItems > 0 ? totalItems : undefined}
+              lightNav={lightNav}
+              onClick={() => router.push("/cart")}
+            >
+              <ShoppingBag size={17} strokeWidth={1.5} />
+            </IconBtn>
+
+            <IconBtn
+              label={
+                theme === "light"
+                  ? "Switch to dark mode"
+                  : "Switch to light mode"
+              }
+              lightNav={lightNav}
+              onClick={toggle}
+            >
+              <Moon
+                size={17}
+                strokeWidth={1.5}
+                className={cn(
+                  "absolute inset-0 m-auto transition-all duration-300",
+                  theme === "light"
+                    ? "rotate-0 scale-100 opacity-100"
+                    : "-rotate-90 scale-50 opacity-0"
+                )}
+              />
+              <Sun
+                size={17}
+                strokeWidth={1.5}
+                className={cn(
+                  "absolute inset-0 m-auto transition-all duration-300",
+                  theme === "dark"
+                    ? "rotate-0 scale-100 opacity-100"
+                    : "rotate-90 scale-50 opacity-0"
+                )}
+              />
+            </IconBtn>
+
             {user ? (
               <button
                 type="button"
@@ -302,53 +352,97 @@ export default function Navbar() {
         </nav>
       </motion.header>
 
-      {/* Mobile bottom tab bar */}
+      {/* Mobile floating glass dock */}
       <div
         className={cn(
-          "fixed inset-x-0 bottom-0 z-50 rounded-none border-t border-x-0 border-b-0 backdrop-blur-2xl transition-transform duration-500 ease-[cubic-bezier(0.33,1,0.68,1)] lg:hidden",
-          lightNav
-            ? "border-white/60 bg-white/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_-12px_40px_rgba(0,0,0,0.10)]"
-            : "border-gold/15 bg-onyx/70 shadow-[inset_0_1px_0_rgba(212,175,55,0.12),0_-12px_40px_rgba(0,0,0,0.5)]",
-          tabHidden && "translate-y-full"
+          "fixed inset-x-0 bottom-0 z-50 transition-transform duration-500 ease-[cubic-bezier(0.33,1,0.68,1)] lg:hidden",
+          tabHidden && "translate-y-[140%]"
         )}
       >
-        <nav className="flex items-center justify-evenly px-4 py-4">
-          {BOTTOM_TABS.map((t) => {
-            const Icon = t.icon;
-            const active =
-              t.href === "/"
-                ? pathname === "/"
-                : pathname.startsWith(t.href);
-            return (
-              <Link
-                key={t.href}
-                href={t.href}
-                className={cn(
-                  "relative flex flex-1 flex-col items-center gap-1 py-0.5 transition-colors duration-300",
-                  active
-                    ? lightNav
-                      ? "text-sapphire"
-                      : "text-gold-light"
-                    : lightNav
-                      ? "text-onyx/60 hover:text-onyx"
-                      : "text-cream-dim/60 hover:text-cream"
-                )}
-              >
-                <Icon size={17} strokeWidth={1.5} />
-                <span className="text-[9px] font-semibold uppercase tracking-[0.2em]">
-                  {t.label}
-                </span>
-                <span
+        <div className="px-3 pb-[max(10px,env(safe-area-inset-bottom))]">
+          <nav
+            className={cn(
+              "relative flex items-center justify-between rounded-[22px] border px-2 py-2 backdrop-blur-2xl",
+              lightNav
+                ? "border-white/70 bg-white/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_18px_50px_rgba(0,0,0,0.18)]"
+                : "border-gold/20 bg-onyx/85 shadow-[inset_0_1px_0_rgba(212,175,55,0.15),0_18px_50px_rgba(0,0,0,0.55)]"
+            )}
+          >
+            {[
+              { label: "Home", href: "/", icon: Home, badge: 0 },
+              { label: "Store", href: "/store", icon: Store, badge: 0 },
+              { label: "Mart", href: "/mart", icon: ShoppingBasket, badge: 0 },
+              {
+                label: "Mediverse",
+                href: "/mediverse",
+                icon: Stethoscope,
+                badge: 0,
+              },
+              {
+                label: "Cart",
+                href: "/cart",
+                icon: ShoppingBag,
+                badge: totalItems,
+              },
+            ].map((t) => {
+              const Icon = t.icon;
+              const active =
+                t.href === "/"
+                  ? pathname === "/"
+                  : pathname.startsWith(t.href);
+              return (
+                <Link
+                  key={t.href}
+                  href={t.href}
+                  aria-current={active ? "page" : undefined}
                   className={cn(
-                    "absolute -top-1 left-1/2 h-[2px] -translate-x-1/2 rounded-full transition-all duration-500",
-                    lightNav ? "bg-sapphire" : "bg-gold-light",
-                    active ? "w-full" : "w-0"
+                    "relative flex flex-1 flex-col items-center justify-center gap-1 rounded-2xl py-1.5 transition-colors duration-300",
+                    active
+                      ? lightNav
+                        ? "text-sapphire"
+                        : "text-gold-light"
+                      : lightNav
+                        ? "text-onyx/55 hover:text-onyx"
+                        : "text-cream-dim/55 hover:text-cream"
                   )}
-                />
-              </Link>
-            );
-          })}
-        </nav>
+                >
+                  <span className="relative flex items-center justify-center">
+                    <Icon size={17} strokeWidth={active ? 1.75 : 1.5} />
+                    {t.badge > 0 && (
+                      <span
+                        className={cn(
+                          "absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[8px] font-bold leading-none",
+                          lightNav
+                            ? "bg-sapphire text-white"
+                            : "bg-gold text-abyss"
+                        )}
+                      >
+                        {t.badge > 99 ? "99+" : t.badge}
+                      </span>
+                    )}
+                  </span>
+                  <span className="text-[8px] font-semibold uppercase tracking-[0.16em]">
+                    {t.label}
+                  </span>
+                  <span className="flex h-[3px] w-full items-center justify-center">
+                    {active && (
+                      <motion.span
+                        layoutId="bv-dock-glow"
+                        transition={{ type: "spring", stiffness: 420, damping: 34 }}
+                        className={cn(
+                          "h-[3px] w-3.5 rounded-full",
+                          lightNav
+                            ? "bg-sapphire shadow-[0_0_8px_rgba(30,58,138,0.6)]"
+                            : "bg-gold-light shadow-[0_0_8px_rgba(212,175,55,0.6)]"
+                        )}
+                      />
+                    )}
+                  </span>
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
       </div>
     </>
   );
@@ -403,12 +497,14 @@ function NavLink({
 function IconBtn({
   children,
   label,
+  badge,
   className = "",
   lightNav = false,
   onClick,
 }: {
   children: React.ReactNode;
   label: string;
+  badge?: number;
   className?: string;
   lightNav?: boolean;
   onClick?: () => void;
@@ -418,9 +514,31 @@ function IconBtn({
       type="button"
       aria-label={label}
       onClick={onClick}
-      className={`inline-flex h-9 w-9 items-center justify-center transition-all duration-300 hover:scale-110 ${lightNav ? "text-onyx hover:text-sapphire hover:drop-shadow-[0_0_10px_rgba(30,58,138,0.45)]" : "text-cream-dim hover:text-gold-light"} ${className}`}
+      className={cn(
+        "relative inline-flex h-9 w-9 items-center justify-center rounded-full border transition-all duration-300 hover:scale-105",
+        lightNav
+          ? "border-black/10 text-onyx hover:border-sapphire/40 hover:bg-sapphire/5 hover:text-sapphire hover:drop-shadow-[0_0_12px_rgba(30,58,138,0.35)]"
+          : "border-white/10 text-cream-dim hover:border-gold/40 hover:bg-gold/5 hover:text-gold-light hover:drop-shadow-[0_0_12px_rgba(212,175,55,0.35)]",
+        className
+      )}
     >
       {children}
+      {badge !== undefined && badge > 0 && (
+        <motion.span
+          key={badge}
+          initial={{ scale: 0.5 }}
+          animate={{ scale: 1 }}
+          transition={{ type: "spring", stiffness: 500, damping: 22 }}
+          className={cn(
+            "absolute -right-0.5 -top-0.5 flex h-[17px] min-w-[17px] items-center justify-center rounded-full border px-[3px] text-[8px] font-bold leading-none",
+            lightNav
+              ? "border-white bg-sapphire text-white shadow-[0_2px_8px_rgba(30,58,138,0.4)]"
+              : "border-onyx bg-gold text-abyss shadow-[0_2px_8px_rgba(212,175,55,0.5)]"
+          )}
+        >
+          {badge > 99 ? "99+" : badge}
+        </motion.span>
+      )}
     </button>
   );
 }
