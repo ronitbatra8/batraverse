@@ -208,11 +208,11 @@ export default function Navbar() {
       >
         <nav
           className={cn(
-            "relative flex h-16 items-center justify-between px-5 transition-[margin,padding,border-radius,box-shadow,background-color] duration-500 sm:px-10",
+            "relative flex h-16 items-center justify-between px-5 transition-colors duration-500 sm:px-10",
             scrolled
               ? lightNav
-                ? "mt-3 border border-white/60 bg-white/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_12px_40px_rgba(0,0,0,0.10)] backdrop-blur-2xl"
-                : "mt-3 border border-gold/15 bg-onyx/70 shadow-[inset_0_1px_0_rgba(212,175,55,0.12),0_12px_40px_rgba(0,0,0,0.5)] backdrop-blur-2xl"
+                ? "border-b border-white/60 bg-white/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_12px_40px_rgba(0,0,0,0.10)] backdrop-blur-2xl"
+                : "border-b border-gold/15 bg-onyx/70 shadow-[inset_0_1px_0_rgba(212,175,55,0.12),0_12px_40px_rgba(0,0,0,0.5)] backdrop-blur-2xl"
               : "bg-transparent"
           )}
         >
@@ -336,7 +336,7 @@ export default function Navbar() {
                       exit={{ opacity: 0 }}
                       transition={{ duration: 0.3 }}
                       onClick={() => setSliderOpen(false)}
-                      className="fixed inset-0 z-40 bg-black/40"
+                      className="fixed inset-0 z-40 bg-black/25"
                     />
                     <motion.aside
                       ref={sliderPanelRef}
@@ -346,10 +346,10 @@ export default function Navbar() {
                       transition={{ duration: 0.45, ease: EASE }}
                       style={{ willChange: "transform" }}
                       className={cn(
-                        "fixed inset-y-0 right-0 z-50 flex w-[300px] max-w-[88vw] flex-col rounded-l-[28px] border-l backdrop-blur-2xl",
+                        "fixed inset-y-0 right-0 z-50 flex w-[300px] max-w-[88vw] flex-col border-l backdrop-blur-2xl",
                         lightNav
-                          ? "border-white/60 bg-white/60 shadow-[inset_0_1px_0_rgba(255,255,255,0.85),-24px_0_60px_rgba(0,0,0,0.18)]"
-                          : "border-gold/15 bg-onyx/70 shadow-[inset_0_1px_0_rgba(212,175,55,0.12),-24px_0_60px_rgba(0,0,0,0.6)]"
+                          ? "border-white/60 bg-white/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.85),-24px_0_60px_rgba(0,0,0,0.12)]"
+                          : "border-gold/15 bg-onyx/55 shadow-[inset_0_1px_0_rgba(212,175,55,0.12),-24px_0_60px_rgba(0,0,0,0.4)]"
                       )}
                     >
                       {/* quiet band */}
