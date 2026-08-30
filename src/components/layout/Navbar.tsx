@@ -336,7 +336,7 @@ export default function Navbar() {
                       exit={{ opacity: 0 }}
                       transition={{ duration: 0.3 }}
                       onClick={() => setSliderOpen(false)}
-                      className="fixed inset-0 z-40 bg-black/45 backdrop-blur-[2px]"
+                      className="fixed inset-0 z-40 bg-black/40"
                     />
                     <motion.aside
                       ref={sliderPanelRef}
@@ -346,22 +346,22 @@ export default function Navbar() {
                       transition={{ duration: 0.45, ease: EASE }}
                       style={{ willChange: "transform" }}
                       className={cn(
-                        "fixed inset-y-0 right-0 z-50 flex w-[300px] max-w-[88vw] flex-col rounded-l-[28px] border-l backdrop-blur-xl",
+                        "fixed inset-y-0 right-0 z-50 flex w-[300px] max-w-[88vw] flex-col rounded-l-[28px] border-l backdrop-blur-2xl",
                         lightNav
-                          ? "border-white/70 bg-white/[0.97] shadow-[-24px_0_60px_rgba(0,0,0,0.18)]"
-                          : "border-gold/15 bg-abyss/[0.97] shadow-[-24px_0_60px_rgba(0,0,0,0.6)]"
+                          ? "border-white/60 bg-white/60 shadow-[inset_0_1px_0_rgba(255,255,255,0.85),-24px_0_60px_rgba(0,0,0,0.18)]"
+                          : "border-gold/15 bg-onyx/70 shadow-[inset_0_1px_0_rgba(212,175,55,0.12),-24px_0_60px_rgba(0,0,0,0.6)]"
                       )}
                     >
                       {/* quiet band */}
                       <div
                         className={cn(
-                          "flex items-baseline justify-between border-b px-6 py-4",
+                          "relative flex items-center justify-end border-b px-6 py-4",
                           lightNav ? "border-black/10" : "border-white/10"
                         )}
                       >
                         <span
                           className={cn(
-                            "text-[9px] font-normal uppercase tracking-[0.5em]",
+                            "absolute inset-x-0 text-center text-[8px] font-normal uppercase tracking-[0.5em]",
                             lightNav ? "text-onyx/40" : "text-cream-dim/40"
                           )}
                         >
@@ -372,13 +372,13 @@ export default function Navbar() {
                           onClick={() => setSliderOpen(false)}
                           aria-label="Close navigation"
                           className={cn(
-                            "inline-flex h-8 w-8 rotate-0 items-center justify-center rounded-full border transition-all duration-300 hover:rotate-90 hover:scale-105",
+                            "inline-flex h-7 w-7 rotate-0 items-center justify-center rounded-full border transition-all duration-300 hover:rotate-90 hover:scale-105",
                             lightNav
                               ? "border-black/10 text-onyx hover:border-sapphire/50 hover:text-sapphire"
                               : "border-white/10 text-cream-dim hover:border-gold/50 hover:text-gold-light"
                           )}
                         >
-                          <X size={14} strokeWidth={1.25} />
+                          <X size={12} strokeWidth={1.25} />
                         </button>
                       </div>
 
@@ -646,7 +646,7 @@ function SlideSection({
     >
       <p
         className={cn(
-          "px-6 pb-2 pt-7 text-[9px] font-normal uppercase tracking-[0.5em]",
+          "px-6 pb-2 pt-6 text-center text-[8px] font-normal uppercase tracking-[0.5em]",
           lightNav ? "text-onyx/40" : "text-cream-dim/40"
         )}
       >
@@ -680,14 +680,14 @@ function SlideRow({
         onAction?.();
       }}
       className={cn(
-        "group relative block w-full border-b py-4 text-left transition-shadow duration-300",
+        "group relative block w-full border-b py-3.5 text-center transition-shadow duration-300",
         lightNav ? "border-black/10" : "border-white/10"
       )}
     >
-      <span className="flex items-baseline justify-between gap-4">
+      <span className="block">
         <span
           className={cn(
-            "truncate font-display text-[15px] font-light uppercase leading-tight tracking-[0.14em] transition-colors duration-300 sm:text-[17px]",
+            "block truncate font-display text-[13px] font-light uppercase leading-tight tracking-[0.16em] transition-colors duration-300 sm:text-[14px]",
             danger
               ? lightNav
                 ? "text-rose-600 group-hover:text-rose-500"
@@ -702,7 +702,7 @@ function SlideRow({
         {hint && (
           <span
             className={cn(
-              "shrink-0 text-[9px] font-medium uppercase tracking-[0.3em]",
+              "mt-1 block text-[8px] font-medium uppercase tracking-[0.3em]",
               lightNav ? "text-onyx/40" : "text-cream-dim/50"
             )}
           >
@@ -713,7 +713,7 @@ function SlideRow({
       <span
         aria-hidden
         className={cn(
-          "mt-1.5 block h-px w-24 max-w-full origin-left scale-x-0 transition-transform duration-500 group-hover:scale-x-100",
+          "mx-auto mt-1.5 block h-px w-24 max-w-full origin-center scale-x-0 transition-transform duration-500 group-hover:scale-x-100",
           lightNav ? "bg-sapphire" : "bg-gold"
         )}
       />
