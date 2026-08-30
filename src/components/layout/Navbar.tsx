@@ -21,22 +21,18 @@ import { useAuth } from "@/components/auth/AuthContext";
 import { useCart } from "@/components/cart/CartContext";
 import { useWishlist } from "@/components/wishlist/WishlistContext";
 import { LEVELS, getLevelFromBalance } from "@/lib/levels";
+import { roleDashboard } from "@/lib/roles";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 
 const listParent = {
   hidden: {},
-  show: { transition: { staggerChildren: 0.08, delayChildren: 0.18 } },
+  show: { transition: { staggerChildren: 0.09, delayChildren: 0.25 } },
 };
-const listItem = {
-  hidden: { opacity: 0, y: 18, clipPath: "inset(0 0 100% 0)" },
-  show: {
-    opacity: 1,
-    y: 0,
-    clipPath: "inset(0 0 0% 0)",
-    transition: { duration: 0.7, ease: EASE },
-  },
-  exit: { opacity: 0, transition: { duration: 0.25, ease: EASE } },
+const rowReveal = {
+  hidden: { y: "115%" },
+  show: { y: 0, transition: { duration: 0.85, ease: EASE } },
+  exit: { y: "115%", transition: { duration: 0.3, ease: EASE } },
 };
 
 const MotionLink = motion.create(Link);
@@ -66,6 +62,7 @@ export default function Navbar() {
   const { user, logout, enterAsGuest } = useAuth();
   const { totalItems } = useCart();
   const { count: wishlistCount } = useWishlist();
+  const dash = user ? roleDashboard(user.role) : null;
 
   const walletBalance = user?.walletBalance ?? 0;
   const levelKey = getLevelFromBalance(user?.peakWalletBalance ?? walletBalance);
@@ -278,10 +275,65 @@ export default function Navbar() {
             <IconBtn
               label="Search"
               lightNav={lightNav}
+              className={sliderOpen ? "pointer-events-none opacity-0" : ""}
               onClick={() => router.push("/search")}
             >
               <Search size={17} strokeWidth={1.5} />
             </IconBtn>
+
+            {user ? (
+              <button
+                type="button"
+                onClick={() => router.push("/account")}
+                className={cn(
+                  "inline-flex items-center gap-2 rounded-full border px-2.5 py-1.5 transition-all duration-300 sm:px-3.5 sm:py-2",
+                  sliderOpen && "pointer-events-none opacity-0",
+                  lightNav
+                    ? "border-sapphire/25 bg-sapphire/10 hover:border-sapphire/45 hover:bg-sapphire/15"
+                    : "border-gold/25 bg-gold/10 hover:border-gold/45 hover:bg-gold/15"
+                )}
+              >
+                <span
+                  className={cn(
+                    "flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-bold text-abyss",
+                    lightNav ? "bg-sapphire" : "bg-gold"
+                  )}
+                >
+                  {user.name?.charAt(0)?.toUpperCase() || "U"}
+                </span>
+                <span
+                  className={cn(
+                    "hidden max-w-24 truncate text-[10px] font-semibold uppercase tracking-[0.2em] sm:inline-block",
+                    lightNav ? "text-sapphire" : "text-gold-light"
+                  )}
+                >
+                  {user.name?.split(" ")[0] || "Account"}
+                </span>
+                {levelMeta.name && LevelIcon && (
+                  <span
+                    className={cn(
+                      "hidden items-center gap-1 rounded-full px-2 py-0.5 text-[8px] font-bold tracking-[0.16em] xl:inline-flex",
+                      lightNav
+                        ? "border-sapphire/30 bg-sapphire/10 text-sapphire"
+                        : levelMeta.chip
+                    )}
+                  >
+                    <LevelIcon size={9} />
+                    {levelMeta.name}
+                  </span>
+                )}
+              </button>
+            ) : (
+              <Link
+                href="/login"
+                className={cn(
+                  "items-center rounded-full bg-rose-500 px-3.5 py-1.5 text-[9px] font-semibold uppercase tracking-[0.28em] text-abyss transition-all duration-300 hover:bg-rose-400 hover:shadow-[0_0_30px_rgba(244,63,94,0.45)] sm:inline-flex sm:px-5 sm:py-2 sm:text-[10px]",
+                  sliderOpen && "pointer-events-none opacity-0"
+                )}
+              >
+                Sign In
+              </Link>
+            )}
 
             {/* Sliding sidebar — the external links */}
             <button
@@ -329,56 +381,6 @@ export default function Navbar() {
                 />
               </span>
             </button>
-
-            {user ? (
-              <button
-                type="button"
-                onClick={() => router.push("/account")}
-                className={cn(
-                  "inline-flex items-center gap-2 rounded-full border px-2.5 py-1.5 transition-all duration-300 sm:px-3.5 sm:py-2",
-                  lightNav
-                    ? "border-sapphire/25 bg-sapphire/10 hover:border-sapphire/45 hover:bg-sapphire/15"
-                    : "border-gold/25 bg-gold/10 hover:border-gold/45 hover:bg-gold/15"
-                )}
-              >
-                <span
-                  className={cn(
-                    "flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-bold text-abyss",
-                    lightNav ? "bg-sapphire" : "bg-gold"
-                  )}
-                >
-                  {user.name?.charAt(0)?.toUpperCase() || "U"}
-                </span>
-                <span
-                  className={cn(
-                    "hidden max-w-24 truncate text-[10px] font-semibold uppercase tracking-[0.2em] sm:inline-block",
-                    lightNav ? "text-sapphire" : "text-gold-light"
-                  )}
-                >
-                  {user.name?.split(" ")[0] || "Account"}
-                </span>
-                {levelMeta.name && LevelIcon && (
-                  <span
-                    className={cn(
-                      "hidden items-center gap-1 rounded-full px-2 py-0.5 text-[8px] font-bold tracking-[0.16em] xl:inline-flex",
-                      lightNav
-                        ? "border-sapphire/30 bg-sapphire/10 text-sapphire"
-                        : levelMeta.chip
-                    )}
-                  >
-                    <LevelIcon size={9} />
-                    {levelMeta.name}
-                  </span>
-                )}
-              </button>
-            ) : (
-              <Link
-                href="/login"
-                className="items-center rounded-full bg-rose-500 px-3.5 py-1.5 text-[9px] font-semibold uppercase tracking-[0.28em] text-abyss transition-all duration-300 hover:bg-rose-400 hover:shadow-[0_0_30px_rgba(244,63,94,0.45)] sm:inline-flex sm:px-5 sm:py-2 sm:text-[10px]"
-              >
-                Sign In
-              </Link>
-            )}
           </motion.div>
 
           {/* Scroll progress */}
@@ -447,6 +449,10 @@ export default function Navbar() {
                 {user ? (
                   <>
                     <SlideRow label="My Account" lightNav={lightNav} onClick={() => { setSliderOpen(false); router.push("/account"); }} />
+                    {dash && (
+                      <SlideRow label="Dashboard" lightNav={lightNav} onClick={() => { setSliderOpen(false); router.push(dash.href); }} />
+                    )}
+                    <SlideRow label="My Cards" lightNav={lightNav} onClick={() => { setSliderOpen(false); router.push("/cards"); }} />
                     <SlideRow label="Wallet" hint={`₹${(user?.walletBalance ?? 0).toFixed(0)}`} lightNav={lightNav} onClick={() => { setSliderOpen(false); router.push("/wallet"); }} />
                     <SlideRow label="My Orders" lightNav={lightNav} onClick={() => { setSliderOpen(false); router.push("/orders"); }} />
                     <SlideRow label="My Queries" lightNav={lightNav} onClick={() => { setSliderOpen(false); router.push("/queries"); }} />
@@ -462,7 +468,7 @@ export default function Navbar() {
                 <SlideDivider lightNav={lightNav} />
 
                 {user && (
-                  <SlideRow label="Add Account" lightNav={lightNav} onClick={() => { setSliderOpen(false); router.push("/login?add=1"); }} />
+                  <SlideRow label="Switch Account" lightNav={lightNav} onClick={() => { setSliderOpen(false); router.push("/login?add=1"); }} />
                 )}
                 <SlideRow
                   label={theme === "light" ? "Dark Mode" : "Light Mode"}
@@ -584,15 +590,17 @@ function NavLink({
 
 function SlideDivider({ lightNav = false }: { lightNav?: boolean }) {
   return (
-    <motion.div
-      variants={listItem}
-      className={cn(
-        "mx-0 my-5 h-px bg-gradient-to-r",
-        lightNav
-          ? "from-black/25 via-black/10 to-transparent"
-          : "from-cream/25 via-cream/10 to-transparent"
-      )}
-    />
+    <div className="overflow-hidden py-5">
+      <motion.div
+        variants={rowReveal}
+        className={cn(
+          "h-px bg-gradient-to-r",
+          lightNav
+            ? "from-black/25 via-black/10 to-transparent"
+            : "from-cream/25 via-cream/10 to-transparent"
+        )}
+      />
+    </div>
   );
 }
 
@@ -612,47 +620,49 @@ function SlideRow({
   onAction?: () => void;
 }) {
   return (
-    <motion.button
-      type="button"
-      variants={listItem}
-      onClick={() => {
-        onClick?.();
-        onAction?.();
-      }}
-      className="relative flex w-full items-baseline justify-between gap-6 py-3.5 text-left"
-    >
-      <span
-        className={cn(
-          "truncate font-display text-[14px] font-light uppercase leading-tight tracking-[0.16em] transition-colors duration-300",
-          danger
-            ? lightNav
-              ? "text-rose-600 group-hover:text-rose-500"
-              : "text-rose-400 group-hover:text-rose-300"
-            : lightNav
-              ? "text-onyx/90 group-hover:text-sapphire"
-              : "text-cream group-hover:text-gold-light"
-        )}
+    <div className="overflow-hidden">
+      <motion.button
+        type="button"
+        variants={rowReveal}
+        onClick={() => {
+          onClick?.();
+          onAction?.();
+        }}
+        className="group relative flex w-full items-baseline justify-between gap-6 py-3.5 text-left"
       >
-        {label}
-      </span>
-      {hint && (
         <span
           className={cn(
-            "shrink-0 text-[9px] font-medium uppercase tracking-[0.3em]",
-            lightNav ? "text-onyx/40" : "text-cream-dim/50"
+            "truncate font-display text-[14px] font-light uppercase leading-tight tracking-[0.16em] transition-colors duration-300",
+            danger
+              ? lightNav
+                ? "text-rose-600 group-hover:text-rose-500"
+                : "text-rose-400 group-hover:text-rose-300"
+              : lightNav
+                ? "text-onyx/90 group-hover:text-sapphire"
+                : "text-cream group-hover:text-gold-light"
           )}
         >
-          {hint}
+          {label}
         </span>
-      )}
-      <span
-        aria-hidden
-        className={cn(
-          "absolute bottom-1 left-0 h-px w-full origin-left scale-x-0 transition-transform duration-500 group-hover:scale-x-100",
-          lightNav ? "bg-sapphire/60" : "bg-gold/60"
+        {hint && (
+          <span
+            className={cn(
+              "shrink-0 text-[9px] font-medium uppercase tracking-[0.3em]",
+              lightNav ? "text-onyx/40" : "text-cream-dim/50"
+            )}
+          >
+            {hint}
+          </span>
         )}
-      />
-    </motion.button>
+        <span
+          aria-hidden
+          className={cn(
+            "absolute bottom-1 left-0 h-px w-full origin-left scale-x-0 transition-transform duration-500 group-hover:scale-x-100",
+            lightNav ? "bg-sapphire/60" : "bg-gold/60"
+          )}
+        />
+      </motion.button>
+    </div>
   );
 }
 
