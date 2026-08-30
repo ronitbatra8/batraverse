@@ -58,13 +58,27 @@ export default function SiteWrapper({
     if (effPhase === "done") sessionStorage.setItem(BOOT_KEY, "1");
   }, [effPhase]);
 
-  /* Auth gate: only the root path requires sign-in when signed out.
-     Everything else (product links, catalog, contact, etc.) stays
-     publicly accessible; private pages guard themselves. */
+  /* Auth gate: only the root path requires sign-in when signed out, and only
+     the first time per tab. If the tab instead entered through a public page
+     (shared product link, /contact, ...), the gate never appears this tab.
+     Everything else stays public; private pages guard themselves. */
+  const GATE_KEY = "batraverse-gated";
+
   useEffect(() => {
     if (loading) return;
     if (user || isGuest) return;
-    if (pathname !== "/") return;
+
+    /* Signed out and landed on a non-root page first: this tab skips the gate. */
+    if (pathname !== "/") {
+      try { sessionStorage.setItem(GATE_KEY, "1"); } catch {}
+      return;
+    }
+
+    /* On "/" signed out: show sign-in exactly once per tab. */
+    let gated = false;
+    try { gated = sessionStorage.getItem(GATE_KEY) === "1"; } catch {}
+    if (gated) return;
+    try { sessionStorage.setItem(GATE_KEY, "1"); } catch {}
     router.replace("/login");
   }, [loading, user, isGuest, pathname, router]);
 

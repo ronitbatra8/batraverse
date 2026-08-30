@@ -93,16 +93,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [currentIndex, setCurrentIndex] = useState(0);
 
   const loadUser = useCallback(async () => {
-    if (typeof window !== "undefined" && !localStorage.getItem("bt-accounts-cleaned")) {
-      localStorage.removeItem("bt-accounts");
-      localStorage.removeItem("bt-current");
-      localStorage.removeItem("bt-token");
-      localStorage.removeItem("bt-current-user-id");
-      localStorage.setItem("bt-accounts-cleaned", "1");
-    }
-
     const stored = loadAccounts();
-    const idx = loadCurrentIndex();
+    let idx = loadCurrentIndex();
+    if (stored.length > 0 && (idx < 0 || !stored[idx])) {
+      idx = 0;
+      saveCurrentIndex(0);
+    }
     setAccounts(stored);
     setCurrentIndex(idx);
 
@@ -139,22 +135,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loadUser();
 
     const handleStorage = (e: StorageEvent) => {
-      if (e.key === "bt-accounts") {
-        const updated = loadAccounts();
-        const idx = loadCurrentIndex();
-        setAccounts(updated);
-        if (updated.length === 0 || !updated[idx]) {
-          setCurrentIndex(0);
-          removeAuth("bt-token");
-          removeAuth("bt-current-user-id");
-          setUser(null);
-        } else {
-          setCurrentIndex(idx);
-          setAuth("bt-token", updated[idx].token);
-          setAuth("bt-current-user-id", updated[idx].user.id);
-          setUser(updated[idx].user);
-        }
-      }
+      if (e.key !== "bt-accounts") return;
+      const updated = loadAccounts();
+      const idx = loadCurrentIndex();
+      setAccounts(updated);
+      setCurrentIndex(idx >= 0 && idx < updated.length ? idx : 0);
     };
 
     window.addEventListener("storage", handleStorage);
