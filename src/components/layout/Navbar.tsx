@@ -355,44 +355,34 @@ export default function Navbar() {
                       : "text-gold-light")
                 )}
               >
-                <AnimatePresence mode="wait" initial={false}>
-                  {shopOpen ? (
-                    <motion.span
-                      key="x"
-                      initial={{ rotate: -90, opacity: 0, scale: 0.5 }}
-                      animate={{ rotate: 0, opacity: 1, scale: 1 }}
-                      exit={{ rotate: 90, opacity: 0, scale: 0.5 }}
-                      transition={{ duration: 0.25, ease: EASE }}
-                    >
-                      <X size={18} strokeWidth={1.5} />
-                    </motion.span>
-                  ) : (
-                    <motion.span
-                      key="menu"
-                      initial={{ rotate: 90, opacity: 0, scale: 0.5 }}
-                      animate={{ rotate: 0, opacity: 1, scale: 1 }}
-                      exit={{ rotate: -90, opacity: 0, scale: 0.5 }}
-                      transition={{ duration: 0.25, ease: EASE }}
-                    >
-                      <Menu size={18} strokeWidth={1.5} />
-                    </motion.span>
-                  )}
-                </AnimatePresence>
+                <span className="relative inline-flex h-[18px] w-[18px] items-center justify-center">
+                  <Menu
+                    size={18}
+                    strokeWidth={1.5}
+                    className={cn(
+                      "absolute inset-0 transition-all duration-200 ease-out",
+                      shopOpen && "rotate-90 scale-50 opacity-0"
+                    )}
+                  />
+                  <X
+                    size={18}
+                    strokeWidth={1.5}
+                    className={cn(
+                      "absolute inset-0 transition-all duration-200 ease-out",
+                      !shopOpen && "-rotate-90 scale-50 opacity-0"
+                    )}
+                  />
+                </span>
               </button>
 
               <AnimatePresence>
                 {shopOpen && (
                   <motion.div
-                    initial={{ opacity: 0, scale: 0.35 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.4 }}
-                    transition={{
-                      type: "spring",
-                      stiffness: 400,
-                      damping: 24,
-                      mass: 0.85,
-                    }}
-                    style={{ transformOrigin: "top right" }}
+                    initial={{ opacity: 0, y: -6, scale: 0.97 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -4, scale: 0.97 }}
+                    transition={{ duration: 0.16, ease: EASE }}
+                    style={{ transformOrigin: "top right", willChange: "transform, opacity" }}
                     className={cn(
                       "absolute right-0 top-0.5 w-56 overflow-hidden rounded-2xl border p-2",
                       lightNav
@@ -403,7 +393,7 @@ export default function Navbar() {
                     {/* soft accent lighting — sapphire in light mode, gold in dark */}
                     <div
                       aria-hidden
-                      className="pointer-events-none absolute -right-12 -top-12 h-44 w-44 rounded-full blur-3xl"
+                      className="pointer-events-none absolute -right-12 -top-12 h-36 w-36 rounded-full blur-xl"
                       style={{
                         background: lightNav
                           ? "radial-gradient(closest-side, rgba(30,58,138,0.16), transparent)"
@@ -412,7 +402,7 @@ export default function Navbar() {
                     />
                     <div
                       aria-hidden
-                      className="pointer-events-none absolute -bottom-16 -left-10 h-40 w-40 rounded-full blur-3xl"
+                      className="pointer-events-none absolute -bottom-16 -left-10 h-32 w-32 rounded-full blur-xl"
                       style={{
                         background: lightNav
                           ? "radial-gradient(closest-side, rgba(30,58,138,0.08), transparent)"
