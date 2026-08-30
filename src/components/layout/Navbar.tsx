@@ -3,32 +3,20 @@
 import { useLayoutEffect, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { motion, useAnimationControls, useMotionValueEvent, useScroll } from "framer-motion";
 import {
-  AnimatePresence,
-  motion,
-  useAnimationControls,
-  useMotionValueEvent,
-  useScroll,
-} from "framer-motion";
-import {
-  Check,
   Home,
-  Menu,
   Search,
   ShoppingCart,
   Stethoscope,
   Store,
-  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Brand from "@/components/brand/Brand";
 import { useBoot, useBootPhase } from "@/components/boot/BootContext";
-import { useCart } from "@/components/cart/CartContext";
-import { useWishlist } from "@/components/wishlist/WishlistContext";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import { useAuth } from "@/components/auth/AuthContext";
 import { LEVELS, getLevelFromBalance } from "@/lib/levels";
-import { roleDashboard } from "@/lib/roles";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 
@@ -55,19 +43,15 @@ export default function Navbar() {
   const boot = useBoot();
   const pathname = usePathname();
   const router = useRouter();
-  const { theme, toggle } = useTheme();
-  const { user, logout, accounts, currentIndex, switchAccount, removeAccount, enterAsGuest } = useAuth();
-  const { totalItems } = useCart();
-  const { count: wishlistCount } = useWishlist();
+  const { theme } = useTheme();
+  const { user } = useAuth();
 
   const walletBalance = user?.walletBalance ?? 0;
   const levelKey = getLevelFromBalance(user?.peakWalletBalance ?? walletBalance);
   const levelMeta = LEVELS[levelKey];
   const LevelIcon = levelMeta.icon;
-  const dash = roleDashboard(user?.role);
 
   const [scrolled, setScrolled] = useState(false);
-  const [shopOpen, setShopOpen] = useState(false);
   const [tabHidden, setTabHidden] = useState(false);
   const lastScrollY = useRef(0);
 
@@ -80,8 +64,6 @@ export default function Navbar() {
      (logo "BATRA" + nav tab labels) become white — everything else stays
      light-mode styled. */
   const heroWhite = pathname === "/" && !scrolled && lightNav;
-
-  const shopRef = useRef<HTMLDivElement>(null);
 
   /* The single brand element. During the boot it drops from above the screen
      to the centre (the BV card inside does its own quiet squash — the text
@@ -105,37 +87,6 @@ export default function Navbar() {
     else setTabHidden(false);
     lastScrollY.current = y;
   });
-
-  /* Close the shop dropdown on outside click or Escape */
-  useEffect(() => {
-    if (!shopOpen) return;
-    const onDown = (e: MouseEvent) => {
-      const t = e.target as Node;
-      if (t instanceof Element && t.closest("[data-bv-menu]")) return;
-      if (shopRef.current && !shopRef.current.contains(t)) {
-        setShopOpen(false);
-      }
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setShopOpen(false);
-    };
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [shopOpen]);
-
-  /* Lock body scroll while the full-bleed menu is open */
-  useEffect(() => {
-    if (!shopOpen) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, [shopOpen]);
 
   /* Drop the brand in during the boot (e-commerce); slide it in on refresh. */
   useLayoutEffect(() => {
@@ -335,55 +286,6 @@ export default function Navbar() {
                 Sign In
               </Link>
             )}
-
-            {/* Menu — Rolls-Royce style wordplate trigger */}
-            <div ref={shopRef} className="relative z-10">
-              <button
-                type="button"
-                onClick={() => setShopOpen((o) => !o)}
-                aria-expanded={shopOpen}
-                aria-haspopup="true"
-                aria-label={shopOpen ? "Close menu" : "Open menu"}
-                className={cn(
-                  "inline-flex h-10 items-center gap-2.5 rounded-full border px-4 transition-all duration-300 hover:scale-[1.03]",
-                  lightNav
-                    ? "border-black/15 text-onyx hover:border-sapphire/60 hover:text-sapphire"
-                    : "border-white/15 text-cream hover:border-gold/60 hover:text-gold-light",
-                  shopOpen
-                    ? lightNav
-                      ? "border-sapphire/60 bg-sapphire/5 text-sapphire"
-                      : "border-gold/60 bg-gold/5 text-gold-light"
-                    : "bg-transparent"
-                )}
-              >
-                <span
-                  className={cn(
-                    "text-[9px] font-normal uppercase tracking-[0.3em] transition-colors duration-200 sm:text-[10px] sm:tracking-[0.35em]",
-                    shopOpen && (lightNav ? "text-sapphire" : "text-gold-light")
-                  )}
-                >
-                  {shopOpen ? "Close" : "Menu"}
-                </span>
-                <span className="relative inline-flex h-[14px] w-[14px] items-center justify-center">
-                  <Menu
-                    size={14}
-                    strokeWidth={1.25}
-                    className={cn(
-                      "absolute inset-0 transition-all duration-200 ease-out",
-                      shopOpen && "rotate-90 scale-50 opacity-0"
-                    )}
-                  />
-                  <X
-                    size={14}
-                    strokeWidth={1.25}
-                    className={cn(
-                      "absolute inset-0 transition-all duration-200 ease-out",
-                      !shopOpen && "-rotate-90 scale-50 opacity-0"
-                    )}
-                  />
-                </span>
-              </button>
-            </div>
           </motion.div>
 
           {/* Scroll progress */}
@@ -399,127 +301,6 @@ export default function Navbar() {
           />
         </nav>
       </motion.header>
-
-      {/* Rolls-Royce style full-bleed menu overlay */}
-      <AnimatePresence>
-        {shopOpen && (
-          <motion.div
-            data-bv-menu
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 6 }}
-            transition={{ duration: 0.28, ease: EASE }}
-            className={cn(
-              "fixed inset-x-0 bottom-0 top-16 z-30 overflow-y-auto overscroll-contain",
-              lightNav ? "bg-white/[0.98]" : "bg-abyss/[0.98]"
-            )}
-            style={{ willChange: "transform, opacity" }}
-          >
-            <div className="mx-auto w-full max-w-5xl px-6 pb-28 pt-4 sm:px-14 sm:pt-8">
-              {/* quiet system band */}
-              <div className={cn("mb-2 flex items-baseline justify-between border-b pb-3 sm:pb-4", lightNav ? "border-black/10" : "border-white/10")}>
-                <span className={cn("text-[9px] font-normal uppercase tracking-[0.5em]", lightNav ? "text-onyx/40" : "text-cream-dim/40")}>
-                  Navigation
-                </span>
-                <span className={cn("font-display text-[10px] uppercase tracking-[0.3em]", lightNav ? "text-onyx/50" : "text-cream-dim/50")}>
-                  Batraverse
-                </span>
-              </div>
-
-              <MenuSection label="Shop" light={lightNav}>
-                <MenuItem
-                  label="Cart"
-                  hint={totalItems > 0 ? `${totalItems}` : undefined}
-                  light={lightNav}
-                  onClick={() => {
-                    setShopOpen(false);
-                    router.push("/cart");
-                  }}
-                />
-                <MenuItem
-                  label="Wishlist"
-                  hint={wishlistCount > 0 ? `${wishlistCount}` : undefined}
-                  light={lightNav}
-                  onClick={() => {
-                    setShopOpen(false);
-                    router.push("/wishlist");
-                  }}
-                />
-                {dash && (
-                  <MenuItem
-                    label={dash.label}
-                    light={lightNav}
-                    onClick={() => {
-                      setShopOpen(false);
-                      router.push(dash.href);
-                    }}
-                  />
-                )}
-              </MenuSection>
-
-              {user ? (
-                <MenuSection label="Account" light={lightNav}>
-                  <MenuItem label="My Account" light={lightNav} onClick={() => { setShopOpen(false); router.push("/account"); }} />
-                  <MenuItem label="Wallet" hint={`₹${(user?.walletBalance ?? 0).toFixed(0)}`} light={lightNav} onClick={() => { setShopOpen(false); router.push("/wallet"); }} />
-                  <MenuItem label="My Orders" light={lightNav} onClick={() => { setShopOpen(false); router.push("/orders"); }} />
-                  <MenuItem label="My Queries" light={lightNav} onClick={() => { setShopOpen(false); router.push("/queries"); }} />
-                  <MenuItem label="Private Viewing" light={lightNav} onClick={() => { setShopOpen(false); router.push("/private-viewing"); }} />
-                </MenuSection>
-              ) : (
-                <MenuSection label="Account" light={lightNav}>
-                  <MenuItem label="Sign In" light={lightNav} onClick={() => { setShopOpen(false); router.push("/login"); }} />
-                  <MenuItem label="Explore as Guest" light={lightNav} onClick={() => { setShopOpen(false); enterAsGuest(); router.push("/"); }} />
-                </MenuSection>
-              )}
-
-              {user && accounts.length > 1 && (
-                <MenuSection label="Accounts" light={lightNav}>
-                  {accounts.map((acc, i) => (
-                    <MenuItem
-                      key={acc.user.id}
-                      label={acc.user.name?.split(" ")[0] || "Account"}
-                      hint={i === currentIndex ? "Active" : acc.user.cardNumber || undefined}
-                      active={i === currentIndex}
-                      light={lightNav}
-                      onRemove={i !== currentIndex ? () => removeAccount(i) : undefined}
-                      onClick={() => {
-                        setShopOpen(false);
-                        switchAccount(i);
-                      }}
-                    />
-                  ))}
-                </MenuSection>
-              )}
-
-              <MenuSection label="System" light={lightNav}>
-                {user && (
-                  <MenuItem label="Add Account" light={lightNav} onClick={() => { setShopOpen(false); router.push("/login?add=1"); }} />
-                )}
-                <MenuItem
-                  label={theme === "light" ? "Dark Mode" : "Light Mode"}
-                  light={lightNav}
-                  onClick={() => {
-                    setShopOpen(false);
-                    toggle();
-                  }}
-                />
-                {user && (
-                  <MenuItem
-                    label="Sign Out"
-                    danger
-                    light={lightNav}
-                    onClick={() => {
-                      setShopOpen(false);
-                      logout();
-                      router.push("/");
-                    }}
-                  />
-                )}
-              </MenuSection>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Mobile bottom tab bar */}
       <div
@@ -641,123 +422,5 @@ function IconBtn({
     >
       {children}
     </button>
-  );
-}
-
-function MenuSection({
-  label,
-  light = false,
-  children,
-}: {
-  label: string;
-  light?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="pt-10 sm:pt-16">
-      <h2
-        className={cn(
-          "mb-3 text-[9px] font-normal uppercase tracking-[0.5em] sm:mb-5",
-          light ? "text-onyx/40" : "text-cream-dim/40"
-        )}
-      >
-        {label}
-      </h2>
-      <div>{children}</div>
-    </section>
-  );
-}
-
-function MenuItem({
-  label,
-  hint,
-  light = false,
-  danger = false,
-  active = false,
-  onRemove,
-  onClick,
-}: {
-  label: string;
-  hint?: string;
-  light?: boolean;
-  danger?: boolean;
-  active?: boolean;
-  onRemove?: () => void;
-  onClick: () => void;
-}) {
-  return (
-    <div
-      className={cn(
-        "group relative border-b py-5 sm:py-6",
-        light ? "border-black/10" : "border-white/10"
-      )}
-    >
-      <button
-        type="button"
-        onClick={onClick}
-        className="flex w-full items-center justify-between gap-4 text-left"
-      >
-        <span className="flex min-w-0 flex-1 items-center gap-5">
-          <span className="flex min-w-0 flex-col">
-            <span
-              className={cn(
-                "truncate font-display text-[22px] font-light uppercase leading-tight tracking-[0.12em] transition-colors duration-300 sm:text-[26px] sm:tracking-[0.14em]",
-                active
-                  ? light
-                    ? "text-sapphire"
-                    : "text-gold-light"
-                  : danger
-                    ? light
-                      ? "text-rose-600 group-hover:text-rose-500"
-                      : "text-rose-400 group-hover:text-rose-300"
-                    : light
-                      ? "text-onyx/90 group-hover:text-sapphire"
-                      : "text-cream group-hover:text-gold-light"
-              )}
-            >
-              {label}
-            </span>
-            <span
-              aria-hidden
-              className={cn(
-                "mt-1.5 h-px w-24 max-w-full origin-left scale-x-0 transition-transform duration-500 group-hover:scale-x-100",
-                light ? "bg-sapphire" : "bg-gold"
-              )}
-            />
-          </span>
-          {hint && (
-            <span
-              className={cn(
-                "shrink-0 text-[9px] font-medium uppercase tracking-[0.3em]",
-                light ? "text-onyx/40" : "text-cream-dim/50"
-              )}
-            >
-              {hint}
-            </span>
-          )}
-        </span>
-        {active && (
-          <Check size={16} strokeWidth={1.5} className={cn("shrink-0", light ? "text-sapphire" : "text-gold-light")} />
-        )}
-        {onRemove && (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onRemove();
-            }}
-            title="Remove account"
-            className={cn(
-              "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border transition-colors duration-300",
-              light
-                ? "border-black/10 text-onyx/40 hover:border-rose-500/50 hover:text-rose-500"
-                : "border-white/10 text-cream-dim/40 hover:border-rose-400/50 hover:text-rose-300"
-            )}
-          >
-            <X size={13} strokeWidth={1.5} />
-          </button>
-        )}
-      </button>
-    </div>
   );
 }
