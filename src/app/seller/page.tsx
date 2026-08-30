@@ -1470,14 +1470,14 @@ function AddProductTab({
                                 ))}
                               </div>
                             )}
-                            <div className="flex gap-2">
+                            <div className="flex flex-col sm:flex-row gap-2">
                               <input type="text" id={`size-input-${i}`}
-                                className="flex-1 bg-dark-800/60 border border-dark-700/50 rounded-xl px-4 py-3 text-white text-sm placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50"
+                                className="flex-1 min-w-0 bg-dark-800/60 border border-dark-700/50 rounded-xl px-4 py-3 text-white text-sm placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50"
                                 placeholder="Custom size name..."
                                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); const val = (e.target as HTMLInputElement).value.trim(); if (val && !existingNames.includes(val)) { onChange({ ...form, sizeOptions: { ...form.sizeOptions, [colorName]: [...(form.sizeOptions[colorName] || []), { name: val }] } }); (e.target as HTMLInputElement).value = ""; } } }} />
                               <button type="button"
                                 onClick={() => { const input = document.getElementById(`size-input-${i}`) as HTMLInputElement; if (!input) return; const val = input.value.trim(); if (val && !existingNames.includes(val)) { onChange({ ...form, sizeOptions: { ...form.sizeOptions, [colorName]: [...(form.sizeOptions[colorName] || []), { name: val }] } }); input.value = ""; } }}
-                                className="px-4 py-3 bg-gold-500 text-dark-950 rounded-xl text-sm font-semibold hover:bg-gold-400 transition-all shrink-0 flex items-center gap-1.5">
+                                className="px-4 py-3 bg-gold-500 text-dark-950 rounded-xl text-sm font-semibold hover:bg-gold-400 transition-all shrink-0 self-start flex items-center gap-1.5">
                                 <Plus size={14} /> Add
                               </button>
                             </div>
@@ -1496,14 +1496,14 @@ function AddProductTab({
                             </button>
                           </div>
                           {(color.specifications || []).map((spec, si) => (
-                            <div key={si} className="flex gap-2 items-center mb-2">
+                            <div key={si} className="flex flex-wrap gap-2 items-center mb-2">
                               <input type="text" value={spec.key}
                                 onChange={(e) => { const u = [...form.colorOptions]; const specs = [...(u[i].specifications || [])]; specs[si] = { ...specs[si], key: e.target.value }; u[i] = { ...u[i], specifications: specs }; onChange({ ...form, colorOptions: u }); }}
-                                className="flex-1 bg-dark-800/60 border border-dark-700/50 rounded-xl px-3 py-2.5 text-white text-sm placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50"
+                                className="flex-1 min-w-0 basis-44 sm:basis-0 bg-dark-800/60 border border-dark-700/50 rounded-xl px-3 py-2.5 text-white text-sm placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50"
                                 placeholder="Specification name" />
                               <input type="text" value={spec.value}
                                 onChange={(e) => { const u = [...form.colorOptions]; const specs = [...(u[i].specifications || [])]; specs[si] = { ...specs[si], value: e.target.value }; u[i] = { ...u[i], specifications: specs }; onChange({ ...form, colorOptions: u }); }}
-                                className="flex-1 bg-dark-800/60 border border-dark-700/50 rounded-xl px-3 py-2.5 text-white text-sm placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50"
+                                className="flex-1 min-w-0 basis-44 sm:basis-0 bg-dark-800/60 border border-dark-700/50 rounded-xl px-3 py-2.5 text-white text-sm placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50"
                                 placeholder="Value" />
                               <button type="button" onClick={() => { const u = [...form.colorOptions]; u[i] = { ...u[i], specifications: (u[i].specifications || []).filter((_, j) => j !== si) }; onChange({ ...form, colorOptions: u }); }}
                                 className="px-2.5 py-2.5 bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl hover:bg-red-500/20 transition-all shrink-0">
@@ -1521,11 +1521,11 @@ function AddProductTab({
                             </button>
                           </div>
                           {(color.keyFeatures || []).map((feat, fi) => (
-                            <div key={fi} className="flex gap-2 items-center mb-2">
+                            <div key={fi} className="flex flex-wrap gap-2 items-center mb-2">
                               <span className="text-dark-500 text-sm w-5 text-center shrink-0">{fi + 1}</span>
                               <input type="text" value={feat}
                                 onChange={(e) => { const u = [...form.colorOptions]; const feats = [...(u[i].keyFeatures || [])]; feats[fi] = e.target.value; u[i] = { ...u[i], keyFeatures: feats }; onChange({ ...form, colorOptions: u }); }}
-                                className="flex-1 bg-dark-800/60 border border-dark-700/50 rounded-xl px-3 py-2.5 text-white text-sm placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50"
+                                className="flex-1 min-w-0 basis-44 sm:basis-0 bg-dark-800/60 border border-dark-700/50 rounded-xl px-3 py-2.5 text-white text-sm placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50"
                                 placeholder="Feature" />
                               <button type="button" onClick={() => { const u = [...form.colorOptions]; u[i] = { ...u[i], keyFeatures: (u[i].keyFeatures || []).filter((_, j) => j !== fi) }; onChange({ ...form, colorOptions: u }); }}
                                 className="px-2.5 py-2.5 bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl hover:bg-red-500/20 transition-all shrink-0">
@@ -1556,12 +1556,12 @@ function AddProductTab({
                   </div>
                   {form.specifications.length === 0 && <p className="text-[11px] text-dark-600 italic">No specifications</p>}
                   {form.specifications.map((spec, i) => (
-                    <div key={i} className="flex gap-2 mb-2">
+                    <div key={i} className="flex flex-wrap gap-2 mb-2">
                       <input type="text" value={spec.key} onChange={(e) => { const u = [...form.specifications]; u[i] = { ...u[i], key: e.target.value }; onChange({ ...form, specifications: u }); }}
-                        className="flex-1 bg-dark-800/60 border border-dark-700/50 rounded-xl px-3 py-2 text-white text-xs placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50" placeholder="Key" />
+                        className="flex-1 min-w-0 basis-44 sm:basis-0 bg-dark-800/60 border border-dark-700/50 rounded-xl px-3 py-2 text-white text-xs placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50" placeholder="Key" />
                       <input type="text" value={spec.value} onChange={(e) => { const u = [...form.specifications]; u[i] = { ...u[i], value: e.target.value }; onChange({ ...form, specifications: u }); }}
-                        className="flex-1 bg-dark-800/60 border border-dark-700/50 rounded-xl px-3 py-2 text-white text-xs placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50" placeholder="Value" />
-                      <button type="button" onClick={() => onChange({ ...form, specifications: form.specifications.filter((_, j) => j !== i) })} className="text-dark-500 hover:text-red-400 px-1">
+                        className="flex-1 min-w-0 basis-44 sm:basis-0 bg-dark-800/60 border border-dark-700/50 rounded-xl px-3 py-2 text-white text-xs placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50" placeholder="Value" />
+                      <button type="button" onClick={() => onChange({ ...form, specifications: form.specifications.filter((_, j) => j !== i) })} className="text-dark-500 hover:text-red-400 px-1 shrink-0">
                         <Trash2 size={14} />
                       </button>
                     </div>
@@ -1577,11 +1577,11 @@ function AddProductTab({
                   </div>
                   {form.keyFeatures.length === 0 && <p className="text-[11px] text-dark-600 italic">No features</p>}
                   {form.keyFeatures.map((feat, i) => (
-                    <div key={i} className="flex gap-2 mb-2">
-                      <span className="text-dark-500 text-xs mt-1.5">{i + 1}.</span>
+                    <div key={i} className="flex flex-wrap gap-2 mb-2">
+                      <span className="text-dark-500 text-xs mt-1.5 shrink-0">{i + 1}.</span>
                       <input type="text" value={feat} onChange={(e) => { const u = [...form.keyFeatures]; u[i] = e.target.value; onChange({ ...form, keyFeatures: u }); }}
-                        className="flex-1 bg-dark-800/60 border border-dark-700/50 rounded-xl px-3 py-2 text-white text-xs placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50" placeholder="Feature" />
-                      <button type="button" onClick={() => onChange({ ...form, keyFeatures: form.keyFeatures.filter((_, j) => j !== i) })} className="text-dark-500 hover:text-red-400 px-1">
+                        className="flex-1 min-w-0 basis-44 sm:basis-0 bg-dark-800/60 border border-dark-700/50 rounded-xl px-3 py-2 text-white text-xs placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50" placeholder="Feature" />
+                      <button type="button" onClick={() => onChange({ ...form, keyFeatures: form.keyFeatures.filter((_, j) => j !== i) })} className="text-dark-500 hover:text-red-400 px-1 shrink-0">
                         <Trash2 size={14} />
                       </button>
                     </div>
