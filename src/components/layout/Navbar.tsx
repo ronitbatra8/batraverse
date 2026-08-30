@@ -11,26 +11,14 @@ import {
   useScroll,
 } from "framer-motion";
 import {
-  Eye,
-  Heart,
-  LayoutDashboard,
-  LogOut,
-  Menu,
-  Moon,
-  Package,
-  Search,
-  ShoppingBag,
-  Store,
-  Sun,
-  User as UserIcon,
-  UserPlus,
   Check,
-  X,
-  MessageSquare,
-  Wallet,
   Home,
+  Menu,
+  Search,
   ShoppingCart,
   Stethoscope,
+  Store,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Brand from "@/components/brand/Brand";
@@ -68,7 +56,7 @@ export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
   const { theme, toggle } = useTheme();
-  const { user, logout, accounts, currentIndex, switchAccount, removeAccount } = useAuth();
+  const { user, logout, accounts, currentIndex, switchAccount, removeAccount, enterAsGuest } = useAuth();
   const { totalItems } = useCart();
   const { count: wishlistCount } = useWishlist();
 
@@ -122,7 +110,9 @@ export default function Navbar() {
   useEffect(() => {
     if (!shopOpen) return;
     const onDown = (e: MouseEvent) => {
-      if (shopRef.current && !shopRef.current.contains(e.target as Node)) {
+      const t = e.target as Node;
+      if (t instanceof Element && t.closest("[data-bv-menu]")) return;
+      if (shopRef.current && !shopRef.current.contains(t)) {
         setShopOpen(false);
       }
     };
@@ -134,6 +124,16 @@ export default function Navbar() {
     return () => {
       document.removeEventListener("mousedown", onDown);
       document.removeEventListener("keydown", onKey);
+    };
+  }, [shopOpen]);
+
+  /* Lock body scroll while the full-bleed menu is open */
+  useEffect(() => {
+    if (!shopOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
     };
   }, [shopOpen]);
 
@@ -336,38 +336,46 @@ export default function Navbar() {
               </Link>
             )}
 
-            {/* Expandable shop dropdown — cart, wishlist, account */}
+            {/* Menu — Rolls-Royce style wordplate trigger */}
             <div ref={shopRef} className="relative z-10">
               <button
                 type="button"
                 onClick={() => setShopOpen((o) => !o)}
                 aria-expanded={shopOpen}
                 aria-haspopup="true"
-                aria-label="Menu options"
+                aria-label={shopOpen ? "Close menu" : "Open menu"}
                 className={cn(
-                  "inline-flex h-10 w-10 items-center justify-center rounded-full border transition-all duration-300 hover:scale-105",
+                  "inline-flex h-10 items-center gap-2.5 rounded-full border px-4 transition-all duration-300 hover:scale-[1.03]",
                   lightNav
-                    ? "border-sapphire/30 text-onyx hover:border-sapphire/60 hover:text-sapphire"
-                    : "border-gold/30 text-cream-dim hover:border-gold/60 hover:text-gold-light",
+                    ? "border-black/15 text-onyx hover:border-sapphire/60 hover:text-sapphire"
+                    : "border-white/15 text-cream hover:border-gold/60 hover:text-gold-light",
                   shopOpen
                     ? lightNav
                       ? "border-sapphire/60 bg-sapphire/5 text-sapphire"
                       : "border-gold/60 bg-gold/5 text-gold-light"
-                    : ""
+                    : "bg-transparent"
                 )}
               >
-                <span className="relative inline-flex h-[18px] w-[18px] items-center justify-center">
+                <span
+                  className={cn(
+                    "text-[9px] font-normal uppercase tracking-[0.3em] transition-colors duration-200 sm:text-[10px] sm:tracking-[0.35em]",
+                    shopOpen && (lightNav ? "text-sapphire" : "text-gold-light")
+                  )}
+                >
+                  {shopOpen ? "Close" : "Menu"}
+                </span>
+                <span className="relative inline-flex h-[14px] w-[14px] items-center justify-center">
                   <Menu
-                    size={18}
-                    strokeWidth={1.5}
+                    size={14}
+                    strokeWidth={1.25}
                     className={cn(
                       "absolute inset-0 transition-all duration-200 ease-out",
                       shopOpen && "rotate-90 scale-50 opacity-0"
                     )}
                   />
                   <X
-                    size={18}
-                    strokeWidth={1.5}
+                    size={14}
+                    strokeWidth={1.25}
                     className={cn(
                       "absolute inset-0 transition-all duration-200 ease-out",
                       !shopOpen && "-rotate-90 scale-50 opacity-0"
@@ -375,323 +383,6 @@ export default function Navbar() {
                   />
                 </span>
               </button>
-
-              <AnimatePresence>
-                {shopOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -6, scale: 0.97 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -4, scale: 0.97 }}
-                    transition={{ duration: 0.16, ease: EASE }}
-                    style={{ transformOrigin: "top right", willChange: "transform, opacity" }}
-                    className={cn(
-                      "absolute right-0 top-0.5 w-64 overflow-hidden rounded-2xl border p-3 sm:rounded-3xl",
-                      lightNav
-                        ? "border-black/10 bg-white shadow-[0_30px_80px_rgba(0,0,0,0.16)]"
-                        : "border-gold/15 bg-onyx shadow-[0_30px_80px_rgba(0,0,0,0.55)]"
-                    )}
-                  >
-                    {/* soft accent lighting — sapphire in light mode, gold in dark */}
-                    <div
-                      aria-hidden
-                      className="pointer-events-none absolute -right-12 -top-12 h-36 w-36 rounded-full blur-xl"
-                      style={{
-                        background: lightNav
-                          ? "radial-gradient(closest-side, rgba(30,58,138,0.10), transparent)"
-                          : "radial-gradient(closest-side, rgba(212,175,55,0.18), transparent)",
-                      }}
-                    />
-                    <div
-                      aria-hidden
-                      className="pointer-events-none absolute -bottom-16 -left-10 h-32 w-32 rounded-full blur-xl"
-                      style={{
-                        background: lightNav
-                          ? "radial-gradient(closest-side, rgba(30,58,138,0.05), transparent)"
-                          : "radial-gradient(closest-side, rgba(212,175,55,0.08), transparent)",
-                      }}
-                    />
-                    <div
-                      aria-hidden
-                      className="pointer-events-none absolute inset-x-0 top-0 h-px"
-                      style={{
-                        background: lightNav
-                          ? "linear-gradient(90deg, transparent, rgba(30,58,138,0.4), transparent)"
-                          : "linear-gradient(90deg, transparent, rgba(212,175,55,0.5), transparent)",
-                      }}
-                    />
-
-                    {/* Menu header — understated, gallery-like */}
-                    <button
-                      type="button"
-                      onClick={() => setShopOpen(false)}
-                      className={cn(
-                        "group flex w-full items-center px-3 py-1.5 transition-colors duration-300",
-                        lightNav ? "hover:bg-black/[0.03]" : "hover:bg-white/[0.04]"
-                      )}
-                    >
-                      <span
-                        className={cn(
-                          "text-[10px] font-normal uppercase tracking-[0.4em]",
-                          lightNav ? "text-onyx/50 group-hover:text-sapphire" : "text-cream-dim/50 group-hover:text-gold"
-                        )}
-                      >
-                        Menu
-                      </span>
-                      <span
-                        className={cn(
-                          "ml-auto flex h-7 w-7 items-center justify-center rounded-full border transition-all duration-300 group-hover:rotate-90",
-                          lightNav
-                            ? "border-black/10 text-onyx/50 hover:border-sapphire/50 hover:text-sapphire"
-                            : "border-white/10 text-cream-dim/50 hover:border-gold/50 hover:text-gold-light"
-                        )}
-                      >
-                        <X size={13} strokeWidth={1.5} />
-                      </span>
-                    </button>
-
-                    <div
-                      className={cn("mx-3 my-1 h-px bg-gradient-to-r from-transparent to-transparent", lightNav ? "via-black/25" : "via-white/20")}
-                    />
-
-                    {/* Scrollable list */}
-                    <div className="max-h-80 overflow-y-auto">
-                      <ShopRow
-                        icon={<ShoppingBag size={15} strokeWidth={1.5} />}
-                        label="Cart"
-                        count={totalItems}
-                        light={lightNav}
-                        onClick={() => {
-                          setShopOpen(false);
-                          router.push("/cart");
-                        }}
-                      />
-                      <div
-                        className={cn("mx-3 h-px bg-gradient-to-r from-transparent to-transparent", lightNav ? "via-black/25" : "via-white/20")}
-                      />
-                      <ShopRow
-                        icon={<Heart size={15} strokeWidth={1.5} />}
-                        label="Wishlist"
-                        count={wishlistCount}
-                        light={lightNav}
-                        onClick={() => {
-                          setShopOpen(false);
-                          router.push("/wishlist");
-                        }}
-                      />
-                      {dash && (
-                        <>
-                          <div
-                            className={cn("mx-3 my-1 h-px bg-gradient-to-r from-transparent to-transparent", lightNav ? "via-black/25" : "via-white/20")}
-                          />
-                          <ShopRow
-                            icon={<LayoutDashboard size={15} strokeWidth={1.5} />}
-                            label={dash.label}
-                            light={lightNav}
-                            onClick={() => {
-                              setShopOpen(false);
-                              router.push(dash.href);
-                            }}
-                          />
-                        </>
-                      )}
-                      {user && (
-                        <>
-                          <div
-                            className={cn("mx-3 my-1 h-px bg-gradient-to-r from-transparent to-transparent", lightNav ? "via-black/25" : "via-white/20")}
-                          />
-                          <ShopRow
-                            icon={<UserIcon size={15} strokeWidth={1.5} />}
-                            label="My Account"
-                            light={lightNav}
-                            onClick={() => {
-                              setShopOpen(false);
-                              router.push("/account");
-                            }}
-                          />
-                          <ShopRow
-                            icon={<Wallet size={15} strokeWidth={1.5} />}
-                            label={`Wallet · ₹${(user?.walletBalance ?? 0).toFixed(0)}`}
-                            light={lightNav}
-                            onClick={() => {
-                              setShopOpen(false);
-                              router.push("/wallet");
-                            }}
-                          />
-                          <ShopRow
-                            icon={<Package size={15} strokeWidth={1.5} />}
-                            label="My Orders"
-                            light={lightNav}
-                            onClick={() => {
-                              setShopOpen(false);
-                              router.push("/orders");
-                            }}
-                          />
-                          <ShopRow
-                            icon={<MessageSquare size={15} strokeWidth={1.5} />}
-                            label="My Queries"
-                            light={lightNav}
-                            onClick={() => {
-                              setShopOpen(false);
-                              router.push("/queries");
-                            }}
-                          />
-                          <ShopRow
-                            icon={<Eye size={15} strokeWidth={1.5} />}
-                            label="Private Viewing"
-                            light={lightNav}
-                            onClick={() => {
-                              setShopOpen(false);
-                              router.push("/private-viewing");
-                            }}
-                          />
-                          <div
-                            className={cn("mx-3 h-px bg-gradient-to-r from-transparent to-transparent", lightNav ? "via-black/25" : "via-white/20")}
-                          />
-                          <ShopRow
-                            icon={<LogOut size={15} strokeWidth={1.5} />}
-                            label="Sign Out"
-                            light={lightNav}
-                            onClick={() => {
-                              setShopOpen(false);
-                              logout();
-                              router.push("/");
-                            }}
-                          />
-                          {accounts.length > 1 && (
-                            <>
-                              <div
-                                className={cn("mx-3 my-1 h-px bg-gradient-to-r from-transparent to-transparent", lightNav ? "via-black/25" : "via-white/20")}
-                              />
-                              <div className="px-3 pt-2 pb-1">
-                                <span
-                                  className={cn(
-                                    "text-[9px] font-normal uppercase tracking-[0.35em]",
-                                    lightNav ? "text-onyx/40" : "text-cream-dim/40"
-                                  )}
-                                >
-                                  Accounts
-                                </span>
-                              </div>
-                              {accounts.map((acc, i) => (
-                                <div key={acc.user.id} className="flex items-center">
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setShopOpen(false);
-                                      switchAccount(i);
-                                    }}
-                                    className={cn(
-                                      "group flex flex-1 items-center gap-3 rounded-xl px-3.5 py-2.5 text-left transition-colors duration-300",
-                                      i === currentIndex
-                                        ? lightNav
-                                          ? "bg-sapphire/10"
-                                          : "bg-gold/10"
-                                        : lightNav
-                                          ? "hover:bg-black/5"
-                                          : "hover:bg-white/5"
-                                    )}
-                                  >
-                                    <span
-                                      className={cn(
-                                        "flex h-6 w-6 items-center justify-center rounded-full text-[9px] font-bold",
-                                        i === currentIndex
-                                          ? lightNav
-                                            ? "bg-sapphire text-white"
-                                            : "bg-gold text-abyss"
-                                          : lightNav
-                                            ? "bg-dark-200 text-dark-600"
-                                            : "bg-white/10 text-cream-dim"
-                                      )}
-                                    >
-                                      {acc.user.name?.charAt(0)?.toUpperCase() || "?"}
-                                    </span>
-                                    <span className="flex flex-col min-w-0">
-                                      <span
-                                        className={cn(
-                                          "text-[10px] font-medium uppercase tracking-[0.2em] truncate",
-                                          i === currentIndex
-                                            ? lightNav
-                                              ? "text-sapphire"
-                                              : "text-gold-light"
-                                            : lightNav
-                                              ? "text-onyx"
-                                              : "text-cream"
-                                        )}
-                                      >
-                                        {acc.user.name?.split(" ")[0] || "Account"}
-                                      </span>
-                                      {acc.user.cardNumber && (
-                                        <span
-                                          className={cn(
-                                            "text-[8px] tracking-[0.15em] truncate",
-                                            lightNav ? "text-onyx/40" : "text-cream-dim/40"
-                                          )}
-                                        >
-                                          {acc.user.cardNumber}
-                                        </span>
-                                      )}
-                                    </span>
-                                    {i === currentIndex && (
-                                      <Check size={14} strokeWidth={2} className={cn("ml-auto shrink-0", lightNav ? "text-sapphire" : "text-gold-light")} />
-                                    )}
-                                  </button>
-                                  {i !== currentIndex && (
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        removeAccount(i);
-                                      }}
-                                      className={cn(
-                                        "mr-1 flex h-7 w-7 items-center justify-center rounded-lg transition-colors duration-300",
-                                        lightNav
-                                          ? "text-onyx/30 hover:text-rose-500 hover:bg-rose-500/10"
-                                          : "text-cream-dim/30 hover:text-rose-300 hover:bg-rose-300/10"
-                                      )}
-                                      title="Remove account"
-                                    >
-                                      <X size={12} strokeWidth={1.5} />
-                                    </button>
-                                  )}
-                                </div>
-                              ))}
-                            </>
-                          )}
-                          <div
-                            className={cn("mx-3 my-1 h-px bg-gradient-to-r from-transparent to-transparent", lightNav ? "via-black/25" : "via-white/20")}
-                          />
-                          <ShopRow
-                            icon={<UserPlus size={15} strokeWidth={1.5} />}
-                            label="Add Account"
-                            light={lightNav}
-                            onClick={() => {
-                              setShopOpen(false);
-                              router.push("/login?add=1");
-                            }}
-                          />
-                        </>
-                      )}
-                      <div
-                        className={cn("mx-3 h-px bg-gradient-to-r from-transparent to-transparent", lightNav ? "via-black/25" : "via-white/20")}
-                      />
-                      <ShopRow
-                        icon={
-                          theme === "light" ? (
-                            <Moon size={15} strokeWidth={1.5} />
-                          ) : (
-                            <Sun size={15} strokeWidth={1.5} />
-                          )
-                        }
-                        label={theme === "light" ? "Dark Mode" : "Light Mode"}
-                        light={lightNav}
-                        onClick={() => {
-                          setShopOpen(false);
-                          toggle();
-                        }}
-                      />
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
             </div>
           </motion.div>
 
@@ -708,6 +399,127 @@ export default function Navbar() {
           />
         </nav>
       </motion.header>
+
+      {/* Rolls-Royce style full-bleed menu overlay */}
+      <AnimatePresence>
+        {shopOpen && (
+          <motion.div
+            data-bv-menu
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 6 }}
+            transition={{ duration: 0.28, ease: EASE }}
+            className={cn(
+              "fixed inset-x-0 bottom-0 top-16 z-30 overflow-y-auto overscroll-contain",
+              lightNav ? "bg-white/[0.98]" : "bg-abyss/[0.98]"
+            )}
+            style={{ willChange: "transform, opacity" }}
+          >
+            <div className="mx-auto w-full max-w-5xl px-6 pb-28 pt-4 sm:px-14 sm:pt-8">
+              {/* quiet system band */}
+              <div className={cn("mb-2 flex items-baseline justify-between border-b pb-3 sm:pb-4", lightNav ? "border-black/10" : "border-white/10")}>
+                <span className={cn("text-[9px] font-normal uppercase tracking-[0.5em]", lightNav ? "text-onyx/40" : "text-cream-dim/40")}>
+                  Navigation
+                </span>
+                <span className={cn("font-display text-[10px] uppercase tracking-[0.3em]", lightNav ? "text-onyx/50" : "text-cream-dim/50")}>
+                  Batraverse
+                </span>
+              </div>
+
+              <MenuSection label="Shop" light={lightNav}>
+                <MenuItem
+                  label="Cart"
+                  hint={totalItems > 0 ? `${totalItems}` : undefined}
+                  light={lightNav}
+                  onClick={() => {
+                    setShopOpen(false);
+                    router.push("/cart");
+                  }}
+                />
+                <MenuItem
+                  label="Wishlist"
+                  hint={wishlistCount > 0 ? `${wishlistCount}` : undefined}
+                  light={lightNav}
+                  onClick={() => {
+                    setShopOpen(false);
+                    router.push("/wishlist");
+                  }}
+                />
+                {dash && (
+                  <MenuItem
+                    label={dash.label}
+                    light={lightNav}
+                    onClick={() => {
+                      setShopOpen(false);
+                      router.push(dash.href);
+                    }}
+                  />
+                )}
+              </MenuSection>
+
+              {user ? (
+                <MenuSection label="Account" light={lightNav}>
+                  <MenuItem label="My Account" light={lightNav} onClick={() => { setShopOpen(false); router.push("/account"); }} />
+                  <MenuItem label="Wallet" hint={`₹${(user?.walletBalance ?? 0).toFixed(0)}`} light={lightNav} onClick={() => { setShopOpen(false); router.push("/wallet"); }} />
+                  <MenuItem label="My Orders" light={lightNav} onClick={() => { setShopOpen(false); router.push("/orders"); }} />
+                  <MenuItem label="My Queries" light={lightNav} onClick={() => { setShopOpen(false); router.push("/queries"); }} />
+                  <MenuItem label="Private Viewing" light={lightNav} onClick={() => { setShopOpen(false); router.push("/private-viewing"); }} />
+                </MenuSection>
+              ) : (
+                <MenuSection label="Account" light={lightNav}>
+                  <MenuItem label="Sign In" light={lightNav} onClick={() => { setShopOpen(false); router.push("/login"); }} />
+                  <MenuItem label="Explore as Guest" light={lightNav} onClick={() => { setShopOpen(false); enterAsGuest(); router.push("/"); }} />
+                </MenuSection>
+              )}
+
+              {user && accounts.length > 1 && (
+                <MenuSection label="Accounts" light={lightNav}>
+                  {accounts.map((acc, i) => (
+                    <MenuItem
+                      key={acc.user.id}
+                      label={acc.user.name?.split(" ")[0] || "Account"}
+                      hint={i === currentIndex ? "Active" : acc.user.cardNumber || undefined}
+                      active={i === currentIndex}
+                      light={lightNav}
+                      onRemove={i !== currentIndex ? () => removeAccount(i) : undefined}
+                      onClick={() => {
+                        setShopOpen(false);
+                        switchAccount(i);
+                      }}
+                    />
+                  ))}
+                </MenuSection>
+              )}
+
+              <MenuSection label="System" light={lightNav}>
+                {user && (
+                  <MenuItem label="Add Account" light={lightNav} onClick={() => { setShopOpen(false); router.push("/login?add=1"); }} />
+                )}
+                <MenuItem
+                  label={theme === "light" ? "Dark Mode" : "Light Mode"}
+                  light={lightNav}
+                  onClick={() => {
+                    setShopOpen(false);
+                    toggle();
+                  }}
+                />
+                {user && (
+                  <MenuItem
+                    label="Sign Out"
+                    danger
+                    light={lightNav}
+                    onClick={() => {
+                      setShopOpen(false);
+                      logout();
+                      router.push("/");
+                    }}
+                  />
+                )}
+              </MenuSection>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Mobile bottom tab bar */}
       <div
@@ -832,56 +644,120 @@ function IconBtn({
   );
 }
 
-function ShopRow({
-  icon,
+function MenuSection({
   label,
-  count,
   light = false,
-  onClick,
+  children,
 }: {
-  icon: React.ReactNode;
   label: string;
-  count?: number;
   light?: boolean;
-  onClick: () => void;
+  children: React.ReactNode;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "group flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition-colors duration-300",
-        light ? "hover:bg-black/[0.03]" : "hover:bg-white/[0.04]"
-      )}
-    >
-      <span
+    <section className="pt-10 sm:pt-16">
+      <h2
         className={cn(
-          "transition-colors duration-300",
-          light ? "text-onyx/50 group-hover:text-sapphire" : "text-cream-dim/50 group-hover:text-gold-light"
-        )}
-      >
-        {icon}
-      </span>
-      <span
-        className={cn(
-          "text-[11px] font-normal uppercase tracking-[0.22em]",
-          light ? "text-onyx" : "text-cream"
+          "mb-3 text-[9px] font-normal uppercase tracking-[0.5em] sm:mb-5",
+          light ? "text-onyx/40" : "text-cream-dim/40"
         )}
       >
         {label}
-      </span>
-      {typeof count === "number" && count > 0 && (
-        <span
-          className={cn(
-            "ml-auto flex h-5 min-w-5 items-center justify-center rounded-full border px-1.5 text-[9px] font-semibold tabular-nums",
-            light
-              ? "border-sapphire/25 bg-sapphire/5 text-sapphire"
-              : "border-gold/20 bg-gold/10 text-gold-light"
-          )}
-        >
-          {count}
-        </span>
+      </h2>
+      <div>{children}</div>
+    </section>
+  );
+}
+
+function MenuItem({
+  label,
+  hint,
+  light = false,
+  danger = false,
+  active = false,
+  onRemove,
+  onClick,
+}: {
+  label: string;
+  hint?: string;
+  light?: boolean;
+  danger?: boolean;
+  active?: boolean;
+  onRemove?: () => void;
+  onClick: () => void;
+}) {
+  return (
+    <div
+      className={cn(
+        "group relative border-b py-5 sm:py-6",
+        light ? "border-black/10" : "border-white/10"
       )}
-    </button>
+    >
+      <button
+        type="button"
+        onClick={onClick}
+        className="flex w-full items-center justify-between gap-4 text-left"
+      >
+        <span className="flex min-w-0 flex-1 items-center gap-5">
+          <span className="flex min-w-0 flex-col">
+            <span
+              className={cn(
+                "truncate font-display text-[22px] font-light uppercase leading-tight tracking-[0.12em] transition-colors duration-300 sm:text-[26px] sm:tracking-[0.14em]",
+                active
+                  ? light
+                    ? "text-sapphire"
+                    : "text-gold-light"
+                  : danger
+                    ? light
+                      ? "text-rose-600 group-hover:text-rose-500"
+                      : "text-rose-400 group-hover:text-rose-300"
+                    : light
+                      ? "text-onyx/90 group-hover:text-sapphire"
+                      : "text-cream group-hover:text-gold-light"
+              )}
+            >
+              {label}
+            </span>
+            <span
+              aria-hidden
+              className={cn(
+                "mt-1.5 h-px w-24 max-w-full origin-left scale-x-0 transition-transform duration-500 group-hover:scale-x-100",
+                light ? "bg-sapphire" : "bg-gold"
+              )}
+            />
+          </span>
+          {hint && (
+            <span
+              className={cn(
+                "shrink-0 text-[9px] font-medium uppercase tracking-[0.3em]",
+                light ? "text-onyx/40" : "text-cream-dim/50"
+              )}
+            >
+              {hint}
+            </span>
+          )}
+        </span>
+        {active && (
+          <Check size={16} strokeWidth={1.5} className={cn("shrink-0", light ? "text-sapphire" : "text-gold-light")} />
+        )}
+        {onRemove && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemove();
+            }}
+            title="Remove account"
+            className={cn(
+              "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border transition-colors duration-300",
+              light
+                ? "border-black/10 text-onyx/40 hover:border-rose-500/50 hover:text-rose-500"
+                : "border-white/10 text-cream-dim/40 hover:border-rose-400/50 hover:text-rose-300"
+            )}
+          >
+            <X size={13} strokeWidth={1.5} />
+          </button>
+        )}
+      </button>
+    </div>
   );
 }
