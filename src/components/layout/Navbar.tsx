@@ -345,14 +345,15 @@ export default function Navbar() {
                 aria-haspopup="true"
                 aria-label="Menu options"
                 className={cn(
-                  "inline-flex h-9 w-9 items-center justify-center transition-all duration-300 hover:scale-110",
+                  "inline-flex h-10 w-10 items-center justify-center rounded-full border transition-all duration-300 hover:scale-105",
                   lightNav
-                    ? "text-onyx hover:text-sapphire hover:drop-shadow-[0_0_10px_rgba(30,58,138,0.45)]"
-                    : "text-cream-dim hover:text-gold-light",
-                  shopOpen &&
-                    (lightNav
-                      ? "text-sapphire drop-shadow-[0_0_10px_rgba(30,58,138,0.45)]"
-                      : "text-gold-light")
+                    ? "border-sapphire/30 text-onyx hover:border-sapphire/60 hover:text-sapphire"
+                    : "border-gold/30 text-cream-dim hover:border-gold/60 hover:text-gold-light",
+                  shopOpen
+                    ? lightNav
+                      ? "border-sapphire/60 bg-sapphire/5 text-sapphire"
+                      : "border-gold/60 bg-gold/5 text-gold-light"
+                    : ""
                 )}
               >
                 <span className="relative inline-flex h-[18px] w-[18px] items-center justify-center">
@@ -384,10 +385,10 @@ export default function Navbar() {
                     transition={{ duration: 0.16, ease: EASE }}
                     style={{ transformOrigin: "top right", willChange: "transform, opacity" }}
                     className={cn(
-                      "absolute right-0 top-0.5 w-56 overflow-hidden rounded-2xl border p-2",
+                      "absolute right-0 top-0.5 w-64 overflow-hidden rounded-2xl border p-3 sm:rounded-3xl",
                       lightNav
-                        ? "border-black/10 bg-white shadow-[0_30px_80px_rgba(0,0,0,0.18)]"
-                        : "border-gold/15 bg-onyx shadow-[0_30px_80px_rgba(0,0,0,0.6)]"
+                        ? "border-black/10 bg-white shadow-[0_30px_80px_rgba(0,0,0,0.16)]"
+                        : "border-gold/15 bg-onyx shadow-[0_30px_80px_rgba(0,0,0,0.55)]"
                     )}
                   >
                     {/* soft accent lighting — sapphire in light mode, gold in dark */}
@@ -396,8 +397,8 @@ export default function Navbar() {
                       className="pointer-events-none absolute -right-12 -top-12 h-36 w-36 rounded-full blur-xl"
                       style={{
                         background: lightNav
-                          ? "radial-gradient(closest-side, rgba(30,58,138,0.16), transparent)"
-                          : "radial-gradient(closest-side, rgba(212,175,55,0.25), transparent)",
+                          ? "radial-gradient(closest-side, rgba(30,58,138,0.10), transparent)"
+                          : "radial-gradient(closest-side, rgba(212,175,55,0.18), transparent)",
                       }}
                     />
                     <div
@@ -405,8 +406,8 @@ export default function Navbar() {
                       className="pointer-events-none absolute -bottom-16 -left-10 h-32 w-32 rounded-full blur-xl"
                       style={{
                         background: lightNav
-                          ? "radial-gradient(closest-side, rgba(30,58,138,0.08), transparent)"
-                          : "radial-gradient(closest-side, rgba(212,175,55,0.1), transparent)",
+                          ? "radial-gradient(closest-side, rgba(30,58,138,0.05), transparent)"
+                          : "radial-gradient(closest-side, rgba(212,175,55,0.08), transparent)",
                       }}
                     />
                     <div
@@ -419,37 +420,37 @@ export default function Navbar() {
                       }}
                     />
 
-                    {/* Close — pinned to the very top */}
+                    {/* Menu header — understated, gallery-like */}
                     <button
                       type="button"
                       onClick={() => setShopOpen(false)}
                       className={cn(
-                        "group flex w-full items-center gap-3 rounded-xl border px-3.5 py-3 text-left transition-colors duration-300",
-                        lightNav
-                          ? "border-rose-500/25 hover:border-rose-500/50 hover:bg-rose-500/5"
-                          : "border-rose-400/25 hover:border-rose-400/50 hover:bg-rose-400/5"
+                        "group flex w-full items-center px-3 py-1.5 transition-colors duration-300",
+                        lightNav ? "hover:bg-black/[0.03]" : "hover:bg-white/[0.04]"
                       )}
                     >
                       <span
                         className={cn(
-                          "transition-colors duration-300",
-                          lightNav ? "text-rose-500 group-hover:text-rose-600" : "text-rose-300/80 group-hover:text-rose-200"
+                          "text-[10px] font-normal uppercase tracking-[0.4em]",
+                          lightNav ? "text-onyx/50 group-hover:text-sapphire" : "text-cream-dim/50 group-hover:text-gold"
                         )}
                       >
-                        <X size={15} strokeWidth={1.5} />
+                        Menu
                       </span>
                       <span
                         className={cn(
-                          "text-[10px] font-medium uppercase tracking-[0.28em]",
-                          lightNav ? "text-rose-600/90" : "text-rose-200/90"
+                          "ml-auto flex h-7 w-7 items-center justify-center rounded-full border transition-all duration-300 group-hover:rotate-90",
+                          lightNav
+                            ? "border-black/10 text-onyx/50 hover:border-sapphire/50 hover:text-sapphire"
+                            : "border-white/10 text-cream-dim/50 hover:border-gold/50 hover:text-gold-light"
                         )}
                       >
-                        Close
+                        <X size={13} strokeWidth={1.5} />
                       </span>
                     </button>
 
                     <div
-                      className={cn("mx-3.5 my-1.5 h-px", lightNav ? "bg-black/10" : "bg-white/5")}
+                      className={cn("mx-3 my-1 h-px bg-gradient-to-r from-transparent to-transparent", lightNav ? "via-black/25" : "via-white/20")}
                     />
 
                     {/* Scrollable list */}
@@ -465,7 +466,7 @@ export default function Navbar() {
                         }}
                       />
                       <div
-                        className={cn("mx-3.5 h-px", lightNav ? "bg-black/10" : "bg-white/5")}
+                        className={cn("mx-3 h-px bg-gradient-to-r from-transparent to-transparent", lightNav ? "via-black/25" : "via-white/20")}
                       />
                       <ShopRow
                         icon={<Heart size={15} strokeWidth={1.5} />}
@@ -480,7 +481,7 @@ export default function Navbar() {
                       {dash && (
                         <>
                           <div
-                            className={cn("mx-3.5 my-1.5 h-px", lightNav ? "bg-black/10" : "bg-white/5")}
+                            className={cn("mx-3 my-1 h-px bg-gradient-to-r from-transparent to-transparent", lightNav ? "via-black/25" : "via-white/20")}
                           />
                           <ShopRow
                             icon={<LayoutDashboard size={15} strokeWidth={1.5} />}
@@ -496,7 +497,7 @@ export default function Navbar() {
                       {user && (
                         <>
                           <div
-                            className={cn("mx-3.5 my-1.5 h-px", lightNav ? "bg-black/10" : "bg-white/5")}
+                            className={cn("mx-3 my-1 h-px bg-gradient-to-r from-transparent to-transparent", lightNav ? "via-black/25" : "via-white/20")}
                           />
                           <ShopRow
                             icon={<UserIcon size={15} strokeWidth={1.5} />}
@@ -544,7 +545,7 @@ export default function Navbar() {
                             }}
                           />
                           <div
-                            className={cn("mx-3.5 h-px", lightNav ? "bg-black/10" : "bg-white/5")}
+                            className={cn("mx-3 h-px bg-gradient-to-r from-transparent to-transparent", lightNav ? "via-black/25" : "via-white/20")}
                           />
                           <ShopRow
                             icon={<LogOut size={15} strokeWidth={1.5} />}
@@ -559,12 +560,12 @@ export default function Navbar() {
                           {accounts.length > 1 && (
                             <>
                               <div
-                                className={cn("mx-3.5 my-1.5 h-px", lightNav ? "bg-black/10" : "bg-white/5")}
+                                className={cn("mx-3 my-1 h-px bg-gradient-to-r from-transparent to-transparent", lightNav ? "via-black/25" : "via-white/20")}
                               />
-                              <div className="px-3.5 pt-2 pb-1">
+                              <div className="px-3 pt-2 pb-1">
                                 <span
                                   className={cn(
-                                    "text-[9px] font-bold uppercase tracking-[0.3em]",
+                                    "text-[9px] font-normal uppercase tracking-[0.35em]",
                                     lightNav ? "text-onyx/40" : "text-cream-dim/40"
                                   )}
                                 >
@@ -656,7 +657,7 @@ export default function Navbar() {
                             </>
                           )}
                           <div
-                            className={cn("mx-3.5 my-1.5 h-px", lightNav ? "bg-black/10" : "bg-white/5")}
+                            className={cn("mx-3 my-1 h-px bg-gradient-to-r from-transparent to-transparent", lightNav ? "via-black/25" : "via-white/20")}
                           />
                           <ShopRow
                             icon={<UserPlus size={15} strokeWidth={1.5} />}
@@ -670,7 +671,7 @@ export default function Navbar() {
                         </>
                       )}
                       <div
-                        className={cn("mx-3.5 h-px", lightNav ? "bg-black/10" : "bg-white/5")}
+                        className={cn("mx-3 h-px bg-gradient-to-r from-transparent to-transparent", lightNav ? "via-black/25" : "via-white/20")}
                       />
                       <ShopRow
                         icon={
@@ -849,21 +850,21 @@ function ShopRow({
       type="button"
       onClick={onClick}
       className={cn(
-        "group flex w-full items-center gap-3 rounded-xl px-3.5 py-3 text-left transition-colors duration-300",
-        light ? "hover:bg-black/5" : "hover:bg-white/5"
+        "group flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition-colors duration-300",
+        light ? "hover:bg-black/[0.03]" : "hover:bg-white/[0.04]"
       )}
     >
       <span
         className={cn(
           "transition-colors duration-300",
-          light ? "text-onyx/60 group-hover:text-sapphire" : "text-cream-dim group-hover:text-gold-light"
+          light ? "text-onyx/50 group-hover:text-sapphire" : "text-cream-dim/50 group-hover:text-gold-light"
         )}
       >
         {icon}
       </span>
       <span
         className={cn(
-          "text-[10px] font-medium uppercase tracking-[0.28em]",
+          "text-[11px] font-normal uppercase tracking-[0.22em]",
           light ? "text-onyx" : "text-cream"
         )}
       >
@@ -872,9 +873,9 @@ function ShopRow({
       {typeof count === "number" && count > 0 && (
         <span
           className={cn(
-            "ml-auto flex h-5 min-w-5 items-center justify-center rounded-full border px-1.5 text-[9px] font-semibold",
+            "ml-auto flex h-5 min-w-5 items-center justify-center rounded-full border px-1.5 text-[9px] font-semibold tabular-nums",
             light
-              ? "border-sapphire/25 bg-sapphire/10 text-sapphire"
+              ? "border-sapphire/25 bg-sapphire/5 text-sapphire"
               : "border-gold/20 bg-gold/10 text-gold-light"
           )}
         >
