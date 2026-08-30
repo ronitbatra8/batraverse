@@ -24,18 +24,21 @@ import { LEVELS, getLevelFromBalance } from "@/lib/levels";
 import { roleDashboard } from "@/lib/roles";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
-
-const listParent = {
-  hidden: {},
-  show: { transition: { staggerChildren: 0.09, delayChildren: 0.25 } },
-};
-const rowReveal = {
-  hidden: { y: "115%" },
-  show: { y: 0, transition: { duration: 0.85, ease: EASE } },
-  exit: { y: "115%", transition: { duration: 0.3, ease: EASE } },
-};
+const RR_EASE = [0.19, 1, 0.22, 1] as const;
 
 const MotionLink = motion.create(Link);
+
+type NavRow =
+  | { kind: "divider"; key: string }
+  | {
+      kind: "row";
+      key: string;
+      label: string;
+      hint?: string;
+      danger?: boolean;
+      onClick: () => void;
+      onAction?: () => void;
+    };
 
 const NAV_LINKS = [
   { label: "Home", href: "/" },
@@ -63,6 +66,41 @@ export default function Navbar() {
   const { totalItems } = useCart();
   const { count: wishlistCount } = useWishlist();
   const dash = user ? roleDashboard(user.role) : null;
+
+  /* The sidebar is a single ordered list. Delays are computed at render time
+     so the cascade can run bottom-up (bottom row first), like Rolls-Royce's
+     GSAP menu reveal. */
+  const navRows: NavRow[] = [
+    { kind: "row", key: "cart", label: "Cart", hint: totalItems > 0 ? `${totalItems}` : undefined, onClick: () => { setSliderOpen(false); router.push("/cart"); } },
+    { kind: "row", key: "wishlist", label: "Wishlist", hint: wishlistCount > 0 ? `${wishlistCount}` : undefined, onClick: () => { setSliderOpen(false); router.push("/wishlist"); } },
+    { kind: "divider", key: "d1" },
+  ];
+  if (user) {
+    navRows.push({ kind: "row", key: "account", label: "My Account", onClick: () => { setSliderOpen(false); router.push("/account"); } });
+    if (dash) {
+      navRows.push({ kind: "row", key: "dashboard", label: "Dashboard", onClick: () => { setSliderOpen(false); router.push(dash.href); } });
+    }
+    navRows.push(
+      { kind: "row", key: "cards", label: "My Cards", onClick: () => { setSliderOpen(false); router.push("/cards"); } },
+      { kind: "row", key: "wallet", label: "Wallet", hint: `₹${(user.walletBalance ?? 0).toFixed(0)}`, onClick: () => { setSliderOpen(false); router.push("/wallet"); } },
+      { kind: "row", key: "orders", label: "My Orders", onClick: () => { setSliderOpen(false); router.push("/orders"); } },
+      { kind: "row", key: "queries", label: "My Queries", onClick: () => { setSliderOpen(false); router.push("/queries"); } },
+      { kind: "row", key: "private", label: "Private Viewing", onClick: () => { setSliderOpen(false); router.push("/private-viewing"); } },
+    );
+  } else {
+    navRows.push(
+      { kind: "row", key: "signin", label: "Sign In", onClick: () => { setSliderOpen(false); router.push("/login"); } },
+      { kind: "row", key: "guest", label: "Explore as Guest", onClick: () => { setSliderOpen(false); enterAsGuest(); router.push("/"); } },
+    );
+  }
+  navRows.push({ kind: "divider", key: "d2" });
+  if (user) {
+    navRows.push({ kind: "row", key: "switch", label: "Switch Account", onClick: () => { setSliderOpen(false); router.push("/login?add=1"); } });
+  }
+  navRows.push({ kind: "row", key: "theme", label: theme === "light" ? "Dark Mode" : "Light Mode", onClick: () => setSliderOpen(false), onAction: toggle });
+  if (user) {
+    navRows.push({ kind: "row", key: "signout", label: "Sign Out", danger: true, onClick: () => { setSliderOpen(false); logout(); router.push("/"); } });
+  }
 
   const walletBalance = user?.walletBalance ?? 0;
   const levelKey = getLevelFromBalance(user?.peakWalletBalance ?? walletBalance);
@@ -424,66 +462,25 @@ export default function Navbar() {
                   : "border-gold/15 bg-onyx/55 shadow-[inset_0_1px_0_rgba(212,175,55,0.12),-24px_0_60px_rgba(0,0,0,0.4)]"
               )}
             >
-              <motion.nav
-                initial="hidden"
-                animate="show"
-                exit="hidden"
-                variants={listParent}
-                className="flex-1 overflow-y-auto overscroll-contain px-6 pb-10 pt-[84px]"
-              >
-                <SlideRow
-                  label="Cart"
-                  hint={totalItems > 0 ? `${totalItems}` : undefined}
-                  lightNav={lightNav}
-                  onClick={() => { setSliderOpen(false); router.push("/cart"); }}
-                />
-                <SlideRow
-                  label="Wishlist"
-                  hint={wishlistCount > 0 ? `${wishlistCount}` : undefined}
-                  lightNav={lightNav}
-                  onClick={() => { setSliderOpen(false); router.push("/wishlist"); }}
-                />
-
-                <SlideDivider lightNav={lightNav} />
-
-                {user ? (
-                  <>
-                    <SlideRow label="My Account" lightNav={lightNav} onClick={() => { setSliderOpen(false); router.push("/account"); }} />
-                    {dash && (
-                      <SlideRow label="Dashboard" lightNav={lightNav} onClick={() => { setSliderOpen(false); router.push(dash.href); }} />
-                    )}
-                    <SlideRow label="My Cards" lightNav={lightNav} onClick={() => { setSliderOpen(false); router.push("/cards"); }} />
-                    <SlideRow label="Wallet" hint={`₹${(user?.walletBalance ?? 0).toFixed(0)}`} lightNav={lightNav} onClick={() => { setSliderOpen(false); router.push("/wallet"); }} />
-                    <SlideRow label="My Orders" lightNav={lightNav} onClick={() => { setSliderOpen(false); router.push("/orders"); }} />
-                    <SlideRow label="My Queries" lightNav={lightNav} onClick={() => { setSliderOpen(false); router.push("/queries"); }} />
-                    <SlideRow label="Private Viewing" lightNav={lightNav} onClick={() => { setSliderOpen(false); router.push("/private-viewing"); }} />
-                  </>
-                ) : (
-                  <>
-                    <SlideRow label="Sign In" lightNav={lightNav} onClick={() => { setSliderOpen(false); router.push("/login"); }} />
-                    <SlideRow label="Explore as Guest" lightNav={lightNav} onClick={() => { setSliderOpen(false); enterAsGuest(); router.push("/"); }} />
-                  </>
-                )}
-
-                <SlideDivider lightNav={lightNav} />
-
-                {user && (
-                  <SlideRow label="Switch Account" lightNav={lightNav} onClick={() => { setSliderOpen(false); router.push("/login?add=1"); }} />
-                )}
-                <SlideRow
-                  label={theme === "light" ? "Dark Mode" : "Light Mode"}
-                  lightNav={lightNav}
-                  onClick={() => setSliderOpen(false)}
-                  onAction={toggle}
-                />
-                {user && (
-                  <SlideRow
-                    label="Sign Out"
-                    danger
-                    lightNav={lightNav}
-                    onClick={() => { setSliderOpen(false); logout(); router.push("/"); }}
-                  />
-                )}
+              <motion.nav className="flex-1 overflow-y-auto overscroll-contain px-6 pb-10 pt-[84px]">
+                {navRows.map((row, i) => {
+                  const delay = 0.1 + (navRows.length - 1 - i) * 0.1;
+                  if (row.kind === "divider") {
+                    return <SlideDivider key={row.key} lightNav={lightNav} delay={delay} />;
+                  }
+                  return (
+                    <SlideRow
+                      key={row.key}
+                      label={row.label}
+                      hint={row.hint}
+                      danger={row.danger}
+                      lightNav={lightNav}
+                      delay={delay}
+                      onClick={row.onClick}
+                      onAction={row.onAction}
+                    />
+                  );
+                })}
               </motion.nav>
             </motion.aside>
           </>
@@ -588,19 +585,29 @@ function NavLink({
   );
 }
 
-function SlideDivider({ lightNav = false }: { lightNav?: boolean }) {
+function SlideDivider({
+  lightNav = false,
+  delay = 0,
+}: {
+  lightNav?: boolean;
+  delay?: number;
+}) {
   return (
-    <div className="overflow-hidden py-5">
-      <motion.div
-        variants={rowReveal}
-        className={cn(
-          "h-px bg-gradient-to-r",
-          lightNav
-            ? "from-black/25 via-black/10 to-transparent"
-            : "from-cream/25 via-cream/10 to-transparent"
-        )}
-      />
-    </div>
+    <motion.div
+      initial={{ opacity: 0, x: "-100%" }}
+      animate={{
+        opacity: 1,
+        x: "0%",
+        transition: { duration: 0.9, ease: RR_EASE, delay },
+      }}
+      exit={{ opacity: 0, transition: { duration: 0.3, ease: RR_EASE } }}
+      className={cn(
+        "my-5 h-px bg-gradient-to-r",
+        lightNav
+          ? "from-black/25 via-black/10 to-transparent"
+          : "from-cream/25 via-cream/10 to-transparent"
+      )}
+    />
   );
 }
 
@@ -609,6 +616,7 @@ function SlideRow({
   hint,
   danger = false,
   lightNav = false,
+  delay = 0,
   onClick,
   onAction,
 }: {
@@ -616,53 +624,63 @@ function SlideRow({
   hint?: string;
   danger?: boolean;
   lightNav?: boolean;
+  delay?: number;
   onClick?: () => void;
   onAction?: () => void;
 }) {
   return (
-    <div className="overflow-hidden">
-      <motion.button
-        type="button"
-        variants={rowReveal}
-        onClick={() => {
-          onClick?.();
-          onAction?.();
-        }}
-        className="group relative flex w-full items-baseline justify-between gap-6 py-3.5 text-left"
+    <motion.button
+      type="button"
+      initial={{ opacity: 0, x: "-100%" }}
+      animate={{
+        opacity: 1,
+        x: "0%",
+        transition: { duration: 0.9, ease: RR_EASE, delay },
+      }}
+      exit={{
+        opacity: 0,
+        x: "-100%",
+        transition: { duration: 0.3, ease: RR_EASE },
+      }}
+      style={{ willChange: "opacity, transform" }}
+      onClick={() => {
+        onClick?.();
+        onAction?.();
+      }}
+      className="group relative flex w-full items-baseline justify-between gap-6 py-3.5 text-left"
+    >
+      <span
+        className={cn(
+          "truncate font-display text-[14px] font-light uppercase leading-tight tracking-[0.16em] transition-colors duration-300",
+          danger
+            ? lightNav
+              ? "text-rose-600 group-hover:text-rose-500"
+              : "text-rose-400 group-hover:text-rose-300"
+            : lightNav
+              ? "text-onyx/90 group-hover:text-sapphire"
+              : "text-cream group-hover:text-gold-light"
+        )}
       >
+        {label}
+      </span>
+      {hint && (
         <span
           className={cn(
-            "truncate font-display text-[14px] font-light uppercase leading-tight tracking-[0.16em] transition-colors duration-300",
-            danger
-              ? lightNav
-                ? "text-rose-600 group-hover:text-rose-500"
-                : "text-rose-400 group-hover:text-rose-300"
-              : lightNav
-                ? "text-onyx/90 group-hover:text-sapphire"
-                : "text-cream group-hover:text-gold-light"
+            "shrink-0 text-[9px] font-medium uppercase tracking-[0.3em]",
+            lightNav ? "text-onyx/40" : "text-cream-dim/50"
           )}
         >
-          {label}
+          {hint}
         </span>
-        {hint && (
-          <span
-            className={cn(
-              "shrink-0 text-[9px] font-medium uppercase tracking-[0.3em]",
-              lightNav ? "text-onyx/40" : "text-cream-dim/50"
-            )}
-          >
-            {hint}
-          </span>
+      )}
+      <span
+        aria-hidden
+        className={cn(
+          "absolute bottom-1 left-0 h-px w-full origin-left scale-x-0 transition-transform duration-500 group-hover:scale-x-100",
+          lightNav ? "bg-sapphire/60" : "bg-gold/60"
         )}
-        <span
-          aria-hidden
-          className={cn(
-            "absolute bottom-1 left-0 h-px w-full origin-left scale-x-0 transition-transform duration-500 group-hover:scale-x-100",
-            lightNav ? "bg-sapphire/60" : "bg-gold/60"
-          )}
-        />
-      </motion.button>
-    </div>
+      />
+    </motion.button>
   );
 }
 
