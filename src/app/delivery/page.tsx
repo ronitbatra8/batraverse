@@ -296,14 +296,14 @@ export default function DeliveryPage() {
           </div>
 
           {/* Filters */}
-          <div className="flex gap-2 mb-6">
+          <div className="mb-6 grid grid-cols-3 gap-2 sm:flex">
             {([["all", "All", stats.total], ["active", "Active", stats.pickup + stats.delivering + stats.delivered - stats.delivered + orders.filter((o) => o.status === "return_requested").length], ["delivered", "Delivered", stats.delivered]] as const).map(([key, label, count]) => (
               <button
                 key={key}
                 type="button"
                 onClick={() => setFilter(key)}
                 className={cn(
-                  "rounded-full px-4 py-2 text-[10px] font-bold uppercase tracking-[0.2em] transition-all",
+                  "w-full rounded-full px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.1em] transition-all sm:w-auto sm:px-4 sm:py-2 sm:tracking-[0.2em]",
                   filter === key
                     ? light
                       ? "bg-sapphire text-white"
@@ -351,10 +351,11 @@ export default function DeliveryPage() {
                     <button
                       type="button"
                       onClick={() => setExpandedId(isExpanded ? null : order.id)}
-                      className={cn("w-full px-4 sm:px-6 py-4 flex items-center gap-4 text-left transition-colors", light ? "hover:bg-dark-50/50" : "hover:bg-white/[0.02]")}
+                      className={cn("w-full px-3 py-2.5 flex items-center gap-3 text-left transition-colors sm:px-6 sm:py-4 sm:gap-4", light ? "hover:bg-dark-50/50" : "hover:bg-white/[0.02]")}
                     >
-                      <div className={cn("flex h-10 w-10 items-center justify-center rounded-xl", light ? "bg-dark-100" : "bg-onyx")}>
-                        <Package size={18} className={cn(STATUS_COLORS[order.status]?.split(" ")[0])} />
+                      <div className={cn("flex h-8 w-8 items-center justify-center rounded-xl sm:h-10 sm:w-10", light ? "bg-dark-100" : "bg-onyx")}>
+                        <Package size={14} className={cn("sm:hidden", STATUS_COLORS[order.status]?.split(" ")[0])} />
+                        <Package size={18} className={cn("hidden sm:block", STATUS_COLORS[order.status]?.split(" ")[0])} />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
@@ -378,7 +379,7 @@ export default function DeliveryPage() {
                             {order.source === "mart" ? "Mart" : order.source === "mediverse" ? "Mediverse" : "Store"}
                           </span>
                         </div>
-                        <div className={cn("mt-1 flex items-center gap-3 text-xs", light ? "text-dark-400" : "text-cream-dim/50")}>
+                        <div className={cn("mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs sm:mt-1 sm:gap-x-3", light ? "text-dark-400" : "text-cream-dim/50")}>
                           <span>{order.shippingName}</span>
                           <span>&middot;</span>
                           <span>{new Date(order.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</span>
@@ -391,10 +392,10 @@ export default function DeliveryPage() {
 
                     {/* Expanded detail */}
                     {isExpanded && (
-                      <div className={cn("border-t px-4 sm:px-6 py-5 space-y-4", light ? "border-dark-100" : "border-white/5")}>
+                      <div className={cn("border-t px-3 py-3.5 space-y-3 sm:px-6 sm:py-5 sm:space-y-4", light ? "border-dark-100" : "border-white/5")}>
                         {/* Shipping / Customer info */}
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                          <div className={cn("rounded-xl p-4 space-y-2", light ? "bg-dark-50/80" : "bg-onyx/50")}>
+                          <div className={cn("rounded-xl p-3 space-y-2 sm:p-4", light ? "bg-dark-50/80" : "bg-onyx/50")}>
                             <div className="flex items-center gap-2">
                               <MapPin size={14} className="text-orange-400" />
                               <p className={cn("text-[10px] font-semibold uppercase tracking-wider", light ? "text-dark-500" : "text-cream-dim/70")}>Delivery Address</p>
@@ -402,7 +403,7 @@ export default function DeliveryPage() {
                             <p className={cn("text-sm font-medium", light ? "text-dark-900" : "text-cream")}>{order.shippingAddress}</p>
                             <p className={cn("text-xs", light ? "text-dark-400" : "text-cream-dim/50")}>{order.shippingCity}</p>
                           </div>
-                          <div className={cn("rounded-xl p-4 space-y-2", light ? "bg-dark-50/80" : "bg-onyx/50")}>
+                          <div className={cn("rounded-xl p-3 space-y-2 sm:p-4", light ? "bg-dark-50/80" : "bg-onyx/50")}>
                             <div className="flex items-center gap-2">
                               <User size={14} className="text-sky-400" />
                               <p className={cn("text-[10px] font-semibold uppercase tracking-wider", light ? "text-dark-500" : "text-cream-dim/70")}>Customer</p>
@@ -422,7 +423,7 @@ export default function DeliveryPage() {
                           </p>
                           <div className="space-y-2">
                             {order.items.map((item, idx) => (
-                              <div key={idx} className={cn("flex items-center justify-between rounded-xl px-4 py-3", light ? "bg-dark-50/80" : "bg-onyx/50")}>
+                              <div key={idx} className={cn("flex items-center justify-between rounded-xl px-3 py-2.5 sm:px-4 sm:py-3", light ? "bg-dark-50/80" : "bg-onyx/50")}>
                                 <div className="flex-1 min-w-0">
                                   <p className={cn("text-xs font-medium truncate", light ? "text-dark-900" : "text-cream")}>{item.name}</p>
                                   <p className={cn("text-[10px] mt-0.5", light ? "text-dark-400" : "text-cream-dim/50")}>
