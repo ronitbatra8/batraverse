@@ -7,6 +7,7 @@ import { Search, X, Star, ChevronUp } from "lucide-react";
 import SiteLayout from "@/components/layout/SiteLayout";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import { cn, formatPrice } from "@/lib/utils";
+import { resolveImageUrl } from "@/lib/imageUrl";
 import { PRODUCTS, type Product } from "@/app/store/products";
 import { MART_PRODUCTS, type MartProduct } from "@/app/mart/products";
 
@@ -392,7 +393,7 @@ function SearchCard({ product, light }: { product: UnifiedProduct; light: boolea
       <div className="relative aspect-[3/2] overflow-hidden">
         {hasImage ? (
           <img
-            src={product.dbImages?.[0] || product.img}
+            src={resolveImageUrl(product.dbImages?.[0] || product.img)}
             alt={product.name}
             loading="lazy"
             decoding="async"

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Loader2, Search, Trash2, Eye, EyeOff, Package, User, Star, ChevronDown, ChevronUp, Filter, Plus, X } from "lucide-react";
 import { API, adminHeaders } from "./types";
+import { resolveImageUrl } from "@/lib/imageUrl";
 import { formatPrice } from "@/lib/utils";
 import { useConfirm } from "@/components/useConfirm";
 
@@ -475,7 +476,5 @@ export default function ProductCatalogTab({ adminKey }: { adminKey: string }) {
 
 function getImageUrl(url: string): string {
   if (!url) return "";
-  if (url.startsWith("http")) return url;
-  const apiBase = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api").replace("/api", "");
-  return `${apiBase}${url}`;
+  return resolveImageUrl(url);
 }

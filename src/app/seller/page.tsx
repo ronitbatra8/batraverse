@@ -36,7 +36,8 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthContext";
 import { useToast } from "@/components/Toast";
-import { apiFetch, apiUpload, API_URL } from "@/lib/api";
+import { apiFetch, apiUpload } from "@/lib/api";
+import { resolveImageUrl } from "@/lib/imageUrl";
 import { cn, formatPrice } from "@/lib/utils";
 import SiteLayout from "@/components/layout/SiteLayout";
 import ConfirmModal from "@/components/ConfirmModal";
@@ -195,8 +196,7 @@ function parseJsonArray(raw: unknown): unknown[] {
 
 function getImageUrl(src: string) {
   if (!src) return "";
-  if (src.startsWith("http")) return src;
-  return API_URL.replace("/api", "") + src;
+  return resolveImageUrl(src);
 }
 
 const TABS: { key: Tab; label: string; icon: typeof Package }[] = [
@@ -1389,7 +1389,7 @@ function AddProductTab({
                           <div className="flex gap-2 mt-3 flex-wrap">
                             {(color.images || []).map((img, ii) => (
                                 <div key={ii} className="relative w-14 h-14 sm:w-20 sm:h-20 rounded-xl overflow-hidden border border-dark-700/50 bg-dark-800 group/ci">
-                                <img src={img.startsWith("http") ? img : `${API_URL.replace("/api", "")}${img}`} alt="" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                                <img src={resolveImageUrl(img)} alt="" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                                 <button onClick={() => { const u = [...form.colorOptions]; u[i] = { ...u[i], images: (u[i].images || []).filter((_, j) => j !== ii) }; onChange({ ...form, colorOptions: u }); }}
                                   className="absolute inset-0 bg-black/50 opacity-0 group-hover/ci:opacity-100 transition-opacity flex items-center justify-center">
                                   <X size={14} className="text-white" />
@@ -1673,7 +1673,7 @@ function AdRequestsTab({ requests, form, onChange, saving, onSubmit, onDelete }:
           <div>
             <label className="block text-xs font-medium text-dark-400 mb-1.5">Image URL</label>
             <input type="text" value={form.img} onChange={(e) => onChange({ ...form, img: e.target.value })} placeholder="https://..." className={inputCls} />
-            {form.img && <div className="mt-2 w-full h-32 rounded-xl overflow-hidden bg-dark-800/60 border border-dark-700/30"><img src={form.img} alt="" className="w-full h-full object-cover" /></div>}
+            {form.img && <div className="mt-2 w-full h-32 rounded-xl overflow-hidden bg-dark-800/60 border border-dark-700/30"><img src={resolveImageUrl(form.img)} alt="" className="w-full h-full object-cover" /></div>}
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div><label className="block text-xs font-medium text-dark-400 mb-1.5">Tagline</label><input type="text" value={form.tagline} onChange={(e) => onChange({ ...form, tagline: e.target.value })} placeholder="The Fall Edit" className={inputCls} /></div>
@@ -1702,7 +1702,7 @@ function AdRequestsTab({ requests, form, onChange, saving, onSubmit, onDelete }:
             {requests.map((r) => (
               <div key={r.id} className="bg-dark-900/60 border border-dark-800/50 rounded-xl p-4 flex flex-col sm:flex-row items-stretch gap-4">
                 <div className="w-full sm:w-32 h-32 sm:h-20 rounded-xl overflow-hidden bg-dark-800/60 shrink-0 border border-dark-700/30">
-                  <img src={r.img} alt="" className="w-full h-full object-cover" />
+                  <img src={resolveImageUrl(r.img)} alt="" className="w-full h-full object-cover" />
                 </div>
                 <div className="flex-1 min-w-0 flex flex-col justify-center">
                   <div className="flex items-center gap-2">

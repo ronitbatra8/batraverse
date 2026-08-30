@@ -7,8 +7,7 @@ import { cn, formatPrice } from "@/lib/utils";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import { useCart } from "@/components/cart/CartContext";
 import SiteLayout from "@/components/layout/SiteLayout";
-
-const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api").replace("/api", "");
+import { resolveImageUrl } from "@/lib/imageUrl";
 
 export default function CartPage() {
   const { theme } = useTheme();
@@ -29,7 +28,7 @@ export default function CartPage() {
   const itemKey = (productId: string, color: string, size?: string) => `${productId}::${color}::${size ?? ""}`;
 
   const imgSrc = (colorImage?: string) =>
-    colorImage ? (colorImage.startsWith("http") ? colorImage : `${API_BASE}${colorImage}`) : null;
+    colorImage ? (resolveImageUrl(colorImage) || null) : null;
 
   return (
     <SiteLayout>

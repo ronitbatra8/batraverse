@@ -4,6 +4,7 @@
 import { useState, useEffect } from "react";
 import { Megaphone, Plus, Pencil, Trash2, ExternalLink, ArrowUpDown, ChevronUp, X, Check, Clock } from "lucide-react";
 import { adminHeaders } from "./types";
+import { resolveImageUrl } from "@/lib/imageUrl";
 import { API_URL } from "@/lib/api";
 import { useConfirm } from "@/components/useConfirm";
 
@@ -224,7 +225,7 @@ export default function AdsTab({ adminKey }: { adminKey: string }) {
         <input type="text" value={form.img} onChange={(e) => setForm((f) => ({ ...f, img: e.target.value }))} placeholder="https://..." className={inputCls} />
         {form.img && (
           <div className="mt-2 w-full h-32 rounded-xl overflow-hidden bg-dark-900/60 border border-dark-700/30">
-            <img src={form.img} alt="Preview" className="w-full h-full object-cover" />
+            <img src={resolveImageUrl(form.img)} alt="Preview" className="w-full h-full object-cover" />
           </div>
         )}
       </div>
@@ -316,7 +317,7 @@ export default function AdsTab({ adminKey }: { adminKey: string }) {
               <div key={r.id} className="bg-dark-900/60 border border-dark-800/50 rounded-xl overflow-hidden hover:border-dark-700/50 transition-colors">
                 <div className="flex items-stretch gap-4 p-4">
                   <div className="w-40 h-24 rounded-xl overflow-hidden bg-dark-800/60 shrink-0 border border-dark-700/30">
-                    <img src={r.img} alt={r.tagline} className="w-full h-full object-cover" />
+                    <img src={resolveImageUrl(r.img)} alt={r.tagline} className="w-full h-full object-cover" />
                   </div>
                   <div className="flex-1 min-w-0 flex flex-col justify-center">
                     <div className="flex items-center gap-2">
@@ -370,7 +371,7 @@ export default function AdsTab({ adminKey }: { adminKey: string }) {
               <div key={ad.id} className="bg-dark-900/60 border border-dark-800/50 rounded-xl overflow-hidden hover:border-dark-700/50 transition-colors">
                 <div className="flex items-stretch gap-4 p-4 cursor-pointer" onClick={() => isExpanded ? closeForm() : openEdit(ad)}>
                   <div className="w-40 h-24 rounded-xl overflow-hidden bg-dark-800/60 shrink-0 border border-dark-700/30">
-                    <img src={ad.img} alt={ad.tagline} className="w-full h-full object-cover" />
+                    <img src={resolveImageUrl(ad.img)} alt={ad.tagline} className="w-full h-full object-cover" />
                   </div>
                   <div className="flex-1 min-w-0 flex flex-col justify-center">
                     <div className="flex items-center gap-2">

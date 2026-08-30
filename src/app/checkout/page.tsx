@@ -33,8 +33,7 @@ import { getDiscountPercent, getFreeDeliveries, LEVELS, type LevelKey } from "@/
 import { apiFetch } from "@/lib/api";
 import SiteLayout from "@/components/layout/SiteLayout";
 import UpiPaymentModal from "@/components/UpiPaymentModal";
-
-const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api").replace("/api", "");
+import { resolveImageUrl } from "@/lib/imageUrl";
 
 type Step = "shipping" | "payment" | "confirm";
 type PaymentMethod = "cod" | "upi_delivery" | "online" | "wallet_balance";
@@ -678,7 +677,7 @@ export default function CheckoutPage() {
                           <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl">
                             {item.colorImage ? (
                               <img
-                                src={item.colorImage.startsWith("http") ? item.colorImage : `${API_BASE}${item.colorImage}`}
+src={resolveImageUrl(item.colorImage) || ""}
                                 alt=""
                                 className="absolute inset-0 w-full h-full object-cover"
                               />
@@ -769,7 +768,7 @@ export default function CheckoutPage() {
                       <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg">
                         {item.colorImage ? (
                           <img
-                            src={item.colorImage.startsWith("http") ? item.colorImage : `${API_BASE}${item.colorImage}`}
+                            src={resolveImageUrl(item.colorImage) || ""}
                             alt=""
                             className="absolute inset-0 w-full h-full object-cover"
                           />

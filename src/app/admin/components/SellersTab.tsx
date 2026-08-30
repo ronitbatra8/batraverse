@@ -4,6 +4,7 @@
 import { useState, useEffect } from "react";
 import { Store, UserCheck, UserX, ChevronDown, ChevronUp, Package, ShoppingBag, Eye, LogIn } from "lucide-react";
 import { API, adminHeaders, statusColors } from "./types";
+import { resolveImageUrl } from "@/lib/imageUrl";
 import { formatPrice } from "@/lib/utils";
 
 export default function SellersTab({ adminKey }: { adminKey: string }) {
@@ -166,7 +167,7 @@ export default function SellersTab({ adminKey }: { adminKey: string }) {
                               <div key={product.id} className="bg-dark-900/40 border border-dark-800/30 rounded-xl p-4 space-y-2">
                                 <div className="flex items-start gap-3">
                                   {effectiveImg ? (
-                                    <img src={effectiveImg} alt={product.name} className="w-12 h-12 rounded-lg object-cover shrink-0" />
+                                    <img src={resolveImageUrl(effectiveImg)} alt={product.name} className="w-12 h-12 rounded-lg object-cover shrink-0" />
                                   ) : (
                                     <div className="w-12 h-12 rounded-lg bg-dark-800/50 flex items-center justify-center shrink-0">
                                       <Package className="w-5 h-5 text-dark-600" />

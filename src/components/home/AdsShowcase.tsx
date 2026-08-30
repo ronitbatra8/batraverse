@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import { cn } from "@/lib/utils";
+import { resolveImageUrl } from "@/lib/imageUrl";
 import { API_URL } from "@/lib/api";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
@@ -234,7 +235,7 @@ export default function AdsShowcase({ page = "home", hideHeader = false }: { pag
                   transition={{ duration: (billboards[index]?.duration || DEFAULT_DURATION), ease: "linear" }}
                 >
                   <img
-                    src={current.img}
+                    src={resolveImageUrl(current.img)}
                     alt=""
                     className="absolute inset-0 w-full h-full object-cover"
                   />
@@ -383,7 +384,7 @@ export default function AdsShowcase({ page = "home", hideHeader = false }: { pag
                   transition={{ duration: (billboards[index]?.duration || DEFAULT_DURATION), ease: "linear" }}
                 >
                   <img
-                    src={current.img}
+                    src={resolveImageUrl(current.img)}
                     alt=""
                     className="absolute inset-0 w-full h-full object-cover"
                   />

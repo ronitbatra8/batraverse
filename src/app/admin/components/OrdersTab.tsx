@@ -19,6 +19,7 @@ import {
   Hash,
 } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
+import { resolveImageUrl } from "@/lib/imageUrl";
 import { statusColors, API, adminHeaders } from "./types";
 import ConfirmModal from "@/components/ConfirmModal";
 
@@ -531,7 +532,7 @@ export default function OrdersTab({
                                 <div key={idx} className="p-3 rounded-lg bg-dark-900/30 space-y-2">
                                   <div className="flex items-center gap-3">
                                     {item.image && (
-                                      <img src={item.image} alt={item.name} className="w-10 h-10 rounded-lg object-cover" />
+                                      <img src={resolveImageUrl(item.image)} alt={item.name} className="w-10 h-10 rounded-lg object-cover" />
                                     )}
                                     <div className="flex-1 min-w-0">
                                       <div className="flex items-center gap-2">
@@ -588,7 +589,7 @@ export default function OrdersTab({
                                 <div key={idx} className="p-3 rounded-lg bg-dark-900/30">
                                   <div className="flex items-center gap-3">
                                     {item.image && (
-                                      <img src={item.image} alt={item.name} className="w-10 h-10 rounded-lg object-cover" />
+                                      <img src={resolveImageUrl(item.image)} alt={item.name} className="w-10 h-10 rounded-lg object-cover" />
                                     )}
                                     <div className="flex-1 min-w-0">
                                       <div className="flex items-center gap-2">
@@ -695,7 +696,7 @@ export default function OrdersTab({
                           <div className="flex flex-col gap-1 border-l border-dark-700 pl-3 ml-1">
                             <div className="text-xs text-dark-500">Signature</div>
                             <div className="rounded-lg border border-dark-700/50 bg-dark-800 p-1 inline-block">
-                              <img src={order.signatureData} alt="Delivery signature" className="h-14" />
+                              <img src={resolveImageUrl(order.signatureData)} alt="Delivery signature" className="h-14" />
                             </div>
                             {order.signedAt && <div className="text-[9px] text-dark-600">{new Date(order.signedAt).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</div>}
                           </div>
@@ -737,7 +738,7 @@ export default function OrdersTab({
                               <div className="flex gap-1">
                                 {order.securityPhotos.slice(0, 3).map((photo: string, idx: number) => (
                                   <button key={idx} onClick={() => setLightboxPhoto(photo)} className="cursor-pointer">
-                                    <img src={photo} alt={`Security photo ${idx + 1}`} className="h-14 w-14 object-cover rounded-lg border border-dark-700/50 hover:border-gold/50 transition-colors" />
+                                    <img src={resolveImageUrl(photo)} alt={`Security photo ${idx + 1}`} className="h-14 w-14 object-cover rounded-lg border border-dark-700/50 hover:border-gold/50 transition-colors" />
                                   </button>
                                 ))}
                               </div>
@@ -806,7 +807,7 @@ export default function OrdersTab({
       {lightboxPhoto && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4" onClick={() => setLightboxPhoto(null)}>
           <button onClick={() => setLightboxPhoto(null)} className="absolute top-4 right-4 text-white/70 hover:text-white text-2xl font-bold">&times;</button>
-          <img src={lightboxPhoto} alt="Security photo" className="max-h-[85vh] max-w-[90vw] rounded-xl object-contain shadow-2xl" onClick={(e) => e.stopPropagation()} />
+          <img src={resolveImageUrl(lightboxPhoto)} alt="Security photo" className="max-h-[85vh] max-w-[90vw] rounded-xl object-contain shadow-2xl" onClick={(e) => e.stopPropagation()} />
         </div>
       )}
     </div>

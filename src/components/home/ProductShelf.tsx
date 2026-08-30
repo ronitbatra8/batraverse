@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Eye } from "lucide-react";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import { cn } from "@/lib/utils";
+import { resolveImageUrl } from "@/lib/imageUrl";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 
@@ -130,7 +131,7 @@ function ShelfCard({
           )}
         >
           <img
-            src={item.img}
+            src={resolveImageUrl(item.img)}
             alt={item.name}
             loading="lazy"
             decoding="async"

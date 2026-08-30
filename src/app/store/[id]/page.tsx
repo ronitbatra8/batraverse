@@ -12,6 +12,7 @@ import { trackRecentlyViewed } from "@/lib/recentlyViewed";
 import { getProduct, getRelated, PRODUCTS } from "../products";
 import { getProductReviews, getReviewStats } from "../reviews";
 import { apiFetch } from "@/lib/api";
+import { resolveImageUrl } from "@/lib/imageUrl";
 import SiteLayout from "@/components/layout/SiteLayout";
 import type { Product } from "../products";
 
@@ -141,7 +142,7 @@ export default function ProductPage() {
     const firstImg = product.dbImages?.[0]
       || product.colors?.[0]?.images?.[0]
       || "";
-    const img = firstImg && !firstImg.startsWith("http") ? `${API_BASE.replace("/api", "")}${firstImg}` : firstImg || "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=900&h=1200&fit=crop";
+    const img = resolveImageUrl(firstImg) || "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=900&h=1200&fit=crop";
     trackRecentlyViewed({
       id: product.id,
       name: product.name,
@@ -360,7 +361,7 @@ export default function ProductPage() {
             <div className={cn("relative aspect-square overflow-hidden rounded-2xl", light ? "bg-dark-100" : "bg-graphite")}>
               {hasImages ? (
                 <img
-                  src={colorImages[selectedImage] ? (colorImages[selectedImage].startsWith("http") ? colorImages[selectedImage] : `${API_BASE.replace("/api", "")}${colorImages[selectedImage]}`) : (colorImages[0].startsWith("http") ? colorImages[0] : `${API_BASE.replace("/api", "")}${colorImages[0]}`)}
+                  src={resolveImageUrl(colorImages[selectedImage] || colorImages[0])}
                   alt={product.name}
                   className="absolute inset-0 w-full h-full object-cover"
                 />
@@ -391,7 +392,7 @@ export default function ProductPage() {
                     i === selectedImage ? (light ? "border-sapphire" : "border-gold") : (light ? "border-dark-200 hover:border-dark-400" : "border-white/5 hover:border-white/20")
                   )}>
                   {img ? (
-                    <img src={img.startsWith("http") ? img : `${API_BASE.replace("/api", "")}${img}`} alt="" className="w-full h-full object-cover" />
+                    <img src={resolveImageUrl(img)} alt="" className="w-full h-full object-cover" />
                   ) : (
                     <div className={cn("h-full w-full bg-gradient-to-br transition-all duration-500", i === 0 ? "from-zinc-800 to-zinc-950" : mainGradient, "opacity", i === 0 ? "100" : i === 1 ? "80" : i === 2 ? "60" : "40")} />
                   )}

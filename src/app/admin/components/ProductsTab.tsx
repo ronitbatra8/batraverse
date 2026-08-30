@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Loader2, Plus, Pencil, Trash2, ChevronDown, ChevronUp, Eye, EyeOff, Search } from "lucide-react";
 import { API, adminHeaders } from "./types";
+import { resolveImageUrl } from "@/lib/imageUrl";
 import { formatPrice } from "@/lib/utils";
 import { useConfirm } from "@/components/useConfirm";
 
@@ -289,7 +290,7 @@ export default function ProductsTab({ adminKey }: { adminKey: string }) {
                 <div key={p.id} className="bg-dark-800/40 border border-dark-700/50 rounded-xl px-4 py-3 flex items-center gap-4">
                   <div className="w-10 h-10 rounded-lg bg-dark-700/50 flex items-center justify-center text-dark-400 text-xs font-bold shrink-0 overflow-hidden">
                     {getEffectiveAdminImage(p) ? (
-                      <img src={getEffectiveAdminImage(p)} alt="" className="w-full h-full object-cover rounded-lg" />
+                      <img src={resolveImageUrl(getEffectiveAdminImage(p))} alt="" className="w-full h-full object-cover rounded-lg" />
                     ) : (
                       p.name.slice(0, 2).toUpperCase()
                     )}

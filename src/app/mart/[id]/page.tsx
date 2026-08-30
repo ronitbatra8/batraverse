@@ -10,6 +10,7 @@ import { useCart } from "@/components/cart/CartContext";
 import { trackRecentlyViewed } from "@/lib/recentlyViewed";
 import { getMartProduct, MART_PRODUCTS } from "../products";
 import SiteLayout from "@/components/layout/SiteLayout";
+import { resolveImageUrl } from "@/lib/imageUrl";
 import type { MartProduct } from "../products";
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api").replace("/api", "");
@@ -88,7 +89,7 @@ export default function MartProductPage() {
   useEffect(() => {
     if (!product) return;
     const firstImg = product.dbImages?.[0] || "";
-    const img = firstImg && !firstImg.startsWith("http") ? `${API_BASE.replace("/api", "")}${firstImg}` : firstImg || "https://images.unsplash.com/photo-1542838132-92c53300491e?w=900&h=1200&fit=crop";
+    const img = resolveImageUrl(firstImg) || "https://images.unsplash.com/photo-1542838132-92c53300491e?w=900&h=1200&fit=crop";
     trackRecentlyViewed({
       id: product.id,
       name: product.name,
@@ -210,7 +211,7 @@ export default function MartProductPage() {
             <div className={cn("relative aspect-square overflow-hidden rounded-2xl", light ? "bg-dark-100" : "bg-graphite")}>
               {hasImages ? (
                 <img
-                  src={product.dbImages![0].startsWith("http") ? product.dbImages![0] : `${API_BASE.replace("/api", "")}${product.dbImages![0]}`}
+                  src={resolveImageUrl(product.dbImages![0])}
                   alt={product.name}
                   className="absolute inset-0 w-full h-full object-cover"
                 />

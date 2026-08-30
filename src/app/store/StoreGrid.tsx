@@ -3,6 +3,7 @@
 import { useMemo, useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { cn, formatPrice } from "@/lib/utils";
+import { resolveImageUrl } from "@/lib/imageUrl";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import { useCart } from "@/components/cart/CartContext";
 import { PRODUCTS, type Product } from "./products";
@@ -244,7 +245,7 @@ function ProductCard({
       <div className="relative aspect-[4/5] sm:aspect-[4/3] overflow-hidden">
         {product.dbImages && product.dbImages.length > 0 ? (
           <img
-            src={product.dbImages[0].startsWith("http") ? product.dbImages[0] : `${(process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api").replace("/api", "")}${product.dbImages[0]}`}
+            src={resolveImageUrl(product.dbImages[0])}
             alt={product.name}
             className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
             onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}

@@ -7,9 +7,8 @@ import { useTheme } from "@/components/theme/ThemeProvider";
 import { useWishlist } from "@/components/wishlist/WishlistContext";
 import { useCart } from "@/components/cart/CartContext";
 import SiteLayout from "@/components/layout/SiteLayout";
+import { resolveImageUrl } from "@/lib/imageUrl";
 import type { Product } from "@/app/store/products";
-
-const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api").replace("/api", "");
 
 function getHref(id: string) {
   if (id.startsWith("m")) return `/mart/${id}`;
@@ -18,9 +17,7 @@ function getHref(id: string) {
 
 function getImageSrc(p: Product): string {
   const raw = p.dbImages?.[0] || p.colors?.[0]?.images?.[0] || "";
-  if (!raw) return "";
-  if (raw.startsWith("http")) return raw;
-  return `${API_BASE}${raw}`;
+  return resolveImageUrl(raw);
 }
 
 function WishlistRow({ product, light }: { product: Product; light: boolean }) {

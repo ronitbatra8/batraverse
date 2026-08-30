@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { useLight } from "@/components/auth/auth-ui";
 import { formatPrice, cn } from "@/lib/utils";
+import { resolveImageUrl } from "@/lib/imageUrl";
 import { apiFetch } from "@/lib/api";
 import { statusColors, msgStatusColors } from "./types";
 import type { UserDetailTab } from "./types";
@@ -523,7 +524,7 @@ function OrdersTab({ orders, light }: { orders: any[]; light: boolean }) {
                     {order.items.map((item: any, i: number) => (
                       <div key={i} className="flex items-center gap-3">
                         {item.image ? (
-                          <img src={item.image} alt={item.name} className={cn("w-10 h-10 rounded-lg object-cover", light ? "bg-silver-100" : "bg-dark-800")} />
+                          <img src={resolveImageUrl(item.image)} alt={item.name} className={cn("w-10 h-10 rounded-lg object-cover", light ? "bg-silver-100" : "bg-dark-800")} />
                         ) : (
                           <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center", light ? "bg-silver-100" : "bg-dark-800")}>
                             <Package className={cn("w-4 h-4", light ? "text-onyx/30" : "text-dark-600")} />
@@ -649,7 +650,7 @@ function WishlistTab({ wishlists, light }: { wishlists: any[]; light: boolean })
           <div className="flex items-center gap-4">
             {item.product?.images?.[0] ? (
               <img
-                src={item.product.images[0]}
+                src={resolveImageUrl(item.product.images[0])}
                 alt={item.product.name}
                 className={cn("w-14 h-14 rounded-lg object-cover shrink-0", light ? "bg-silver-100" : "bg-dark-800")}
               />
