@@ -102,7 +102,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setAccounts(stored);
     setCurrentIndex(idx);
 
-    if (typeof window !== "undefined" && localStorage.getItem("bt-guest") === "1") {
+    /* Legacy guest flag lived in localStorage and survived sign-ins; wipe it. */
+    if (typeof window !== "undefined" && localStorage.getItem("bt-guest")) {
+      localStorage.removeItem("bt-guest");
+    }
+
+    if (typeof window !== "undefined" && sessionStorage.getItem("bt-guest") === "1") {
       setIsGuest(true);
       setLoading(false);
       return;
@@ -157,6 +162,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const res = await apiFetch("/auth/register", { method: "POST", body: JSON.stringify(data) });
     addAccount(res.token, res.user);
     setAuth("bt-token", res.token);
+    localStorage.removeItem("bt-guest");
+    sessionStorage.removeItem("bt-guest");
+    setIsGuest(false);
     setUser(res.user);
     return res.user;
   };
@@ -175,6 +183,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setAuth("bt-current-user-id", res.user.id);
       setUser(res.user);
       window.dispatchEvent(new Event("bt-account-switch"));
+      localStorage.removeItem("bt-guest");
+      sessionStorage.removeItem("bt-guest");
+      setIsGuest(false);
       return res.user;
     }
     if (exists >= 0) {
@@ -193,16 +204,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     setAuth("bt-token", res.token);
     setAuth("bt-current-user-id", res.user.id);
+    localStorage.removeItem("bt-guest");
+    sessionStorage.removeItem("bt-guest");
+    setIsGuest(false);
     setUser(res.user);
     return res.user;
   };
 
   const enterAsGuest = () => {
-    localStorage.setItem("bt-guest", "1");
+    sessionStorage.setItem("bt-guest", "1");
+    localStorage.removeItem("bt-guest");
     setIsGuest(true);
   };
 
   const logout = () => {
+    sessionStorage.removeItem("bt-guest");
     localStorage.removeItem("bt-guest");
     setIsGuest(false);
     const stored = loadAccounts();
