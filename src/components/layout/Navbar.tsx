@@ -24,6 +24,21 @@ import { LEVELS, getLevelFromBalance } from "@/lib/levels";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 
+const listParent = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.08, delayChildren: 0.18 } },
+};
+const listItem = {
+  hidden: { opacity: 0, y: 18, clipPath: "inset(0 0 100% 0)" },
+  show: {
+    opacity: 1,
+    y: 0,
+    clipPath: "inset(0 0 0% 0)",
+    transition: { duration: 0.7, ease: EASE },
+  },
+  exit: { opacity: 0, transition: { duration: 0.25, ease: EASE } },
+};
+
 const MotionLink = motion.create(Link);
 
 const NAV_LINKS = [
@@ -269,170 +284,51 @@ export default function Navbar() {
             </IconBtn>
 
             {/* Sliding sidebar — the external links */}
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setSliderOpen((o) => !o)}
-                aria-expanded={sliderOpen}
-                aria-haspopup="dialog"
-                aria-label={sliderOpen ? "Close menu" : "Open menu"}
+            <button
+              type="button"
+              onClick={() => setSliderOpen((o) => !o)}
+              aria-expanded={sliderOpen}
+              aria-haspopup="dialog"
+              aria-label={sliderOpen ? "Close menu" : "Open menu"}
+              className={cn(
+                "inline-flex h-10 w-[92px] items-center justify-center rounded-full border transition-colors duration-300",
+                lightNav
+                  ? "border-black/15 text-onyx hover:border-sapphire/60 hover:text-sapphire"
+                  : "border-white/15 text-cream hover:border-gold/60 hover:text-gold-light",
+                sliderOpen
+                  ? lightNav
+                    ? "border-sapphire/60 bg-sapphire/5 text-sapphire"
+                    : "border-gold/60 bg-gold/5 text-gold-light"
+                  : "bg-transparent"
+              )}
+            >
+              <span
                 className={cn(
-                  "inline-flex h-10 items-center gap-2.5 rounded-full border px-4 transition-all duration-300 hover:scale-[1.03]",
-                  lightNav
-                    ? "border-black/15 text-onyx hover:border-sapphire/60 hover:text-sapphire"
-                    : "border-white/15 text-cream hover:border-gold/60 hover:text-gold-light",
-                  sliderOpen
-                    ? lightNav
-                      ? "border-sapphire/60 bg-sapphire/5 text-sapphire"
-                      : "border-gold/60 bg-gold/5 text-gold-light"
-                    : "bg-transparent"
+                  "text-[9px] font-normal uppercase tracking-[0.3em] transition-colors duration-200 sm:text-[10px] sm:tracking-[0.35em]",
+                  sliderOpen && (lightNav ? "text-sapphire" : "text-gold-light")
                 )}
               >
-                <span
+                {sliderOpen ? "Close" : "Menu"}
+              </span>
+              <span className="relative inline-flex h-[14px] w-[14px] items-center justify-center">
+                <Menu
+                  size={14}
+                  strokeWidth={1.25}
                   className={cn(
-                    "text-[9px] font-normal uppercase tracking-[0.3em] transition-colors duration-200 sm:text-[10px] sm:tracking-[0.35em]",
-                    sliderOpen && (lightNav ? "text-sapphire" : "text-gold-light")
+                    "absolute inset-0 transition-all duration-200 ease-out",
+                    sliderOpen && "rotate-90 scale-50 opacity-0"
                   )}
-                >
-                  {sliderOpen ? "Close" : "Menu"}
-                </span>
-                <span className="relative inline-flex h-[14px] w-[14px] items-center justify-center">
-                  <Menu
-                    size={14}
-                    strokeWidth={1.25}
-                    className={cn(
-                      "absolute inset-0 transition-all duration-200 ease-out",
-                      sliderOpen && "rotate-90 scale-50 opacity-0"
-                    )}
-                  />
-                  <X
-                    size={14}
-                    strokeWidth={1.25}
-                    className={cn(
-                      "absolute inset-0 transition-all duration-200 ease-out",
-                      !sliderOpen && "-rotate-90 scale-50 opacity-0"
-                    )}
-                  />
-                </span>
-              </button>
-
-              <AnimatePresence>
-                {sliderOpen && (
-                  <>
-                    <motion.div
-                      aria-hidden
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      transition={{ duration: 0.5 }}
-                      onClick={() => setSliderOpen(false)}
-                      className="fixed inset-0 z-20 bg-black/25"
-                    />
-                    <motion.aside
-                      ref={sliderPanelRef}
-                      initial={{ x: "100%" }}
-                      animate={{ x: 0 }}
-                      exit={{ x: "100%" }}
-                      transition={{ duration: 0.7, ease: EASE }}
-                      style={{ willChange: "transform" }}
-                      className={cn(
-                        "fixed inset-y-0 right-0 z-30 flex w-[340px] max-w-[90vw] flex-col border-l pt-20 backdrop-blur-2xl",
-                        lightNav
-                          ? "border-white/60 bg-white/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.85),-24px_0_60px_rgba(0,0,0,0.12)]"
-                          : "border-gold/15 bg-onyx/55 shadow-[inset_0_1px_0_rgba(212,175,55,0.12),-24px_0_60px_rgba(0,0,0,0.4)]"
-                      )}
-                    >
-                      {/* quiet band */}
-                      <div
-                        className={cn(
-                          "relative flex items-center justify-end border-b px-6 py-4",
-                          lightNav ? "border-black/10" : "border-white/10"
-                        )}
-                      >
-                        <span
-                          className={cn(
-                            "absolute inset-x-0 text-center text-[8px] font-normal uppercase tracking-[0.5em]",
-                            lightNav ? "text-onyx/40" : "text-cream-dim/40"
-                          )}
-                        >
-                          Navigation
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => setSliderOpen(false)}
-                          aria-label="Close navigation"
-                          className={cn(
-                            "inline-flex h-7 w-7 rotate-0 items-center justify-center rounded-full border transition-all duration-300 hover:rotate-90 hover:scale-105",
-                            lightNav
-                              ? "border-black/10 text-onyx hover:border-sapphire/50 hover:text-sapphire"
-                              : "border-white/10 text-cream-dim hover:border-gold/50 hover:text-gold-light"
-                          )}
-                        >
-                          <X size={12} strokeWidth={1.25} />
-                        </button>
-                      </div>
-
-                      {/* links */}
-                      <div className="flex-1 overflow-y-auto overscroll-contain pb-8">
-                        <SlideSection label="Shop" delay={0.22} lightNav={lightNav}>
-                          <SlideRow
-                            label="Cart"
-                            hint={totalItems > 0 ? `${totalItems}` : undefined}
-                            lightNav={lightNav}
-                            onClick={() => { setSliderOpen(false); router.push("/cart"); }}
-                          />
-                          <SlideRow
-                            label="Wishlist"
-                            hint={wishlistCount > 0 ? `${wishlistCount}` : undefined}
-                            lightNav={lightNav}
-                            onClick={() => { setSliderOpen(false); router.push("/wishlist"); }}
-                          />
-                        </SlideSection>
-
-                        <SlideDivider lightNav={lightNav} delay={0.36} />
-
-                        {user ? (
-                          <SlideSection label="Account" delay={0.46} lightNav={lightNav}>
-                            <SlideRow label="My Account" lightNav={lightNav} onClick={() => { setSliderOpen(false); router.push("/account"); }} />
-                            <SlideRow label="Wallet" hint={`₹${(user?.walletBalance ?? 0).toFixed(0)}`} lightNav={lightNav} onClick={() => { setSliderOpen(false); router.push("/wallet"); }} />
-                            <SlideRow label="My Orders" lightNav={lightNav} onClick={() => { setSliderOpen(false); router.push("/orders"); }} />
-                            <SlideRow label="My Queries" lightNav={lightNav} onClick={() => { setSliderOpen(false); router.push("/queries"); }} />
-                            <SlideRow label="Private Viewing" lightNav={lightNav} onClick={() => { setSliderOpen(false); router.push("/private-viewing"); }} />
-                          </SlideSection>
-                        ) : (
-                          <SlideSection label="Account" delay={0.46} lightNav={lightNav}>
-                            <SlideRow label="Sign In" lightNav={lightNav} onClick={() => { setSliderOpen(false); router.push("/login"); }} />
-                            <SlideRow label="Explore as Guest" lightNav={lightNav} onClick={() => { setSliderOpen(false); enterAsGuest(); router.push("/"); }} />
-                          </SlideSection>
-                        )}
-
-                        <SlideDivider lightNav={lightNav} delay={0.6} />
-
-                        <SlideSection label="System" delay={0.68} lightNav={lightNav}>
-                          {user && (
-                            <SlideRow label="Add Account" lightNav={lightNav} onClick={() => { setSliderOpen(false); router.push("/login?add=1"); }} />
-                          )}
-                          <SlideRow
-                            label={theme === "light" ? "Dark Mode" : "Light Mode"}
-                            lightNav={lightNav}
-                            onClick={() => setSliderOpen(false)}
-                            onAction={toggle}
-                          />
-                          {user && (
-                            <SlideRow
-                              label="Sign Out"
-                              danger
-                              lightNav={lightNav}
-                              onClick={() => { setSliderOpen(false); logout(); router.push("/"); }}
-                            />
-                          )}
-                        </SlideSection>
-                      </div>
-                    </motion.aside>
-                  </>
-                )}
-              </AnimatePresence>
-            </div>
+                />
+                <X
+                  size={14}
+                  strokeWidth={1.25}
+                  className={cn(
+                    "absolute inset-0 transition-all duration-200 ease-out",
+                    !sliderOpen && "-rotate-90 scale-50 opacity-0"
+                  )}
+                />
+              </span>
+            </button>
 
             {user ? (
               <button
@@ -498,6 +394,95 @@ export default function Navbar() {
           />
         </nav>
       </motion.header>
+
+      {/* Sliding sidebar — full height, paints below the navbar so the MENU/CLOSE wordplate stays visible */}
+      <AnimatePresence>
+        {sliderOpen && (
+          <>
+            <motion.div
+              aria-hidden
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.5 }}
+              onClick={() => setSliderOpen(false)}
+              className="fixed inset-0 z-20 bg-black/25"
+            />
+            <motion.aside
+              ref={sliderPanelRef}
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ duration: 0.7, ease: EASE }}
+              style={{ willChange: "transform" }}
+              className={cn(
+                "fixed inset-y-0 right-0 z-30 flex w-[340px] max-w-[90vw] flex-col border-l backdrop-blur-2xl",
+                lightNav
+                  ? "border-white/60 bg-white/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.85),-24px_0_60px_rgba(0,0,0,0.12)]"
+                  : "border-gold/15 bg-onyx/55 shadow-[inset_0_1px_0_rgba(212,175,55,0.12),-24px_0_60px_rgba(0,0,0,0.4)]"
+              )}
+            >
+              <motion.nav
+                initial="hidden"
+                animate="show"
+                exit="hidden"
+                variants={listParent}
+                className="flex-1 overflow-y-auto overscroll-contain px-6 pb-10 pt-[84px]"
+              >
+                <SlideRow
+                  label="Cart"
+                  hint={totalItems > 0 ? `${totalItems}` : undefined}
+                  lightNav={lightNav}
+                  onClick={() => { setSliderOpen(false); router.push("/cart"); }}
+                />
+                <SlideRow
+                  label="Wishlist"
+                  hint={wishlistCount > 0 ? `${wishlistCount}` : undefined}
+                  lightNav={lightNav}
+                  onClick={() => { setSliderOpen(false); router.push("/wishlist"); }}
+                />
+
+                <SlideDivider lightNav={lightNav} />
+
+                {user ? (
+                  <>
+                    <SlideRow label="My Account" lightNav={lightNav} onClick={() => { setSliderOpen(false); router.push("/account"); }} />
+                    <SlideRow label="Wallet" hint={`₹${(user?.walletBalance ?? 0).toFixed(0)}`} lightNav={lightNav} onClick={() => { setSliderOpen(false); router.push("/wallet"); }} />
+                    <SlideRow label="My Orders" lightNav={lightNav} onClick={() => { setSliderOpen(false); router.push("/orders"); }} />
+                    <SlideRow label="My Queries" lightNav={lightNav} onClick={() => { setSliderOpen(false); router.push("/queries"); }} />
+                    <SlideRow label="Private Viewing" lightNav={lightNav} onClick={() => { setSliderOpen(false); router.push("/private-viewing"); }} />
+                  </>
+                ) : (
+                  <>
+                    <SlideRow label="Sign In" lightNav={lightNav} onClick={() => { setSliderOpen(false); router.push("/login"); }} />
+                    <SlideRow label="Explore as Guest" lightNav={lightNav} onClick={() => { setSliderOpen(false); enterAsGuest(); router.push("/"); }} />
+                  </>
+                )}
+
+                <SlideDivider lightNav={lightNav} />
+
+                {user && (
+                  <SlideRow label="Add Account" lightNav={lightNav} onClick={() => { setSliderOpen(false); router.push("/login?add=1"); }} />
+                )}
+                <SlideRow
+                  label={theme === "light" ? "Dark Mode" : "Light Mode"}
+                  lightNav={lightNav}
+                  onClick={() => setSliderOpen(false)}
+                  onAction={toggle}
+                />
+                {user && (
+                  <SlideRow
+                    label="Sign Out"
+                    danger
+                    lightNav={lightNav}
+                    onClick={() => { setSliderOpen(false); logout(); router.push("/"); }}
+                  />
+                )}
+              </motion.nav>
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* Mobile bottom tab bar */}
       <div
@@ -597,53 +582,17 @@ function NavLink({
   );
 }
 
-function SlideDivider({
-  lightNav = false,
-  delay = 0,
-}: {
-  lightNav?: boolean;
-  delay?: number;
-}) {
+function SlideDivider({ lightNav = false }: { lightNav?: boolean }) {
   return (
     <motion.div
-      initial={{ opacity: 0, x: 24 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.55, ease: EASE, delay }}
+      variants={listItem}
       className={cn(
-        "mx-6 h-px bg-gradient-to-r",
-        lightNav ? "from-black/25 via-black/10 to-transparent" : "from-cream/25 via-cream/10 to-transparent"
+        "mx-0 my-5 h-px bg-gradient-to-r",
+        lightNav
+          ? "from-black/25 via-black/10 to-transparent"
+          : "from-cream/25 via-cream/10 to-transparent"
       )}
     />
-  );
-}
-
-function SlideSection({
-  label,
-  delay = 0,
-  lightNav = false,
-  children,
-}: {
-  label: string;
-  delay?: number;
-  lightNav?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, x: 24 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.55, ease: EASE, delay }}
-    >
-      <p
-        className={cn(
-          "px-6 pb-2 pt-6 text-center text-[8px] font-normal uppercase tracking-[0.5em]",
-          lightNav ? "text-onyx/40" : "text-cream-dim/40"
-        )}
-      >
-        {label}
-      </p>
-      <div>{children}</div>
-    </motion.div>
   );
 }
 
@@ -663,51 +612,47 @@ function SlideRow({
   onAction?: () => void;
 }) {
   return (
-    <button
+    <motion.button
       type="button"
+      variants={listItem}
       onClick={() => {
         onClick?.();
         onAction?.();
       }}
-      className={cn(
-        "group relative block w-full border-b py-3.5 text-center transition-shadow duration-300",
-        lightNav ? "border-black/10" : "border-white/10"
-      )}
+      className="relative flex w-full items-baseline justify-between gap-6 py-3.5 text-left"
     >
-      <span className="block">
+      <span
+        className={cn(
+          "truncate font-display text-[14px] font-light uppercase leading-tight tracking-[0.16em] transition-colors duration-300",
+          danger
+            ? lightNav
+              ? "text-rose-600 group-hover:text-rose-500"
+              : "text-rose-400 group-hover:text-rose-300"
+            : lightNav
+              ? "text-onyx/90 group-hover:text-sapphire"
+              : "text-cream group-hover:text-gold-light"
+        )}
+      >
+        {label}
+      </span>
+      {hint && (
         <span
           className={cn(
-            "block truncate font-display text-[13px] font-light uppercase leading-tight tracking-[0.16em] transition-colors duration-300 sm:text-[14px]",
-            danger
-              ? lightNav
-                ? "text-rose-600 group-hover:text-rose-500"
-                : "text-rose-400 group-hover:text-rose-300"
-              : lightNav
-                ? "text-onyx/90 group-hover:text-sapphire"
-                : "text-cream group-hover:text-gold-light"
+            "shrink-0 text-[9px] font-medium uppercase tracking-[0.3em]",
+            lightNav ? "text-onyx/40" : "text-cream-dim/50"
           )}
         >
-          {label}
+          {hint}
         </span>
-        {hint && (
-          <span
-            className={cn(
-              "mt-1 block text-[8px] font-medium uppercase tracking-[0.3em]",
-              lightNav ? "text-onyx/40" : "text-cream-dim/50"
-            )}
-          >
-            {hint}
-          </span>
-        )}
-      </span>
+      )}
       <span
         aria-hidden
         className={cn(
-          "mx-auto mt-1.5 block h-px w-24 max-w-full origin-center scale-x-0 transition-transform duration-500 group-hover:scale-x-100",
-          lightNav ? "bg-sapphire" : "bg-gold"
+          "absolute bottom-1 left-0 h-px w-full origin-left scale-x-0 transition-transform duration-500 group-hover:scale-x-100",
+          lightNav ? "bg-sapphire/60" : "bg-gold/60"
         )}
       />
-    </button>
+    </motion.button>
   );
 }
 
