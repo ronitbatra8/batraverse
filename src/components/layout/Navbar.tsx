@@ -96,7 +96,7 @@ export default function Navbar() {
     lastScrollY.current = y;
   });
 
-  /* Sliding sidebar: close on outside click, Escape, or route change */
+/* Sidebar: close on outside click, Escape, or route change */
   useEffect(() => {
     if (!sliderOpen) return;
     const onDown = (e: MouseEvent) => {
@@ -112,21 +112,6 @@ export default function Navbar() {
     return () => {
       document.removeEventListener("mousedown", onDown);
       document.removeEventListener("keydown", onKey);
-    };
-  }, [sliderOpen]);
-
-  /* Lock body scroll while the sidebar is open — keep the scrollbar's space so
-   the page doesn't jump left/right while opening/closing */
-  useEffect(() => {
-    if (!sliderOpen) return;
-    const prevOverflow = document.body.style.overflow;
-    const prevPaddingRight = document.body.style.paddingRight;
-    const sbw = window.innerWidth - document.documentElement.clientWidth;
-    document.body.style.overflow = "hidden";
-    if (sbw > 0) document.body.style.paddingRight = `${sbw}px`;
-    return () => {
-      document.body.style.overflow = prevOverflow;
-      document.body.style.paddingRight = prevPaddingRight;
     };
   }, [sliderOpen]);
 
@@ -207,8 +192,7 @@ export default function Navbar() {
     <>
       <motion.header
         className={cn(
-          "fixed inset-x-0 top-0",
-          sliderOpen ? "z-[60]" : "z-40",
+          "fixed inset-x-0 top-0 z-40",
           phase === "boot" && "pointer-events-none"
         )}
       >
@@ -342,7 +326,7 @@ export default function Navbar() {
                       exit={{ opacity: 0 }}
                       transition={{ duration: 0.3 }}
                       onClick={() => setSliderOpen(false)}
-                      className="fixed inset-0 z-40 bg-black/25"
+                      className="fixed inset-0 z-30 bg-black/25"
                     />
                     <motion.aside
                       ref={sliderPanelRef}
@@ -352,7 +336,7 @@ export default function Navbar() {
                       transition={{ duration: 0.45, ease: EASE }}
                       style={{ willChange: "transform" }}
                       className={cn(
-                        "fixed inset-y-0 right-0 z-50 flex w-[340px] max-w-[90vw] flex-col border-l backdrop-blur-2xl",
+                        "fixed bottom-0 right-0 top-16 z-50 flex w-[340px] max-w-[90vw] flex-col border-l backdrop-blur-2xl",
                         lightNav
                           ? "border-white/60 bg-white/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.85),-24px_0_60px_rgba(0,0,0,0.12)]"
                           : "border-gold/15 bg-onyx/55 shadow-[inset_0_1px_0_rgba(212,175,55,0.12),-24px_0_60px_rgba(0,0,0,0.4)]"
