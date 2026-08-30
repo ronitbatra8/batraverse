@@ -24,10 +24,12 @@ const storage = multer.diskStorage({
 });
 const upload = multer({
   storage,
-  limits: { fileSize: 5 * 1024 * 1024 },
+  limits: { fileSize: 15 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
-    if (/\.(jpg|jpeg|png|gif|webp|svg)$/i.test(file.originalname)) cb(null, true);
-    else cb(new Error("Only image files allowed"));
+    const extOk = /\.(jpg|jpeg|png|gif|webp|svg|heic|heif|avif)$/i.test(file.originalname);
+    const mimeOk = /^image\/(jpeg|png|gif|webp|svg\+xml|heic|heif|avif)$/i.test(file.mimetype || "");
+    if (extOk || mimeOk) cb(null, true);
+    else cb(new Error("Only image files allowed (jpg, png, webp, gif, svg, heic, avif)"));
   },
 });
 
@@ -39,10 +41,20 @@ router.get("/categories", (_req, res) => {
   res.json(ALL_CATEGORIES);
 });
 
-router.post("/upload", upload.array("images", 10), (req, res) => {
-  if (!req.files || req.files.length === 0) return res.status(400).json({ error: "No files uploaded" });
-  const urls = req.files.map((f) => `/uploads/products/${f.filename}`);
-  res.json({ urls });
+router.post("/upload", (req, res) => {
+  upload.array("images", 10)(req, res, (err) => {
+    if (err) {
+      if (err instanceof multer.MulterError) {
+        if (err.code === "LIMIT_FILE_SIZE") return res.status(400).json({ error: "Image too large (max 15MB per image)" });
+        if (err.code === "LIMIT_FILE_COUNT") return res.status(400).json({ error: "Too many images (max 10)" });
+        return res.status(400).json({ error: err.message });
+      }
+      return res.status(400).json({ error: err.message || "Upload failed" });
+    }
+    if (!req.files || req.files.length === 0) return res.status(400).json({ error: "No files uploaded" });
+    const urls = req.files.map((f) => `/uploads/products/${f.filename}`);
+    res.json({ urls });
+  });
 });
 
 router.get("/profile", (req, res) => {

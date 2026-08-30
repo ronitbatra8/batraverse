@@ -1061,6 +1061,7 @@ function AddProductTab({
   const colorUrlRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [colorUploading, setColorUploading] = useState<number | null>(null);
 
   const categories = dbCategories.filter((c) => c.source === form.source);
   const selectedCat = categories.find((c) => c.slug === form.category);
@@ -1320,15 +1321,32 @@ function AddProductTab({
                             <input type="file" accept="image/*" multiple className="hidden" id={`color-img-${i}`}
                               onChange={async (e) => {
                                 if (!e.target.files?.length) return;
+                                setColorUploading(i);
                                 const fd = new FormData();
                                 for (const f of Array.from(e.target.files)) fd.append("images", f);
-                                try { const result = await apiUpload("/seller/upload", fd); const u = [...form.colorOptions]; u[i] = { ...u[i], images: [...(u[i].images || []), ...result.urls] }; onChange({ ...form, colorOptions: u }); } catch { /* ignore */ }
+                                try {
+                                  const result = await apiUpload("/seller/upload", fd);
+                                  const u = [...form.colorOptions];
+                                  u[i] = { ...u[i], images: [...(u[i].images || []), ...result.urls] };
+                                  onChange({ ...form, colorOptions: u });
+                                  toast(`${e.target.files.length} image${e.target.files.length > 1 ? "s" : ""} uploaded`, "success");
+                                } catch (err: unknown) {
+                                  const msg = err instanceof Error ? err.message : "Upload failed";
+                                  toast(msg, "error");
+                                } finally {
+                                  setColorUploading(null);
+                                  e.target.value = "";
+                                }
                               }} />
                             <label htmlFor={`color-img-${i}`}
                               className="border-2 border-dashed border-dark-700/50 bg-dark-800/30 hover:border-dark-600 rounded-xl p-4 sm:p-5 text-center cursor-pointer transition-all">
                               <div className="flex flex-col items-center gap-1.5">
-                                <Upload size={20} className="text-dark-500" />
-                                <p className="text-xs text-dark-300 font-medium">Upload images</p>
+                                {colorUploading === i ? (
+                                  <Loader2 size={20} className="text-gold-400 animate-spin" />
+                                ) : (
+                                  <Upload size={20} className="text-dark-500" />
+                                )}
+                                <p className="text-xs text-dark-300 font-medium">{colorUploading === i ? "Uploading..." : "Upload images"}</p>
                                 <p className="text-[10px] text-dark-500">Click to browse</p>
                               </div>
                             </label>
