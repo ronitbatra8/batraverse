@@ -375,13 +375,17 @@ export default function Navbar() {
             )}
 
             {/* Sliding sidebar — the external links (RR-style wordplate: icon + MENU/CLOSE) */}
-            <button
+            <motion.button
               ref={sliderTriggerRef}
               type="button"
               onClick={() => setSliderOpen((o) => !o)}
               aria-expanded={sliderOpen}
               aria-haspopup="dialog"
               aria-label={sliderOpen ? "Close menu" : "Open menu"}
+              /* RR Lottie-style icon hover: hovering anywhere on the button (not
+                 just the 1px lines) plays the shine sweep + sequential stretch. */
+              whileHover={!sliderOpen ? "hover" : undefined}
+              variants={{ hover: { transition: { staggerChildren: 0.06 } } }}
               className={cn(
                 "group inline-flex h-6 items-center text-[11px] font-medium uppercase tracking-[0.25em] transition-[opacity,color] duration-300 hover:opacity-70 sm:text-[12px]",
                 lightNav
@@ -405,11 +409,9 @@ export default function Navbar() {
                       initial={false}
                       animate={sliderOpen ? { y: 9, rotate: 45 } : { y: 3, rotate: 0 }}
                       transition={{ duration: 0.3, ease: RR_EASE }}
-                      whileHover={
-                        !sliderOpen
-                          ? { scaleX: [1, 1.18, 1], transition: { duration: 0.55, ease: "easeInOut", delay: 0 } }
-                          : undefined
-                      }
+                      variants={{
+                        hover: { scaleX: [1, 1.18, 1], transition: { duration: 0.55, ease: "easeInOut" } },
+                      }}
                       className="absolute left-0 top-0 h-px w-full bg-current"
                     />
                     <motion.span
@@ -417,11 +419,9 @@ export default function Navbar() {
                       initial={false}
                       animate={sliderOpen ? { y: 9, opacity: 0, scaleX: 0 } : { y: 9, opacity: 1, scaleX: 1 }}
                       transition={{ duration: 0.3, ease: RR_EASE }}
-                      whileHover={
-                        !sliderOpen
-                          ? { scaleX: [1, 1.18, 1], transition: { duration: 0.55, ease: "easeInOut", delay: 0.06 } }
-                          : undefined
-                      }
+                      variants={{
+                        hover: { scaleX: [1, 1.18, 1], transition: { duration: 0.55, ease: "easeInOut" } },
+                      }}
                       className="absolute left-0 top-0 h-px w-full bg-current"
                     />
                     <motion.span
@@ -429,26 +429,22 @@ export default function Navbar() {
                       initial={false}
                       animate={sliderOpen ? { y: 9, rotate: -45 } : { y: 15, rotate: 0 }}
                       transition={{ duration: 0.3, ease: RR_EASE }}
-                      whileHover={
-                        !sliderOpen
-                          ? { scaleX: [1, 1.18, 1], transition: { duration: 0.55, ease: "easeInOut", delay: 0.12 } }
-                          : undefined
-                      }
+                      variants={{
+                        hover: { scaleX: [1, 1.18, 1], transition: { duration: 0.55, ease: "easeInOut" } },
+                      }}
                       className="absolute left-0 top-0 h-px w-full bg-current"
                     />
                     {/* Shine/reflect sweep */}
                     <motion.span
                       aria-hidden
                       initial={{ x: "-150%", opacity: 0 }}
-                      whileHover={
-                        !sliderOpen
-                          ? {
-                              x: ["-150%", "150%"],
-                              opacity: [0, 1, 0],
-                              transition: { duration: 0.75, ease: "easeInOut", times: [0, 0.35, 1] },
-                            }
-                          : undefined
-                      }
+                      variants={{
+                        hover: {
+                          x: ["-150%", "150%"],
+                          opacity: [0, 1, 0],
+                          transition: { duration: 0.75, ease: "easeInOut", times: [0, 0.35, 1] },
+                        },
+                      }}
                       className="pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-current to-transparent"
                     />
                   </span>
@@ -474,7 +470,7 @@ export default function Navbar() {
                   Close
                 </span>
               </span>
-            </button>
+            </motion.button>
           </motion.div>
 
           {/* Scroll progress */}
