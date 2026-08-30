@@ -6,12 +6,10 @@ import { usePathname, useRouter } from "next/navigation";
 import { AnimatePresence, motion, useAnimationControls, useMotionValueEvent, useScroll } from "framer-motion";
 import {
   Home,
-  Menu,
   Search,
   ShoppingCart,
   Stethoscope,
   Store,
-  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Brand from "@/components/brand/Brand";
@@ -112,6 +110,7 @@ export default function Navbar() {
   const [sliderOpen, setSliderOpen] = useState(false);
   const lastScrollY = useRef(0);
   const sliderPanelRef = useRef<HTMLDivElement>(null);
+  const sliderTriggerRef = useRef<HTMLButtonElement>(null);
 
   /* Light mode: the nav chrome turns dark-and-sapphire immediately — it sits
      over the light hero at the top too — and grows a frosted white pill only
@@ -150,7 +149,11 @@ export default function Navbar() {
   useEffect(() => {
     if (!sliderOpen) return;
     const onDown = (e: MouseEvent) => {
-      if (sliderPanelRef.current && !sliderPanelRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      /* Clicking the MENU/CLOSE wordplate must toggle, not double-fire the
+         outside-click close -> reopen */
+      if (sliderTriggerRef.current && sliderTriggerRef.current.contains(target)) return;
+      if (sliderPanelRef.current && !sliderPanelRef.current.contains(target)) {
         setSliderOpen(false);
       }
     };
@@ -373,50 +376,70 @@ export default function Navbar() {
               </Link>
             )}
 
-            {/* Sliding sidebar — the external links */}
+            {/* Sliding sidebar — the external links (RR-style wordplate: icon + MENU/CLOSE) */}
             <button
+              ref={sliderTriggerRef}
               type="button"
               onClick={() => setSliderOpen((o) => !o)}
               aria-expanded={sliderOpen}
               aria-haspopup="dialog"
               aria-label={sliderOpen ? "Close menu" : "Open menu"}
               className={cn(
-                "inline-flex h-10 w-[92px] items-center justify-center rounded-full border transition-colors duration-300",
+                "group inline-flex h-6 items-center text-[11px] font-medium uppercase tracking-[0.25em] transition-[opacity,color] duration-300 hover:opacity-70 sm:text-[12px]",
                 lightNav
-                  ? "border-black/15 text-onyx hover:border-sapphire/60 hover:text-sapphire"
-                  : "border-white/15 text-cream hover:border-gold/60 hover:text-gold-light",
-                sliderOpen
-                  ? lightNav
-                    ? "border-sapphire/60 bg-sapphire/5 text-sapphire"
-                    : "border-gold/60 bg-gold/5 text-gold-light"
-                  : "bg-transparent"
+                  ? sliderOpen
+                    ? "text-sapphire"
+                    : "text-onyx hover:text-sapphire"
+                  : sliderOpen
+                    ? "text-gold-light"
+                    : "text-cream hover:text-gold-light"
               )}
             >
-              <span
-                className={cn(
-                  "text-[9px] font-normal uppercase tracking-[0.3em] transition-colors duration-200 sm:text-[10px] sm:tracking-[0.35em]",
-                  sliderOpen && (lightNav ? "text-sapphire" : "text-gold-light")
-                )}
-              >
-                {sliderOpen ? "Close" : "Menu"}
+              {/* RR hamburger -> X (16x18) */}
+              <span className="relative mr-4 inline-flex h-[18px] w-4 items-center transition-transform duration-300 group-hover:scale-x-110">
+                <motion.span
+                  aria-hidden
+                  initial={false}
+                  animate={sliderOpen ? { y: 6, rotate: 45 } : { y: 3, rotate: 0 }}
+                  transition={{ duration: 0.3, ease: RR_EASE }}
+                  className="absolute left-0 top-0 h-px w-full bg-current"
+                />
+                <motion.span
+                  aria-hidden
+                  initial={false}
+                  animate={sliderOpen ? { y: 9, opacity: 0, scaleX: 0 } : { y: 9, opacity: 1, scaleX: 1 }}
+                  transition={{ duration: 0.3, ease: RR_EASE }}
+                  className="absolute left-0 top-0 h-px w-full bg-current"
+                />
+                <motion.span
+                  aria-hidden
+                  initial={false}
+                  animate={sliderOpen ? { y: -6, rotate: -45 } : { y: 15, rotate: 0 }}
+                  transition={{ duration: 0.3, ease: RR_EASE }}
+                  className="absolute left-0 top-0 h-px w-full bg-current"
+                />
               </span>
-              <span className="relative inline-flex h-[14px] w-[14px] items-center justify-center">
-                <Menu
-                  size={14}
-                  strokeWidth={1.25}
+              {/* Constant-width wordplate (phantom "Close" reserves the width like RR) */}
+              <span className="relative inline-flex items-center">
+                <span aria-hidden className="invisible whitespace-nowrap">
+                  Close
+                </span>
+                <span
                   className={cn(
-                    "absolute inset-0 transition-all duration-200 ease-out",
-                    sliderOpen && "rotate-90 scale-50 opacity-0"
+                    "absolute left-0 top-0 whitespace-nowrap transition-opacity duration-300",
+                    sliderOpen ? "opacity-0" : "opacity-100"
                   )}
-                />
-                <X
-                  size={14}
-                  strokeWidth={1.25}
+                >
+                  Menu
+                </span>
+                <span
                   className={cn(
-                    "absolute inset-0 transition-all duration-200 ease-out",
-                    !sliderOpen && "-rotate-90 scale-50 opacity-0"
+                    "absolute left-0 top-0 whitespace-nowrap transition-opacity duration-300",
+                    sliderOpen ? "opacity-100" : "opacity-0"
                   )}
-                />
+                >
+                  Close
+                </span>
               </span>
             </button>
           </motion.div>
@@ -443,7 +466,7 @@ export default function Navbar() {
               aria-hidden
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+              exit={{ opacity: 0, transition: { duration: 0.35, delay: 0.25 } }}
               transition={{ duration: 0.5 }}
               onClick={() => setSliderOpen(false)}
               className="fixed inset-0 z-20 bg-black/25"
@@ -451,22 +474,25 @@ export default function Navbar() {
             <motion.aside
               ref={sliderPanelRef}
               initial={{ x: "100%" }}
-              animate={{ x: 0 }}
-              exit={{ x: "100%" }}
-              transition={{ duration: 0.7, ease: EASE }}
+              animate={{ x: 0, transition: { duration: 0.7, ease: EASE } }}
+              exit={{
+                x: "100%",
+                transition: { duration: 0.55, ease: EASE, delay: 0.35 },
+              }}
               style={{ willChange: "transform" }}
               className={cn(
-                "fixed inset-y-0 right-0 z-30 flex w-[340px] max-w-[90vw] flex-col border-l backdrop-blur-2xl",
+                "fixed inset-y-0 right-0 z-30 flex w-[440px] max-w-[92vw] flex-col border-l backdrop-blur-2xl",
                 lightNav
                   ? "border-white/60 bg-white/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.85),-24px_0_60px_rgba(0,0,0,0.12)]"
                   : "border-gold/15 bg-onyx/55 shadow-[inset_0_1px_0_rgba(212,175,55,0.12),-24px_0_60px_rgba(0,0,0,0.4)]"
               )}
             >
-              <motion.nav className="flex-1 overflow-y-auto overscroll-contain px-6 pb-10 pt-[84px]">
+              <motion.nav className="flex-1 overflow-y-auto overscroll-contain px-10 pb-12 pt-[96px]">
                 {navRows.map((row, i) => {
                   const delay = 0.1 + (navRows.length - 1 - i) * 0.1;
+                  const exitDelay = i * 0.05;
                   if (row.kind === "divider") {
-                    return <SlideDivider key={row.key} lightNav={lightNav} delay={delay} />;
+                    return <SlideDivider key={row.key} lightNav={lightNav} delay={delay} exitDelay={exitDelay} />;
                   }
                   return (
                     <SlideRow
@@ -476,6 +502,7 @@ export default function Navbar() {
                       danger={row.danger}
                       lightNav={lightNav}
                       delay={delay}
+                      exitDelay={exitDelay}
                       onClick={row.onClick}
                       onAction={row.onAction}
                     />
@@ -588,9 +615,11 @@ function NavLink({
 function SlideDivider({
   lightNav = false,
   delay = 0,
+  exitDelay = 0,
 }: {
   lightNav?: boolean;
   delay?: number;
+  exitDelay?: number;
 }) {
   return (
     <motion.div
@@ -600,9 +629,13 @@ function SlideDivider({
         x: "0%",
         transition: { duration: 0.9, ease: RR_EASE, delay },
       }}
-      exit={{ opacity: 0, transition: { duration: 0.3, ease: RR_EASE } }}
+      exit={{
+        opacity: 0,
+        x: "-100%",
+        transition: { duration: 0.55, ease: RR_EASE, delay: exitDelay },
+      }}
       className={cn(
-        "my-5 h-px bg-gradient-to-r",
+        "my-6 h-px bg-gradient-to-r",
         lightNav
           ? "from-black/25 via-black/10 to-transparent"
           : "from-cream/25 via-cream/10 to-transparent"
@@ -617,6 +650,7 @@ function SlideRow({
   danger = false,
   lightNav = false,
   delay = 0,
+  exitDelay = 0,
   onClick,
   onAction,
 }: {
@@ -625,6 +659,7 @@ function SlideRow({
   danger?: boolean;
   lightNav?: boolean;
   delay?: number;
+  exitDelay?: number;
   onClick?: () => void;
   onAction?: () => void;
 }) {
@@ -640,29 +675,15 @@ function SlideRow({
       exit={{
         opacity: 0,
         x: "-100%",
-        transition: { duration: 0.3, ease: RR_EASE },
+        transition: { duration: 0.55, ease: RR_EASE, delay: exitDelay },
       }}
       style={{ willChange: "opacity, transform" }}
       onClick={() => {
         onClick?.();
         onAction?.();
       }}
-      className="group relative flex w-full items-baseline justify-between gap-6 py-3.5 text-left"
+      className="group relative flex w-full items-baseline justify-between gap-6 py-4 text-right"
     >
-      <span
-        className={cn(
-          "truncate font-display text-[14px] font-light uppercase leading-tight tracking-[0.16em] transition-colors duration-300",
-          danger
-            ? lightNav
-              ? "text-rose-600 group-hover:text-rose-500"
-              : "text-rose-400 group-hover:text-rose-300"
-            : lightNav
-              ? "text-onyx/90 group-hover:text-sapphire"
-              : "text-cream group-hover:text-gold-light"
-        )}
-      >
-        {label}
-      </span>
       {hint && (
         <span
           className={cn(
@@ -674,9 +695,23 @@ function SlideRow({
         </span>
       )}
       <span
+        className={cn(
+          "truncate font-display text-[15px] font-light uppercase leading-tight tracking-[0.18em] transition-colors duration-300 sm:text-[16px]",
+          danger
+            ? lightNav
+              ? "text-rose-600 group-hover:text-rose-500"
+              : "text-rose-400 group-hover:text-rose-300"
+            : lightNav
+              ? "text-onyx/90 group-hover:text-sapphire"
+              : "text-cream group-hover:text-gold-light"
+        )}
+      >
+        {label}
+      </span>
+      <span
         aria-hidden
         className={cn(
-          "absolute bottom-1 left-0 h-px w-full origin-left scale-x-0 transition-transform duration-500 group-hover:scale-x-100",
+          "absolute bottom-1 right-0 h-px w-full origin-right scale-x-0 transition-transform duration-500 group-hover:scale-x-100",
           lightNav ? "bg-sapphire/60" : "bg-gold/60"
         )}
       />
