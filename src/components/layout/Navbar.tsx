@@ -324,19 +324,19 @@ export default function Navbar() {
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
-                      transition={{ duration: 0.3 }}
+                      transition={{ duration: 0.5 }}
                       onClick={() => setSliderOpen(false)}
-                      className="fixed inset-0 z-30 bg-black/25"
+                      className="fixed inset-0 z-20 bg-black/25"
                     />
                     <motion.aside
                       ref={sliderPanelRef}
                       initial={{ x: "100%" }}
                       animate={{ x: 0 }}
                       exit={{ x: "100%" }}
-                      transition={{ duration: 0.45, ease: EASE }}
+                      transition={{ duration: 0.7, ease: EASE }}
                       style={{ willChange: "transform" }}
                       className={cn(
-                        "fixed bottom-0 right-0 top-16 z-50 flex w-[340px] max-w-[90vw] flex-col border-l backdrop-blur-2xl",
+                        "fixed inset-y-0 right-0 z-30 flex w-[340px] max-w-[90vw] flex-col border-l pt-20 backdrop-blur-2xl",
                         lightNav
                           ? "border-white/60 bg-white/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.85),-24px_0_60px_rgba(0,0,0,0.12)]"
                           : "border-gold/15 bg-onyx/55 shadow-[inset_0_1px_0_rgba(212,175,55,0.12),-24px_0_60px_rgba(0,0,0,0.4)]"
@@ -374,7 +374,7 @@ export default function Navbar() {
 
                       {/* links */}
                       <div className="flex-1 overflow-y-auto overscroll-contain pb-8">
-                        <SlideSection label="Shop" delay={0.16} lightNav={lightNav}>
+                        <SlideSection label="Shop" delay={0.22} lightNav={lightNav}>
                           <SlideRow
                             label="Cart"
                             hint={totalItems > 0 ? `${totalItems}` : undefined}
@@ -389,10 +389,10 @@ export default function Navbar() {
                           />
                         </SlideSection>
 
-                        <SlideDivider lightNav={lightNav} delay={0.26} />
+                        <SlideDivider lightNav={lightNav} delay={0.36} />
 
                         {user ? (
-                          <SlideSection label="Account" delay={0.32} lightNav={lightNav}>
+                          <SlideSection label="Account" delay={0.46} lightNav={lightNav}>
                             <SlideRow label="My Account" lightNav={lightNav} onClick={() => { setSliderOpen(false); router.push("/account"); }} />
                             <SlideRow label="Wallet" hint={`₹${(user?.walletBalance ?? 0).toFixed(0)}`} lightNav={lightNav} onClick={() => { setSliderOpen(false); router.push("/wallet"); }} />
                             <SlideRow label="My Orders" lightNav={lightNav} onClick={() => { setSliderOpen(false); router.push("/orders"); }} />
@@ -400,15 +400,15 @@ export default function Navbar() {
                             <SlideRow label="Private Viewing" lightNav={lightNav} onClick={() => { setSliderOpen(false); router.push("/private-viewing"); }} />
                           </SlideSection>
                         ) : (
-                          <SlideSection label="Account" delay={0.32} lightNav={lightNav}>
+                          <SlideSection label="Account" delay={0.46} lightNav={lightNav}>
                             <SlideRow label="Sign In" lightNav={lightNav} onClick={() => { setSliderOpen(false); router.push("/login"); }} />
                             <SlideRow label="Explore as Guest" lightNav={lightNav} onClick={() => { setSliderOpen(false); enterAsGuest(); router.push("/"); }} />
                           </SlideSection>
                         )}
 
-                        <SlideDivider lightNav={lightNav} delay={0.42} />
+                        <SlideDivider lightNav={lightNav} delay={0.6} />
 
-                        <SlideSection label="System" delay={0.48} lightNav={lightNav}>
+                        <SlideSection label="System" delay={0.68} lightNav={lightNav}>
                           {user && (
                             <SlideRow label="Add Account" lightNav={lightNav} onClick={() => { setSliderOpen(false); router.push("/login?add=1"); }} />
                           )}
@@ -608,7 +608,7 @@ function SlideDivider({
     <motion.div
       initial={{ opacity: 0, x: 24 }}
       animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.4, ease: EASE, delay }}
+      transition={{ duration: 0.55, ease: EASE, delay }}
       className={cn(
         "mx-6 h-px bg-gradient-to-r",
         lightNav ? "from-black/25 via-black/10 to-transparent" : "from-cream/25 via-cream/10 to-transparent"
@@ -632,7 +632,7 @@ function SlideSection({
     <motion.div
       initial={{ opacity: 0, x: 24 }}
       animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.4, ease: EASE, delay }}
+      transition={{ duration: 0.55, ease: EASE, delay }}
     >
       <p
         className={cn(
