@@ -395,13 +395,21 @@ export default function Navbar() {
             >
               {/* RR-style wordplate: icon + MENU/CLOSE. The panel lives BELOW the
                      navbar (like RR: button z 5001 above menu z 3000), so this same
-                     button turns into CLOSE while the sidebar is open. */}
-                  <span className="relative mr-4 inline-flex h-[18px] w-4 items-center transition-transform duration-500 ease-[cubic-bezier(0.33,1,0.68,1)] group-hover:scale-x-110 group-hover:translate-y-[1px]">
+                     button turns into CLOSE while the sidebar is open.
+                     Icon hover mirrors the RR Lottie: on mouse-over the hamburger
+                     plays one cycle — each line stretches in sequence while a
+                     light sheen sweeps across it (the "shine/reflect" effect). */}
+                  <span className="relative mr-4 inline-flex h-[18px] w-4 items-center">
                     <motion.span
                       aria-hidden
                       initial={false}
                       animate={sliderOpen ? { y: 9, rotate: 45 } : { y: 3, rotate: 0 }}
                       transition={{ duration: 0.3, ease: RR_EASE }}
+                      whileHover={
+                        !sliderOpen
+                          ? { scaleX: [1, 1.18, 1], transition: { duration: 0.55, ease: "easeInOut", delay: 0 } }
+                          : undefined
+                      }
                       className="absolute left-0 top-0 h-px w-full bg-current"
                     />
                     <motion.span
@@ -409,6 +417,11 @@ export default function Navbar() {
                       initial={false}
                       animate={sliderOpen ? { y: 9, opacity: 0, scaleX: 0 } : { y: 9, opacity: 1, scaleX: 1 }}
                       transition={{ duration: 0.3, ease: RR_EASE }}
+                      whileHover={
+                        !sliderOpen
+                          ? { scaleX: [1, 1.18, 1], transition: { duration: 0.55, ease: "easeInOut", delay: 0.06 } }
+                          : undefined
+                      }
                       className="absolute left-0 top-0 h-px w-full bg-current"
                     />
                     <motion.span
@@ -416,7 +429,27 @@ export default function Navbar() {
                       initial={false}
                       animate={sliderOpen ? { y: 9, rotate: -45 } : { y: 15, rotate: 0 }}
                       transition={{ duration: 0.3, ease: RR_EASE }}
+                      whileHover={
+                        !sliderOpen
+                          ? { scaleX: [1, 1.18, 1], transition: { duration: 0.55, ease: "easeInOut", delay: 0.12 } }
+                          : undefined
+                      }
                       className="absolute left-0 top-0 h-px w-full bg-current"
+                    />
+                    {/* Shine/reflect sweep */}
+                    <motion.span
+                      aria-hidden
+                      initial={{ x: "-150%", opacity: 0 }}
+                      whileHover={
+                        !sliderOpen
+                          ? {
+                              x: ["-150%", "150%"],
+                              opacity: [0, 1, 0],
+                              transition: { duration: 0.75, ease: "easeInOut", times: [0, 0.35, 1] },
+                            }
+                          : undefined
+                      }
+                      className="pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-current to-transparent"
                     />
                   </span>
               {/* Constant-width wordplate (phantom "Close" reserves the width like RR) */}
