@@ -97,8 +97,9 @@ export default function Navbar() {
     navRows.push({ kind: "row", key: "signout", label: "Sign Out", danger: true, onClick: () => { setSliderOpen(false); logout(); router.push("/"); } });
   }
 
-  /* Close: rows wipe out right (0.9s, top-to-bottom). Panel & scrim leave only
-     after the last row is done so the wave is fully visible. */
+  /* Close: rows wipe out right (0.9s, top-to-bottom). Panel & scrim start sliding
+     away the moment only the last row is still wiping, so the exit overlaps the
+     tail of the wave for a smoother feel. */
   const maxExitRowDelay = Math.max(navRows.length - 1, 0) * 0.05;
 
   const walletBalance = user?.walletBalance ?? 0;
@@ -464,7 +465,7 @@ export default function Navbar() {
               aria-hidden
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              exit={{ opacity: 0, transition: { duration: 0.5, delay: maxExitRowDelay + 0.4 } }}
+              exit={{ opacity: 0, transition: { duration: 0.4, delay: maxExitRowDelay } }}
               transition={{ duration: 0.5 }}
               onClick={() => setSliderOpen(false)}
               className="fixed inset-0 z-[55] bg-black/25"
@@ -475,7 +476,7 @@ export default function Navbar() {
               animate={{ x: 0, transition: { duration: 0.7, ease: EASE } }}
               exit={{
                 x: "100%",
-                transition: { duration: 0.55, ease: EASE, delay: maxExitRowDelay + 0.35 },
+                transition: { duration: 0.55, ease: EASE, delay: maxExitRowDelay },
               }}
               style={{ willChange: "transform" }}
               className={cn(
