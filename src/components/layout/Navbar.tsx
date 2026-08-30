@@ -20,6 +20,7 @@ import { useCart } from "@/components/cart/CartContext";
 import { useWishlist } from "@/components/wishlist/WishlistContext";
 import { LEVELS, getLevelFromBalance } from "@/lib/levels";
 import { roleDashboard } from "@/lib/roles";
+import menuStackIconData from "@/animations/menu-stack-icon.json";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 const RR_EASE = [0.19, 1, 0.22, 1] as const;
@@ -37,6 +38,13 @@ type NavRow =
       onClick: () => void;
       onAction?: () => void;
     };
+
+type MenuIconAnim = {
+  destroy: () => void;
+  addEventListener: (event: "complete", cb: () => void) => void;
+  goToAndStop: (frame: number, isFrame?: boolean) => void;
+  playSegments: (segments: [number, number], forceFlag?: boolean) => void;
+};
 
 const NAV_LINKS = [
   { label: "Home", href: "/" },
@@ -112,6 +120,10 @@ export default function Navbar() {
   const lastScrollY = useRef(0);
   const sliderPanelRef = useRef<HTMLDivElement>(null);
   const sliderTriggerRef = useRef<HTMLButtonElement>(null);
+  const menuIconRef = useRef<HTMLSpanElement>(null);
+  const menuLottieRef = useRef<MenuIconAnim | null>(null);
+  const menuHoverActive = useRef(false);
+  const menuWasOpen = useRef(sliderOpen);
 
   /* Light mode: the nav chrome turns dark-and-sapphire immediately — it sits
      over the light hero at the top too — and grows a frosted white pill only
@@ -172,6 +184,78 @@ export default function Navbar() {
   useEffect(() => {
     setSliderOpen(false);
   }, [pathname]);
+
+  /* RR menu icon — RR's exact 16×16 "menu-burger-icon w/ hover" Lottie,
+     extracted from RR's clientlib-components bundle. Like RR, the fill colours
+     are patched (RR swaps to white/black) and segments are played:
+       rest  → frame 0                        (hamburger)
+       hover → play [0,30]   once             (the lines flick off/back = "shine")
+       open  → play [30,60]                   (morph to the X)
+       close → play [60,30]                   (morph back to the hamburger) */
+  useEffect(() => {
+    let cancelled = false;
+    let anim: MenuIconAnim | null = null;
+    void (async () => {
+      const lottie = (await import("lottie-web")).default;
+      if (cancelled || !menuIconRef.current) return;
+      const data = JSON.parse(JSON.stringify(menuStackIconData)) as {
+        layers: Array<{ shapes: Array<{ it: Array<{ c: { k: number[] } }> }> }>;
+      };
+      const patches = [
+        { layer: 0, it: 4 },
+        { layer: 1, it: 1 },
+        { layer: 2, it: 1 },
+        { layer: 3, it: 4 },
+        { layer: 4, it: 1 },
+        { layer: 5, it: 1 },
+      ];
+      const fill = lightNav
+        ? sliderOpen
+          ? [0.118, 0.227, 0.541, 1] // sapphire
+          : [0.043, 0.043, 0.055, 1] // onyx
+        : [0.941, 0.851, 0.549, 1]; // gold-light
+      for (const p of patches) {
+        data.layers[p.layer].shapes[0].it[p.it].c.k = fill;
+      }
+      anim = lottie.loadAnimation({
+        container: menuIconRef.current,
+        renderer: "svg",
+        loop: false,
+        autoplay: false,
+        animationData: data,
+      });
+      anim.addEventListener("complete", () => {
+        menuHoverActive.current = false;
+      });
+      if (sliderOpen) {
+        anim.goToAndStop(30, true);
+        anim.playSegments([30, 60], true);
+      } else if (menuWasOpen.current) {
+        anim.goToAndStop(60, true);
+        anim.playSegments([60, 30], true);
+      } else {
+        anim.goToAndStop(0, true);
+      }
+      menuWasOpen.current = sliderOpen;
+      menuLottieRef.current = anim;
+    })();
+    return () => {
+      cancelled = true;
+      menuLottieRef.current = null;
+      if (anim) anim.destroy();
+    };
+  }, [lightNav, sliderOpen]);
+
+  /* RR hover micro-interaction: play the icon's intro (frames 0→30) once — the
+     built-in "shine" where each line flickers left/right before settling. */
+  const handleMenuHover = () => {
+    if (sliderOpen) return;
+    const anim = menuLottieRef.current;
+    if (!anim || menuHoverActive.current) return;
+    menuHoverActive.current = true;
+    anim.goToAndStop(0, true);
+    anim.playSegments([0, 30], true);
+  };
 
   /* Drop the brand in during the boot (e-commerce); slide it in on refresh. */
   useLayoutEffect(() => {
@@ -382,6 +466,7 @@ export default function Navbar() {
               aria-expanded={sliderOpen}
               aria-haspopup="dialog"
               aria-label={sliderOpen ? "Close menu" : "Open menu"}
+              onMouseEnter={handleMenuHover}
               className={cn(
                 "inline-flex h-6 items-center text-[11px] font-medium uppercase tracking-[0.25em] transition-[opacity,color] duration-300 hover:opacity-70 sm:text-[12px]",
                 lightNav
@@ -396,16 +481,9 @@ export default function Navbar() {
               {/* RR-style wordplate: icon + MENU/CLOSE. The panel lives BELOW the
                  navbar (like RR: button z 5001 above menu z 3000), so this same
                  button turns into CLOSE while the sidebar is open.
-                 Icon = hamburger (3 lines) that morphs to an X. On hover it plays
-                 the RR "shine" once: each line stretches in sequence while a gold
-                 blade + glint sweep across (see .rr-menu-icon in globals.css). */}
-              <span className="rr-menu-icon" aria-hidden>
-                <span className="rr-line" />
-                <span className="rr-line" />
-                <span className="rr-line" />
-                <span className="rr-sheen" />
-                <span className="rr-spark" />
-              </span>
+                 The icon is RR's own "menu-burger-icon w/ hover" Lottie (16×16):
+                 hovering plays its shine (frames 0→30), opening morphs it to ✕. */}
+              <span className="rr-menu-icon" aria-hidden ref={menuIconRef} />
               {/* Constant-width wordplate (phantom "Close" reserves the width like RR) */}
               <span className="relative inline-flex items-center">
                 <span aria-hidden className="invisible whitespace-nowrap">
