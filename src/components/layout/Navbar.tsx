@@ -92,13 +92,14 @@ export default function Navbar() {
     );
   }
   navRows.push({ kind: "divider", key: "d2" });
-  if (user) {
-    navRows.push({ kind: "row", key: "switch", label: "Switch Account", onClick: () => { setSliderOpen(false); router.push("/login?add=1"); } });
-  }
   navRows.push({ kind: "row", key: "theme", label: theme === "light" ? "Dark Mode" : "Light Mode", onClick: () => setSliderOpen(false), onAction: toggle });
   if (user) {
     navRows.push({ kind: "row", key: "signout", label: "Sign Out", danger: true, onClick: () => { setSliderOpen(false); logout(); router.push("/"); } });
   }
+
+  /* Close: rows wipe out right (0.9s, top-to-bottom). Panel & scrim leave only
+     after the last row is done so the wave is fully visible. */
+  const maxExitRowDelay = Math.max(navRows.length - 1, 0) * 0.05;
 
   const walletBalance = user?.walletBalance ?? 0;
   const levelKey = getLevelFromBalance(user?.peakWalletBalance ?? walletBalance);
@@ -463,7 +464,7 @@ export default function Navbar() {
               aria-hidden
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              exit={{ opacity: 0, transition: { duration: 0.35, delay: 0.25 } }}
+              exit={{ opacity: 0, transition: { duration: 0.5, delay: maxExitRowDelay + 0.4 } }}
               transition={{ duration: 0.5 }}
               onClick={() => setSliderOpen(false)}
               className="fixed inset-0 z-[55] bg-black/25"
@@ -474,7 +475,7 @@ export default function Navbar() {
               animate={{ x: 0, transition: { duration: 0.7, ease: EASE } }}
               exit={{
                 x: "100%",
-                transition: { duration: 0.55, ease: EASE, delay: 0.35 },
+                transition: { duration: 0.55, ease: EASE, delay: maxExitRowDelay + 0.35 },
               }}
               style={{ willChange: "transform" }}
               className={cn(
@@ -641,7 +642,7 @@ function SlideDivider({
 }) {
   return (
     <motion.div
-      initial={{ opacity: 0, x: "-100%" }}
+      initial={{ opacity: 0, x: "100%" }}
       animate={{
         opacity: 1,
         x: "0%",
@@ -649,8 +650,8 @@ function SlideDivider({
       }}
       exit={{
         opacity: 0,
-        x: "-100%",
-        transition: { duration: 0.55, ease: RR_EASE, delay: exitDelay },
+        x: "100%",
+        transition: { duration: 0.9, ease: RR_EASE, delay: exitDelay },
       }}
       className={cn(
         "my-6 h-px bg-gradient-to-r",
@@ -684,7 +685,7 @@ function SlideRow({
   return (
     <motion.button
       type="button"
-      initial={{ opacity: 0, x: "-100%" }}
+      initial={{ opacity: 0, x: "100%" }}
       animate={{
         opacity: 1,
         x: "0%",
@@ -692,8 +693,8 @@ function SlideRow({
       }}
       exit={{
         opacity: 0,
-        x: "-100%",
-        transition: { duration: 0.55, ease: RR_EASE, delay: exitDelay },
+        x: "100%",
+        transition: { duration: 0.9, ease: RR_EASE, delay: exitDelay },
       }}
       style={{ willChange: "opacity, transform" }}
       onClick={() => {
