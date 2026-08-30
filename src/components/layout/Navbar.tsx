@@ -99,7 +99,6 @@ export default function Navbar() {
 
   /* Close: rows wipe out right (0.9s, top-to-bottom). Panel & scrim start sliding
      away in parallel once only the last two rows are still wiping. */
-  const maxExitRowDelay = Math.max(navRows.length - 1, 0) * 0.1;
   const earlyExitRowDelay = Math.max(navRows.length - 2, 0) * 0.1;
 
   const walletBalance = user?.walletBalance ?? 0;
@@ -394,30 +393,32 @@ export default function Navbar() {
                     : "text-cream hover:text-gold-light"
               )}
             >
-              {/* RR hamburger -> X (16x18) */}
-              <span className="relative mr-4 inline-flex h-[18px] w-4 items-center transition-transform duration-300 group-hover:scale-x-110">
-                <motion.span
-                  aria-hidden
-                  initial={false}
-                  animate={sliderOpen ? { y: 9, rotate: 45 } : { y: 3, rotate: 0 }}
-                  transition={{ duration: 0.3, ease: RR_EASE }}
-                  className="absolute left-0 top-0 h-px w-full bg-current"
-                />
-                <motion.span
-                  aria-hidden
-                  initial={false}
-                  animate={sliderOpen ? { y: 9, opacity: 0, scaleX: 0 } : { y: 9, opacity: 1, scaleX: 1 }}
-                  transition={{ duration: 0.3, ease: RR_EASE }}
-                  className="absolute left-0 top-0 h-px w-full bg-current"
-                />
-                <motion.span
-                  aria-hidden
-                  initial={false}
-                  animate={sliderOpen ? { y: 9, rotate: -45 } : { y: 15, rotate: 0 }}
-                  transition={{ duration: 0.3, ease: RR_EASE }}
-                  className="absolute left-0 top-0 h-px w-full bg-current"
-                />
-              </span>
+              {/* RR-style wordplate: icon + MENU/CLOSE. The panel lives BELOW the
+                     navbar (like RR: button z 5001 above menu z 3000), so this same
+                     button turns into CLOSE while the sidebar is open. */}
+                  <span className="relative mr-4 inline-flex h-[18px] w-4 items-center transition-transform duration-500 ease-[cubic-bezier(0.33,1,0.68,1)] group-hover:scale-x-110 group-hover:translate-y-[1px]">
+                    <motion.span
+                      aria-hidden
+                      initial={false}
+                      animate={sliderOpen ? { y: 9, rotate: 45 } : { y: 3, rotate: 0 }}
+                      transition={{ duration: 0.3, ease: RR_EASE }}
+                      className="absolute left-0 top-0 h-px w-full bg-current"
+                    />
+                    <motion.span
+                      aria-hidden
+                      initial={false}
+                      animate={sliderOpen ? { y: 9, opacity: 0, scaleX: 0 } : { y: 9, opacity: 1, scaleX: 1 }}
+                      transition={{ duration: 0.3, ease: RR_EASE }}
+                      className="absolute left-0 top-0 h-px w-full bg-current"
+                    />
+                    <motion.span
+                      aria-hidden
+                      initial={false}
+                      animate={sliderOpen ? { y: 9, rotate: -45 } : { y: 15, rotate: 0 }}
+                      transition={{ duration: 0.3, ease: RR_EASE }}
+                      className="absolute left-0 top-0 h-px w-full bg-current"
+                    />
+                  </span>
               {/* Constant-width wordplate (phantom "Close" reserves the width like RR) */}
               <span className="relative inline-flex items-center">
                 <span aria-hidden className="invisible whitespace-nowrap">
@@ -468,7 +469,7 @@ export default function Navbar() {
               exit={{ opacity: 0, transition: { duration: 0.5, delay: earlyExitRowDelay } }}
               transition={{ duration: 0.5 }}
               onClick={() => setSliderOpen(false)}
-              className="fixed inset-0 z-[55] bg-black/25"
+              className="fixed inset-0 z-[35] bg-black/25"
             />
             <motion.aside
               ref={sliderPanelRef}
@@ -480,34 +481,13 @@ export default function Navbar() {
               }}
               style={{ willChange: "transform" }}
               className={cn(
-                "fixed inset-y-0 right-0 z-[70] flex w-[440px] max-w-[92vw] flex-col border-l backdrop-blur-2xl",
+                "fixed inset-y-0 right-0 z-30 flex w-[440px] max-w-[92vw] flex-col border-l backdrop-blur-2xl",
                 lightNav
                   ? "border-white/60 bg-white/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.85),-24px_0_60px_rgba(0,0,0,0.12)]"
                   : "border-gold/15 bg-onyx/55 shadow-[inset_0_1px_0_rgba(212,175,55,0.12),-24px_0_60px_rgba(0,0,0,0.4)]"
               )}
             >
-              {/* Panel sits ABOVE the navbar, so it carries its own front MENU/CLOSE */}
-              <div className="flex h-16 shrink-0 items-center justify-end pr-6">
-                <button
-                  type="button"
-                  onClick={() => setSliderOpen(false)}
-                  aria-label="Close menu"
-                  className={cn(
-                    "group inline-flex h-6 items-center text-[11px] font-medium uppercase tracking-[0.25em] transition-[opacity,color] duration-300 hover:opacity-70 sm:text-[12px]",
-                    lightNav ? "text-onyx hover:text-sapphire" : "text-cream hover:text-gold-light"
-                  )}
-                >
-                  <span className="relative mr-4 inline-flex h-[18px] w-4 items-center transition-transform duration-300 group-hover:scale-x-110">
-                    <span aria-hidden className="absolute left-0 top-0 h-px w-full translate-y-[9px] rotate-45 bg-current" />
-                    <span aria-hidden className="absolute left-0 top-0 h-px w-full translate-y-[9px] opacity-0 bg-current" />
-                    <span aria-hidden className="absolute left-0 top-0 h-px w-full -rotate-45 translate-y-[9px] bg-current" />
-                  </span>
-                  <span aria-hidden className="whitespace-nowrap">
-                    Close
-                  </span>
-                </button>
-              </div>
-              <motion.nav className="flex-1 overflow-y-auto overscroll-contain px-10 pb-12 pt-6">
+              <motion.nav className="flex-1 overflow-y-auto overscroll-contain px-10 pb-12 pt-[96px]">
                 {navRows.map((row, i) => {
                   const delay = (navRows.length - 1 - i) * 0.1;
                   const exitDelay = i * 0.1;
