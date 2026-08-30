@@ -58,11 +58,13 @@ export default function SiteWrapper({
     if (effPhase === "done") sessionStorage.setItem(BOOT_KEY, "1");
   }, [effPhase]);
 
-  /* Auth gate: redirect to /login if not signed in and not guest */
+  /* Auth gate: only the root path requires sign-in when signed out.
+     Everything else (product links, catalog, contact, etc.) stays
+     publicly accessible; private pages guard themselves. */
   useEffect(() => {
     if (loading) return;
-    const publicPaths = ["/login", "/register", "/forgot-password"];
-    if (user || isGuest || publicPaths.includes(pathname)) return;
+    if (user || isGuest) return;
+    if (pathname !== "/") return;
     router.replace("/login");
   }, [loading, user, isGuest, pathname, router]);
 
