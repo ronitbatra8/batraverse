@@ -3,19 +3,35 @@
 import { useLayoutEffect, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { motion, useAnimationControls, useMotionValueEvent, useScroll } from "framer-motion";
+import { AnimatePresence, motion, useAnimationControls, useMotionValueEvent, useScroll } from "framer-motion";
 import {
+  Eye,
+  Ghost,
+  Heart,
   Home,
+  LogIn,
+  LogOut,
+  MessageSquare,
+  Moon,
+  Package,
   Search,
+  ShoppingBag,
   ShoppingCart,
   Stethoscope,
   Store,
+  Sun,
+  User,
+  UserPlus,
+  Wallet,
+  type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Brand from "@/components/brand/Brand";
 import { useBoot, useBootPhase } from "@/components/boot/BootContext";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import { useAuth } from "@/components/auth/AuthContext";
+import { useCart } from "@/components/cart/CartContext";
+import { useWishlist } from "@/components/wishlist/WishlistContext";
 import { LEVELS, getLevelFromBalance } from "@/lib/levels";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
@@ -43,8 +59,10 @@ export default function Navbar() {
   const boot = useBoot();
   const pathname = usePathname();
   const router = useRouter();
-  const { theme } = useTheme();
-  const { user } = useAuth();
+  const { theme, toggle } = useTheme();
+  const { user, logout, enterAsGuest } = useAuth();
+  const { totalItems } = useCart();
+  const { count: wishlistCount } = useWishlist();
 
   const walletBalance = user?.walletBalance ?? 0;
   const levelKey = getLevelFromBalance(user?.peakWalletBalance ?? walletBalance);
@@ -53,7 +71,9 @@ export default function Navbar() {
 
   const [scrolled, setScrolled] = useState(false);
   const [tabHidden, setTabHidden] = useState(false);
+  const [optionsOpen, setOptionsOpen] = useState(false);
   const lastScrollY = useRef(0);
+  const optionsRef = useRef<HTMLDivElement>(null);
 
   /* Light mode: the nav chrome turns dark-and-sapphire immediately — it sits
      over the light hero at the top too — and grows a frosted white pill only
@@ -87,6 +107,29 @@ export default function Navbar() {
     else setTabHidden(false);
     lastScrollY.current = y;
   });
+
+  /* Options flyout: close on outside click, Escape, or route change */
+  useEffect(() => {
+    if (!optionsOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (optionsRef.current && !optionsRef.current.contains(e.target as Node)) {
+        setOptionsOpen(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOptionsOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [optionsOpen]);
+
+  useEffect(() => {
+    setOptionsOpen(false);
+  }, [pathname]);
 
   /* Drop the brand in during the boot (e-commerce); slide it in on refresh. */
   useLayoutEffect(() => {
@@ -229,13 +272,127 @@ export default function Navbar() {
             animate={{ opacity: phase !== "boot" ? 1 : 0 }}
             transition={{ duration: 0.7, delay: phase !== "boot" ? 0.45 : 0 }}
           >
-            <IconBtn
-              label="Search"
-              lightNav={lightNav}
-              onClick={() => router.push("/search")}
-            >
-              <Search size={17} strokeWidth={1.5} />
-            </IconBtn>
+            {/* Single options icon — the entire external nav */}
+            <div ref={optionsRef} className="relative">
+              <button
+                type="button"
+                onClick={() => setOptionsOpen((o) => !o)}
+                aria-expanded={optionsOpen}
+                aria-haspopup="menu"
+                aria-label="Options"
+                className={cn(
+                  "relative inline-flex h-9 w-9 items-center justify-center rounded-full border transition-all duration-300 hover:scale-105",
+                  lightNav
+                    ? "border-black/10 text-onyx hover:border-sapphire/40 hover:bg-sapphire/5 hover:text-sapphire hover:drop-shadow-[0_0_12px_rgba(30,58,138,0.35)]"
+                    : "border-white/10 text-cream-dim hover:border-gold/40 hover:bg-gold/5 hover:text-gold-light hover:drop-shadow-[0_0_12px_rgba(212,175,55,0.35)]",
+                  optionsOpen &&
+                    (lightNav
+                      ? "border-sapphire/40 bg-sapphire/5 text-sapphire"
+                      : "border-gold/40 bg-gold/5 text-gold-light")
+                )}
+              >
+                <span className="relative flex h-4 w-4 items-center justify-center">
+                  <span
+                    className={cn(
+                      "absolute h-3.5 w-3.5 rounded-full border border-current opacity-40 transition-transform duration-300",
+                      optionsOpen && "rotate-90"
+                    )}
+                  />
+                  <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                </span>
+              </button>
+
+              <AnimatePresence>
+                {optionsOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 6, scale: 0.99 }}
+                    transition={{ duration: 0.16, ease: EASE }}
+                    style={{ willChange: "transform, opacity" }}
+                    className={cn(
+                      "absolute right-0 top-full z-50 mt-3 w-72 max-w-[calc(100vw-1.5rem)] origin-top-right overflow-hidden rounded-[20px] border backdrop-blur-2xl",
+                      lightNav
+                        ? "border-white/70 bg-white/85 shadow-[0_24px_60px_rgba(0,0,0,0.16)]"
+                        : "border-gold/20 bg-onyx/90 shadow-[0_24px_60px_rgba(0,0,0,0.6)]"
+                    )}
+                  >
+                    <div className="max-h-[72vh] overflow-y-auto overscroll-contain p-2">
+                      {/* quiet band */}
+                      <div
+                        className={cn(
+                          "mb-1 flex items-baseline justify-between border-b px-3 pb-2.5 pt-1",
+                          lightNav ? "border-black/10" : "border-white/10"
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            "text-[8px] uppercase tracking-[0.4em]",
+                            lightNav ? "text-onyx/40" : "text-cream-dim/40"
+                          )}
+                        >
+                          Navigation
+                        </span>
+                        <span
+                          className={cn(
+                            "font-display text-[9px] uppercase tracking-[0.3em]",
+                            lightNav ? "text-onyx/50" : "text-cream-dim/50"
+                          )}
+                        >
+                          Batraverse
+                        </span>
+                      </div>
+
+                      <FlyoutSection label="Shop" lightNav={lightNav}>
+                        <FlyoutRow label="Search" icon={Search} lightNav={lightNav} onClick={() => { setOptionsOpen(false); router.push("/search"); }} />
+                        <FlyoutRow label="Cart" icon={ShoppingBag} hint={totalItems > 0 ? `${totalItems}` : undefined} lightNav={lightNav} onClick={() => { setOptionsOpen(false); router.push("/cart"); }} />
+                        <FlyoutRow label="Wishlist" icon={Heart} hint={wishlistCount > 0 ? `${wishlistCount}` : undefined} lightNav={lightNav} onClick={() => { setOptionsOpen(false); router.push("/wishlist"); }} />
+                      </FlyoutSection>
+
+                      <div className={cn("mx-3 my-1 border-t", lightNav ? "border-black/10" : "border-white/10")} />
+
+                      {user ? (
+                        <FlyoutSection label="Account" lightNav={lightNav}>
+                          <FlyoutRow label="My Account" icon={User} lightNav={lightNav} onClick={() => { setOptionsOpen(false); router.push("/account"); }} />
+                          <FlyoutRow label="Wallet" icon={Wallet} hint={`₹${(user?.walletBalance ?? 0).toFixed(0)}`} lightNav={lightNav} onClick={() => { setOptionsOpen(false); router.push("/wallet"); }} />
+                          <FlyoutRow label="My Orders" icon={Package} lightNav={lightNav} onClick={() => { setOptionsOpen(false); router.push("/orders"); }} />
+                          <FlyoutRow label="My Queries" icon={MessageSquare} lightNav={lightNav} onClick={() => { setOptionsOpen(false); router.push("/queries"); }} />
+                          <FlyoutRow label="Private Viewing" icon={Eye} lightNav={lightNav} onClick={() => { setOptionsOpen(false); router.push("/private-viewing"); }} />
+                        </FlyoutSection>
+                      ) : (
+                        <FlyoutSection label="Account" lightNav={lightNav}>
+                          <FlyoutRow label="Sign In" icon={LogIn} lightNav={lightNav} onClick={() => { setOptionsOpen(false); router.push("/login"); }} />
+                          <FlyoutRow label="Explore as Guest" icon={Ghost} lightNav={lightNav} onClick={() => { setOptionsOpen(false); enterAsGuest(); router.push("/"); }} />
+                        </FlyoutSection>
+                      )}
+
+                      <div className={cn("mx-3 my-1 border-t", lightNav ? "border-black/10" : "border-white/10")} />
+
+                      <FlyoutSection label="System" lightNav={lightNav}>
+                        {user && (
+                          <FlyoutRow label="Add Account" icon={UserPlus} lightNav={lightNav} onClick={() => { setOptionsOpen(false); router.push("/login?add=1"); }} />
+                        )}
+                        <FlyoutRow
+                          label={theme === "light" ? "Dark Mode" : "Light Mode"}
+                          icon={theme === "light" ? Moon : Sun}
+                          lightNav={lightNav}
+                          onClick={() => { setOptionsOpen(false); toggle(); }}
+                        />
+                        {user && (
+                          <FlyoutRow
+                            label="Sign Out"
+                            icon={LogOut}
+                            danger
+                            lightNav={lightNav}
+                            onClick={() => { setOptionsOpen(false); logout(); router.push("/"); }}
+                          />
+                        )}
+                      </FlyoutSection>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
 
             {user ? (
               <button
@@ -400,27 +557,78 @@ function NavLink({
   );
 }
 
-function IconBtn({
-  children,
+function FlyoutSection({
   label,
-  className = "",
+  lightNav = false,
+  children,
+}: {
+  label: string;
+  lightNav?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="pt-1">
+      <p
+        className={cn(
+          "px-3 pb-1 pt-2 text-[8px] font-medium uppercase tracking-[0.35em]",
+          lightNav ? "text-onyx/35" : "text-cream-dim/35"
+        )}
+      >
+        {label}
+      </p>
+      <div className="space-y-0.5">{children}</div>
+    </div>
+  );
+}
+
+function FlyoutRow({
+  label,
+  icon: Icon,
+  hint,
+  danger = false,
   lightNav = false,
   onClick,
 }: {
-  children: React.ReactNode;
   label: string;
-  className?: string;
+  icon: LucideIcon;
+  hint?: string;
+  danger?: boolean;
   lightNav?: boolean;
   onClick?: () => void;
 }) {
   return (
     <button
       type="button"
-      aria-label={label}
       onClick={onClick}
-      className={`inline-flex h-9 w-9 items-center justify-center transition-all duration-300 hover:scale-110 ${lightNav ? "text-onyx hover:text-sapphire hover:drop-shadow-[0_0_10px_rgba(30,58,138,0.45)]" : "text-cream-dim hover:text-gold-light"} ${className}`}
+      className={cn(
+        "group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors duration-200",
+        danger
+          ? lightNav
+            ? "text-rose-600 hover:bg-rose-500/5 hover:text-rose-500"
+            : "text-rose-400 hover:bg-rose-400/5 hover:text-rose-300"
+          : lightNav
+            ? "text-onyx hover:bg-sapphire/5 hover:text-sapphire"
+            : "text-cream hover:bg-gold/5 hover:text-gold-light"
+      )}
     >
-      {children}
+      <Icon
+        size={15}
+        strokeWidth={1.5}
+        className="shrink-0 opacity-60 transition-opacity duration-200 group-hover:opacity-100"
+      />
+      <span className="flex-1 truncate text-[10px] font-medium uppercase tracking-[0.18em]">
+        {label}
+      </span>
+      {hint && (
+        <span
+          className={cn(
+            "shrink-0 text-[9px] font-medium uppercase tracking-[0.2em]",
+            lightNav ? "text-onyx/40" : "text-cream-dim/40"
+          )}
+        >
+          {hint}
+        </span>
+      )}
     </button>
   );
 }
