@@ -546,7 +546,7 @@ export default function Navbar() {
               }}
               style={{ willChange: "transform" }}
               className={cn(
-                "fixed inset-y-0 right-0 z-30 flex w-[440px] max-w-[92vw] flex-col border-l backdrop-blur-2xl",
+                "fixed inset-y-0 right-0 z-[36] flex w-[440px] max-w-[92vw] flex-col border-l backdrop-blur-2xl",
                 lightNav
                   ? "border-white/60 bg-white/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.85),-24px_0_60px_rgba(0,0,0,0.12)]"
                   : "border-gold/15 bg-onyx/55 shadow-[inset_0_1px_0_rgba(212,175,55,0.12),-24px_0_60px_rgba(0,0,0,0.4)]"
