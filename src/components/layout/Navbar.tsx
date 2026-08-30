@@ -99,8 +99,8 @@ export default function Navbar() {
 
   /* Close: rows wipe out right (0.9s, top-to-bottom). Panel & scrim start sliding
      away in parallel once only the last two rows are still wiping. */
-  const maxExitRowDelay = Math.max(navRows.length - 1, 0) * 0.05;
-  const earlyExitRowDelay = Math.max(navRows.length - 2, 0) * 0.05;
+  const maxExitRowDelay = Math.max(navRows.length - 1, 0) * 0.1;
+  const earlyExitRowDelay = Math.max(navRows.length - 2, 0) * 0.1;
 
   const walletBalance = user?.walletBalance ?? 0;
   const levelKey = getLevelFromBalance(user?.peakWalletBalance ?? walletBalance);
@@ -465,7 +465,7 @@ export default function Navbar() {
               aria-hidden
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              exit={{ opacity: 0, transition: { duration: 0.4, delay: earlyExitRowDelay } }}
+              exit={{ opacity: 0, transition: { duration: 0.5, delay: earlyExitRowDelay } }}
               transition={{ duration: 0.5 }}
               onClick={() => setSliderOpen(false)}
               className="fixed inset-0 z-[55] bg-black/25"
@@ -476,7 +476,7 @@ export default function Navbar() {
               animate={{ x: 0, transition: { duration: 0.7, ease: EASE } }}
               exit={{
                 x: "100%",
-                transition: { duration: 0.55, ease: EASE, delay: earlyExitRowDelay },
+                transition: { duration: 0.7, ease: EASE, delay: earlyExitRowDelay },
               }}
               style={{ willChange: "transform" }}
               className={cn(
@@ -509,8 +509,8 @@ export default function Navbar() {
               </div>
               <motion.nav className="flex-1 overflow-y-auto overscroll-contain px-10 pb-12 pt-6">
                 {navRows.map((row, i) => {
-                  const delay = 0.1 + (navRows.length - 1 - i) * 0.1;
-                  const exitDelay = i * 0.05;
+                  const delay = (navRows.length - 1 - i) * 0.1;
+                  const exitDelay = i * 0.1;
                   if (row.kind === "divider") {
                     return <SlideDivider key={row.key} lightNav={lightNav} delay={delay} exitDelay={exitDelay} />;
                   }
