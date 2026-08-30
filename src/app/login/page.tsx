@@ -29,7 +29,6 @@ function LoginContent() {
   const { login, enterAsGuest } = useAuth();
   const searchParams = useSearchParams();
   const light = useLight();
-  const addMode = searchParams.get("add") === "1";
 
   const [identifier, setIdentifier] = useState(searchParams.get("identifier") || "");
   const [password, setPassword] = useState("");
@@ -75,11 +74,7 @@ function LoginContent() {
 
     setLoading(true);
     try {
-      const user = await login(id, password, addMode);
-      if (addMode) {
-        router.push("/");
-        return;
-      }
+      const user = await login(id, password);
       if (user.role === "DELIVERY") {
         router.push("/delivery");
       } else if (user.role === "SELLER") {
@@ -187,13 +182,13 @@ function LoginContent() {
   return (
     <AuthShell>
       <AuthHeading
-        eyebrow={addMode ? "Add Account" : "Welcome"}
+        eyebrow="Welcome"
           title={
             <>
               Sign <span className={headingGradCls(light)}>In</span>
             </>
           }
-        subtitle={addMode ? "Sign in to a new account to add it." : "Sign in with your email, phone number, or card number."}
+        subtitle="Sign in with your email, phone number, or card number."
       />
 
       <AuthCard>
@@ -257,7 +252,7 @@ function LoginContent() {
           />
 
           <SubmitBtn loading={loading} loadingText="Signing in...">
-            {addMode ? "Add Account" : "Sign In"}
+            Sign In
           </SubmitBtn>
 
           <div className={cn("mt-1 text-center", light ? "text-onyx/50" : "text-cream-dim/50")}>

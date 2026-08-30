@@ -45,8 +45,6 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   isGuest: boolean;
-  accounts: StoredAccount[];
-  currentIndex: number;
   register: (data: {
     name: string;
     email: string;
@@ -55,12 +53,9 @@ interface AuthContextType {
     role?: string;
     verifyToken?: string;
   }) => Promise<User>;
-  login: (identifier: string, password: string, addMode?: boolean) => Promise<User>;
+  login: (identifier: string, password: string) => Promise<User>;
   enterAsGuest: () => void;
   logout: () => void;
-  switchAccount: (index: number) => void;
-  addAccount: (token: string, user: User) => void;
-  removeAccount: (index: number) => void;
   updateUser: (data: Partial<User>) => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -160,8 +155,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     verifyToken?: string;
   }) => {
     const res = await apiFetch("/auth/register", { method: "POST", body: JSON.stringify(data) });
-    addAccount(res.token, res.user);
+    const updated = [{ token: res.token, user: res.user }];
+    saveAccounts(updated);
+    saveCurrentIndex(0);
+    setAccounts(updated);
+    setCurrentIndex(0);
     setAuth("bt-token", res.token);
+    setAuth("bt-current-user-id", res.user.id);
     localStorage.removeItem("bt-guest");
     sessionStorage.removeItem("bt-guest");
     setIsGuest(false);
@@ -169,39 +169,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return res.user;
   };
 
-  const login = async (identifier: string, password: string, addMode?: boolean) => {
+  /* Single account only: logging in always replaces whatever session is stored.
+     To use another account you must sign out first. */
+  const login = async (identifier: string, password: string) => {
     const res = await apiFetch("/auth/login", { method: "POST", body: JSON.stringify({ identifier, password }) });
-    const stored = loadAccounts();
-    const exists = stored.findIndex((a) => a.user.id === res.user.id);
-    if (addMode && exists < 0) {
-      const updated = [...stored, { token: res.token, user: res.user }];
-      saveAccounts(updated);
-      saveCurrentIndex(updated.length - 1);
-      setAccounts(updated);
-      setCurrentIndex(updated.length - 1);
-      setAuth("bt-token", res.token);
-      setAuth("bt-current-user-id", res.user.id);
-      setUser(res.user);
-      window.dispatchEvent(new Event("bt-account-switch"));
-      localStorage.removeItem("bt-guest");
-      sessionStorage.removeItem("bt-guest");
-      setIsGuest(false);
-      return res.user;
-    }
-    if (exists >= 0) {
-      const updated = [...stored];
-      updated[exists] = { token: res.token, user: res.user };
-      saveAccounts(updated);
-      saveCurrentIndex(exists);
-      setAccounts(updated);
-      setCurrentIndex(exists);
-    } else {
-      const updated = [{ token: res.token, user: res.user }];
-      saveAccounts(updated);
-      saveCurrentIndex(0);
-      setAccounts(updated);
-      setCurrentIndex(0);
-    }
+    const updated = [{ token: res.token, user: res.user }];
+    saveAccounts(updated);
+    saveCurrentIndex(0);
+    setAccounts(updated);
+    setCurrentIndex(0);
     setAuth("bt-token", res.token);
     setAuth("bt-current-user-id", res.user.id);
     localStorage.removeItem("bt-guest");
@@ -221,90 +197,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     sessionStorage.removeItem("bt-guest");
     localStorage.removeItem("bt-guest");
     setIsGuest(false);
-    const stored = loadAccounts();
-    const idx = loadCurrentIndex();
-    const updated = stored.filter((_, i) => i !== idx);
-    saveAccounts(updated);
-    const newIdx = Math.min(idx, updated.length - 1);
-    if (newIdx >= 0 && updated[newIdx]) {
-      saveCurrentIndex(newIdx);
-      setAccounts(updated);
-      setCurrentIndex(newIdx);
-      setAuth("bt-token", updated[newIdx].token);
-      setAuth("bt-current-user-id", updated[newIdx].user.id);
-      setUser(updated[newIdx].user);
-      window.dispatchEvent(new Event("bt-account-switch"));
-    } else {
-      saveCurrentIndex(0);
-      setAccounts([]);
-      setCurrentIndex(0);
-      removeAuth("bt-token");
-      removeAuth("bt-current-user-id");
-      setUser(null);
-    }
-  };
-
-  const switchAccount = async (index: number) => {
-    const stored = loadAccounts();
-    if (stored[index]) {
-      saveCurrentIndex(index);
-      setCurrentIndex(index);
-      setAuth("bt-token", stored[index].token);
-      setAuth("bt-current-user-id", stored[index].user.id);
-      setAccounts(stored);
-      try {
-        const data = await apiFetch("/auth/me");
-        const updated = [...stored];
-        updated[index] = { ...updated[index], user: data };
-        setAccounts(updated);
-        saveAccounts(updated);
-        setUser(data);
-      } catch {
-        setUser(stored[index].user);
-      }
-      window.dispatchEvent(new Event("bt-account-switch"));
-    }
-  };
-
-  const addAccount = (token: string, newUser: User) => {
-    const stored = loadAccounts();
-    const exists = stored.findIndex((a) => a.user.id === newUser.id);
-    if (exists >= 0) {
-      const updated = [...stored];
-      updated[exists] = { token, user: newUser };
-      saveAccounts(updated);
-      setAccounts(updated);
-    } else {
-      const updated = [...stored, { token, user: newUser }];
-      saveAccounts(updated);
-      setAccounts(updated);
-    }
-  };
-
-  const removeAccount = (index: number) => {
-    const stored = loadAccounts();
-    const updated = stored.filter((_, i) => i !== index);
-    saveAccounts(updated);
-    setAccounts(updated);
-
-    if (index === currentIndex) {
-      if (updated.length > 0) {
-        const newIdx = Math.min(index, updated.length - 1);
-        saveCurrentIndex(newIdx);
-        setCurrentIndex(newIdx);
-        setAuth("bt-token", updated[newIdx].token);
-        setUser(updated[newIdx].user);
-      } else {
-        saveCurrentIndex(0);
-        setCurrentIndex(0);
-        removeAuth("bt-token");
-        setUser(null);
-      }
-    } else if (index < currentIndex) {
-      const newIdx = currentIndex - 1;
-      saveCurrentIndex(newIdx);
-      setCurrentIndex(newIdx);
-    }
+    saveAccounts([]);
+    saveCurrentIndex(0);
+    setAccounts([]);
+    setCurrentIndex(0);
+    removeAuth("bt-token");
+    removeAuth("bt-current-user-id");
+    setUser(null);
   };
 
   const updateUser = async (data: Partial<User>) => {
@@ -332,8 +231,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const value = useMemo(
-    () => ({ user, loading, isGuest, accounts, currentIndex, register, login, enterAsGuest, logout, switchAccount, addAccount, removeAccount, updateUser, refreshUser }),
-    [user, loading, isGuest, accounts, currentIndex, register, login, enterAsGuest, logout, switchAccount, addAccount, removeAccount, updateUser, refreshUser]
+    () => ({ user, loading, isGuest, register, login, enterAsGuest, logout, updateUser, refreshUser }),
+    [user, loading, isGuest, register, login, enterAsGuest, logout, updateUser, refreshUser]
   );
 
   return (
