@@ -152,9 +152,15 @@ export default function AdminPage() {
       setUsers(Array.isArray(u) ? u : []);
       setStats(s && typeof s === "object" && !Array.isArray(s) ? s : PREVIEW_DATA.stats);
       setAnalytics(a && typeof a === "object" && !Array.isArray(a) ? a : PREVIEW_DATA.analytics);
-      setNewsletter(nl && typeof nl === "object" ? nl : { count: 0, active: 0, unread: 0 });
-      setMessages(mg && typeof mg === "object" ? mg : { total: 0, unread: 0, messages: [] });
-      setPrivateViewing(pv && typeof pv === "object" ? pv : { count: 0, unread: 0 });
+      setNewsletter(nl && typeof nl === "object" && !Array.isArray(nl)
+        ? { ...nl, subscribers: Array.isArray(nl.subscribers) ? nl.subscribers : [] }
+        : PREVIEW_DATA.newsletter);
+      setMessages(mg && typeof mg === "object" && !Array.isArray(mg)
+        ? { ...mg, messages: Array.isArray(mg.messages) ? mg.messages : [] }
+        : PREVIEW_DATA.messages);
+      setPrivateViewing(pv && typeof pv === "object" && !Array.isArray(pv)
+        ? { ...pv, requests: Array.isArray(pv.requests) ? pv.requests : [] }
+        : PREVIEW_DATA.privateViewing);
       setPasswordResets(Array.isArray(pr) ? pr : []);
       setAuthenticated(true);
     } catch { setAuthError("Cannot connect to server"); }

@@ -142,7 +142,7 @@ export default function OverviewTab({ stats, orders, passwordResets, messages, o
               <p className="text-xs text-dark-500">Unread</p>
             </div>
             <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3 text-center">
-              <p className="text-xl font-display font-bold text-emerald-400">{(messages?.messages || []).filter((m: any) => m.status === "replied").length}</p>
+              <p className="text-xl font-display font-bold text-emerald-400">{Array.isArray(messages?.messages) ? (messages?.messages as any[]).filter((m: any) => m.status === "replied").length : 0}</p>
               <p className="text-xs text-dark-500">Replied</p>
             </div>
           </div>
