@@ -24,15 +24,15 @@ function TrustMarquee() {
       className={cn(
         "pointer-events-none mt-auto w-full overflow-hidden border-t py-5 backdrop-blur-md",
         light
-          ? "border-white/30 bg-gradient-to-b from-white/55 via-white/20 to-transparent"
-          : "border-gold/15 bg-gradient-to-b from-onyx/70 via-onyx/35 to-transparent"
+          ? "border-gold/15 bg-gradient-to-b from-onyx/70 via-onyx/35 to-transparent"
+          : "border-white/30 bg-gradient-to-b from-white/55 via-white/20 to-transparent"
       )}
     >
       {/* glossy sheen sweep across the strip */}
       <div
         className={cn(
           "pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent to-transparent",
-          light ? "via-white/[0.3]" : "via-gold/[0.12]"
+          light ? "via-gold/[0.12]" : "via-white/[0.3]"
         )}
       />
 
@@ -45,7 +45,7 @@ function TrustMarquee() {
             <span
               className={cn(
                 "whitespace-nowrap px-8 font-display text-xs uppercase tracking-[0.45em] transition-colors sm:text-sm",
-                light ? "text-abyss hover:text-black" : "text-cream hover:text-gold-light"
+                light ? "text-cream hover:text-gold-light" : "text-abyss hover:text-black"
               )}
             >
               {name}
@@ -53,7 +53,7 @@ function TrustMarquee() {
             <span
               className={cn(
                 "text-[7px]",
-                light ? "text-abyss/60" : "text-gold/60"
+                light ? "text-gold/60" : "text-abyss/60"
               )}
             >
               ◆

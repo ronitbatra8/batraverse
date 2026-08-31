@@ -365,15 +365,15 @@ function Lamp({ active }: { active: boolean }) {
               <div
                 className="absolute inset-0 transition-opacity duration-700 ease-in-out"
                 style={{
-                  opacity: theme === "light" ? 1 : 0,
-                  background: "linear-gradient(to bottom, #3a3a42, #1f1f26, #0c0c10)",
+                  opacity: theme === "light" ? 0 : 1,
+                  background: "linear-gradient(to bottom, #f0d98c, #b5893a, #6b4e16)",
                 }}
               />
               <div
                 className="absolute inset-0 transition-opacity duration-700 ease-in-out"
                 style={{
-                  opacity: theme === "light" ? 0 : 1,
-                  background: "linear-gradient(to bottom, #ffffff, #e8e8f0, #c8c8d4)",
+                  opacity: theme === "light" ? 1 : 0,
+                  background: "linear-gradient(to bottom, #5a9bd5, #3a7bd5, #1e3a5f)",
                 }}
               />
             </div>
