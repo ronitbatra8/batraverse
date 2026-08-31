@@ -51,8 +51,8 @@ const NAV_LINKS = [
   { label: "Store", href: "/store" },
   { label: "Mart", href: "/mart" },
   { label: "Mediverse", href: "/mediverse" },
-  { label: "About", href: "/about" },
-  { label: "Contact", href: "/contact" },
+  { label: "About", href: "/about", hideOnOpen: true },
+  { label: "Contact", href: "/contact", hideOnOpen: true },
 ] as const;
 
 const BOTTOM_TABS = [
@@ -378,7 +378,13 @@ export default function Navbar() {
                   ? pathname === "/"
                   : pathname.startsWith(l.href);
               return (
-                <li key={l.href}>
+                <li
+                  key={l.href}
+                  className={cn(
+                    "transition-opacity duration-300",
+                    "hideOnOpen" in l && l.hideOnOpen && sliderOpen && "pointer-events-none opacity-0"
+                  )}
+                >
                   <NavLink
                     label={l.label}
                     href={l.href}
