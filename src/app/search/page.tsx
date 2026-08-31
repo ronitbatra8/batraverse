@@ -356,7 +356,7 @@ function SearchContent() {
         </div>
 
         {/* Grid */}
-        <div className="mx-auto px-4 sm:px-8 lg:px-12">
+        <div className="mx-auto max-w-[100rem] px-0 py-8 sm:px-5 md:px-10">
           <div className="mt-8">
             {filtered.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-32">
