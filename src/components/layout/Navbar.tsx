@@ -68,7 +68,7 @@ export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
   const { theme, toggle } = useTheme();
-  const { user, logout, enterAsGuest } = useAuth();
+  const { user, logout } = useAuth();
   const { totalItems } = useCart();
   const { count: wishlistCount } = useWishlist();
   const dash = user ? roleDashboard(user.role) : null;
@@ -76,12 +76,13 @@ export default function Navbar() {
   /* The sidebar is a single ordered list. Delays are computed at render time
      so the cascade can run bottom-up (bottom row first), like Rolls-Royce's
      GSAP menu reveal. */
-  const navRows: NavRow[] = [
-    { kind: "row", key: "cart", label: "Cart", hint: totalItems > 0 ? `${totalItems}` : undefined, onClick: () => { setSliderOpen(false); router.push("/cart"); } },
-    { kind: "row", key: "wishlist", label: "Wishlist", hint: wishlistCount > 0 ? `${wishlistCount}` : undefined, onClick: () => { setSliderOpen(false); router.push("/wishlist"); } },
-    { kind: "divider", key: "d1" },
-  ];
+  const navRows: NavRow[] = [];
   if (user) {
+    navRows.push(
+      { kind: "row", key: "cart", label: "Cart", hint: totalItems > 0 ? `${totalItems}` : undefined, onClick: () => { setSliderOpen(false); router.push("/cart"); } },
+      { kind: "row", key: "wishlist", label: "Wishlist", hint: wishlistCount > 0 ? `${wishlistCount}` : undefined, onClick: () => { setSliderOpen(false); router.push("/wishlist"); } },
+      { kind: "divider", key: "d1" },
+    );
     navRows.push({ kind: "row", key: "account", label: "My Account", onClick: () => { setSliderOpen(false); router.push("/account"); } });
     if (dash) {
       navRows.push({ kind: "row", key: "dashboard", label: "Dashboard", onClick: () => { setSliderOpen(false); router.push(dash.href); } });
@@ -96,7 +97,6 @@ export default function Navbar() {
   } else {
     navRows.push(
       { kind: "row", key: "signin", label: "Sign In", onClick: () => { setSliderOpen(false); router.push("/login"); } },
-      { kind: "row", key: "guest", label: "Explore as Guest", onClick: () => { setSliderOpen(false); enterAsGuest(); router.push("/"); } },
     );
   }
   navRows.push({ kind: "divider", key: "d2" });
