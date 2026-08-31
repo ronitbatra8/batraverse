@@ -238,42 +238,28 @@ html.light {
   --bg-page: white;
 }
 
-/* Rolls-Royce Motor Cars custom cursor — ported verbatim from rrmc/clientlibs
-   clientlib-components (the .rrmc-cursor state machine + icons).
-   Adapted only: position absolute -> fixed (equivalent for normal doc scroll). */
+/* Rolls-Royce cursor — exact match */
 @media (pointer: fine) {
-  a:active,
-  a:hover {
-    cursor: none;
+  html {
+    cursor: none !important;
   }
-  button,
-  button:hover,
-  input {
-    cursor: none;
-  }
-  /* Neutralise explicit pointer/other cursors over clickables so the custom
-     ring (and its hover icons) owns the feedback, matching RR. */
-  [role="button"],
-  [data-cursor-hover],
-  label,
-  select,
-  summary,
-  .cursor-pointer {
-    cursor: none;
+  html.scroll-locked,
+  html.scroll-locked * {
+    cursor: default !important;
   }
 }
 .rrmc-cursor {
   display: none;
-  filter: saturate(0) contrast(2) brightness(1.5) invert(0.2);
-  height: 46px;
+  height: 15px;
   left: 0;
   mix-blend-mode: difference;
   pointer-events: none;
   position: fixed;
   top: 0;
-  width: 46px;
+  width: 15px;
   z-index: 6000;
 }
+
 .rrmc-cursor-inner {
   height: 100%;
   padding-left: 0 !important;
@@ -282,8 +268,9 @@ html.light {
   transform: translate3d(-50%, -50%, 0);
   width: 100%;
 }
+
 .rrmc-cursor-border {
-  border: 1px solid #fff;
+  border: 1px solid rgba(255, 255, 255, 0.9);
   border-radius: 50%;
   display: block;
   height: 100%;
@@ -292,60 +279,7 @@ html.light {
   top: 0;
   width: 100%;
   z-index: 10;
-}
-.rrmc-cursor-icon {
-  display: block;
-  height: 100%;
-  left: 0;
-  position: absolute;
-  top: 0;
-  width: 100%;
-  z-index: 20;
-  opacity: 0;
-}
-.rrmc-cursor-icon.arrow-left,
-.rrmc-cursor-icon.arrow-right,
-.rrmc-cursor-icon.add,
-.rrmc-cursor-icon.cross,
-.rrmc-cursor-icon.play,
-.rrmc-cursor-icon.pause {
-  background: 50% 50% no-repeat transparent;
-  background-size: 16px 16px;
-}
-.rrmc-cursor-icon.arrow-left {
-  background-image: url("data:image/svg+xml;charset=utf8,%3Csvg width='16' height='16' viewBox='0 0 16 16' version='1.1' xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink'%3E%3Cdefs%3E%3Cpath d='M13,10.1428571 L13,7.85714286 L16,7.85714286 L16,10.1428571 L13,10.1428571 Z M7.03233022,1 L8.47092314,2.63515467 L3.89080927,7.84244001 L10,7.84244001 L10,10.1564036 L3.89080927,10.1564036 L8.47092314,15.3636889 L7.03233022,17 L0,9 L0.717771452,8.18242267 L1.43655958,7.36368893 L7.03233022,1 Z' id='a'/%3E%3C/defs%3E%3Cg stroke='none' stroke-width='1' fill='none' fill-rule='evenodd'%3E%3Cg transform='translate(0.000000, -1.000000)'%3E%3Cmask fill='white'%3E%3Cuse xlink:href='%23a'/%3E%3C/mask%3E%3Cuse fill='%23ffffff' xlink:href='%23a'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-}
-.rrmc-cursor-icon.arrow-right {
-  background-image: url("data:image/svg+xml;charset=utf8,%3Csvg width='16' height='16' viewBox='0 0 16 16' version='1.1' xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink'%3E%3Cdefs%3E%3Cpath d='M13,9 L13,7 L16,7 L16,9 L13,9 Z M7.03233022,1 L8.47092314,2.43076034 L3.89080927,6.98713501 L10,6.98713501 L10,9.01185314 L3.89080927,9.01185314 L8.47092314,13.5682278 L7.03233022,15 L0,8 L0.717771452,7.28461983 L1.43655958,6.56822781 L7.03233022,1 Z' id='a'/%3E%3C/defs%3E%3Cg stroke='none' stroke-width='1' fill='none' fill-rule='evenodd'%3E%3Cg%3E%3Cmask fill='white'%3E%3Cuse xlink:href='%23a'/%3E%3C/mask%3E%3Cuse fill='%23ffffff' transform='translate(8.000000, 8.000000) scale(-1, 1) translate(-8.000000, -8.000000) ' xlink:href='%23a'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-}
-.rrmc-cursor-icon.add {
-  background-image: url("data:image/svg+xml;charset=utf8,%3Csvg width='16' height='16' viewBox='0 0 16 16' version='1.1' xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink'%3E%3Cg stroke='none' stroke-width='1' fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff'%3E%3Cpath d='M9.00045405,8.9999041 L8.9999041,16.0002612 L6.99949902,15.9995541 L7.0005989,8.9999041 L-0.000151011402,8.9999041 L-0.000151011402,7.00020612 L15.9995541,6.99949902 L16.0002612,8.9999041 L9.00045405,8.9999041 Z M7.00020612,-0.000151011402 L8.9999041,-0.000151011402 L9.00061121,3.99980104 L7.00020612,3.99909393 L7.00020612,-0.000151011402 Z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-}
-.rrmc-cursor-icon.cross {
-  background-image: url("data:image/svg+xml;charset=utf8,%3Csvg width='16' height='16' viewBox='0 0 16 16' version='1.1' xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink'%3E%3Cdefs%3E%3Cpath d='M13.3139,2.0003 L14.7279,3.4143 L11.8989,6.2433 L10.4849,4.8293 L13.3139,2.0003 Z M3.4139,2.0003 L14.7279,13.3143 L13.3139,14.7283 L8.3639,9.7783 L3.4139,14.7283 L1.9999,13.3143 L6.9499,8.3643 L1.9999,3.4143 L3.4139,2.0003 Z' id='a'/%3E%3C/defs%3E%3Cg stroke='none' stroke-width='1' fill='none' fill-rule='evenodd'%3E%3Cg%3E%3Cmask fill='white'%3E%3Cuse xlink:href='%23a'/%3E%3C/mask%3E%3Cuse fill='%23ffffff' xlink:href='%23a'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-}
-.rrmc-cursor-icon.play {
-  background-image: url("data:image/svg+xml;charset=utf8,%3Csvg width='16' height='16' viewBox='0 0 16 16' version='1.1' xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink'%3E%3Cdefs%3E%3Cpolygon id='a' points='2 0 2 2.4288803 11.0961836 7.85900544 4.00865266 12.2974514 4.00865266 5.76243203 2 5.76243203 2 16 15 7.85900544'/%3E%3C/defs%3E%3Cg stroke='none' stroke-width='1' fill='none' fill-rule='evenodd'%3E%3Cg%3E%3Cmask fill='white'%3E%3Cuse xlink:href='%23a'/%3E%3C/mask%3E%3Cuse fill='%23ffffff' xlink:href='%23a'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-}
-.rrmc-cursor-icon.pause {
-  background-image: url("data:image/svg+xml;charset=utf8,%3Csvg width='16' height='16' viewBox='0 0 16 16' version='1.1' xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink'%3E%3Cdefs%3E%3Cpath d='M5,0 L5,16 L3,16 L3,0 L5,0 Z M13,0 L13,16 L11,16 L11,0 L13,0 Z' id='a'/%3E%3C/defs%3E%3Cg stroke='none' stroke-width='1' fill='none' fill-rule='evenodd'%3E%3Cg%3E%3Cmask id='b' fill='white'%3E%3Cuse xlink:href='%23a'/%3E%3C/mask%3E%3Cuse fill='%23ffffff' xlink:href='%23a'/%3E%3Cg mask='url(%23b)' fill='%23ffffff' fill-rule='nonzero'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-}
-/* CSS transition mirrors RR's GSAP tweens (.1s scale / .2s opacity) */
-.rrmc-cursor-inner {
-  transition: opacity 0.2s cubic-bezier(0.25, 0.1, 0.25, 1);
-}
-.rrmc-cursor-border,
-.rrmc-cursor-icon {
-  transform-origin: center;
-  transition:
-    transform 0.1s cubic-bezier(0.25, 0.1, 0.25, 1),
-    border-width 0.1s cubic-bezier(0.25, 0.1, 0.25, 1);
-}
-.rrmc-cursor-icon {
-  opacity: 0;
-  transition:
-    opacity 0.2s cubic-bezier(0.25, 0.1, 0.25, 1),
-    transform 0.1s cubic-bezier(0.25, 0.1, 0.25, 1);
+  background: rgba(255, 255, 255, 0.15);
 }
 
 /* Performance: CSS keyframe animations replacing Framer Motion infinite loops */

@@ -358,7 +358,7 @@ export default function ProductPage() {
           {/* Gallery */}
           <div className="flex flex-col gap-3">
             {/* Main image */}
-            <div data-cursor-hover className={cn("relative aspect-square overflow-hidden rounded-2xl", light ? "bg-dark-100" : "bg-graphite")}>
+            <div className={cn("relative aspect-square overflow-hidden rounded-2xl", light ? "bg-dark-100" : "bg-graphite")}>
               {hasImages ? (
                 <img
                   src={resolveImageUrl(colorImages[selectedImage] || colorImages[0])}
