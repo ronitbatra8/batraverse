@@ -2,12 +2,24 @@ const AUTH_KEYS = ["bt-token", "bt-accounts", "bt-current", "bt-current-user-id"
 
 export type AuthKey = (typeof AUTH_KEYS)[number];
 
+/**
+ * AUTH_KEYS live in sessionStorage so each browser tab keeps its own session.
+ * Signing in/out in one tab never mutates the session of other tabs; a session
+ * survives until that tab is closed or the user signs out manually.
+ *
+ * Note: tabs opened from a tab (e.g. admin "Access Account") inherit a copy of
+ * the opener's sessionStorage, so impersonate-in-new-tab keeps working.
+ */
 function getStore(): Storage {
-  if (typeof window === "undefined") return localStorage;
+  if (typeof window === "undefined") return sessionStorage;
   try {
-    return localStorage;
+    if (!window.sessionStorage) {
+      /* istanbul ignore next */
+      throw new Error("no sessionStorage");
+    }
+    return window.sessionStorage;
   } catch {
-    return localStorage;
+    return window.sessionStorage;
   }
 }
 

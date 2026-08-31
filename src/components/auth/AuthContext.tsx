@@ -133,17 +133,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration-safe: restore the signed-in session only once, after mount
     loadUser();
-
-    const handleStorage = (e: StorageEvent) => {
-      if (e.key !== "bt-accounts") return;
-      const updated = loadAccounts();
-      const idx = loadCurrentIndex();
-      setAccounts(updated);
-      setCurrentIndex(idx >= 0 && idx < updated.length ? idx : 0);
-    };
-
-    window.addEventListener("storage", handleStorage);
-    return () => window.removeEventListener("storage", handleStorage);
   }, [loadUser]);
 
   const register = async (data: {

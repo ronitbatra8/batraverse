@@ -25,6 +25,7 @@ import {
   KeyRound,
 } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
+import { getAuth, getAuthJSON, setAuth, setAuthJSON } from "@/lib/authStorage";
 import { API, adminHeaders, statusColors, msgStatusColors, type Tab } from "./types";
 
 // Credit-card style member levels driven by each user's order count:
@@ -251,19 +252,18 @@ export default function UsersTab({
       });
       if (!res.ok) return;
       const { token, user } = await res.json();
-      const raw = localStorage.getItem("bt-accounts");
-      const accounts = raw ? JSON.parse(raw) : [];
-      const adminIdx = parseInt(localStorage.getItem("bt-current") || "0");
+      const accounts = getAuthJSON<{ token: string; user: unknown }[]>("bt-accounts") || [];
+      const adminIdx = parseInt(getAuth("bt-current") || "0");
       accounts.push({ token, user });
-      localStorage.setItem("bt-accounts", JSON.stringify(accounts));
-      localStorage.setItem("bt-current", String(accounts.length - 1));
-      localStorage.setItem("bt-token", token);
+      setAuthJSON("bt-accounts", accounts);
+      setAuthJSON("bt-current", String(accounts.length - 1));
+      setAuth("bt-token", token);
       setTimeout(() => {
         window.open(user.role === "SELLER" ? "/seller" : user.role === "DELIVERY" ? "/delivery" : "/", "_blank");
       }, 50);
       setTimeout(() => {
-        localStorage.setItem("bt-current", String(adminIdx));
-        localStorage.setItem("bt-token", accounts[adminIdx]?.token || "");
+        setAuth("bt-current", String(adminIdx));
+        setAuth("bt-token", (accounts[adminIdx] as { token?: string } | undefined)?.token || "");
       }, 2000);
     } catch {}
   };
