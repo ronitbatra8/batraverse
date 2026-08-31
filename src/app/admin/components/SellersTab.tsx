@@ -30,7 +30,7 @@ export default function SellersTab({ adminKey }: { adminKey: string }) {
 
   useEffect(() => {
     fetch(`${API}/api/admin/sellers`, { headers: adminHeaders(adminKey) })
-      .then(r => r.json()).then(setSellers).catch(() => {}).finally(() => setLoading(false));
+      .then(r => r.json()).then((data) => setSellers(Array.isArray(data) ? data : [])).catch(() => {}).finally(() => setLoading(false));
   }, [adminKey]);
 
   const loadDetail = async (id: string) => {

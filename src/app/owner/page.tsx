@@ -308,20 +308,20 @@ export default function AdminPage() {
       <main className="pt-40 min-h-screen lg:pl-56">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-24 lg:pb-8">
           {tab === "overview" && <OverviewTab stats={stats} orders={orders} passwordResets={passwordResets} messages={messages} onNavigate={handleNavigateToTab} />}
-          {tab === "orders" && <OrdersTab orders={orders} updatingId={updatingId} onStatusUpdate={updateStatus} onItemStatusUpdate={updateItemStatus} onAssign={assignOrder} onPaymentAction={paymentAction} onReturnApprove={returnApprove} focusOrderId={focusOrderId} onFocusHandled={() => setFocusOrderId(null)} adminKey="" />}
-          {tab === "users" && <UsersTab users={users} adminKey="" onNavigate={handleNavigateToTab} />}
-          {tab === "messages" && <MessagesTab messages={messages} adminKey="" setMessages={setMessages} />}
+          {tab === "orders" && <OrdersTab orders={orders} updatingId={updatingId} onStatusUpdate={updateStatus} onItemStatusUpdate={updateItemStatus} onAssign={assignOrder} onPaymentAction={paymentAction} onReturnApprove={returnApprove} focusOrderId={focusOrderId} onFocusHandled={() => setFocusOrderId(null)} adminKey={adminKey} />}
+          {tab === "users" && <UsersTab users={users} adminKey={adminKey} onNavigate={handleNavigateToTab} />}
+          {tab === "messages" && <MessagesTab messages={messages} adminKey={adminKey} setMessages={setMessages} />}
           {tab === "security" && <SecurityTab />}
           {tab === "analytics" && <AnalyticsTab analytics={analytics} />}
-          {tab === "newsletter" && <NewsletterTab newsletter={newsletter} adminKey="" setNewsletter={setNewsletter} />}
-          {tab === "privateviewing" && <PrivateViewingTab privateViewing={privateViewing} adminKey="" setPrivateViewing={setPrivateViewing} />}
-          {tab === "delivery" && <DeliveryExecTab adminKey="" />}
-          {tab === "sellers" && <SellersTab adminKey="" />}
-          {tab === "cards" && <CardManagement adminKey="" />}
-          {tab === "violations" && <ViolationsTab adminKey="" />}
-          {tab === "categories" && <ProductsTab adminKey="" />}
-          {tab === "productcatalog" && <ProductCatalogTab adminKey="" />}
-          {tab === "sellerrequests" && <SellerRequestsTab adminKey="" />}
+          {tab === "newsletter" && <NewsletterTab newsletter={newsletter} adminKey={adminKey} setNewsletter={setNewsletter} />}
+          {tab === "privateviewing" && <PrivateViewingTab privateViewing={privateViewing} adminKey={adminKey} setPrivateViewing={setPrivateViewing} />}
+          {tab === "delivery" && <DeliveryExecTab adminKey={adminKey} />}
+          {tab === "sellers" && <SellersTab adminKey={adminKey} />}
+          {tab === "cards" && <CardManagement adminKey={adminKey} />}
+          {tab === "violations" && <ViolationsTab adminKey={adminKey} />}
+          {tab === "categories" && <ProductsTab adminKey={adminKey} />}
+          {tab === "productcatalog" && <ProductCatalogTab adminKey={adminKey} />}
+          {tab === "sellerrequests" && <SellerRequestsTab adminKey={adminKey} />}
           {tab === "ads" && <AdsTab adminKey="" />}
           {tab === "wallet" && <WalletTopUpsTab adminKey="" />}
         </div>

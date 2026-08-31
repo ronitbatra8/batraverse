@@ -26,7 +26,7 @@ export default function DeliveryExecTab({ adminKey }: { adminKey: string }) {
 
   useEffect(() => {
     fetch(`${API}/api/admin/delivery-executives`, { headers: adminHeaders(adminKey) })
-      .then(r => r.json()).then(setExecs).catch(() => {}).finally(() => setLoading(false));
+      .then(r => r.json()).then((data) => setExecs(Array.isArray(data) ? data : [])).catch(() => {}).finally(() => setLoading(false));
   }, [adminKey]);
 
   const loadDetail = async (id: string) => {

@@ -67,7 +67,7 @@ export default function AdsTab({ adminKey }: { adminKey: string }) {
       });
       if (res.ok) {
         const data = await res.json();
-        setAds(data);
+        setAds(Array.isArray(data) ? data : []);
       }
     } catch {}
     setLoading(false);

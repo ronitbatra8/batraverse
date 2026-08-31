@@ -48,7 +48,8 @@ export default function SecurityTab() {
     setError("");
     try {
       const data = await apiFetch("/admin/security/password-resets");
-      setResets(data.resets ?? data ?? []);
+      const list = Array.isArray(data?.resets) ? (data.resets as any[]) : (Array.isArray(data) ? data : []);
+      setResets(list);
     } catch (err: any) {
       setError(err.message || "Failed to load password resets");
     } finally {
