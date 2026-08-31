@@ -240,12 +240,11 @@ html.light {
 
 /* Rolls-Royce cursor — exact match */
 @media (pointer: fine) {
-  html {
+  html,
+  html *,
+  html *::before,
+  html *::after {
     cursor: none !important;
-  }
-  html.scroll-locked,
-  html.scroll-locked * {
-    cursor: default !important;
   }
 }
 .rrmc-cursor {
