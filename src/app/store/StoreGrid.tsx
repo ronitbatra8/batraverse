@@ -64,17 +64,18 @@ function dbToStoreProduct(p: DbProduct): Product {
     : {};
   const firstName = firstColor?.name || "";
   const firstSizes = sizeOpts[firstName] || Object.values(sizeOpts)[0] || [];
-  const firstSizeWithPrice = firstSizes.find((s) => s.price != null && s.price > 0);
 
   let effectivePrice = p.price;
   let effectiveOriginalPrice: number | undefined = p.originalPrice ?? undefined;
   if (effectivePrice === 0 || effectivePrice == null) {
-    if (firstColor?.price) {
+    // Match the detail page's default selection: first size of the first color
+    // wins, then the color price, then the base price.
+    if (firstSizes[0]?.price && firstSizes[0].price > 0) {
+      effectivePrice = firstSizes[0].price;
+      effectiveOriginalPrice = firstSizes[0].originalPrice ?? effectiveOriginalPrice;
+    } else if (firstColor?.price && firstColor.price > 0) {
       effectivePrice = firstColor.price;
       effectiveOriginalPrice = firstColor.originalPrice ?? effectiveOriginalPrice;
-    } else if (firstSizeWithPrice?.price) {
-      effectivePrice = firstSizeWithPrice.price;
-      effectiveOriginalPrice = firstSizeWithPrice.originalPrice ?? effectiveOriginalPrice;
     }
   }
 
