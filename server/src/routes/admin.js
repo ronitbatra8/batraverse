@@ -15,6 +15,14 @@ router.use(adminAuth);
 
 const ONLINE_METHODS = ["CARD", "UPI", "NETBANKING", "WALLET"];
 
+/* Frontend cart/checkout store product ids with a leading "db-" prefix
+   (see StoreGrid/MartGrid: id: `db-${p.id}`). Normalize it before matching
+   against real product ids. */
+function normalizeItemProductId(raw) {
+  if (!raw) return "";
+  return raw && raw.startsWith("db-") ? raw.replace(/^db-/, "") : raw;
+}
+
 /* Injects a product image (product.images[0], falling back to color-option
    images) into each order item that has a productId but no image yet. This
    keeps order thumbnails working even for orders placed before the image was
@@ -24,7 +32,7 @@ async function resolveOrderItemImages(orders) {
   (Array.isArray(orders) ? orders : []).forEach((o) => {
     if (Array.isArray(o.items)) items.push(...o.items);
   });
-  const ids = [...new Set(items.map((it) => it && it.productId).filter(Boolean))];
+  const ids = [...new Set(items.map((it) => it && normalizeItemProductId(it.productId)).filter(Boolean))];
   if (ids.length === 0) return orders;
   const products = await prisma.product.findMany({
     where: { id: { in: ids } },
@@ -41,7 +49,10 @@ async function resolveOrderItemImages(orders) {
     imgByProductId.set(p.id, img || "");
   }
   items.forEach((it) => {
-    if (it && it.productId && !it.image) it.image = imgByProductId.get(it.productId) || "";
+    if (it && it.productId && !it.image) {
+      const pid = normalizeItemProductId(it.productId);
+      if (pid) it.image = imgByProductId.get(pid) || "";
+    }
   });
   return orders;
 }
@@ -466,7 +477,7 @@ router.get("/users/:id", async (req, res) => {
       });
       user.orders = allOrders.filter((o) => {
         const arr = Array.isArray(o.items) ? o.items : [];
-        return arr.some((it) => it && sellerProductIds.has(it.productId));
+        return arr.some((it) => it && sellerProductIds.has(normalizeItemProductId(it.productId)));
       });
     }
 
