@@ -25,8 +25,10 @@ export default function OwnerError({
         <p className="text-sm text-zinc-400 mb-4">
           Something went wrong while loading this view. Your session and owner key are still valid.
         </p>
-        <pre className="text-left text-xs text-red-300 bg-dark-950 border border-dark-800 rounded-lg p-3 mb-5 overflow-x-auto">
+        <pre className="text-left text-xs text-red-300 bg-dark-950 border border-dark-800 rounded-lg p-3 mb-5 overflow-x-auto whitespace-pre-wrap break-all">
           {error.message || "Unknown error"}
+          {"\n\n"}{error.digest ? `digest: ${error.digest}` : ""}
+          {"\n\n"}{error.stack || ""}
         </pre>
         <div className="flex items-center justify-center gap-3">
           <button
