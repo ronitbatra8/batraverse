@@ -88,7 +88,7 @@ export default function Navbar() {
     }
     navRows.push(
       { kind: "row", key: "cards", label: "My Cards", onClick: () => { setSliderOpen(false); router.push("/cards"); } },
-      { kind: "row", key: "wallet", label: "Wallet", hint: `₹${(user.walletBalance ?? 0).toFixed(0)}`, onClick: () => { setSliderOpen(false); router.push("/wallet"); } },
+      { kind: "row", key: "wallet", label: "Wallet", onClick: () => { setSliderOpen(false); router.push("/wallet"); } },
       { kind: "row", key: "orders", label: "My Orders", onClick: () => { setSliderOpen(false); router.push("/orders"); } },
       { kind: "row", key: "queries", label: "My Queries", onClick: () => { setSliderOpen(false); router.push("/queries"); } },
       { kind: "row", key: "private", label: "Private Viewing", onClick: () => { setSliderOpen(false); router.push("/private-viewing"); } },
