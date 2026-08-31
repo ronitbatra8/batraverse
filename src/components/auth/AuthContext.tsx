@@ -171,6 +171,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     sessionStorage.removeItem("bt-guest");
     setIsGuest(false);
     setUser(res.user);
+    window.dispatchEvent(new Event("bt-account-switch"));
     return res.user;
   };
 
@@ -189,6 +190,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     sessionStorage.removeItem("bt-guest");
     setIsGuest(false);
     setUser(res.user);
+    window.dispatchEvent(new Event("bt-account-switch"));
     return res.user;
   };
 
@@ -209,6 +211,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     removeAuth("bt-token");
     removeAuth("bt-current-user-id");
     setUser(null);
+    window.dispatchEvent(new Event("bt-account-switch"));
   };
 
   const updateUser = async (data: Partial<User>) => {
