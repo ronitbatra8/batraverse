@@ -312,10 +312,10 @@ function SearchContent() {
             </div>
           </div>
 
-          {/* Source tabs */}
-          <div className="relative z-10">
+          {/* Source tabs — desktop only */}
+          <div className="relative z-10 hidden sm:block">
             <div className={cn("border-t transition-colors duration-500", light ? "border-dark-100/40" : "border-white/5")}>
-            <div className="mx-auto flex w-full max-w-[100rem] items-center gap-2 overflow-x-auto px-4 py-3 sm:gap-3 sm:px-14 sm:py-4 [&::-webkit-scrollbar]:hidden">
+            <div className="mx-auto flex w-full max-w-[100rem] items-center gap-3 overflow-x-auto px-14 py-4 [&::-webkit-scrollbar]:hidden">
               {SOURCE_TABS.map((tab) => {
                 const isActive = activeSource === tab.key;
                 const count = sourceCounts[tab.key];
@@ -325,7 +325,7 @@ function SearchContent() {
                     type="button"
                     onClick={() => setActiveSource(tab.key)}
                     className={cn(
-                      "shrink-0 whitespace-nowrap rounded-full border text-[9px] font-medium uppercase tracking-[0.18em] backdrop-blur-sm transition-all duration-300 sm:text-[11px] sm:tracking-[0.24em]",
+                      "shrink-0 whitespace-nowrap rounded-full border px-5 py-2.5 text-[11px] font-medium uppercase tracking-[0.24em] backdrop-blur-sm transition-all duration-300",
                       isActive
                         ? light
                           ? "border-sapphire/40 bg-sapphire/10 text-sapphire"
@@ -334,10 +334,8 @@ function SearchContent() {
                           ? "border-dark-200 text-dark-400 hover:border-sapphire/30 hover:text-sapphire"
                           : "border-white/5 text-cream-dim/60 hover:border-gold/20 hover:text-cream-dim"
                     )}
-                    style={{ padding: "6px 14px" }}
                   >
-                    <span className="sm:hidden">{tab.label.replace(" Products", "")}</span>
-                    <span className="hidden sm:inline">{tab.label}</span>
+                    {tab.label}
                     <span className={cn("ml-1 text-[8px]", isActive ? (light ? "text-sapphire/50" : "text-gold-light/50") : (light ? "text-dark-300" : "text-cream-dim/30"))}>
                       {count}
                     </span>
@@ -346,9 +344,8 @@ function SearchContent() {
               })}
 
               <span className={cn("ml-auto shrink-0 text-[10px] font-medium whitespace-nowrap", light ? "text-dark-400" : "text-cream-dim/50")}>
-                <span className="sm:hidden">{filtered.length}</span>
-                <span className="hidden sm:inline">{filtered.length} product{filtered.length !== 1 ? "s" : ""}</span>
-                {debouncedQuery && <span className="ml-1 hidden sm:inline">for &ldquo;{debouncedQuery}&rdquo;</span>}
+                {filtered.length} product{filtered.length !== 1 ? "s" : ""}
+                {debouncedQuery && <span className="ml-1">for &ldquo;{debouncedQuery}&rdquo;</span>}
               </span>
             </div>
           </div>
