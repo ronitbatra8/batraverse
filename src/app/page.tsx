@@ -1,7 +1,8 @@
 import SiteLayout from "@/components/layout/SiteLayout";
 import Hero from "@/components/home/Hero";
 import AdsShowcase from "@/components/home/AdsShowcase";
-import ProductShelf, { type ShelfItem } from "@/components/home/ProductShelf";
+import { type ShelfItem } from "@/components/home/ProductShelf";
+import FeaturedShelf from "@/components/home/FeaturedShelf";
 import RecentlyViewedShelf from "@/components/home/RecentlyViewedShelf";
 import Testimonials from "@/components/home/Testimonials";
 import Newsletter from "@/components/home/Newsletter";
@@ -43,13 +44,8 @@ export default function HomePage() {
     <SiteLayout>
       <Hero />
       <AdsShowcase />
-      <ProductShelf
-        eyebrow="Curated for You"
-        title="Featured"
-        accent="This Season"
-        badge="Curated"
-        items={FEATURED}
-      />
+      {/* Featured — data comes from the owner dashboard "Featured" tab; FEATURED is the static fallback when none are configured. */}
+      <FeaturedShelf fallback={FEATURED} />
       <RecentlyViewedShelf />
       <Testimonials />
       <Newsletter />

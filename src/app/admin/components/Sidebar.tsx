@@ -18,6 +18,7 @@ export const topNavItems: { key: Tab; label: string; icon: any }[] = [
 export const sideNavItems: { key: Tab; label: string; icon: any }[] = [
   { key: "categories", label: "Categories", icon: Tags },
   { key: "sellerrequests", label: "Seller Requests", icon: ClipboardList },
+  { key: "featured", label: "Featured", icon: Sparkles },
   { key: "ads", label: "Ads", icon: Megaphone },
   { key: "wallet", label: "Wallet Top-Ups", icon: Wallet },
   { key: "messages", label: "Messages", icon: MessageSquare },

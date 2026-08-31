@@ -986,4 +986,89 @@ router.put("/ad-requests/:id/reject", async (req, res) => {
   }
 });
 
+/* Effective display image for a product (top-level images first, then any
+   color-option image, matching how the storefront renders products). */
+function effectiveProductImage(images, colorOptions) {
+  if (Array.isArray(images) && images[0]) return images[0];
+  if (Array.isArray(colorOptions)) {
+    return colorOptions
+      .map((c) => (Array.isArray(c.images) ? c.images[0] : typeof c.images === "string" ? c.images : null))
+      .find(Boolean) || "";
+  }
+  return "";
+}
+
+function resolveProductPrice(p) {
+  const colorOptions = Array.isArray(p.colorOptions) ? p.colorOptions : [];
+  const sizeOptions = p.sizeOptions && typeof p.sizeOptions === "object" && !Array.isArray(p.sizeOptions) ? p.sizeOptions : {};
+  const firstName = (colorOptions[0] && colorOptions[0].name) || "";
+  const firstSizes = sizeOptions[firstName] || Object.values(sizeOptions)[0] || [];
+  let price = p.price;
+  let originalPrice = p.originalPrice;
+  if ((!price || price <= 0)) {
+    if (firstSizes[0] && firstSizes[0].price > 0) {
+      price = firstSizes[0].price;
+      originalPrice = firstSizes[0].originalPrice || originalPrice;
+    } else if (colorOptions[0] && colorOptions[0].price > 0) {
+      price = colorOptions[0].price;
+      originalPrice = colorOptions[0].originalPrice || originalPrice;
+    }
+  }
+  return { price: price || 0, originalPrice };
+}
+
+function toFeaturedCard(p) {
+  if (!p) return null;
+  const { price, originalPrice } = resolveProductPrice(p);
+  return {
+    productId: p.id,
+    name: p.name,
+    brand: p.brand,
+    category: p.category || "uncategorized",
+    price,
+    originalPrice,
+    image: effectiveProductImage(p.images, p.colorOptions),
+    href: `/store/db-${p.id}`,
+    source: p.source || "store",
+    inStock: p.inStock,
+    rating: p.rating,
+    reviewCount: p.reviewCount,
+  };
+}
+
+router.get("/featured", async (req, res) => {
+  try {
+    const featured = await prisma.featuredProduct.findMany({ orderBy: { sortOrder: "asc" } });
+    if (featured.length === 0) return res.json([]);
+    const products = await prisma.product.findMany({
+      where: { id: { in: featured.map((f) => f.productId) } },
+      select: { id: true, name: true, brand: true, category: true, price: true, originalPrice: true, images: true, colorOptions: true, sizeOptions: true, source: true, inStock: true, rating: true, reviewCount: true },
+    });
+    const byId = new Map(products.map((p) => [p.id, toFeaturedCard(p)]));
+    res.json(featured.map((f) => byId.get(f.productId) || { productId: f.productId, missing: true }).filter(Boolean));
+  } catch (err) {
+    res.status(500).json({ error: safeErrorMessage(err) });
+  }
+});
+
+router.put("/featured", async (req, res) => {
+  try {
+    const { productIds } = req.body || {};
+    if (!Array.isArray(productIds)) return res.status(400).json({ error: "productIds must be an array" });
+    const sanitized = [...new Set(productIds.map((id) => String(id)).filter(Boolean))];
+    const existing = await prisma.featuredProduct.findMany();
+    const existingByProduct = new Map(existing.map((e) => [e.productId, e.id]));
+    const toKeep = existing.filter((e) => sanitized.includes(e.productId));
+    const toCreate = sanitized.filter((id) => !existingByProduct.has(id));
+    await prisma.$transaction([
+      prisma.featuredProduct.deleteMany({ where: { productId: { notIn: sanitized } } }),
+      ...toCreate.map((pid) => prisma.featuredProduct.create({ data: { productId: pid, sortOrder: sanitized.indexOf(pid) } })),
+      ...toKeep.map((e) => prisma.featuredProduct.update({ where: { id: e.id }, data: { sortOrder: sanitized.indexOf(e.productId) } })),
+    ]);
+    res.json({ ok: true, count: sanitized.length });
+  } catch (err) {
+    res.status(500).json({ error: safeErrorMessage(err) });
+  }
+});
+
 module.exports = router;

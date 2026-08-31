@@ -503,3 +503,13 @@ model AdRequest {
   @@index([sellerId])
   @@index([status])
 }
+
+model FeaturedProduct {
+  id        String   @id @default(cuid())
+  productId String   @unique
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sortOrder])
+}

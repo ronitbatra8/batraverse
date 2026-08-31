@@ -28,6 +28,7 @@ import ProductCatalogTab from "../admin/components/ProductCatalogTab";
 import SellerRequestsTab from "../admin/components/SellerRequestsTab";
 import AdsTab from "../admin/components/AdsTab";
 import WalletTopUpsTab from "../admin/components/WalletTopUpsTab";
+import FeaturedTab from "../admin/components/FeaturedTab";
 import { useToast } from "@/components/Toast";
 
 // Preview seed data — lets the full design render without a backend.
@@ -324,6 +325,7 @@ export default function AdminPage() {
           {tab === "sellerrequests" && <SellerRequestsTab adminKey={adminKey} />}
           {tab === "ads" && <AdsTab adminKey="" />}
           {tab === "wallet" && <WalletTopUpsTab adminKey="" />}
+          {tab === "featured" && <FeaturedTab adminKey={adminKey} />}
         </div>
       </main>
     </div>
