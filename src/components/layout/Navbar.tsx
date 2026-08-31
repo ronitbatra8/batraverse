@@ -330,7 +330,7 @@ export default function Navbar() {
     <>
       <motion.header
         className={cn(
-          "fixed inset-x-0 top-0 z-40",
+          "fixed inset-x-0 top-0 z-[56]",
           phase === "boot" && "pointer-events-none"
         )}
       >
@@ -393,7 +393,10 @@ export default function Navbar() {
 
           {/* Actions */}
           <motion.div
-            className="flex items-center gap-1 sm:gap-3"
+            className={cn(
+              "flex items-center gap-1 sm:gap-3",
+              sliderOpen && "pointer-events-none [&>*:not([data-menu-trigger])]:opacity-0"
+            )}
             initial={boot !== "skip" ? { opacity: 0 } : false}
             animate={{ opacity: phase !== "boot" ? 1 : 0 }}
             transition={{ duration: 0.7, delay: phase !== "boot" ? 0.45 : 0 }}
@@ -461,6 +464,7 @@ export default function Navbar() {
             {/* Sliding sidebar — the external links (RR-style wordplate: icon + MENU/CLOSE) */}
             <button
               ref={sliderTriggerRef}
+              data-menu-trigger
               type="button"
               onClick={() => setSliderOpen((o) => !o)}
               aria-expanded={sliderOpen}
