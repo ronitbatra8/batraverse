@@ -2,50 +2,41 @@
 
 import { useEffect, useRef, useState } from "react";
 
-// Port of Rolls-Royce Motor Cars' .rrmc-cursor state machine
-// (rrmc/clientlibs clientlib-components). Faithful behavior:
-// - 'default'       : show outlined ring, scale 0.3, border 4px (hidden native cursor)
-// - 'scale'(icon)   : ring + hover icon, scale 1, border 1px
-// - 'scale_cta'     : ring scale 0.7, border 2px
-// - 'scale_large'   : ring scale 2.717391, border 1px
-// - 'default_system': hide ring, restore native cursor
-// The ring follows the pointer 1:1 via translate3d (no lerp, like RR).
+// Rolls-Royce Motor Cars' .rrmc-cursor — literal port of the AEM
+// clientlib-components state machine (rrmc-cursor module + icon_animator).
+//
+// Exact behavior:
+// - boot                          : ring visible (default), inner opacity 0,
+//                                   body cursor "none"; first mousemove fades inner in
+// - idle (no hover)               : default  -> scale 0.3,  border 4px
+// - hover a/button/[role=button]  : scale_cta -> scale 0.7, border 2px
+// - hover carousel/media          : scale   -> scale 1,    border 1px + icon
+// - hover peek/large              : scale_large -> scale 2.717391, border 1px + icon
+// - document leave                : inner fades out; enter -> fades in
+// - touch                         : disabled entirely
+//
+// Follow is 1:1 via translate3d(clientXpx, clientYpx, 0) on every mousemove
+// (RR sets no lerp). Native cursor is managed via document.body.style.cursor.
+// GSAP tweens are mirrored with CSS transitions (.1s scale / .2s opacity).
 
-const CURSOR_SCALE_DEFAULT = 0.3;
-const CURSOR_SCALE_CTA = 0.7;
-const CURSOR_SCALE_LARGE = 2.717391;
+const SCALE_DEFAULT = 0.3;
+const SCALE_CTA = 0.7;
+const SCALE_MEDIA = 1;
+const SCALE_LARGE = 2.717391;
 
-function transition({
-  border,
-  icon,
-  inner,
-  scale,
-  borderWidth,
-  iconMode,
-  display,
-}: {
-  border: HTMLElement;
-  icon: HTMLElement;
-  inner: HTMLElement;
-  scale: number;
-  borderWidth: number;
-  iconMode: "none" | "show" | "hide";
-  display: "block" | "none";
-}) {
-  const c = border.parentElement?.parentElement as HTMLElement | null;
-  if (c) c.style.display = display;
-  border.style.transform = `scale(${scale})`;
-  border.style.borderWidth = `${borderWidth}px`;
-  if (iconMode === "none") {
-    icon.className = "rrmc-cursor-icon";
-    icon.style.transform = `scale(${scale})`;
-  } else if (iconMode === "show") {
-    icon.style.opacity = "1";
-    icon.style.transform = `scale(${scale})`;
-  } else {
-    icon.style.opacity = "0";
-    icon.style.transform = `scale(${scale})`;
-  }
+// Which interaction an element belongs to (highest priority wins).
+const ICON_NAME = "rrmc-cursor-icon";
+
+function describe(elm: Element): string | null {
+  if (elm.closest("[data-cursor-hover='play']")) return "play";
+  if (elm.closest("[data-cursor-hover='cross']")) return "cross";
+  if (elm.closest("[data-cursor-hover]")) return "add";
+  if (elm.closest("[data-cursor-arrow='left']")) return "arrow-left";
+  if (elm.closest("[data-cursor-arrow='right']")) return "arrow-right";
+  if (elm.closest("[data-cursor-media]")) return "add";
+  if (elm.closest("a, button, [role='button'], label, select, summary"))
+    return "cta";
+  return null;
 }
 
 export default function CustomCursor() {
@@ -66,61 +57,98 @@ export default function CustomCursor() {
     const inner = cursor.querySelector<HTMLElement>(".rrmc-cursor-inner");
     if (!border || !icon || !inner) return;
 
-    // RR appends to body and flags enabled state on body.
     document.body.appendChild(cursor);
     document.body.classList.add("rrmc-cursor-enabled");
 
-    let started = false;
+    let activeIcon = "";
 
     const setNative = (v: string) => {
       document.body.style.cursor = v;
     };
 
-    // default idle state (ring shown, native hidden)
+    // ---- transitions mirror RR's GSAP tweens ----------------------------
+    const go = ({
+      scale,
+      borderWidth,
+      icon: iconName,
+      display,
+      iconVisible,
+    }: {
+      scale: number;
+      borderWidth: number;
+      icon: string;
+      display: "block" | "none";
+      iconVisible: boolean;
+    }) => {
+      cursor.style.display = display;
+      border.style.transform = `scale(${scale})`;
+      border.style.borderWidth = `${borderWidth}px`;
+      if (activeIcon && activeIcon !== iconName) {
+        icon.classList.remove(activeIcon);
+      }
+      if (iconName) {
+        icon.className = `${ICON_NAME} ${iconName}`;
+        icon.style.opacity = iconVisible ? "1" : "0";
+        icon.style.transform = `scale(${scale})`;
+        activeIcon = iconName;
+      } else {
+        icon.className = ICON_NAME;
+        icon.style.opacity = "0";
+        activeIcon = "";
+      }
+    };
+
+    // default idle ring (visible, native hidden)
     const toDefault = () => {
       setNative("none");
-      transition({
-        border,
-        icon,
-        inner,
-        scale: CURSOR_SCALE_DEFAULT,
+      go({
+        scale: SCALE_DEFAULT,
         borderWidth: 4,
-        iconMode: "hide",
+        icon: "",
         display: "block",
+        iconVisible: false,
       });
     };
 
-    // hidden state (native cursor restored)
-    const toSystem = () => {
-      setNative("");
-      transition({
-        border,
-        icon,
-        inner,
-        scale: CURSOR_SCALE_DEFAULT,
-        borderWidth: 4,
-        iconMode: "hide",
-        display: "none",
-      });
-    };
-
-    // magnified state with icon (media reveal / hover)
-    const toScale = (iconName: string) => {
+    // scale_cta over links/buttons
+    const toCta = () => {
       setNative("none");
-      icon.className = `rrmc-cursor-icon ${iconName}`;
-      transition({
-        border,
-        icon,
-        inner,
-        scale: 1,
-        borderWidth: 1,
-        iconMode: "show",
+      go({
+        scale: SCALE_CTA,
+        borderWidth: 2,
+        icon: "",
         display: "block",
+        iconVisible: false,
+      });
+    };
+
+    // scale + icon over media/carousels
+    const toMedia = (iconName: string) => {
+      setNative("none");
+      go({
+        scale: SCALE_MEDIA,
+        borderWidth: 1,
+        icon: iconName,
+        display: "block",
+        iconVisible: true,
+      });
+    };
+
+    // scale_large + icon over peek/large reveal areas
+    const toLarge = (iconName: string) => {
+      setNative("none");
+      go({
+        scale: SCALE_LARGE,
+        borderWidth: 1,
+        icon: iconName,
+        display: "block",
+        iconVisible: true,
       });
     };
 
     toDefault();
 
+    let started = false;
     const onMove = (e: MouseEvent) => {
       cursor.style.transform = `translate3d(${e.clientX}px, ${e.clientY}px, 0)`;
       if (!started) {
@@ -136,30 +164,27 @@ export default function CustomCursor() {
       inner.style.opacity = "0";
     };
 
+    const HOVER: Record<string, () => void> = {
+      play: () => toMedia("play"),
+      cross: () => toMedia("cross"),
+      add: () => toMedia("add"),
+      "arrow-left": () => toMedia("arrow-left"),
+      "arrow-right": () => toMedia("arrow-right"),
+      media: () => toMedia("add"),
+      cta: toCta,
+    };
+
     const hoverEnter = (e: MouseEvent) => {
       const t = e.target as Element | null;
       if (!t) return;
-      if (t.closest("[data-cursor-hover]")) {
-        toScale("add");
-      } else if (t.closest("[data-cursor-arrow='left']")) {
-        toScale("arrow-left");
-      } else if (t.closest("[data-cursor-arrow='right']")) {
-        toScale("arrow-right");
-      } else if (t.closest("[data-cursor-hover='play']")) {
-        toScale("play");
-      } else if (t.closest("[data-cursor-hover='cross']")) {
-        toScale("cross");
-      }
+      const kind = describe(t);
+      if (kind && HOVER[kind]) HOVER[kind]();
     };
+
     const hoverLeave = (e: MouseEvent) => {
       const t = e.relatedTarget as Element | null;
-      const inHover =
-        !!t?.closest?.("[data-cursor-hover]") ||
-        !!t?.closest?.("[data-cursor-arrow='left']") ||
-        !!t?.closest?.("[data-cursor-arrow='right']") ||
-        !!t?.closest?.("[data-cursor-hover='play']") ||
-        !!t?.closest?.("[data-cursor-hover='cross']");
-      if (!inHover) toDefault();
+      if (t && t instanceof Element && describe(t)) return;
+      toDefault();
     };
 
     window.addEventListener("mousemove", onMove, { passive: true });

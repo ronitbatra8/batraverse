@@ -257,7 +257,8 @@ html.light {
   [data-cursor-hover],
   label,
   select,
-  summary {
+  summary,
+  .cursor-pointer {
     cursor: none;
   }
 }
