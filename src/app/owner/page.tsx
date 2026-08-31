@@ -147,14 +147,14 @@ export default function AdminPage() {
         fetch(`${API}/api/private-viewing/list`, { headers: h }).then((r) => r.json()),
         fetch(`${API}/api/admin/password-resets`, { headers: h }).then((r) => r.json()),
       ]);
-      if (o.error) { setAuthError(o.error); setLoading(false); return; }
-      setOrders(o);
-      setUsers(u);
-      setStats(s);
-      setAnalytics(a);
-      setNewsletter(nl);
-      setMessages(mg);
-      setPrivateViewing(pv);
+      if (o && o.error) { setAuthError(o.error); setLoading(false); return; }
+      setOrders(Array.isArray(o) ? o : []);
+      setUsers(Array.isArray(u) ? u : []);
+      setStats(s && typeof s === "object" && !Array.isArray(s) ? s : PREVIEW_DATA.stats);
+      setAnalytics(a && typeof a === "object" && !Array.isArray(a) ? a : PREVIEW_DATA.analytics);
+      setNewsletter(nl && typeof nl === "object" ? nl : { count: 0, active: 0, unread: 0 });
+      setMessages(mg && typeof mg === "object" ? mg : { total: 0, unread: 0, messages: [] });
+      setPrivateViewing(pv && typeof pv === "object" ? pv : { count: 0, unread: 0 });
       setPasswordResets(Array.isArray(pr) ? pr : []);
       setAuthenticated(true);
     } catch { setAuthError("Cannot connect to server"); }
