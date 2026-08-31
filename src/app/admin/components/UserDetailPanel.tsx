@@ -426,9 +426,18 @@ function OverviewTab({ user, light }: { user: any; light: boolean }) {
                   {formatPrice(order.totalAmount)}
                 </p>
                 {order.items?.slice(0, 2).map((item: any, i: number) => (
-                  <p key={i} className={cn("text-xs mt-1", light ? "text-onyx/50" : "text-dark-400")}>
-                    {item.name} × {item.quantity}
-                  </p>
+                  <div key={i} className="flex items-center gap-2 mt-1">
+                    {item.image ? (
+                      <img src={resolveImageUrl(item.image)} alt={item.name} className="w-7 h-7 rounded-md object-cover shrink-0" />
+                    ) : (
+                      <div className={cn("w-7 h-7 rounded-md flex items-center justify-center shrink-0", light ? "bg-onyx/5" : "bg-dark-800")}>
+                        <Package size={12} className={light ? "text-onyx/40" : "text-dark-600"} />
+                      </div>
+                    )}
+                    <p className={cn("text-xs", light ? "text-onyx/50" : "text-dark-400")}>
+                      {item.name} × {item.quantity}
+                    </p>
+                  </div>
                 ))}
               </Card>
             ))}
@@ -617,6 +626,17 @@ function ReviewsTab({ reviews, light }: { reviews: any[]; light: boolean }) {
         <Card key={review.id} light={light} className="p-5">
           <div className="flex items-start justify-between mb-3">
             <div className="min-w-0 flex-1">
+              {(review.product?.images?.[0] || review.product?.image) ? (
+                <img
+                  src={resolveImageUrl(review.product.images?.[0] || review.product.image)}
+                  alt={review.product?.name || ""}
+                  className={cn("w-12 h-12 rounded-lg object-cover mb-2", light ? "" : "")}
+                />
+              ) : (
+                <div className={cn("w-12 h-12 rounded-lg flex items-center justify-center mb-2", light ? "bg-onyx/5" : "bg-dark-800")}>
+                  <Star size={18} className={light ? "text-onyx/30" : "text-dark-600"} />
+                </div>
+              )}
               <p className={cn("text-sm font-medium truncate", light ? "text-onyx" : "text-white")}>
                 {review.product?.name}
               </p>

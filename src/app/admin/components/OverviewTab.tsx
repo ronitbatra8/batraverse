@@ -3,6 +3,7 @@
 
 import { TrendingUp, Package, Users, CheckCircle2, Clock, ArrowUpRight, KeyRound, MessageSquare } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
+import { resolveImageUrl } from "@/lib/imageUrl";
 import { statusColors, type Tab } from "./types";
 
 export default function OverviewTab({ stats, orders, passwordResets, messages, onNavigate }: {
@@ -56,9 +57,17 @@ export default function OverviewTab({ stats, orders, passwordResets, messages, o
                   className="px-6 py-3 flex items-center justify-between hover:bg-dark-800/20 transition-colors cursor-pointer group"
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-8 h-8 rounded-lg bg-dark-800 flex items-center justify-center shrink-0">
-                      <Package size={14} className="text-dark-400" />
-                    </div>
+                    {(() => {
+                      const firstItem: any = Array.isArray(o.items) ? o.items[0] : null;
+                      const img = firstItem?.image;
+                      return img ? (
+                        <img src={resolveImageUrl(img)} alt={firstItem?.name || ""} className="w-8 h-8 rounded-lg object-cover shrink-0" />
+                      ) : (
+                        <div className="w-8 h-8 rounded-lg bg-dark-800 flex items-center justify-center shrink-0">
+                          <Package size={14} className="text-dark-400" />
+                        </div>
+                      );
+                    })()}
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-white truncate group-hover:text-gold-400 transition-colors">{o.shippingName}</p>
                       <p className="text-xs text-dark-500">#{o.id.slice(-8)}</p>

@@ -6,6 +6,7 @@ import { Truck, UserCheck, UserX, ChevronDown, ChevronUp, Package, MapPin, Clock
 import { API, adminHeaders, statusColors } from "./types";
 import { getAuth, getAuthJSON, setAuth, setAuthJSON } from "@/lib/authStorage";
 import { formatPrice } from "@/lib/utils";
+import { resolveImageUrl } from "@/lib/imageUrl";
 
 export default function DeliveryExecTab({ adminKey }: { adminKey: string }) {
   const [execs, setExecs] = useState<any[]>([
@@ -238,7 +239,16 @@ export default function DeliveryExecTab({ adminKey }: { adminKey: string }) {
                                     {order.shippingAddress}, {order.shippingCity}
                                   </div>
                                   {order.items?.map((item: any, i: number) => (
-                                    <p key={i} className="text-xs text-dark-500">• {item.name} × {item.quantity} — {formatPrice(item.price * (item.quantity || 1))}</p>
+                                    <div key={i} className="flex items-center gap-2 text-xs">
+                                      {item.image ? (
+                                        <img src={resolveImageUrl(item.image)} alt={item.name} className="w-7 h-7 rounded-md object-cover shrink-0" />
+                                      ) : (
+                                        <div className="w-7 h-7 rounded-md bg-dark-800 flex items-center justify-center shrink-0">
+                                          <Package size={12} className="text-dark-600" />
+                                        </div>
+                                      )}
+                                      <span className="text-dark-500">{item.name} × {item.quantity} — {formatPrice(item.price * (item.quantity || 1))}</span>
+                                    </div>
                                   ))}
                                   <p className="text-[10px] text-dark-600">
                                     <Clock className="inline w-3 h-3 mr-1" />

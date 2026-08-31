@@ -378,7 +378,7 @@ router.get("/users/:id", async (req, res) => {
         savedAddresses: { orderBy: { createdAt: "desc" } },
         reviews: {
           orderBy: { createdAt: "desc" },
-          select: { id: true, rating: true, comment: true, createdAt: true, product: { select: { id: true, name: true, brand: true } } },
+          select: { id: true, rating: true, comment: true, createdAt: true, product: { select: { id: true, name: true, brand: true, images: true } } },
         },
         wishlists: {
           orderBy: { createdAt: "desc" },
@@ -412,6 +412,30 @@ router.get("/users/:id", async (req, res) => {
         },
       });
       user.orders = assignedOrders;
+    }
+
+    /* For a SELLER, "orders" should mean orders that contain the seller's
+       own products (their sales), NOT the orders the seller placed as a buyer
+       (the default user.orders relation above). */
+    if (user.role === "SELLER") {
+      const sellerProducts = await prisma.product.findMany({
+        where: { sellerId: user.id },
+        select: { id: true },
+      });
+      const sellerProductIds = new Set(sellerProducts.map((p) => p.id));
+      const allOrders = await prisma.order.findMany({
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true, items: true, totalAmount: true, status: true, paymentMethod: true,
+          paymentStatus: true, shippingName: true, shippingPhone: true,
+          shippingAddress: true, shippingCity: true, shippingState: true,
+          shippingPincode: true, userId: true, createdAt: true,
+        },
+      });
+      user.orders = allOrders.filter((o) => {
+        const arr = Array.isArray(o.items) ? o.items : [];
+        return arr.some((it) => it && sellerProductIds.has(it.productId));
+      });
     }
 
     const totalSpent = user.orders.reduce((sum, o) => sum + (o.status !== "cancelled" ? o.totalAmount : 0), 0);

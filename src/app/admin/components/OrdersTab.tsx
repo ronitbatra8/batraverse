@@ -531,8 +531,12 @@ export default function OrdersTab({
                               return (
                                 <div key={idx} className="p-3 rounded-lg bg-dark-900/30 space-y-2">
                                   <div className="flex items-center gap-3">
-                                    {item.image && (
-                                      <img src={resolveImageUrl(item.image)} alt={item.name} className="w-10 h-10 rounded-lg object-cover" />
+                                    {item.image ? (
+                                      <img src={resolveImageUrl(item.image)} alt={item.name} className="w-10 h-10 rounded-lg object-cover shrink-0" />
+                                    ) : (
+                                      <div className="w-10 h-10 rounded-lg bg-dark-800 flex items-center justify-center shrink-0">
+                                        <Package size={16} className="text-dark-600" />
+                                      </div>
                                     )}
                                     <div className="flex-1 min-w-0">
                                       <div className="flex items-center gap-2">
@@ -588,8 +592,12 @@ export default function OrdersTab({
                               return (
                                 <div key={idx} className="p-3 rounded-lg bg-dark-900/30">
                                   <div className="flex items-center gap-3">
-                                    {item.image && (
-                                      <img src={resolveImageUrl(item.image)} alt={item.name} className="w-10 h-10 rounded-lg object-cover" />
+                                    {item.image ? (
+                                      <img src={resolveImageUrl(item.image)} alt={item.name} className="w-10 h-10 rounded-lg object-cover shrink-0" />
+                                    ) : (
+                                      <div className="w-10 h-10 rounded-lg bg-dark-800 flex items-center justify-center shrink-0">
+                                        <Package size={16} className="text-dark-600" />
+                                      </div>
                                     )}
                                     <div className="flex-1 min-w-0">
                                       <div className="flex items-center gap-2">
