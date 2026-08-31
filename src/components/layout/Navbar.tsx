@@ -349,7 +349,7 @@ export default function Navbar() {
             ref={brandRef}
             data-nav-brand
             animate={brandControls}
-            className={cn("flex items-center", sliderOpen && "max-lg:hidden")}
+            className={cn("flex items-center", sliderOpen && "max-lg:invisible")}
             style={{ opacity: 0 }}
           >
             <Link
