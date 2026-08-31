@@ -1,11 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ShieldAlert, LogIn, ArrowLeft } from "lucide-react";
 import { Tab, API, adminHeaders } from "../admin/components/types";
+import AuthGate from "../admin/components/AuthGate";
 import { useAuth } from "@/components/auth/AuthContext";
 import { Spinner } from "@/components/auth/auth-ui";
 import { cn } from "@/lib/utils";
@@ -111,6 +112,8 @@ export default function AdminPage() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const [authenticated, setAuthenticated] = useState(false);
+  const [adminKey, setAdminKey] = useState("");
+  const [showKey, setShowKey] = useState(false);
   const [tab, setTab] = useState<Tab>("overview");
   const [loading, setLoading] = useState(false);
   const [authError, setAuthError] = useState("");
@@ -133,7 +136,7 @@ export default function AdminPage() {
     setLoading(true);
     setAuthError("");
     try {
-      const h = adminHeaders();
+      const h = adminHeaders(adminKey);
       const [o, u, s, a, nl, mg, pv, pr] = await Promise.all([
         fetch(`${API}/api/admin/orders`, { headers: h }).then((r) => r.json()),
         fetch(`${API}/api/admin/users`, { headers: h }).then((r) => r.json()),
@@ -156,69 +159,69 @@ export default function AdminPage() {
       setAuthenticated(true);
     } catch { setAuthError("Cannot connect to server"); }
     setLoading(false);
-  }, []);
+  }, [adminKey]);
 
   const updateStatus = useCallback(async (orderId: string, status: string) => {
     setUpdatingId(orderId);
     try {
       const res = await fetch(`${API}/api/admin/orders/${orderId}/status`, {
-        method: "PUT", headers: adminHeaders(), body: JSON.stringify({ status }),
+        method: "PUT", headers: adminHeaders(adminKey), body: JSON.stringify({ status }),
       });
       if (!res.ok) { const err = await res.json(); throw new Error(err.error || "Request failed"); }
       const updated = await res.json();
       setOrders((prev) => prev.map((o) => (o.id === orderId ? updated : o)));
     } catch (e: any) { toast(e.message || "Failed to update status", "error"); }
     setUpdatingId(null);
-  }, [toast]);
+  }, [adminKey, toast]);
 
   const updateItemStatus = useCallback(async (orderId: string, itemIdx: number, status: string) => {
     setUpdatingId(orderId);
     try {
       const res = await fetch(`${API}/api/admin/orders/${orderId}/items/${itemIdx}/status`, {
-        method: "PUT", headers: adminHeaders(), body: JSON.stringify({ status }),
+        method: "PUT", headers: adminHeaders(adminKey), body: JSON.stringify({ status }),
       });
       if (!res.ok) { const err = await res.json(); throw new Error(err.error || "Request failed"); }
       const updated = await res.json();
       setOrders((prev) => prev.map((o) => (o.id === orderId ? updated : o)));
     } catch (e: any) { toast(e.message || "Failed to update item status", "error"); }
     setUpdatingId(null);
-  }, [toast]);
+  }, [adminKey, toast]);
 
   const assignOrder = useCallback(async (orderId: string, deliveryId: string) => {
     setUpdatingId(orderId);
     try {
       const res = await fetch(`${API}/api/admin/orders/${orderId}/assign`, {
-        method: "PUT", headers: adminHeaders(), body: JSON.stringify({ deliveryId }),
+        method: "PUT", headers: adminHeaders(adminKey), body: JSON.stringify({ deliveryId }),
       });
       if (!res.ok) { const err = await res.json(); throw new Error(err.error || "Request failed"); }
       loadAll();
     } catch (e: any) { toast(e.message || "Failed to assign/unassign delivery executive", "error"); }
     setUpdatingId(null);
-  }, [loadAll, toast]);
+  }, [adminKey, loadAll, toast]);
 
   const paymentAction = useCallback(async (orderId: string, action: "approve" | "reject") => {
     setUpdatingId(orderId);
     try {
       const res = await fetch(`${API}/api/admin/orders/${orderId}/payment`, {
-        method: "PUT", headers: adminHeaders(), body: JSON.stringify({ action }),
+        method: "PUT", headers: adminHeaders(adminKey), body: JSON.stringify({ action }),
       });
       if (!res.ok) { const err = await res.json(); throw new Error(err.error || "Request failed"); }
       loadAll();
     } catch (e: any) { toast(e.message || "Failed to update payment", "error"); }
     setUpdatingId(null);
-  }, [loadAll, toast]);
+  }, [adminKey, loadAll, toast]);
 
   const returnApprove = useCallback(async (orderId: string, action: "approve" | "reject") => {
     setUpdatingId(orderId);
     try {
       const res = await fetch(`${API}/api/admin/orders/${orderId}/return-approve`, {
-        method: "PUT", headers: adminHeaders(), body: JSON.stringify({ action }),
+        method: "PUT", headers: adminHeaders(adminKey), body: JSON.stringify({ action }),
       });
       if (!res.ok) { const err = await res.json(); throw new Error(err.error || "Request failed"); }
       loadAll();
     } catch (e: any) { toast(e.message || "Failed to process return", "error"); }
     setUpdatingId(null);
-  }, [loadAll, toast]);
+  }, [adminKey, loadAll, toast]);
 
   const handleSignOut = useCallback(() => {
     setAuthenticated(false);
@@ -240,11 +243,6 @@ export default function AdminPage() {
     newsletter: newsletter?.active || 0,
     privateviewing: privateViewing?.unread || 0,
   } as Partial<Record<Tab, number>>), [orders, users, messages, passwordResets, newsletter, privateViewing]);
-
-  useEffect(() => {
-    if (authLoading) return;
-    if (isOwner && !authenticated && !loading) loadAll();
-  }, [authLoading, isOwner, authenticated, loading, loadAll]);
 
   /* Require an actual signed-in ADMIN (owner) account. Anyone who is not
      signed in, or not the owner, is denied — the panel never opens for them. */
@@ -291,6 +289,10 @@ export default function AdminPage() {
         </div>
       </div>
     );
+  }
+
+  if (!authenticated) {
+    return <AuthGate adminKey={adminKey} setAdminKey={setAdminKey} showKey={showKey} setShowKey={setShowKey} loading={loading} onSubmit={loadAll} authError={authError} />;
   }
 
   return (
