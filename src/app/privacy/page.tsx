@@ -5,6 +5,7 @@ import { useLight } from "@/components/auth/auth-ui";
 import SiteLayout from "@/components/layout/SiteLayout";
 import { cn } from "@/lib/utils";
 import { ShieldCheck, ArrowRight } from "lucide-react";
+import TrustMarquee from "@/components/TrustMarquee";
 
 const sections = [
   {
@@ -92,6 +93,7 @@ export default function PrivacyPage() {
             Last updated: August 2026
           </p>
         </div>
+        <TrustMarquee />
       </section>
 
       <section className={cn("py-20 sm:py-28", light ? "bg-white" : "bg-[#111111]")}>

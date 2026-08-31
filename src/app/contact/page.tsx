@@ -20,6 +20,7 @@ import {
   LogIn,
 } from "lucide-react";
 import ContactAnimation from "@/components/ContactAnimation";
+import TrustMarquee from "@/components/TrustMarquee";
 
 function InstagramIcon({ size = 20 }: { size?: number }) {
   return (
@@ -196,6 +197,7 @@ export default function ContactPage() {
             simply want to say hello — we are here for you.
           </p>
         </div>
+        <TrustMarquee />
       </section>
 
       <section className={cn("py-24 sm:py-32", light ? "bg-white" : "bg-[#111111]")}>

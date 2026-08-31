@@ -13,6 +13,7 @@ import {
   Quote,
 } from "lucide-react";
 import AboutAnimation from "@/components/AboutAnimation";
+import TrustMarquee from "@/components/TrustMarquee";
 
 const values = [
   {
@@ -83,6 +84,7 @@ export default function AboutPage() {
             invitation to experience the extraordinary.
           </p>
         </div>
+        <TrustMarquee />
       </section>
 
       <section className={cn("py-24 sm:py-32", light ? "bg-white" : "bg-[#111111]")}>
