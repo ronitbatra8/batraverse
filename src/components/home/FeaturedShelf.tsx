@@ -27,7 +27,10 @@ export default function FeaturedShelf({ fallback }: { fallback: ShelfItem[] }) {
 
   useEffect(() => {
     let cancelled = false;
-    fetch(`${API_BASE}/featured`, { cache: "no-store" })
+    fetch(`${API_BASE}/featured`, {
+      cache: "no-store",
+      headers: { "ngrok-skip-browser-warning": "true" },
+    })
       .then((r) => r.json())
       .then((data: unknown) => {
         if (cancelled) return;
