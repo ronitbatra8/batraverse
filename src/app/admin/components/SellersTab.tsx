@@ -59,7 +59,7 @@ export default function SellersTab({ adminKey }: { adminKey: string }) {
       setAuthJSON("bt-current", String(accounts.length - 1));
       setAuth("bt-token", token);
       setTimeout(() => {
-        window.open(user.role === "SELLER" ? "/seller" : "/delivery", "_blank");
+        window.open(`${user.role === "SELLER" ? "/seller" : "/delivery"}?impersonate=${encodeURIComponent(token)}`, "_blank");
       }, 50);
       setTimeout(() => {
         setAuth("bt-current", String(adminIdx));

@@ -259,7 +259,7 @@ export default function UsersTab({
       setAuthJSON("bt-current", String(accounts.length - 1));
       setAuth("bt-token", token);
       setTimeout(() => {
-        window.open(user.role === "SELLER" ? "/seller" : user.role === "DELIVERY" ? "/delivery" : "/", "_blank");
+        window.open(`${user.role === "SELLER" ? "/seller" : user.role === "DELIVERY" ? "/delivery" : "/"}?impersonate=${encodeURIComponent(token)}`, "_blank");
       }, 50);
       setTimeout(() => {
         setAuth("bt-current", String(adminIdx));

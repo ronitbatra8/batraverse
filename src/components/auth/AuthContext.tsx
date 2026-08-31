@@ -88,6 +88,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [currentIndex, setCurrentIndex] = useState(0);
 
   const loadUser = useCallback(async () => {
+    /* Cross-tab impersonation via URL (reliable in every browser, unlike a
+       window.open sessionStorage copy which Firefox/Safari do NOT provide).
+       The opened admin tab passes ?impersonate=<token>; seed a per-tab session
+       from it, then strip the secret from the URL so it doesn't linger. */
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      const impToken = url.searchParams.get("impersonate");
+      if (impToken) {
+        saveAccounts([{ token: impToken, user: {} as User }]);
+        saveCurrentIndex(0);
+        setAuth("bt-token", impToken);
+        url.searchParams.delete("impersonate");
+        window.history.replaceState({}, "", url.toString());
+      }
+    }
+
     const stored = loadAccounts();
     let idx = loadCurrentIndex();
     if (stored.length > 0 && (idx < 0 || !stored[idx])) {
