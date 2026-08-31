@@ -238,38 +238,39 @@ html.light {
   --bg-page: white;
 }
 
-/* Rolls-Royce cursor — exact match */
+/* Rolls-Royce cursor — exact match: the native cursor is removed everywhere and
+   replaced by a 46px difference-blended ring that follows the pointer. */
 @media (pointer: fine) {
-  html {
+  html,
+  html * {
     cursor: none !important;
-  }
-  html.scroll-locked,
-  html.scroll-locked * {
-    cursor: default !important;
   }
 }
 .rrmc-cursor {
+  border-radius: 50%;
   display: none;
-  height: 15px;
+  height: 46px;
   left: 0;
   mix-blend-mode: difference;
   pointer-events: none;
   position: fixed;
   top: 0;
-  width: 15px;
+  width: 46px;
   z-index: 6000;
 }
-
+.rrmc-cursor.rrmc-cursor--show {
+  display: block;
+}
 .rrmc-cursor-inner {
   height: 100%;
-  padding-left: 0 !important;
-  padding-right: 0 !important;
-  position: relative;
+  left: 0;
+  position: absolute;
+  top: 0;
   transform: translate3d(-50%, -50%, 0);
   width: 100%;
 }
-
 .rrmc-cursor-border {
+  background: rgba(255, 255, 255, 0.15);
   border: 1px solid rgba(255, 255, 255, 0.9);
   border-radius: 50%;
   display: block;
@@ -278,8 +279,7 @@ html.light {
   position: absolute;
   top: 0;
   width: 100%;
-  z-index: 10;
-  background: rgba(255, 255, 255, 0.15);
+  will-change: transform;
 }
 
 /* Performance: CSS keyframe animations replacing Framer Motion infinite loops */
