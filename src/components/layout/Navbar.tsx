@@ -478,9 +478,7 @@ export default function Navbar() {
                     : "text-cream hover:text-gold-light"
               )}
             >
-              {/* RR-style wordplate: icon + MENU/CLOSE. The panel lives BELOW the
-                 navbar (like RR: button z 5001 above menu z 3000), so this same
-                 button turns into CLOSE while the sidebar is open.
+              {/* RR-style wordplate: icon + MENU/CLOSE.
                  The icon is RR's own "menu-burger-icon w/ hover" Lottie (16×16):
                  hovering plays its shine (frames 0→30), opening morphs it to ✕. */}
               <span className="rr-menu-icon" aria-hidden ref={menuIconRef} />
@@ -523,7 +521,8 @@ export default function Navbar() {
         </nav>
       </motion.header>
 
-      {/* Sliding sidebar — full height, paints below the navbar so the MENU/CLOSE wordplate stays visible */}
+      {/* Sliding sidebar — full height, paints above the navbar/header; on mobile
+          it also covers the bottom tab bar (panel z-55 over scrim z-54 over both) */}
       <AnimatePresence>
         {sliderOpen && (
           <>
@@ -534,7 +533,7 @@ export default function Navbar() {
               exit={{ opacity: 0, transition: { duration: 0.5, delay: earlyExitRowDelay } }}
               transition={{ duration: 0.5 }}
               onClick={() => setSliderOpen(false)}
-              className="fixed inset-0 z-[35] bg-black/25"
+              className="fixed inset-0 z-[54] bg-black/25"
             />
             <motion.aside
               ref={sliderPanelRef}
@@ -546,7 +545,7 @@ export default function Navbar() {
               }}
               style={{ willChange: "transform" }}
               className={cn(
-                "fixed inset-y-0 right-0 z-[36] flex w-[440px] max-w-[92vw] flex-col border-l backdrop-blur-2xl",
+                "fixed inset-y-0 right-0 z-[55] flex w-[440px] max-w-[92vw] flex-col border-l backdrop-blur-2xl",
                 lightNav
                   ? "border-white/60 bg-white/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.85),-24px_0_60px_rgba(0,0,0,0.12)]"
                   : "border-gold/15 bg-onyx/55 shadow-[inset_0_1px_0_rgba(212,175,55,0.12),-24px_0_60px_rgba(0,0,0,0.4)]"
