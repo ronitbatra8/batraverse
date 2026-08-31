@@ -490,10 +490,12 @@ export default function Navbar() {
             >
               {/* RR-style wordplate: icon + MENU/CLOSE.
                  The icon is RR's own "menu-burger-icon w/ hover" Lottie (16×16):
-                 hovering plays its shine (frames 0→30), opening morphs it to ✕. */}
+                 hovering plays its shine (frames 0→30), opening morphs it to ✕.
+                 On mobile only the icon shows; the MENU/CLOSE wordplate appears
+                 at lg and up. */}
               <span className="rr-menu-icon" aria-hidden ref={menuIconRef} />
               {/* Constant-width wordplate (phantom "Close" reserves the width like RR) */}
-              <span className="relative inline-flex items-center">
+              <span className="relative hidden items-center lg:inline-flex">
                 <span aria-hidden className="invisible whitespace-nowrap">
                   Close
                 </span>
