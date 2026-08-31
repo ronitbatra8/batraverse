@@ -10,6 +10,7 @@ import { cn, formatPrice } from "@/lib/utils";
 import { resolveImageUrl } from "@/lib/imageUrl";
 import { PRODUCTS, type Product } from "@/app/store/products";
 import { MART_PRODUCTS, type MartProduct } from "@/app/mart/products";
+import { MEDIVERSE_PRODUCTS, type MediverseProduct } from "@/app/mediverse/products";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
@@ -35,10 +36,21 @@ const DB_MART_GRADIENT: Record<string, string> = {
   default: "from-stone-400 to-stone-600",
 };
 
+const DB_MEDIVERSE_GRADIENT: Record<string, string> = {
+  wellness: "from-yellow-400 to-amber-500",
+  fitness: "from-red-500 to-orange-500",
+  healthcare: "from-blue-500 to-indigo-600",
+  nutrition: "from-green-500 to-lime-500",
+  beauty: "from-pink-400 to-rose-500",
+  sleep: "from-indigo-400 to-purple-600",
+  default: "from-teal-400 to-cyan-500",
+};
+
 const SOURCE_TABS = [
   { key: "all" as const, label: "All Products" },
   { key: "store" as const, label: "Store" },
   { key: "mart" as const, label: "Mart" },
+  { key: "mediverse" as const, label: "Mediverse" },
 ];
 
 interface DbProduct {
@@ -75,7 +87,7 @@ interface UnifiedProduct {
   inStock: boolean;
   img?: string;
   dbImages?: string[];
-  source: "store" | "mart";
+  source: "store" | "mart" | "mediverse";
   unit?: string;
 }
 
@@ -106,11 +118,11 @@ function dbToUnified(p: DbProduct, source: "store" | "mart"): UnifiedProduct {
   };
 }
 
-function staticToUnified(p: Product | MartProduct, source: "store" | "mart"): UnifiedProduct {
+function staticToUnified(p: Product | MartProduct | MediverseProduct, source: "store" | "mart" | "mediverse"): UnifiedProduct {
   return {
     id: p.id,
     name: p.name,
-    brand: "brand" in p ? (p as MartProduct).brand : (p as Product).brand || "",
+    brand: "brand" in p ? (p as MartProduct | MediverseProduct).brand : (p as Product).brand || "",
     price: p.price,
     originalPrice: p.originalPrice,
     category: p.category,
@@ -121,7 +133,7 @@ function staticToUnified(p: Product | MartProduct, source: "store" | "mart"): Un
     reviews: p.reviews,
     inStock: p.inStock,
     source,
-    unit: "unit" in p ? (p as MartProduct).unit : undefined,
+    unit: "unit" in p ? (p as MartProduct | MediverseProduct).unit : undefined,
   };
 }
 
@@ -135,7 +147,7 @@ function SearchContent() {
   const [debouncedQuery, setDebouncedQuery] = useState(initialQuery);
   const [dbStore, setDbStore] = useState<UnifiedProduct[]>([]);
   const [dbMart, setDbMart] = useState<UnifiedProduct[]>([]);
-  const [activeSource, setActiveSource] = useState<"all" | "store" | "mart">("all");
+  const [activeSource, setActiveSource] = useState<"all" | "store" | "mart" | "mediverse">("all");
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [hideTabs, setHideTabs] = useState(false);
   const lastScrollY = useRef(0);
@@ -197,12 +209,14 @@ function SearchContent() {
     const staticAll = [
       ...PRODUCTS.map((p) => staticToUnified(p, "store")),
       ...MART_PRODUCTS.map((p) => staticToUnified(p, "mart")),
+      ...MEDIVERSE_PRODUCTS.map((p) => staticToUnified(p, "mediverse")),
     ];
     return [...staticAll, ...dbStore, ...dbMart];
   }, [dbStore, dbMart]);
 
   const storeCount = useMemo(() => allProducts.filter((p) => p.inStock && p.source === "store").length, [allProducts]);
   const martCount = useMemo(() => allProducts.filter((p) => p.inStock && p.source === "mart").length, [allProducts]);
+  const mediverseCount = useMemo(() => allProducts.filter((p) => p.inStock && p.source === "mediverse").length, [allProducts]);
 
   const sourceCounts = useMemo(() => {
     const q = debouncedQuery.toLowerCase().trim();
@@ -215,6 +229,7 @@ function SearchContent() {
       all: base.length,
       store: base.filter((p) => p.source === "store").length,
       mart: base.filter((p) => p.source === "mart").length,
+      mediverse: base.filter((p) => p.source === "mediverse").length,
     };
   }, [allProducts, debouncedQuery]);
 
@@ -252,15 +267,18 @@ function SearchContent() {
                 <span className={cn(light ? "text-sapphire-gradient" : "text-gold-gradient")}>Products</span>
               </h1>
               <p className={cn("mt-3 text-sm tracking-wide", light ? "text-dark-400" : "text-cream-dim/50")}>
-                Browse {storeCount} store items and {martCount} mart items
+                Browse {storeCount} store items, {martCount} mart items and {mediverseCount} mediverse items
               </p>
             </div>
           </div>
         </div>
 
-        {/* Sticky floating search + tabs */}
+        {/* Sticky floating search + tabs — whole block slides up on mobile scroll down */}
         <div
-          className="sticky z-30"
+          className={cn(
+            "sticky z-30 transition-all duration-500",
+            hideTabs ? "max-sm:-translate-y-[calc(100%+84px)]" : "translate-y-0"
+          )}
           style={{ top: "84px" }}
         >
           {/* Search bar */}
@@ -294,13 +312,10 @@ function SearchContent() {
             </div>
           </div>
 
-          {/* Source tabs — hide on scroll down, show on scroll up */}
-          <div className={cn(
-            "transition-all duration-500",
-            hideTabs ? "-translate-y-full" : "translate-y-0"
-          )}>
+          {/* Source tabs */}
+          <div className="relative z-10">
             <div className={cn("border-t transition-colors duration-500", light ? "border-dark-100/40" : "border-white/5")}>
-            <div className="mx-auto flex w-full max-w-[100rem] items-center gap-3 overflow-x-auto px-8 py-4 sm:px-14 [&::-webkit-scrollbar]:hidden">
+            <div className="mx-auto flex w-full max-w-[100rem] items-center gap-2 overflow-x-auto px-4 py-3 sm:gap-3 sm:px-14 sm:py-4 [&::-webkit-scrollbar]:hidden">
               {SOURCE_TABS.map((tab) => {
                 const isActive = activeSource === tab.key;
                 const count = sourceCounts[tab.key];
@@ -310,7 +325,7 @@ function SearchContent() {
                     type="button"
                     onClick={() => setActiveSource(tab.key)}
                     className={cn(
-                      "whitespace-nowrap rounded-full border px-5 py-2.5 text-[11px] font-medium uppercase tracking-[0.24em] backdrop-blur-sm transition-all duration-300",
+                      "shrink-0 whitespace-nowrap rounded-full border text-[9px] font-medium uppercase tracking-[0.18em] backdrop-blur-sm transition-all duration-300 sm:text-[11px] sm:tracking-[0.24em]",
                       isActive
                         ? light
                           ? "border-sapphire/40 bg-sapphire/10 text-sapphire"
@@ -319,8 +334,10 @@ function SearchContent() {
                           ? "border-dark-200 text-dark-400 hover:border-sapphire/30 hover:text-sapphire"
                           : "border-white/5 text-cream-dim/60 hover:border-gold/20 hover:text-cream-dim"
                     )}
+                    style={{ padding: "6px 14px" }}
                   >
-                    {tab.label}
+                    <span className="sm:hidden">{tab.label.replace(" Products", "")}</span>
+                    <span className="hidden sm:inline">{tab.label}</span>
                     <span className={cn("ml-1 text-[8px]", isActive ? (light ? "text-sapphire/50" : "text-gold-light/50") : (light ? "text-dark-300" : "text-cream-dim/30"))}>
                       {count}
                     </span>
@@ -328,9 +345,10 @@ function SearchContent() {
                 );
               })}
 
-              <span className={cn("ml-auto text-[10px] font-medium whitespace-nowrap", light ? "text-dark-400" : "text-cream-dim/50")}>
-                {filtered.length} product{filtered.length !== 1 ? "s" : ""}
-                {debouncedQuery && <span className="ml-1">for &ldquo;{debouncedQuery}&rdquo;</span>}
+              <span className={cn("ml-auto shrink-0 text-[10px] font-medium whitespace-nowrap", light ? "text-dark-400" : "text-cream-dim/50")}>
+                <span className="sm:hidden">{filtered.length}</span>
+                <span className="hidden sm:inline">{filtered.length} product{filtered.length !== 1 ? "s" : ""}</span>
+                {debouncedQuery && <span className="ml-1 hidden sm:inline">for &ldquo;{debouncedQuery}&rdquo;</span>}
               </span>
             </div>
           </div>
@@ -375,8 +393,13 @@ function SearchContent() {
 }
 
 function SearchCard({ product, light }: { product: UnifiedProduct; light: boolean }) {
-  const isStore = product.source === "store";
-  const href = isStore ? `/store/${product.id}` : `/mart/${product.id}`;
+  const source = product.source;
+  const href =
+    source === "store"
+      ? `/store/${product.id}`
+      : source === "mediverse"
+        ? `/mediverse/${product.id}`
+        : `/mart/${product.id}`;
   const hasImage = (product.dbImages && product.dbImages.length > 0) || product.img;
 
   return (
@@ -405,16 +428,20 @@ function SearchCard({ product, light }: { product: UnifiedProduct; light: boolea
         <span
           className={cn(
             "absolute left-3 top-3 rounded-full px-3 py-1 text-[8px] font-bold uppercase tracking-[0.2em]",
-            isStore
+            source === "store"
               ? light
                 ? "bg-sapphire/90 text-white"
                 : "bg-gold/90 text-abyss"
-              : light
-                ? "bg-emerald-600/90 text-white"
-                : "bg-emerald-500/90 text-white"
+              : source === "mediverse"
+                ? light
+                  ? "bg-violet-600/90 text-white"
+                  : "bg-violet-500/90 text-white"
+                : light
+                  ? "bg-emerald-600/90 text-white"
+                  : "bg-emerald-500/90 text-white"
           )}
         >
-          {isStore ? "Store" : "Mart"}
+          {source === "store" ? "Store" : source === "mediverse" ? "Mediverse" : "Mart"}
         </span>
         {product.badge && (
           <span
