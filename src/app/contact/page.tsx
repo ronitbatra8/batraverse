@@ -171,12 +171,12 @@ export default function ContactPage() {
     <SiteLayout>
       <section
         className={cn(
-          "relative flex min-h-[65vh] items-center justify-center overflow-hidden",
+          "relative flex min-h-[65vh] flex-col overflow-hidden",
           "bg-abyss text-cream"
         )}
       >
         <ContactAnimation />
-        <div className="relative z-10 px-6 text-center">
+        <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-6 text-center">
           <p className="mb-6 text-[10px] font-semibold uppercase tracking-[0.6em] text-gold/70">
             We&rsquo;d Love to Hear From You
           </p>

@@ -61,7 +61,7 @@ export default function PrivacyPage() {
     <SiteLayout>
       <section
         className={cn(
-          "relative flex min-h-[50vh] items-center justify-center overflow-hidden",
+          "relative flex min-h-[50vh] flex-col overflow-hidden",
           "bg-abyss text-cream"
         )}
       >
@@ -73,7 +73,7 @@ export default function PrivacyPage() {
               "radial-gradient(ellipse 80% 60% at 50% 40%, rgba(212,175,55,0.07), transparent 70%)",
           }}
         />
-        <div className="relative z-10 px-6 text-center">
+        <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-6 text-center">
           <p className="mb-4 text-[10px] font-semibold uppercase tracking-[0.6em] text-gold/70">
             Your Data
           </p>

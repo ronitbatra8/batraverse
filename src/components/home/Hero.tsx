@@ -4,15 +4,10 @@ import { motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import {
-  ArrowRight,
-  ShieldCheck,
-  Sparkles,
-  Truck,
-  RotateCcw,
-} from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { useBootPhase } from "@/components/boot/BootContext";
 import { useTheme } from "@/components/theme/ThemeProvider";
+import TrustMarquee from "@/components/TrustMarquee";
 
 import { cn } from "@/lib/utils";
 
@@ -22,13 +17,6 @@ const EASE = [0.16, 1, 0.3, 1] as const;
    overlays deepen it in dark mode, day keeps it original. */
 const HERO_IMG = "/hero.jpg";
 const HERO_IMG_MOBILE = "https://thumbs.dreamstime.com/b/beautiful-happy-female-model-long-brown-hair-posing-cowb-cowboy-hat-fashion-green-top-dark-background-closeup-84024984.jpg";
-
-const TRUST = [
-  { icon: Truck, label: "White-Glove Delivery" },
-  { icon: ShieldCheck, label: "Authenticity Guaranteed" },
-  { icon: RotateCcw, label: "Private Returns Concierge" },
-  { icon: Sparkles, label: "Hand-Curated Edit" },
-] as const;
 
 export default function Hero() {
   const phase = useBootPhase();
@@ -214,57 +202,7 @@ export default function Hero() {
         </div>
 
         {/* Marquee */}
-        <div
-          className={cn(
-            "relative py-5 backdrop-blur-md transition-colors duration-1000",
-            light
-              ? "bg-gradient-to-b from-black/70 via-black/65 to-black/70"
-              : "bg-gradient-to-b from-black/80 via-black/75 to-black/80"
-          )}
-        >
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-x-0 top-0 h-full"
-            style={{
-              background: light
-                ? "radial-gradient(ellipse 55% 100% at 50% 0%, rgba(30,58,138,0.12), transparent 70%)"
-                : "radial-gradient(ellipse 55% 100% at 50% 0%, rgba(212,175,55,0.16), transparent 70%)",
-            }}
-          />
-          <div
-            className="flex w-max items-center anim-marquee"
-          >
-            {[...TRUST, ...TRUST].map((item, i) => (
-              <span key={i} className="flex items-center">
-                <span className="flex items-center gap-2.5 whitespace-nowrap px-12">
-                  <item.icon
-                    size={16}
-                    className={cn(
-                      light ? "text-sapphire" : "text-gold"
-                    )}
-                    strokeWidth={1.6}
-                  />
-                  <span
-                    className={cn(
-                      "text-[11px] font-medium uppercase tracking-[0.18em]",
-                      light ? "text-white/80" : "text-white/70"
-                    )}
-                  >
-                    {item.label}
-                  </span>
-                </span>
-                <span
-                  className={cn(
-                    "text-[7px]",
-                    light ? "text-sapphire/50" : "text-gold/50"
-                  )}
-                >
-                  ◆
-                </span>
-              </span>
-            ))}
-          </div>
-        </div>
+        <TrustMarquee />
       </motion.div>
 
       {/* Floating lamp — hovers over the empty wall, casting a warm gold light */}
@@ -427,15 +365,15 @@ function Lamp({ active }: { active: boolean }) {
               <div
                 className="absolute inset-0 transition-opacity duration-700 ease-in-out"
                 style={{
-                  opacity: theme === "light" ? 0 : 1,
-                  background: "linear-gradient(to bottom, #f0d98c, #b5893a, #6b4e16)",
+                  opacity: theme === "light" ? 1 : 0,
+                  background: "linear-gradient(to bottom, #3a3a42, #1f1f26, #0c0c10)",
                 }}
               />
               <div
                 className="absolute inset-0 transition-opacity duration-700 ease-in-out"
                 style={{
-                  opacity: theme === "light" ? 1 : 0,
-                  background: "linear-gradient(to bottom, #5a9bd5, #3a7bd5, #1e3a5f)",
+                  opacity: theme === "light" ? 0 : 1,
+                  background: "linear-gradient(to bottom, #ffffff, #e8e8f0, #c8c8d4)",
                 }}
               />
             </div>

@@ -22,7 +22,7 @@ function TrustMarquee() {
     <div
       aria-hidden
       className={cn(
-        "pointer-events-none absolute inset-x-0 bottom-0 overflow-hidden border-t py-5 backdrop-blur-md",
+        "pointer-events-none mt-auto w-full overflow-hidden border-t py-5 backdrop-blur-md",
         light
           ? "border-white/30 bg-gradient-to-b from-white/55 via-white/20 to-transparent"
           : "border-gold/15 bg-gradient-to-b from-onyx/70 via-onyx/35 to-transparent"
