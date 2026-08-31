@@ -394,7 +394,7 @@ export default function Navbar() {
           {/* Actions */}
           <motion.div
             className={cn(
-              "flex items-center gap-1 sm:gap-3",
+              "flex items-center gap-2 sm:gap-4",
               sliderOpen && "pointer-events-none [&>*:not([data-menu-trigger])]:opacity-0"
             )}
             initial={boot !== "skip" ? { opacity: 0 } : false}
@@ -472,7 +472,7 @@ export default function Navbar() {
               aria-label={sliderOpen ? "Close menu" : "Open menu"}
               onMouseEnter={handleMenuHover}
               className={cn(
-                "inline-flex h-6 items-center text-[11px] font-medium uppercase tracking-[0.25em] transition-[opacity,color] duration-300 hover:opacity-70 sm:text-[12px]",
+                "ml-2 inline-flex h-6 items-center text-[11px] font-medium uppercase tracking-[0.25em] transition-[opacity,color] duration-300 hover:opacity-70 sm:ml-4 sm:text-[12px]",
                 lightNav
                   ? sliderOpen
                     ? "text-sapphire"
