@@ -349,7 +349,7 @@ export default function Navbar() {
             ref={brandRef}
             data-nav-brand
             animate={brandControls}
-            className="flex items-center"
+            className={cn("flex items-center", sliderOpen && "max-lg:hidden")}
             style={{ opacity: 0 }}
           >
             <Link
@@ -586,6 +586,7 @@ export default function Navbar() {
       <div
         className={cn(
           "fixed inset-x-0 bottom-0 z-50 rounded-none border-t border-x-0 border-b-0 backdrop-blur-2xl transition-transform duration-500 ease-[cubic-bezier(0.33,1,0.68,1)] lg:hidden",
+          sliderOpen && "hidden",
           lightNav
             ? "border-white/60 bg-white/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_-12px_40px_rgba(0,0,0,0.10)]"
             : "border-gold/15 bg-onyx/70 shadow-[inset_0_1px_0_rgba(212,175,55,0.12),0_-12px_40px_rgba(0,0,0,0.5)]",
