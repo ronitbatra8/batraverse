@@ -1,5 +1,7 @@
 "use client";
 
+import { getAuth } from "@/lib/authStorage";
+
 export type Tab = "overview" | "orders" | "users" | "messages" | "security" | "analytics" | "newsletter" | "delivery" | "sellers" | "privateviewing" | "cards" | "violations" | "categories" | "productcatalog" | "sellerrequests" | "ads" | "wallet";
 export type UserDetailTab = "overview" | "orders" | "addresses" | "reviews" | "wishlist" | "messages" | "security";
 
@@ -23,6 +25,13 @@ export const msgStatusColors: Record<string, string> = {
   resolved: "text-gold-400 bg-gold-500/10 border-gold-500/20",
 };
 
-export function adminHeaders(key: string) {
-  return { "x-admin-key": key, "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" };
+export function adminHeaders(key?: string) {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    "ngrok-skip-browser-warning": "true",
+  };
+  if (key) headers["x-admin-key"] = key;
+  const token = getAuth("bt-token");
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  return headers;
 }

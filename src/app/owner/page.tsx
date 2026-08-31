@@ -1,9 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { ShieldAlert, LogIn, ArrowLeft } from "lucide-react";
 import { Tab, API, adminHeaders } from "../admin/components/types";
-import AuthGate from "../admin/components/AuthGate";
+import { useAuth } from "@/components/auth/AuthContext";
+import { Spinner } from "@/components/auth/auth-ui";
+import { cn } from "@/lib/utils";
 import Sidebar from "../admin/components/Sidebar";
 import OverviewTab from "../admin/components/OverviewTab";
 import OrdersTab from "../admin/components/OrdersTab";
@@ -103,12 +108,14 @@ const PREVIEW_DATA = {
 
 export default function AdminPage() {
   const { toast } = useToast();
-  const [adminKey, setAdminKey] = useState("");
+  const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
   const [authenticated, setAuthenticated] = useState(false);
   const [tab, setTab] = useState<Tab>("overview");
   const [loading, setLoading] = useState(false);
-  const [showKey, setShowKey] = useState(false);
   const [authError, setAuthError] = useState("");
+
+  const isOwner = !!user && user.role === "ADMIN";
 
   const [orders, setOrders] = useState<any[]>(PREVIEW_DATA.orders);
   const [users, setUsers] = useState<any[]>(PREVIEW_DATA.users);
@@ -126,7 +133,7 @@ export default function AdminPage() {
     setLoading(true);
     setAuthError("");
     try {
-      const h = adminHeaders(adminKey);
+      const h = adminHeaders();
       const [o, u, s, a, nl, mg, pv, pr] = await Promise.all([
         fetch(`${API}/api/admin/orders`, { headers: h }).then((r) => r.json()),
         fetch(`${API}/api/admin/users`, { headers: h }).then((r) => r.json()),
@@ -149,73 +156,72 @@ export default function AdminPage() {
       setAuthenticated(true);
     } catch { setAuthError("Cannot connect to server"); }
     setLoading(false);
-  }, [adminKey]);
+  }, []);
 
   const updateStatus = useCallback(async (orderId: string, status: string) => {
     setUpdatingId(orderId);
     try {
       const res = await fetch(`${API}/api/admin/orders/${orderId}/status`, {
-        method: "PUT", headers: adminHeaders(adminKey), body: JSON.stringify({ status }),
+        method: "PUT", headers: adminHeaders(), body: JSON.stringify({ status }),
       });
       if (!res.ok) { const err = await res.json(); throw new Error(err.error || "Request failed"); }
       const updated = await res.json();
       setOrders((prev) => prev.map((o) => (o.id === orderId ? updated : o)));
     } catch (e: any) { toast(e.message || "Failed to update status", "error"); }
     setUpdatingId(null);
-  }, [adminKey, toast]);
+  }, [toast]);
 
   const updateItemStatus = useCallback(async (orderId: string, itemIdx: number, status: string) => {
     setUpdatingId(orderId);
     try {
       const res = await fetch(`${API}/api/admin/orders/${orderId}/items/${itemIdx}/status`, {
-        method: "PUT", headers: adminHeaders(adminKey), body: JSON.stringify({ status }),
+        method: "PUT", headers: adminHeaders(), body: JSON.stringify({ status }),
       });
       if (!res.ok) { const err = await res.json(); throw new Error(err.error || "Request failed"); }
       const updated = await res.json();
       setOrders((prev) => prev.map((o) => (o.id === orderId ? updated : o)));
     } catch (e: any) { toast(e.message || "Failed to update item status", "error"); }
     setUpdatingId(null);
-  }, [adminKey, toast]);
+  }, [toast]);
 
   const assignOrder = useCallback(async (orderId: string, deliveryId: string) => {
     setUpdatingId(orderId);
     try {
       const res = await fetch(`${API}/api/admin/orders/${orderId}/assign`, {
-        method: "PUT", headers: adminHeaders(adminKey), body: JSON.stringify({ deliveryId }),
+        method: "PUT", headers: adminHeaders(), body: JSON.stringify({ deliveryId }),
       });
       if (!res.ok) { const err = await res.json(); throw new Error(err.error || "Request failed"); }
       loadAll();
     } catch (e: any) { toast(e.message || "Failed to assign/unassign delivery executive", "error"); }
     setUpdatingId(null);
-  }, [adminKey, loadAll, toast]);
+  }, [loadAll, toast]);
 
   const paymentAction = useCallback(async (orderId: string, action: "approve" | "reject") => {
     setUpdatingId(orderId);
     try {
       const res = await fetch(`${API}/api/admin/orders/${orderId}/payment`, {
-        method: "PUT", headers: adminHeaders(adminKey), body: JSON.stringify({ action }),
+        method: "PUT", headers: adminHeaders(), body: JSON.stringify({ action }),
       });
       if (!res.ok) { const err = await res.json(); throw new Error(err.error || "Request failed"); }
       loadAll();
     } catch (e: any) { toast(e.message || "Failed to update payment", "error"); }
     setUpdatingId(null);
-  }, [adminKey, loadAll, toast]);
+  }, [loadAll, toast]);
 
   const returnApprove = useCallback(async (orderId: string, action: "approve" | "reject") => {
     setUpdatingId(orderId);
     try {
       const res = await fetch(`${API}/api/admin/orders/${orderId}/return-approve`, {
-        method: "PUT", headers: adminHeaders(adminKey), body: JSON.stringify({ action }),
+        method: "PUT", headers: adminHeaders(), body: JSON.stringify({ action }),
       });
       if (!res.ok) { const err = await res.json(); throw new Error(err.error || "Request failed"); }
       loadAll();
     } catch (e: any) { toast(e.message || "Failed to process return", "error"); }
     setUpdatingId(null);
-  }, [adminKey, loadAll, toast]);
+  }, [loadAll, toast]);
 
   const handleSignOut = useCallback(() => {
     setAuthenticated(false);
-    setAdminKey("");
     setTab("overview");
   }, []);
 
@@ -235,8 +241,56 @@ export default function AdminPage() {
     privateviewing: privateViewing?.unread || 0,
   } as Partial<Record<Tab, number>>), [orders, users, messages, passwordResets, newsletter, privateViewing]);
 
-  if (!authenticated) {
-    return <AuthGate adminKey={adminKey} setAdminKey={setAdminKey} showKey={showKey} setShowKey={setShowKey} loading={loading} onSubmit={loadAll} authError={authError} />;
+  useEffect(() => {
+    if (authLoading) return;
+    if (isOwner && !authenticated && !loading) loadAll();
+  }, [authLoading, isOwner, authenticated, loading, loadAll]);
+
+  /* Require an actual signed-in ADMIN (owner) account. Anyone who is not
+     signed in, or not the owner, is denied — the panel never opens for them. */
+  if (authLoading) return <Spinner />;
+
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-6">
+        <div className="w-full max-w-md text-center">
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gold-500/10 border border-gold-500/20 mb-6">
+            <LogIn size={36} className="text-gold-400" />
+          </div>
+          <h1 className="text-3xl font-display font-bold text-white mb-3">Owner Panel</h1>
+          <p className="text-dark-400 text-sm mb-8">
+            You must be signed in as the owner to access the owner dashboard.
+          </p>
+          <Link href="/login" className="inline-flex items-center gap-2 bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-dark-950 px-8 py-3.5 rounded-xl font-semibold transition-all hover:shadow-lg hover:shadow-gold-500/20">
+            Sign In
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isOwner) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-6">
+        <div className="w-full max-w-md text-center">
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-red-500/10 border border-red-500/20 mb-6">
+            <ShieldAlert size={36} className="text-red-400" />
+          </div>
+          <h1 className="text-3xl font-display font-bold text-white mb-3">Access Denied</h1>
+          <p className="text-dark-400 text-sm mb-8">
+            This area is restricted to the owner account only. You are signed in as a non-owner account.
+          </p>
+          <div className="flex items-center justify-center gap-3">
+            <Link href="/" className="inline-flex items-center gap-2 border border-dark-700 text-white px-6 py-3 rounded-xl text-sm font-medium transition-colors hover:bg-dark-800">
+              <ArrowLeft size={16} /> Back to Home
+            </Link>
+            <Link href="/account" className="inline-flex items-center gap-2 border border-dark-700 text-white px-6 py-3 rounded-xl text-sm font-medium transition-colors hover:bg-dark-800">
+              My Account
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -246,22 +300,22 @@ export default function AdminPage() {
       <main className="pt-40 min-h-screen lg:pl-56">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-24 lg:pb-8">
           {tab === "overview" && <OverviewTab stats={stats} orders={orders} passwordResets={passwordResets} messages={messages} onNavigate={handleNavigateToTab} />}
-          {tab === "orders" && <OrdersTab orders={orders} updatingId={updatingId} onStatusUpdate={updateStatus} onItemStatusUpdate={updateItemStatus} onAssign={assignOrder} onPaymentAction={paymentAction} onReturnApprove={returnApprove} focusOrderId={focusOrderId} onFocusHandled={() => setFocusOrderId(null)} adminKey={adminKey} />}
-          {tab === "users" && <UsersTab users={users} adminKey={adminKey} onNavigate={handleNavigateToTab} />}
-          {tab === "messages" && <MessagesTab messages={messages} adminKey={adminKey} setMessages={setMessages} />}
+          {tab === "orders" && <OrdersTab orders={orders} updatingId={updatingId} onStatusUpdate={updateStatus} onItemStatusUpdate={updateItemStatus} onAssign={assignOrder} onPaymentAction={paymentAction} onReturnApprove={returnApprove} focusOrderId={focusOrderId} onFocusHandled={() => setFocusOrderId(null)} adminKey="" />}
+          {tab === "users" && <UsersTab users={users} adminKey="" onNavigate={handleNavigateToTab} />}
+          {tab === "messages" && <MessagesTab messages={messages} adminKey="" setMessages={setMessages} />}
           {tab === "security" && <SecurityTab />}
           {tab === "analytics" && <AnalyticsTab analytics={analytics} />}
-          {tab === "newsletter" && <NewsletterTab newsletter={newsletter} adminKey={adminKey} setNewsletter={setNewsletter} />}
-          {tab === "privateviewing" && <PrivateViewingTab privateViewing={privateViewing} adminKey={adminKey} setPrivateViewing={setPrivateViewing} />}
-          {tab === "delivery" && <DeliveryExecTab adminKey={adminKey} />}
-          {tab === "sellers" && <SellersTab adminKey={adminKey} />}
-          {tab === "cards" && <CardManagement adminKey={adminKey} />}
-          {tab === "violations" && <ViolationsTab adminKey={adminKey} />}
-          {tab === "categories" && <ProductsTab adminKey={adminKey} />}
-          {tab === "productcatalog" && <ProductCatalogTab adminKey={adminKey} />}
-          {tab === "sellerrequests" && <SellerRequestsTab adminKey={adminKey} />}
-          {tab === "ads" && <AdsTab adminKey={adminKey} />}
-          {tab === "wallet" && <WalletTopUpsTab adminKey={adminKey} />}
+          {tab === "newsletter" && <NewsletterTab newsletter={newsletter} adminKey="" setNewsletter={setNewsletter} />}
+          {tab === "privateviewing" && <PrivateViewingTab privateViewing={privateViewing} adminKey="" setPrivateViewing={setPrivateViewing} />}
+          {tab === "delivery" && <DeliveryExecTab adminKey="" />}
+          {tab === "sellers" && <SellersTab adminKey="" />}
+          {tab === "cards" && <CardManagement adminKey="" />}
+          {tab === "violations" && <ViolationsTab adminKey="" />}
+          {tab === "categories" && <ProductsTab adminKey="" />}
+          {tab === "productcatalog" && <ProductCatalogTab adminKey="" />}
+          {tab === "sellerrequests" && <SellerRequestsTab adminKey="" />}
+          {tab === "ads" && <AdsTab adminKey="" />}
+          {tab === "wallet" && <WalletTopUpsTab adminKey="" />}
         </div>
       </main>
     </div>
