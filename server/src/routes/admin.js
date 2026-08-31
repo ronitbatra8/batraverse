@@ -15,6 +15,37 @@ router.use(adminAuth);
 
 const ONLINE_METHODS = ["CARD", "UPI", "NETBANKING", "WALLET"];
 
+/* Injects a product image (product.images[0], falling back to color-option
+   images) into each order item that has a productId but no image yet. This
+   keeps order thumbnails working even for orders placed before the image was
+   stored on the item. */
+async function resolveOrderItemImages(orders) {
+  const items = [];
+  (Array.isArray(orders) ? orders : []).forEach((o) => {
+    if (Array.isArray(o.items)) items.push(...o.items);
+  });
+  const ids = [...new Set(items.map((it) => it && it.productId).filter(Boolean))];
+  if (ids.length === 0) return orders;
+  const products = await prisma.product.findMany({
+    where: { id: { in: ids } },
+    select: { id: true, images: true, colorOptions: true },
+  });
+  const imgByProductId = new Map();
+  for (const p of products) {
+    let img = Array.isArray(p.images) ? p.images[0] : "";
+    if (!img && Array.isArray(p.colorOptions)) {
+      img = p.colorOptions
+        .map((c) => (Array.isArray(c.images) ? c.images[0] : typeof c.images === "string" ? c.images : null))
+        .find(Boolean) || "";
+    }
+    imgByProductId.set(p.id, img || "");
+  }
+  items.forEach((it) => {
+    if (it && it.productId && !it.image) it.image = imgByProductId.get(it.productId) || "";
+  });
+  return orders;
+}
+
 router.get("/orders", async (req, res) => {
   try {
     const orders = await prisma.order.findMany({
@@ -25,6 +56,7 @@ router.get("/orders", async (req, res) => {
       },
     });
     const parsed = orders.map((o) => ({ ...o, securityPhotos: o.securityPhotos ? JSON.parse(o.securityPhotos) : null }));
+    await resolveOrderItemImages(parsed);
     res.json(parsed);
   } catch (err) {
     res.status(500).json({ error: safeErrorMessage(err) });
@@ -439,6 +471,7 @@ router.get("/users/:id", async (req, res) => {
     }
 
     const totalSpent = user.orders.reduce((sum, o) => sum + (o.status !== "cancelled" ? o.totalAmount : 0), 0);
+    await resolveOrderItemImages(user.orders);
     res.json({ ...user, totalSpent });
   } catch (err) {
     res.status(500).json({ error: safeErrorMessage(err) });
