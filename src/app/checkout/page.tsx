@@ -36,8 +36,7 @@ import UpiPaymentModal from "@/components/UpiPaymentModal";
 import { resolveImageUrl } from "@/lib/imageUrl";
 
 type Step = "shipping" | "payment" | "confirm";
-type PaymentMethod = "cod" | "upi_delivery" | "online" | "wallet_balance";
-type OnlineSubMethod = "upi" | "card" | "netbanking" | "wallet";
+type PaymentMethod = "cod" | "upi_delivery" | "upi" | "wallet_balance";
 
 interface ShippingForm {
   firstName: string;
@@ -53,21 +52,9 @@ interface ShippingForm {
   country: string;
 }
 
-interface PaymentForm {
-  cardName: string;
-  cardNumber: string;
-  expiry: string;
-  cvv: string;
-  upiId: string;
-  bank: string;
-  wallet: string;
-}
-
 const EMPTY_SHIP: ShippingForm = { firstName: "", lastName: "", email: "", phone: "", alternatePhone: "", address: "", apartment: "", city: "", state: "", pincode: "", country: "India" };
-const EMPTY_PAY: PaymentForm = { cardName: "", cardNumber: "", expiry: "", cvv: "", upiId: "", bank: "", wallet: "" };
 
-const PAYMENT_METHOD_MAP: Record<PaymentMethod, string> = { cod: "COD", upi_delivery: "UPI_DELIVERY", online: "CARD", wallet_balance: "WALLET" };
-const ONLINE_SUB_MAP: Record<OnlineSubMethod, string> = { upi: "UPI", card: "CARD", netbanking: "NETBANKING", wallet: "WALLET" };
+const PAYMENT_METHOD_MAP: Record<PaymentMethod, string> = { cod: "COD", upi_delivery: "UPI_DELIVERY", upi: "UPI", wallet_balance: "WALLET" };
 
 export default function CheckoutPage() {
   const { theme } = useTheme();
@@ -87,9 +74,7 @@ export default function CheckoutPage() {
   const [pendingOrderData, setPendingOrderData] = useState<any>(null);
 
   const [ship, setShip] = useState<ShippingForm>(EMPTY_SHIP);
-  const [pay, setPay] = useState<PaymentForm>(EMPTY_PAY);
   const [payMethod, setPayMethod] = useState<PaymentMethod | "">("");
-  const [onlineSub, setOnlineSub] = useState<OnlineSubMethod | "">("");
 
   useEffect(() => {
     if (!user) return;
@@ -142,15 +127,10 @@ export default function CheckoutPage() {
 
   const shipValid = ship.firstName && ship.email && ship.phone && ship.address && ship.city;
   const payValid = payMethod !== "" && (
-    payMethod === "cod" || payMethod === "upi_delivery" || payMethod === "wallet_balance" ||
-    (payMethod === "online" && onlineSub !== "" && (
-      onlineSub === "upi" ||
-      onlineSub === "card" && pay.cardName && pay.cardNumber && pay.expiry && pay.cvv ||
-      (onlineSub === "netbanking" || onlineSub === "wallet")
-    ))
+    payMethod === "cod" || payMethod === "upi_delivery" || payMethod === "upi" || payMethod === "wallet_balance"
   );
 
-  const isUpiPayment = payMethod === "online" && onlineSub === "upi";
+  const isUpiPayment = payMethod === "upi";
 
   const handlePlaceOrder = async () => {
     if (!user) {
@@ -181,7 +161,7 @@ export default function CheckoutPage() {
         state: ship.state,
         pincode: ship.pincode,
       };
-      const paymentMethod = payMethod === "online" ? ONLINE_SUB_MAP[onlineSub as OnlineSubMethod] : PAYMENT_METHOD_MAP[payMethod as PaymentMethod];
+      const paymentMethod = PAYMENT_METHOD_MAP[payMethod as PaymentMethod];
 
       const hasStore = orderItems.some((i) => i.source === "store");
       const hasMart = orderItems.some((i) => i.source === "mart");
@@ -492,10 +472,10 @@ export default function CheckoutPage() {
                   {[
                     { key: "cod" as PaymentMethod, icon: <Banknote size={20} />, label: "Cash on Delivery", desc: "Pay when you receive" },
                     { key: "upi_delivery" as PaymentMethod, icon: <Smartphone size={20} />, label: "UPI on Delivery", desc: "Scan & pay at delivery" },
-                    { key: "online" as PaymentMethod, icon: <CircleDollarSign size={20} />, label: "Online Payment", desc: "UPI, Card & more" },
+                    { key: "upi" as PaymentMethod, icon: <CircleDollarSign size={20} />, label: "Online UPI", desc: "QR / Transaction ID" },
                     { key: "wallet_balance" as PaymentMethod, icon: <Wallet size={20} />, label: "Pay via Wallet", desc: `Balance: ₹${(user?.walletBalance ?? 0).toFixed(0)}` },
                   ].map((m) => (
-                    <button type="button" key={m.key} onClick={() => { setPayMethod(m.key); if (m.key !== "online") setOnlineSub(""); }}
+                    <button type="button" key={m.key} onClick={() => setPayMethod(m.key)}
                       className={cn("group relative flex flex-col items-center gap-3 rounded-2xl border-2 p-5 sm:p-6 transition-all duration-300 text-center",
                         payMethod === m.key
                           ? (light ? "border-sapphire bg-sapphire/5 shadow-[0_0_20px_rgba(30,58,138,0.08)]" : "border-gold bg-gold/5 shadow-[0_0_20px_rgba(212,175,55,0.08)]")
@@ -511,115 +491,19 @@ export default function CheckoutPage() {
                   ))}
                 </div>
 
-                {/* Online Payment sub-methods */}
-                {payMethod === "online" && (
+                {/* Online UPI (QR / Transaction ID) */}
+                {payMethod === "upi" && (
                   <div className="mt-5">
-                    <p className={cn("mb-3 text-[10px] font-semibold uppercase tracking-[0.2em]", light ? "text-dark-400" : "text-cream-dim/50")}>Choose a method</p>
-                    <div className="grid gap-2 sm:grid-cols-4">
-                      {[
-                        { key: "upi" as OnlineSubMethod, label: "UPI", icon: <Smartphone size={14} /> },
-                        { key: "card" as OnlineSubMethod, label: "Card", icon: <CreditCard size={14} /> },
-                        { key: "netbanking" as OnlineSubMethod, label: "Net Banking", icon: <Building2 size={14} /> },
-                        { key: "wallet" as OnlineSubMethod, label: "Wallet", icon: <Wallet size={14} /> },
-                      ].map((s) => (
-                        <button type="button" key={s.key} onClick={() => setOnlineSub(s.key)}
-                          className={cn("flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-[10px] font-semibold uppercase tracking-wider transition-all duration-300",
-                            onlineSub === s.key
-                              ? (light ? "border-sapphire bg-sapphire/10 text-sapphire" : "border-gold bg-gold/10 text-gold-light")
-                              : (light ? "border-dark-200 text-dark-400 hover:border-dark-300" : "border-white/10 text-cream-dim/50 hover:border-white/20")
-                          )}>
-                          {s.icon} {s.label}
-                        </button>
-                      ))}
+                    <p className={cn("mb-3 text-[10px] font-semibold uppercase tracking-[0.2em]", light ? "text-dark-400" : "text-cream-dim/50")}>Online UPI</p>
+                    <div className="mt-1 rounded-xl border p-4 sm:p-5" style={{ borderColor: light ? "rgb(229 231 235 / 0.6)" : "rgb(255 255 255 / 0.1)" }}>
+                      <div className="mb-3 flex items-center gap-2">
+                        <Smartphone size={13} className={light ? "text-sapphire" : "text-gold"} />
+                        <p className={cn("text-[10px] font-semibold uppercase tracking-[0.2em]", light ? "text-dark-400" : "text-cream-dim/50")}>Pay via UPI</p>
+                      </div>
+                      <p className={cn("text-xs leading-relaxed", light ? "text-dark-500" : "text-cream-dim/60")}>
+                        After placing your order, a QR code will appear to complete payment of <span className="font-bold">{formatPrice(total)}</span>. Enter the transaction ID after payment.
+                      </p>
                     </div>
-
-                    {/* UPI form */}
-                    {onlineSub === "upi" && (
-                      <div className="mt-4 rounded-xl border p-4 sm:p-5" style={{ borderColor: light ? "rgb(229 231 235 / 0.6)" : "rgb(255 255 255 / 0.1)" }}>
-                        <div className="mb-3 flex items-center gap-2">
-                          <Smartphone size={13} className={light ? "text-sapphire" : "text-gold"} />
-                          <p className={cn("text-[10px] font-semibold uppercase tracking-[0.2em]", light ? "text-dark-400" : "text-cream-dim/50")}>Pay via UPI</p>
-                        </div>
-                        <p className={cn("text-xs leading-relaxed", light ? "text-dark-500" : "text-cream-dim/60")}>
-                          After placing your order, a QR code will appear to complete payment of <span className="font-bold">{formatPrice(total)}</span>. Enter the transaction ID after payment.
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Card form */}
-                    {onlineSub === "card" && (
-                      <div className="mt-4 rounded-xl border p-4 sm:p-5" style={{ borderColor: light ? "rgb(229 231 235 / 0.6)" : "rgb(255 255 255 / 0.1)" }}>
-                        <div className="mb-4 flex flex-wrap gap-2">
-                          {["Visa", "Mastercard", "Amex", "RuPay"].map((card) => (
-                            <span key={card} className={cn("rounded-lg border px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider", light ? "border-dark-200 text-dark-500" : "border-white/10 text-cream-dim/50")}>{card}</span>
-                          ))}
-                        </div>
-                        <div className="grid gap-4 sm:grid-cols-2">
-                          <div className="sm:col-span-2">
-                            <label className={labelCls}>Cardholder Name *</label>
-                            <input type="text" placeholder="John Doe" value={pay.cardName} onChange={(e) => setPay((p) => ({ ...p, cardName: e.target.value }))} className={inputCls} />
-                          </div>
-                          <div className="sm:col-span-2">
-                            <label className={labelCls}>Card Number *</label>
-                            <div className="relative">
-                              <CreditCard size={14} className={cn("absolute left-3.5 top-1/2 -translate-y-1/2", light ? "text-dark-400" : "text-cream-dim/30")} />
-                              <input type="text" placeholder="4242 4242 4242 4242" value={pay.cardNumber} onChange={(e) => setPay((p) => ({ ...p, cardNumber: e.target.value }))} className={cn(inputCls, "pl-10")} />
-                            </div>
-                          </div>
-                          <div>
-                            <label className={labelCls}>Expiry Date *</label>
-                            <input type="text" placeholder="MM / YY" value={pay.expiry} onChange={(e) => setPay((p) => ({ ...p, expiry: e.target.value }))} className={inputCls} />
-                          </div>
-                          <div>
-                            <label className={labelCls}>CVV *</label>
-                            <div className="relative">
-                              <Lock size={14} className={cn("absolute left-3.5 top-1/2 -translate-y-1/2", light ? "text-dark-400" : "text-cream-dim/30")} />
-                              <input type="text" placeholder="123" value={pay.cvv} onChange={(e) => setPay((p) => ({ ...p, cvv: e.target.value }))} className={cn(inputCls, "pl-10")} />
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Net Banking */}
-                    {onlineSub === "netbanking" && (
-                      <div className="mt-4 rounded-xl border p-4 sm:p-5" style={{ borderColor: light ? "rgb(229 231 235 / 0.6)" : "rgb(255 255 255 / 0.1)" }}>
-                        <div className="mb-3 flex items-center gap-2">
-                          <Building2 size={13} className={light ? "text-sapphire" : "text-gold"} />
-                          <p className={cn("text-[10px] font-semibold uppercase tracking-[0.2em]", light ? "text-dark-400" : "text-cream-dim/50")}>Select Bank</p>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                          {["SBI", "HDFC", "ICICI", "Axis", "Kotak", "PNB"].map((bank) => (
-                            <button type="button" key={bank} onClick={() => setPay((p) => ({ ...p, bank }))}
-                              className={cn("rounded-xl border px-3 py-2.5 text-[10px] font-semibold uppercase tracking-wider transition-all duration-300",
-                                pay.bank === bank
-                                  ? (light ? "border-sapphire bg-sapphire/10 text-sapphire" : "border-gold bg-gold/10 text-gold-light")
-                                  : (light ? "border-dark-200 text-dark-400 hover:border-dark-300" : "border-white/10 text-cream-dim/50 hover:border-white/20")
-                              )}>{bank}</button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Wallet */}
-                    {onlineSub === "wallet" && (
-                      <div className="mt-4 rounded-xl border p-4 sm:p-5" style={{ borderColor: light ? "rgb(229 231 235 / 0.6)" : "rgb(255 255 255 / 0.1)" }}>
-                        <div className="mb-3 flex items-center gap-2">
-                          <Wallet size={13} className={light ? "text-sapphire" : "text-gold"} />
-                          <p className={cn("text-[10px] font-semibold uppercase tracking-[0.2em]", light ? "text-dark-400" : "text-cream-dim/50")}>Select Wallet</p>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                          {["Paytm", "Amazon Pay", "Mobikwik", "Freecharge"].map((w) => (
-                            <button type="button" key={w} onClick={() => setPay((p) => ({ ...p, wallet: w }))}
-                              className={cn("rounded-xl border px-3 py-2.5 text-[10px] font-semibold uppercase tracking-wider transition-all duration-300",
-                                pay.wallet === w
-                                  ? (light ? "border-sapphire bg-sapphire/10 text-sapphire" : "border-gold bg-gold/10 text-gold-light")
-                                  : (light ? "border-dark-200 text-dark-400 hover:border-dark-300" : "border-white/10 text-cream-dim/50 hover:border-white/20")
-                              )}>{w}</button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
                   </div>
                 )}
 
@@ -727,11 +611,8 @@ src={resolveImageUrl(item.colorImage) || ""}
                       <p className={cn("text-sm", light ? "text-dark-700" : "text-cream-dim")}>
                         {payMethod === "cod" && "Cash on Delivery"}
                         {payMethod === "upi_delivery" && "UPI on Delivery"}
+                        {payMethod === "upi" && "Online UPI"}
                         {payMethod === "wallet_balance" && `Wallet (Balance: ₹${(user?.walletBalance ?? 0).toFixed(2)})`}
-                        {payMethod === "online" && onlineSub === "card" && `Card ending in ${pay.cardNumber.slice(-4) || "****"}`}
-                        {payMethod === "online" && onlineSub === "upi" && `UPI: ${pay.upiId || "—"}`}
-                        {payMethod === "online" && onlineSub === "netbanking" && `Net Banking${pay.bank ? ` — ${pay.bank}` : ""}`}
-                        {payMethod === "online" && onlineSub === "wallet" && `${pay.wallet || "Wallet"}`}
                       </p>
                       {hasMartItems && (
                         <p className={cn("text-xs mt-1 flex items-center gap-1", light ? "text-dark-400" : "text-cream-dim/40")}>
