@@ -93,9 +93,30 @@ interface UnifiedProduct {
 
 function dbToUnified(p: DbProduct, source: "store" | "mart"): UnifiedProduct {
   const rawColors = Array.isArray(p.colorOptions)
-    ? (p.colorOptions as { name: string; hex: string; images?: string[]; price?: number; originalPrice?: number }[])
+    ? (p.colorOptions as { name: string; hex: string; colors?: string[]; images?: string[]; price?: number; originalPrice?: number }[])
     : [];
-  const firstColor = rawColors[0];
+  const firstColor = rawColors.length > 0 ? rawColors[0] : null;
+  const sizeOpts = (p.sizeOptions && typeof p.sizeOptions === "object" && !Array.isArray(p.sizeOptions))
+    ? p.sizeOptions as Record<string, { name: string; price?: number; originalPrice?: number }[]>
+    : {};
+  const firstName = firstColor?.name || "";
+  const firstSizes = sizeOpts[firstName] || Object.values(sizeOpts)[0] || [];
+  const firstSizeWithPrice = firstSizes.find((s) => s.price != null && s.price > 0);
+
+  // Real goods uploaded by sellers/owners may price by color/size variant instead
+  // of a base price — resolve an effective price just like the store grid does.
+  let effectivePrice = p.price;
+  let effectiveOriginalPrice = p.originalPrice ?? undefined;
+  if (effectivePrice === 0 || effectivePrice == null) {
+    if (firstColor?.price) {
+      effectivePrice = firstColor.price;
+      effectiveOriginalPrice = firstColor.originalPrice ?? effectiveOriginalPrice;
+    } else if (firstSizeWithPrice?.price) {
+      effectivePrice = firstSizeWithPrice.price;
+      effectiveOriginalPrice = firstSizeWithPrice.originalPrice ?? effectiveOriginalPrice;
+    }
+  }
+
   const effectiveImages =
     p.images.length > 0 ? p.images : firstColor?.images && firstColor.images.length > 0 ? firstColor.images : [];
   const gradientMap = source === "store" ? DB_STORE_GRADIENT : DB_MART_GRADIENT;
@@ -103,8 +124,8 @@ function dbToUnified(p: DbProduct, source: "store" | "mart"): UnifiedProduct {
     id: `db-${p.id}`,
     name: p.name,
     brand: p.brand || "",
-    price: p.price,
-    originalPrice: p.originalPrice ?? undefined,
+    price: effectivePrice,
+    originalPrice: effectiveOriginalPrice,
     category: p.category || "uncategorized",
     sub: p.subCategory || "all",
     badge: p.badge || undefined,
