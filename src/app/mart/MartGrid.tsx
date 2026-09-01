@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect, useCallback } from "react";
+import { useMemo, useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { cn, formatPrice } from "@/lib/utils";
 import { resolveImageUrl } from "@/lib/imageUrl";
@@ -83,6 +83,8 @@ export default function MartGrid({ category, subCategory, searchQuery }: MartGri
   const { theme } = useTheme();
   const light = theme === "light";
   const [dbProducts, setDbProducts] = useState<MartProduct[]>([]);
+  const [visibleCount, setVisibleCount] = useState(48);
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
   const fetchDbProducts = useCallback(async () => {
     try {
@@ -116,13 +118,32 @@ export default function MartGrid({ category, subCategory, searchQuery }: MartGri
 
   const grouped = useMemo(() => {
     const map = new Map<string, MartProduct[]>();
-    for (const p of filtered) {
+    for (const p of filtered.slice(0, visibleCount)) {
       const key = p.category;
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(p);
     }
     return map;
-  }, [filtered]);
+  }, [filtered, visibleCount]);
+
+  /* Progressive render: grow the visible slice as the sentinel scrolls in */
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el || filtered.length <= visibleCount) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) setVisibleCount((c) => Math.min(c + 48, filtered.length));
+      },
+      { rootMargin: "800px" }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [filtered.length, visibleCount]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setVisibleCount(48);
+  }, [category, subCategory, searchQuery]);
 
   return (
     <div className="mx-auto max-w-[100rem] px-0 py-10 sm:px-5 md:px-10">
@@ -133,20 +154,29 @@ export default function MartGrid({ category, subCategory, searchQuery }: MartGri
           </p>
         </div>
       ) : (
-        Array.from(grouped.entries()).map(([cat, products]) => (
-          <div key={cat} className="mb-14 last:mb-0">
-            {category === "all" && (
-              <h2 className={cn("mb-6 text-[11px] font-semibold uppercase tracking-[0.35em]", light ? "text-dark-400" : "text-cream-dim/60")}>
-                {CATEGORY_LABELS[cat] || cat}
-              </h2>
-            )}
-            <div className="grid grid-cols-2 gap-px sm:gap-5 md:grid-cols-3 lg:grid-cols-4">
-              {products.map((product) => (
-                <MartProductCard key={product.id} product={product} light={light} />
-              ))}
+        <>
+          {Array.from(grouped.entries()).map(([cat, products]) => (
+            <div key={cat} className="mb-14 last:mb-0">
+              {category === "all" && (
+                <h2 className={cn("mb-6 text-[11px] font-semibold uppercase tracking-[0.35em]", light ? "text-dark-400" : "text-cream-dim/60")}>
+                  {CATEGORY_LABELS[cat] || cat}
+                </h2>
+              )}
+              <div className="grid grid-cols-2 gap-px sm:gap-5 md:grid-cols-3 lg:grid-cols-4">
+                {products.map((product) => (
+                  <MartProductCard key={product.id} product={product} light={light} />
+                ))}
+              </div>
             </div>
-          </div>
-        ))
+          ))}
+          {filtered.length > visibleCount && (
+            <div ref={sentinelRef} className="flex items-center justify-center py-12">
+              <span className={cn("text-[10px] uppercase tracking-[0.3em]", light ? "text-dark-400" : "text-cream-dim/40")}>
+                Loading more…
+              </span>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

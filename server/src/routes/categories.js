@@ -2,6 +2,7 @@ const express = require("express");
 const prisma = require("../db");
 const { safeErrorMessage } = require("../utils/helpers");
 const { adminAuth } = require("../middleware/auth");
+const { SLIM_SELECT, FULL_SELECT, slimProduct } = require("../utils/products");
 
 const router = express.Router();
 
@@ -15,6 +16,7 @@ router.get("/", async (_req, res) => {
     const store = categories.filter((c) => c.source === "store");
     const mart = categories.filter((c) => c.source === "mart");
     const mediverse = categories.filter((c) => c.source === "mediverse");
+    res.set("Cache-Control", "public, max-age=600");
     res.json({ store, mart, mediverse, all: categories });
   } catch (err) {
     res.status(500).json({ error: safeErrorMessage(err) });
@@ -122,21 +124,14 @@ router.get("/products/:source", async (req, res) => {
   try {
     const { source } = req.params;
     if (source !== "store" && source !== "mart" && source !== "mediverse") return res.status(400).json({ error: "source must be store, mart, or mediverse" });
+    const full = req.query.mode === "full";
     const products = await prisma.product.findMany({
       where: { source },
       orderBy: { name: "asc" },
-      select: {
-        id: true, name: true, brand: true,
-        category: true, subCategory: true,
-        price: true, originalPrice: true,
-        description: true, images: true, inStock: true,
-        badge: true, rating: true, reviewCount: true,
-        source: true,
-        specifications: true, keyFeatures: true, colorOptions: true, sizeOptions: true,
-        seller: { select: { id: true, name: true, shopName: true, email: true } },
-      },
+      select: full ? FULL_SELECT : SLIM_SELECT,
     });
-    res.json(products);
+    res.set("Cache-Control", "public, max-age=600");
+    res.json(full ? products : products.map(slimProduct));
   } catch (err) {
     res.status(500).json({ error: safeErrorMessage(err) });
   }

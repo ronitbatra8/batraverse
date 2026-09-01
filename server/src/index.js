@@ -1,6 +1,7 @@
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
+const compression = require("compression");
 const rateLimit = require("express-rate-limit");
 
 const adminRoutes = require("./routes/admin");
@@ -20,12 +21,14 @@ const wishlistRoutes = require("./routes/wishlist");
 const reviewRoutes = require("./routes/reviews");
 const testimonialRoutes = require("./routes/testimonials");
 const walletRoutes = require("./routes/wallet");
+const productRoutes = require("./routes/products");
 
 const app = express();
 
 const path = require("path");
 
 app.use(cors());
+app.use(compression());
 app.use(express.json({ limit: "10mb" }));
 app.use("/uploads", express.static(path.join(__dirname, "..", "uploads")));
 
@@ -45,6 +48,7 @@ app.get("/api/spotlight-ads", async (req, res) => {
       where: { active: true, page },
       orderBy: { sortOrder: "asc" },
     });
+    res.set("Cache-Control", "public, max-age=300");
     res.json(ads);
   } catch (err) {
     res.status(500).json({ error: err.message || "Failed to load ads" });
@@ -100,6 +104,7 @@ app.get("/api/featured", async (req, res) => {
         inStock: p.inStock,
       });
     }
+    res.set("Cache-Control", "public, max-age=300");
     res.json(featured.map((f) => byId.get(f.productId)).filter(Boolean));
   } catch (err) {
     res.status(500).json({ error: err.message || "Failed to load featured" });
@@ -127,6 +132,7 @@ app.use("/api/cart", cartRoutes);
 app.use("/api/delivery", deliveryRoutes);
 app.use("/api/seller", sellerRoutes);
 app.use("/api/categories", categoryRoutes);
+app.use("/api/products", productRoutes);
 app.use("/api/wishlist", wishlistRoutes);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/testimonials", testimonialRoutes);

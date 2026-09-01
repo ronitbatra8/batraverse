@@ -43,12 +43,12 @@ export default function MediverseProductPage() {
     const rawId = id.replace("db-", "");
     setDbLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/categories/products/mediverse`, {
+      const res = await fetch(`${API_BASE}/api/products/${rawId}?related=true`, {
         headers: { "ngrok-skip-browser-warning": "true" },
       });
       if (!res.ok) return;
       const data = await res.json();
-      if (!Array.isArray(data)) return;
+      if (!data || !data.product) return;
 
       const rawColors = (p: any) => (Array.isArray(p.colorOptions) ? p.colorOptions as { images?: string[] }[] : []);
       const mapDbToMed = (found: any): MediverseProduct => {
@@ -73,12 +73,9 @@ export default function MediverseProductPage() {
         };
       };
 
-      const allMapped = data.map(mapDbToMed);
+      const allMapped = (data.related || []).map(mapDbToMed);
       setDbAllProducts(allMapped);
-
-      const found = data.find((p: { id: string }) => p.id === rawId);
-      if (!found) return;
-      setDbProduct(mapDbToMed(found));
+      setDbProduct(mapDbToMed(data.product));
     } catch { /* ignore */ }
     setDbLoading(false);
   }, [id, isDb]);

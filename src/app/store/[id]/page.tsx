@@ -36,12 +36,12 @@ export default function ProductPage() {
     const rawId = id.replace("db-", "");
     setDbLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/categories/products/store`, {
+      const res = await fetch(`${API_BASE}/api/products/${rawId}?related=true`, {
         headers: { "ngrok-skip-browser-warning": "true" },
       });
       if (!res.ok) return;
       const data = await res.json();
-      if (!Array.isArray(data)) return;
+      if (!data || !data.product) return;
 
       const mapDbToProduct = (found: any): Product => {
         const specs = Array.isArray(found.specifications) ? (found.specifications as { key: string; value: string }[]) : [];
@@ -105,12 +105,9 @@ export default function ProductPage() {
         } as Product;
       };
 
-      const allMapped = data.map(mapDbToProduct);
+      const allMapped = (data.related || []).map(mapDbToProduct);
       setDbAllProducts(allMapped);
-
-      const found = data.find((p: { id: string }) => p.id === rawId);
-      if (!found) return;
-      setDbProduct(mapDbToProduct(found));
+      setDbProduct(mapDbToProduct(data.product));
     } catch { /* ignore */ }
     setDbLoading(false);
   }, [id, isDb]);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect, useCallback } from "react";
+import { useMemo, useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { cn, formatPrice } from "@/lib/utils";
 import { resolveImageUrl } from "@/lib/imageUrl";
@@ -118,6 +118,8 @@ export default function StoreGrid({ category, subCategory }: StoreGridProps) {
   const { theme } = useTheme();
   const light = theme === "light";
   const [dbProducts, setDbProducts] = useState<Product[]>([]);
+  const [visibleCount, setVisibleCount] = useState(48);
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
   const fetchDbProducts = useCallback(async () => {
     try {
@@ -147,13 +149,32 @@ export default function StoreGrid({ category, subCategory }: StoreGridProps) {
 
   const grouped = useMemo(() => {
     const map = new Map<string, Product[]>();
-    for (const p of filtered) {
+    for (const p of filtered.slice(0, visibleCount)) {
       const key = p.category;
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(p);
     }
     return map;
-  }, [filtered]);
+  }, [filtered, visibleCount]);
+
+  /* Progressive render: grow the visible slice as the sentinel scrolls in */
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el || filtered.length <= visibleCount) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) setVisibleCount((c) => Math.min(c + 48, filtered.length));
+      },
+      { rootMargin: "800px" }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [filtered.length, visibleCount]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setVisibleCount(48);
+  }, [category, subCategory]);
 
   const categoryLabels: Record<string, string> = {
     watches: "Watches",
@@ -179,29 +200,43 @@ export default function StoreGrid({ category, subCategory }: StoreGridProps) {
           </p>
         </div>
       ) : (
-        Array.from(grouped.entries()).map(([cat, products]) => (
-          <div key={cat} className="mb-14 last:mb-0">
-            {category === "all" && (
-              <h2
+        <>
+          {Array.from(grouped.entries()).map(([cat, products]) => (
+            <div key={cat} className="mb-14 last:mb-0">
+              {category === "all" && (
+                <h2
+                  className={cn(
+                    "mb-6 text-[11px] font-semibold uppercase tracking-[0.35em]",
+                    light ? "text-dark-400" : "text-cream-dim/60"
+                  )}
+                >
+                  {categoryLabels[cat] || cat}
+                </h2>
+              )}
+              <div className="grid grid-cols-2 gap-px sm:gap-5 md:grid-cols-3 lg:grid-cols-4">
+                {products.map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    light={light}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+          {filtered.length > visibleCount && (
+            <div ref={sentinelRef} className="flex items-center justify-center py-12">
+              <span
                 className={cn(
-                  "mb-6 text-[11px] font-semibold uppercase tracking-[0.35em]",
-                  light ? "text-dark-400" : "text-cream-dim/60"
+                  "text-[10px] uppercase tracking-[0.3em]",
+                  light ? "text-dark-400" : "text-cream-dim/40"
                 )}
               >
-                {categoryLabels[cat] || cat}
-              </h2>
-            )}
-            <div className="grid grid-cols-2 gap-px sm:gap-5 md:grid-cols-3 lg:grid-cols-4">
-              {products.map((product) => (
-                <ProductCard
-                  key={product.id}
-                  product={product}
-                  light={light}
-                />
-              ))}
+                Loading more…
+              </span>
             </div>
-          </div>
-        ))
+          )}
+        </>
       )}
     </div>
   );
