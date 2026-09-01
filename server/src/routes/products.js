@@ -21,7 +21,7 @@ router.get("/:id", async (req, res) => {
       const related = await prisma.product.findMany({
         where: { source: product.source, category: product.category, id: { not: product.id } },
         orderBy: [{ rating: "desc" }, { reviewCount: "desc" }],
-        take: 10,
+        take: 20,
         select: SLIM_SELECT,
       });
       return res.json({ product, related: related.map(slimProduct) });

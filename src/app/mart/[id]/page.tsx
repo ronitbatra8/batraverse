@@ -11,7 +11,7 @@ import { trackRecentlyViewed } from "@/lib/recentlyViewed";
 import { getMartProduct } from "../products";
 import SiteLayout from "@/components/layout/SiteLayout";
 import ProductDetailSkeleton from "@/components/ui/ProductDetailSkeleton";
-import { getFullProduct, getSlimProduct } from "@/lib/productCache";
+import { getFullProduct, getSlimProduct, warmProduct } from "@/lib/productCache";
 import { resolveImageUrl } from "@/lib/imageUrl";
 import type { MartProduct } from "../products";
 
@@ -150,7 +150,7 @@ export default function MartProductPage() {
       if (p.category !== product.category || p.id === product.id || seen.has(p.id)) return false;
       seen.add(p.id);
       return true;
-    }).slice(0, 10);
+    }).slice(0, 20);
   })();
 
   const hasImages = product.dbImages && product.dbImages.length > 0;
@@ -461,38 +461,51 @@ export default function MartProductPage() {
             <h2 className={cn("mb-6 px-5 text-[11px] font-semibold uppercase tracking-[0.35em] sm:px-0", light ? "text-dark-400" : "text-cream-dim/60")}>
               You May Also Like
             </h2>
-            <div className="flex flex-col gap-3 sm:gap-5">
-              {[related.slice(0, 5), related.slice(5, 10)].filter(row => row.length > 0).map((row, ri) => (
-                <div key={ri} className="flex overflow-x-auto snap-x snap-mandatory sm:grid sm:grid-cols-2 sm:gap-5 sm:overflow-visible sm:grid-cols-4">
-                  {row.map((rp) => (
-                    <Link
-                      key={rp.id}
-                      href={`/mart/${rp.id}`}
-                      className={cn(
-                        "group block shrink-0 w-[44vw] snap-start overflow-hidden rounded-none border-0 transition-all duration-300 sm:w-auto sm:shrink sm:rounded-2xl sm:border",
-                    light
-                      ? "border-dark-200/60 bg-white hover:border-sapphire/20 hover:shadow-[0_4px_24px_rgba(30,58,138,0.08)]"
-                      : "border-white/5 bg-graphite hover:border-gold/15 hover:shadow-[0_4px_24px_rgba(212,175,55,0.06)]"
-                  )}
-                >
-                  <div className="relative aspect-[4/5] sm:aspect-square overflow-hidden">
-                    <div className={cn("absolute inset-0 bg-gradient-to-br transition-transform duration-500 group-hover:scale-105", rp.gradient)} />
-                    {rp.badge && (
-                      <span className={cn("absolute left-2 top-2 rounded-full px-2 py-1 text-[7px] font-bold uppercase tracking-[0.15em]", light ? "bg-white/90 text-dark-900 shadow-sm" : "bg-abyss/80 text-gold-light backdrop-blur-sm")}>
-                        {rp.badge}
-                      </span>
-                    )}
-                  </div>
-                  <div className="p-3">
-                    <h3 className={cn("text-xs font-medium leading-tight line-clamp-2", light ? "text-dark-900" : "text-cream")}>
-                      {rp.name}
-                    </h3>
-                    <span className={cn("mt-1 block text-sm font-bold tabular-nums", light ? "text-dark-900" : "text-cream")}>
-                      {formatPrice(rp.price)}
-                    </span>
-                  </div>
-                </Link>
-                  ))}
+            <div className="flex flex-col gap-5">
+              {[related.slice(0, 10), related.slice(10, 20)].filter(row => row.length > 0).map((row, ri) => (
+                <div key={ri} className="flex overflow-x-auto snap-x snap-mandatory gap-3 pb-2 sm:gap-5">
+                  {row.map((rp) => {
+                    const img = rp.dbImages?.[0] || "";
+                    return (
+                      <Link
+                        key={rp.id}
+                        href={`/mart/${rp.id}`}
+                        onMouseEnter={() => warmProduct(rp.id)}
+                        className={cn(
+                          "group block w-[44vw] shrink-0 snap-start overflow-hidden rounded-none border-0 transition-all duration-300 sm:w-[48%] lg:w-[9.5%] sm:shrink-0 sm:rounded-2xl sm:border",
+                          light
+                            ? "border-dark-200/60 bg-white hover:border-sapphire/20 hover:shadow-[0_4px_24px_rgba(30,58,138,0.08)]"
+                            : "border-white/5 bg-graphite hover:border-gold/15 hover:shadow-[0_4px_24px_rgba(212,175,55,0.06)]"
+                        )}
+                      >
+                        <div className="relative aspect-[4/5] sm:aspect-square overflow-hidden">
+                          {img ? (
+                            <img
+                              src={resolveImageUrl(img)}
+                              alt={rp.name}
+                              className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                            />
+                          ) : (
+                            <div className={cn("absolute inset-0 bg-gradient-to-br transition-transform duration-500 group-hover:scale-105", rp.gradient)} />
+                          )}
+                          {rp.badge && (
+                            <span className={cn("absolute left-2 top-2 rounded-full px-2 py-1 text-[7px] font-bold uppercase tracking-[0.15em]", light ? "bg-white/90 text-dark-900 shadow-sm" : "bg-abyss/80 text-gold-light backdrop-blur-sm")}>
+                              {rp.badge}
+                            </span>
+                          )}
+                        </div>
+                        <div className="p-3">
+                          <h3 className={cn("text-xs font-medium leading-tight line-clamp-2", light ? "text-dark-900" : "text-cream")}>
+                            {rp.name}
+                          </h3>
+                          <span className={cn("mt-1 block text-sm font-bold tabular-nums", light ? "text-dark-900" : "text-cream")}>
+                            {formatPrice(rp.price)}
+                          </span>
+                        </div>
+                      </Link>
+                    );
+                  })}
                 </div>
               ))}
             </div>
