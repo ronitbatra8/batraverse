@@ -13,6 +13,7 @@ import { getProduct, getRelated } from "../products";
 import { apiFetch } from "@/lib/api";
 import { resolveImageUrl } from "@/lib/imageUrl";
 import SiteLayout from "@/components/layout/SiteLayout";
+import ProductDetailSkeleton from "@/components/ui/ProductDetailSkeleton";
 import type { Product } from "../products";
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api").replace("/api", "");
@@ -29,19 +30,22 @@ export default function ProductPage() {
 
   const [dbProduct, setDbProduct] = useState<Product | null>(null);
   const [dbAllProducts, setDbAllProducts] = useState<Product[]>([]);
-  const [dbLoading, setDbLoading] = useState(false);
+  const [dbMissing, setDbMissing] = useState(false);
 
   const fetchDbProduct = useCallback(async () => {
     if (!isDb) return;
     const rawId = id.replace("db-", "");
-    setDbLoading(true);
+    setDbMissing(false);
     try {
       const res = await fetch(`${API_BASE}/api/products/${rawId}?related=true`, {
         headers: { "ngrok-skip-browser-warning": "true" },
       });
       if (!res.ok) return;
       const data = await res.json();
-      if (!data || !data.product) return;
+      if (!data || !data.product) {
+        setDbMissing(true);
+        return;
+      }
 
       const mapDbToProduct = (found: any): Product => {
         const specs = Array.isArray(found.specifications) ? (found.specifications as { key: string; value: string }[]) : [];
@@ -108,8 +112,7 @@ export default function ProductPage() {
       const allMapped = (data.related || []).map(mapDbToProduct);
       setDbAllProducts(allMapped);
       setDbProduct(mapDbToProduct(data.product));
-    } catch { /* ignore */ }
-    setDbLoading(false);
+    } catch { /* treat as offline; skeleton stays */ }
   }, [id, isDb]);
 
   // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -164,12 +167,10 @@ export default function ProductPage() {
       .catch(() => {});
   }, [product?.id]);
 
-  if (dbLoading) {
+  if (isDb && !dbProduct && !dbMissing) {
     return (
       <SiteLayout>
-        <div className="flex min-h-screen items-center justify-center">
-          <Loader2 size={24} className="text-gold-400 animate-spin" />
-        </div>
+        <ProductDetailSkeleton light={light} />
       </SiteLayout>
     );
   }

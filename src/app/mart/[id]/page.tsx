@@ -3,13 +3,14 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { Star, ShoppingBag, ChevronRight, Check, Shield, RotateCcw, Zap, Clock, Info, Minus, Plus, Loader2 } from "lucide-react";
+import { Star, ShoppingBag, ChevronRight, Check, Shield, RotateCcw, Zap, Clock, Info, Minus, Plus } from "lucide-react";
 import { cn, formatPrice } from "@/lib/utils";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import { useCart } from "@/components/cart/CartContext";
 import { trackRecentlyViewed } from "@/lib/recentlyViewed";
 import { getMartProduct } from "../products";
 import SiteLayout from "@/components/layout/SiteLayout";
+import ProductDetailSkeleton from "@/components/ui/ProductDetailSkeleton";
 import { resolveImageUrl } from "@/lib/imageUrl";
 import type { MartProduct } from "../products";
 
@@ -36,21 +37,24 @@ export default function MartProductPage() {
 
   const [dbProduct, setDbProduct] = useState<MartProduct | null>(null);
   const [dbAllProducts, setDbAllProducts] = useState<MartProduct[]>([]);
-  const [dbLoading, setDbLoading] = useState(false);
+  const [dbMissing, setDbMissing] = useState(false);
   const [qty, setQty] = useState(1);
   const [addedToCart, setAddedToCart] = useState(false);
 
   const fetchDbProduct = useCallback(async () => {
     if (!isDb) return;
     const rawId = id.replace("db-", "");
-    setDbLoading(true);
+    setDbMissing(false);
     try {
       const res = await fetch(`${API_BASE}/api/products/${rawId}?related=true`, {
         headers: { "ngrok-skip-browser-warning": "true" },
       });
       if (!res.ok) return;
       const data = await res.json();
-      if (!data || !data.product) return;
+      if (!data || !data.product) {
+        setDbMissing(true);
+        return;
+      }
 
       const mapDbToMart = (found: any): MartProduct => ({
         id: `db-${found.id}`,
@@ -73,8 +77,7 @@ export default function MartProductPage() {
       const allMapped = (data.related || []).map(mapDbToMart);
       setDbAllProducts(allMapped);
       setDbProduct(mapDbToMart(data.product));
-    } catch { /* ignore */ }
-    setDbLoading(false);
+    } catch { /* treat as offline; skeleton stays */ }
   }, [id, isDb]);
 
   // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -99,12 +102,10 @@ export default function MartProductPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product?.id]);
 
-  if (dbLoading) {
+  if (isDb && !dbProduct && !dbMissing) {
     return (
       <SiteLayout>
-        <div className="flex min-h-screen items-center justify-center">
-          <Loader2 size={24} className="text-gold-400 animate-spin" />
-        </div>
+        <ProductDetailSkeleton light={light} />
       </SiteLayout>
     );
   }

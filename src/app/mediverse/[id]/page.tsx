@@ -3,12 +3,13 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { Star, ShoppingBag, ChevronRight, Check, Truck, Shield, RotateCcw, Zap, Loader2 } from "lucide-react";
+import { Star, ShoppingBag, ChevronRight, Check, Truck, Shield, RotateCcw, Zap } from "lucide-react";
 import { cn, formatPrice } from "@/lib/utils";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import { useCart } from "@/components/cart/CartContext";
 import type { MediverseProduct } from "../products";
 import SiteLayout from "@/components/layout/SiteLayout";
+import ProductDetailSkeleton from "@/components/ui/ProductDetailSkeleton";
 import { resolveImageUrl } from "@/lib/imageUrl";
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api").replace("/api", "");
@@ -34,21 +35,24 @@ export default function MediverseProductPage() {
   const isDb = id.startsWith("db-");
   const [dbProduct, setDbProduct] = useState<MediverseProduct | null>(null);
   const [dbAllProducts, setDbAllProducts] = useState<MediverseProduct[]>([]);
-  const [dbLoading, setDbLoading] = useState(false);
+  const [dbMissing, setDbMissing] = useState(false);
   const [qty, setQty] = useState(1);
   const [addedToCart, setAddedToCart] = useState(false);
 
   const fetchDbProduct = useCallback(async () => {
     if (!isDb) return;
     const rawId = id.replace("db-", "");
-    setDbLoading(true);
+    setDbMissing(false);
     try {
       const res = await fetch(`${API_BASE}/api/products/${rawId}?related=true`, {
         headers: { "ngrok-skip-browser-warning": "true" },
       });
       if (!res.ok) return;
       const data = await res.json();
-      if (!data || !data.product) return;
+      if (!data || !data.product) {
+        setDbMissing(true);
+        return;
+      }
 
       const rawColors = (p: any) => (Array.isArray(p.colorOptions) ? p.colorOptions as { images?: string[] }[] : []);
       const mapDbToMed = (found: any): MediverseProduct => {
@@ -76,8 +80,7 @@ export default function MediverseProductPage() {
       const allMapped = (data.related || []).map(mapDbToMed);
       setDbAllProducts(allMapped);
       setDbProduct(mapDbToMed(data.product));
-    } catch { /* ignore */ }
-    setDbLoading(false);
+    } catch { /* treat as offline; skeleton stays */ }
   }, [id, isDb]);
 
   // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -85,12 +88,10 @@ export default function MediverseProductPage() {
 
   const product = dbProduct;
 
-  if (dbLoading && isDb) {
+  if (isDb && !dbProduct && !dbMissing) {
     return (
       <SiteLayout>
-        <div className="flex min-h-screen items-center justify-center">
-          <Loader2 size={24} className="text-gold-400 animate-spin" />
-        </div>
+        <ProductDetailSkeleton light={light} />
       </SiteLayout>
     );
   }
