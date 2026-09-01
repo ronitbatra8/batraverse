@@ -25,46 +25,14 @@ function makeTransporter() {
   });
 }
 
-async function sendViaResend({ to, subject, html }) {
-  const res = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      from: process.env.EMAIL_FROM || "BATRAVERSE <onboarding@resend.dev>",
-      to,
-      subject,
-      html,
-    }),
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    const err = new Error(`Resend error ${res.status}: ${JSON.stringify(data)}`);
-    err.data = data;
-    throw err;
-  }
-  return data;
-}
-
 async function sendMail({ to, subject, html, codeForConsole }) {
-  if (process.env.EMAIL_DISABLED === "true") {
-    // Dev/test fallback — email disabled (log instead of sending).
+  const transporter = makeTransporter();
+  if (!transporter || process.env.EMAIL_DISABLED === "true") {
+    // Dev/test fallback — email disabled (log instead of SMTP).
     console.log(`[email] To: ${to} | Subject: ${subject}${codeForConsole ? ` | OTP: ${codeForConsole}` : ""}`);
     return;
   }
   try {
-    if (process.env.RESEND_API_KEY) {
-      await sendViaResend({ to, subject, html });
-      return;
-    }
-    const transporter = makeTransporter();
-    if (!transporter) {
-      // No provider configured — log instead of sending.
-      console.log(`[email] No provider configured. To: ${to} | Subject: ${subject}${codeForConsole ? ` | OTP: ${codeForConsole}` : ""}`);
-      return;
-    }
     await transporter.sendMail({
       from: `"BATRAVERSE" <${process.env.EMAIL_USER}>`,
       to,
