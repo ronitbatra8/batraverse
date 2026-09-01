@@ -143,9 +143,12 @@ export default function Navbar() {
   const brandControls = useAnimationControls();
   const { scrollYProgress, scrollY } = useScroll();
 
-  /* Derive scrolled from the existing useScroll motion value — no extra listener */
-  useMotionValueEvent(scrollYProgress, "change", (v) => {
-    setScrolled(v > 0.01);
+  /* Derive scrolled from the raw scroll pixel position (not scrollYProgress —
+     progress is a fraction of the whole page, so on very tall pages like the
+     store grid the nav floated way too late / changed as products loaded).
+     An absolute ~10px threshold makes the floating pill consistent everywhere. */
+  useMotionValueEvent(scrollY, "change", (y) => {
+    setScrolled(y > 8);
   });
 
   /* Hide/show bottom tab bar on scroll direction */
