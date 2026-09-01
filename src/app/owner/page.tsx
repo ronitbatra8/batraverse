@@ -31,81 +31,31 @@ import WalletTopUpsTab from "../admin/components/WalletTopUpsTab";
 import FeaturedTab from "../admin/components/FeaturedTab";
 import { useToast } from "@/components/Toast";
 
-// Preview seed data — lets the full design render without a backend.
-// Replaced by live API responses as soon as the backend is connected.
-const PREVIEW_DATA = {
+// Empty initial state. Every tab is populated exclusively by live API responses
+// (see loadAll) — there is no preview/seed data.
+const EMPTY_DATA = {
   stats: {
-    totalRevenue: 128500,
-    totalOrders: 5,
-    pendingOrders: 1,
-    outForDeliveryOrders: 1,
-    totalUsers: 1286,
-    deliveredOrders: 1,
+    totalRevenue: 0,
+    totalOrders: 0,
+    pendingOrders: 0,
+    outForDeliveryOrders: 0,
+    totalUsers: 0,
+    deliveredOrders: 0,
   },
-  orders: [
-    { id: "ORD-8F3K2M1", shippingName: "Aarav Mehta", source: "store", user: { name: "Aarav Mehta", email: "aarav@example.com", phone: "+91 98200 12345" }, email: "aarav@example.com", phone: "+91 98200 12345", shippingPhone: "+91 98200 12345", createdAt: "2026-08-15T10:24:00.000Z", items: [{ image: "", name: "Antique Brass Chandelier", quantity: 1, price: 42500 }], totalAmount: 42500, shippingAddress: "24 Marine Drive, Apt 7B", shippingCity: "Mumbai", shippingState: "Maharashtra", shippingPincode: "400020", paymentMethod: "Card", paymentStatus: "paid", status: "delivered", assignedTo: "dlv-1", deliveryExecutive: { name: "Rohan Sharma" } },
-    { id: "ORD-5T9QX2A", shippingName: "Ishita Kapoor", source: "store", user: { name: "Ishita Kapoor", email: "ishita@example.com", phone: "+91 98765 43210" }, email: "ishita@example.com", phone: "+91 98765 43210", shippingPhone: "+91 98765 43210", createdAt: "2026-08-16T08:02:00.000Z", items: [{ image: "", name: "Handwoven Silk Rug", quantity: 2, price: 12800 }], totalAmount: 25600, shippingAddress: "12 Lodi Estate", shippingCity: "New Delhi", shippingState: "Delhi", shippingPincode: "110003", paymentMethod: "UPI", paymentStatus: "paid", status: "confirmed", assignedTo: null, deliveryExecutive: null },
-    { id: "ORD-7B1L4W9", shippingName: "Kabir Anand", source: "mart", deliveryMode: "express", user: { name: "Kabir Anand", email: "kabir@example.com", phone: "+91 99887 76655" }, email: "kabir@example.com", phone: "+91 99887 76655", shippingPhone: "+91 99887 76655", createdAt: "2026-08-15T18:45:00.000Z", items: [{ image: "", name: "Marble Table Lamp", quantity: 1, price: 8600 }], totalAmount: 8600, shippingAddress: "88 Residency Road", shippingCity: "Bengaluru", shippingState: "Karnataka", shippingPincode: "560025", paymentMethod: "COD", paymentStatus: "pending", status: "out_for_delivery", assignedTo: "dlv-1", deliveryExecutive: { name: "Rohan Sharma" } },
-    { id: "ORD-2Z8M6P3", shippingName: "Riya Nair", source: "mart", deliveryMode: "standard", user: { name: "Riya Nair", email: "riya@example.com", phone: "+91 91234 56789" }, email: "riya@example.com", phone: "+91 91234 56789", shippingPhone: "+91 91234 56789", createdAt: "2026-08-16T11:30:00.000Z", items: [{ image: "", name: "Velvet Accent Armchair", quantity: 1, price: 21500 }], totalAmount: 21500, shippingAddress: "41 Fort Kochi Road", shippingCity: "Kochi", shippingState: "Kerala", shippingPincode: "682001", paymentMethod: "Card", paymentStatus: "paid", status: "pending", assignedTo: null, deliveryExecutive: null },
-    { id: "ORD-9V4C1H7", shippingName: "Dev Malhotra", source: "store", user: { name: "Dev Malhotra", email: "dev@example.com", phone: "+91 97890 11223" }, email: "dev@example.com", phone: "+91 97890 11223", shippingPhone: "+91 97890 11223", createdAt: "2026-08-14T21:10:00.000Z", items: [{ image: "", name: "Carved Brass Vase", quantity: 1, price: 5400 }], totalAmount: 5400, shippingAddress: "7 Golf Course Road", shippingCity: "Gurugram", shippingState: "Haryana", shippingPincode: "122002", paymentMethod: "Card", paymentStatus: "refunded", status: "return_requested", assignedTo: null, deliveryExecutive: null },
-  ],
-  users: [
-    { id: "usr-1", name: "Aarav Mehta", email: "aarav@example.com", phone: "+91 98200 12345", role: "USER", _count: { orders: 58, reviews: 6 }, totalSpent: 2850000, createdAt: "2025-11-02T09:12:00.000Z", savedAddresses: [{ address: "24 Marine Drive, Apt 7B", city: "Mumbai", state: "Maharashtra", pincode: "400020", isDefault: true }], reviews: [{ product: "Antique Brass Chandelier", comment: "Stunning piece, lights up the whole hall.", rating: 5 }], messages: [{ subject: "Delivery query", message: "When will my chandelier arrive?", replyMessage: null }] },
-    { id: "usr-2", name: "Ishita Kapoor", email: "ishita@example.com", phone: "+91 98765 43210", role: "USER", _count: { orders: 12, reviews: 3 }, totalSpent: 412000, createdAt: "2026-01-18T14:40:00.000Z", savedAddresses: [{ address: "12 Lodi Estate", city: "New Delhi", state: "Delhi", pincode: "110003", isDefault: true }], reviews: [{ product: "Handwoven Silk Rug", comment: "Premium quality silk.", rating: 4 }], messages: [] },
-    { id: "usr-3", name: "Dev Malhotra", email: "dev@example.com", phone: "+91 97890 11223", role: "USER", _count: { orders: 36, reviews: 5 }, totalSpent: 1890000, createdAt: "2025-06-14T21:10:00.000Z", savedAddresses: [{ address: "7 Golf Course Road", city: "Gurugram", state: "Haryana", pincode: "122002", isDefault: true }], reviews: [{ product: "Carved Brass Vase", comment: "Exquisite craftsmanship.", rating: 5 }], messages: [] },
-    { id: "usr-4", name: "Priya Shah", email: "priya@example.com", phone: "+91 98111 23456", role: "USER", _count: { orders: 24, reviews: 4 }, totalSpent: 1160000, createdAt: "2025-08-22T18:02:00.000Z", savedAddresses: [], reviews: [], messages: [] },
-    { id: "usr-5", name: "Rohan Sharma", email: "rohan@example.com", phone: "+91 90040 11223", role: "DELIVERY", _count: { orders: 0, reviews: 0 }, totalSpent: 0, createdAt: "2025-09-10T10:00:00.000Z", savedAddresses: [], reviews: [], messages: [] },
-    { id: "usr-6", name: "Meera Joshi", email: "meera@example.com", phone: "+91 98989 00909", role: "SELLER", _count: { orders: 0, reviews: 0 }, totalSpent: 0, createdAt: "2025-12-05T16:22:00.000Z", savedAddresses: [], reviews: [], messages: [] },
-    { id: "usr-7", name: "Vikram Malhotra", email: "vikram@example.com", phone: "+91 98800 11223", role: "USER", _count: { orders: 1, reviews: 0 }, totalSpent: 42500, createdAt: "2026-07-20T11:05:00.000Z", savedAddresses: [{ address: "55 Banjara Hills", city: "Hyderabad", state: "Telangana", pincode: "500034", isDefault: true }], reviews: [], messages: [] },
-    { id: "usr-8", name: "Ananya Iyer", email: "ananya@example.com", phone: "+91 96666 54321", role: "USER", _count: { orders: 8, reviews: 2 }, totalSpent: 312000, createdAt: "2026-03-11T09:40:00.000Z", savedAddresses: [{ address: "19 Anna Nagar", city: "Chennai", state: "Tamil Nadu", pincode: "600040", isDefault: true }], reviews: [{ product: "Marble Table Lamp", comment: "Love the finish.", rating: 4 }], messages: [] },
-    { id: "usr-9", name: "Kabir Anand", email: "kabir@example.com", phone: "+91 99887 76655", role: "USER", _count: { orders: 10, reviews: 3 }, totalSpent: 486000, createdAt: "2026-01-05T17:30:00.000Z", savedAddresses: [{ address: "88 Residency Road", city: "Bengaluru", state: "Karnataka", pincode: "560025", isDefault: true }], reviews: [{ product: "Marble Table Lamp", comment: "Elegant and heavy.", rating: 5 }], messages: [{ subject: "Change delivery address", message: "Please deliver to my office instead.", replyMessage: null }] },
-    { id: "usr-10", name: "Riya Nair", email: "riya@example.com", phone: "+91 91234 56789", role: "USER", _count: { orders: 16, reviews: 4 }, totalSpent: 728000, createdAt: "2025-10-30T13:15:00.000Z", savedAddresses: [{ address: "41 Fort Kochi Road", city: "Kochi", state: "Kerala", pincode: "682001", isDefault: true }], reviews: [{ product: "Velvet Accent Armchair", comment: "Fits the living room perfectly.", rating: 5 }], messages: [{ subject: "Invoice copy", message: "Could you share a GST invoice?", replyMessage: "Shared via email, thanks!" }] },
-    { id: "usr-11", name: "Neha Gupta", email: "neha@example.com", phone: "+91 97000 11223", role: "USER", _count: { orders: 20, reviews: 5 }, totalSpent: 965000, createdAt: "2025-08-15T10:20:00.000Z", savedAddresses: [{ address: "3 Golf Links", city: "New Delhi", state: "Delhi", pincode: "110003", isDefault: true }], reviews: [{ product: "Handwoven Silk Rug", comment: "Beautiful weave.", rating: 5 }], messages: [] },
-    { id: "usr-12", name: "Arjun Reddy", email: "arjun@example.com", phone: "+91 96789 01234", role: "USER", _count: { orders: 27, reviews: 6 }, totalSpent: 1310000, createdAt: "2025-05-22T18:45:00.000Z", savedAddresses: [{ address: "8 Jubilee Hills", city: "Hyderabad", state: "Telangana", pincode: "500033", isDefault: true }], reviews: [{ product: "Carved Brass Vase", comment: "Centerpiece of our hall.", rating: 5 }], messages: [] },
-    { id: "usr-13", name: "Sneha Kulkarni", email: "sneha@example.com", phone: "+91 96555 44556", role: "USER", _count: { orders: 30, reviews: 8 }, totalSpent: 1575000, createdAt: "2025-04-02T12:00:00.000Z", savedAddresses: [{ address: "27 Koregaon Park", city: "Pune", state: "Maharashtra", pincode: "411001", isDefault: true }], reviews: [{ product: "Antique Brass Chandelier", comment: "Gorgeous craftsmanship.", rating: 5 }], messages: [] },
-    { id: "usr-14", name: "Rahul Verma", email: "rahul@example.com", phone: "+91 96444 88990", role: "USER", _count: { orders: 45, reviews: 9 }, totalSpent: 2240000, createdAt: "2024-11-19T09:55:00.000Z", savedAddresses: [{ address: "12 Civil Lines", city: "Jaipur", state: "Rajasthan", pincode: "302006", isDefault: true }], reviews: [{ product: "Velvet Accent Armchair", comment: "Royal look.", rating: 5 }], messages: [] },
-    { id: "usr-15", name: "Sara Khan", email: "sara@example.com", phone: "+91 96333 22110", role: "USER", _count: { orders: 50, reviews: 11 }, totalSpent: 2680000, createdAt: "2024-09-01T16:10:00.000Z", savedAddresses: [{ address: "6 Carter Road", city: "Mumbai", state: "Maharashtra", pincode: "400050", isDefault: true }], reviews: [{ product: "Antique Brass Chandelier", comment: "Timeless.", rating: 5 }], messages: [] },
-    { id: "usr-16", name: "Aditya Rao", email: "aditya@example.com", phone: "+91 96222 33445", role: "USER", _count: { orders: 85, reviews: 14 }, totalSpent: 4120000, createdAt: "2024-05-08T14:25:00.000Z", savedAddresses: [{ address: "21 Indiranagar", city: "Bengaluru", state: "Karnataka", pincode: "560038", isDefault: true }], reviews: [{ product: "Handwoven Silk Rug", comment: "Exceptional quality.", rating: 5 }], messages: [] },
-    { id: "usr-17", name: "Kavita Deshmukh", email: "kavita@example.com", phone: "+91 96111 55667", role: "USER", _count: { orders: 120, reviews: 18 }, totalSpent: 5890000, createdAt: "2024-01-25T11:40:00.000Z", savedAddresses: [{ address: "15 Marine Drive", city: "Mumbai", state: "Maharashtra", pincode: "400020", isDefault: true }], reviews: [{ product: "Velvet Accent Armchair", comment: "Best purchase yet.", rating: 5 }], messages: [] },
-  ],
-  messages: { total: 3, unread: 2, messages: [
-    { id: "msg-1", name: "Aarav Mehta", email: "aarav@example.com", subject: "Delivery query", message: "When will my chandelier arrive?", status: "pending", read: false, createdAt: "2026-08-16T09:12:00.000Z", user: "Aarav Mehta", replyMessage: null, repliedAt: null },
-    { id: "msg-2", name: "Kabir Anand", email: "kabir@example.com", subject: "Change delivery address", message: "Please deliver to my office instead.", status: "pending", read: false, createdAt: "2026-08-15T19:40:00.000Z", user: "Kabir Anand", replyMessage: null, repliedAt: null },
-    { id: "msg-3", name: "Riya Nair", email: "riya@example.com", subject: "Invoice copy", message: "Could you share a GST invoice?", status: "resolved", read: true, createdAt: "2026-08-14T13:05:00.000Z", user: "Riya Nair", replyMessage: "Shared via email, thanks!", repliedAt: "2026-08-14T15:30:00.000Z" },
-  ] },
-  newsletter: { total: 4, active: 3, subscribers: [
-    { id: "sub-1", email: "aarav@example.com", name: "Aarav Mehta", createdAt: "2025-11-02T09:12:00.000Z" },
-    { id: "sub-2", email: "ishita@example.com", name: "Ishita Kapoor", createdAt: "2026-01-18T14:40:00.000Z" },
-    { id: "sub-3", email: "dev@example.com", name: "Dev Malhotra", createdAt: "2026-03-09T11:20:00.000Z" },
-    { id: "sub-4", email: "priya@example.com", name: "Priya Shah", createdAt: "2026-06-22T18:02:00.000Z" },
-  ] },
+  orders: [],
+  users: [],
+  messages: { total: 0, unread: 0, messages: [] },
+  newsletter: { total: 0, active: 0, subscribers: [] },
   privateViewing: { total: 0, unread: 0, requests: [] },
   analytics: {
-    today: { visits: 142, unique: 98 },
-    week: { visits: 1080, unique: 640 },
-    overall: { visits: 48210, unique: 21400 },
-    avgDuration: 186,
-    dailyLast7: [
-      { label: "Sun", visits: 120 },
-      { label: "Mon", visits: 165 },
-      { label: "Tue", visits: 142 },
-      { label: "Wed", visits: 198 },
-      { label: "Thu", visits: 176 },
-      { label: "Fri", visits: 204 },
-      { label: "Sat", visits: 142 },
-    ],
-    topPages: [
-      { page: "/", visits: 3400 },
-      { page: "/store", visits: 2100 },
-      { page: "/products/antique-chandelier", visits: 1420 },
-      { page: "/search", visits: 980 },
-    ],
+    today: { visits: 0, unique: 0 },
+    week: { visits: 0, unique: 0 },
+    overall: { visits: 0, unique: 0 },
+    avgDuration: 0,
+    dailyLast7: [],
+    topPages: [],
   },
-  passwordResets: [
-    { id: "pr-1", user: "Aarav Mehta", name: "Aarav Mehta", email: "aarav@example.com", phone: "+91 98200 12345", method: "email", requestedAt: "2026-08-16T08:30:00.000Z", createdAt: "2026-08-16T08:30:00.000Z", ipAddress: "103.21.58.111", failReason: null, status: "completed" },
-    { id: "pr-2", user: "Ishita Kapoor", name: "Ishita Kapoor", email: "ishita@example.com", phone: "+91 98765 43210", method: "sms", requestedAt: "2026-08-15T22:14:00.000Z", createdAt: "2026-08-15T22:14:00.000Z", ipAddress: "157.32.90.44", failReason: "Invalid OTP three times", status: "failed" },
-    { id: "pr-3", user: "Priya Shah", name: "Priya Shah", email: "priya@example.com", phone: "+91 98111 23456", method: "email", requestedAt: "2026-08-15T12:02:00.000Z", createdAt: "2026-08-15T12:02:00.000Z", ipAddress: "45.118.76.3", failReason: null, status: "requested" },
-  ],
+  passwordResets: [],
 };
 
 export default function AdminPage() {
@@ -121,14 +71,14 @@ export default function AdminPage() {
 
   const isOwner = !!user && user.role === "ADMIN";
 
-  const [orders, setOrders] = useState<any[]>(PREVIEW_DATA.orders);
-  const [users, setUsers] = useState<any[]>(PREVIEW_DATA.users);
-  const [stats, setStats] = useState<any>(PREVIEW_DATA.stats);
-  const [analytics, setAnalytics] = useState<any>(PREVIEW_DATA.analytics);
-  const [newsletter, setNewsletter] = useState<any>(PREVIEW_DATA.newsletter);
-  const [messages, setMessages] = useState<any>(PREVIEW_DATA.messages);
-  const [privateViewing, setPrivateViewing] = useState<any>(PREVIEW_DATA.privateViewing);
-  const [passwordResets, setPasswordResets] = useState<any[]>(PREVIEW_DATA.passwordResets);
+  const [orders, setOrders] = useState<any[]>(EMPTY_DATA.orders);
+  const [users, setUsers] = useState<any[]>(EMPTY_DATA.users);
+  const [stats, setStats] = useState<any>(EMPTY_DATA.stats);
+  const [analytics, setAnalytics] = useState<any>(EMPTY_DATA.analytics);
+  const [newsletter, setNewsletter] = useState<any>(EMPTY_DATA.newsletter);
+  const [messages, setMessages] = useState<any>(EMPTY_DATA.messages);
+  const [privateViewing, setPrivateViewing] = useState<any>(EMPTY_DATA.privateViewing);
+  const [passwordResets, setPasswordResets] = useState<any[]>(EMPTY_DATA.passwordResets);
 
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [focusOrderId, setFocusOrderId] = useState<string | null>(null);
@@ -151,17 +101,17 @@ export default function AdminPage() {
       if (o && o.error) { setAuthError(o.error); setLoading(false); return; }
       setOrders(Array.isArray(o) ? o : []);
       setUsers(Array.isArray(u) ? u : []);
-      setStats(s && typeof s === "object" && !Array.isArray(s) ? s : PREVIEW_DATA.stats);
-      setAnalytics(a && typeof a === "object" && !Array.isArray(a) ? a : PREVIEW_DATA.analytics);
+      setStats(s && typeof s === "object" && !Array.isArray(s) ? s : EMPTY_DATA.stats);
+      setAnalytics(a && typeof a === "object" && !Array.isArray(a) ? a : EMPTY_DATA.analytics);
       setNewsletter(nl && typeof nl === "object" && !Array.isArray(nl)
         ? { ...nl, subscribers: Array.isArray(nl.subscribers) ? nl.subscribers : [] }
-        : PREVIEW_DATA.newsletter);
+        : EMPTY_DATA.newsletter);
       setMessages(mg && typeof mg === "object" && !Array.isArray(mg)
         ? { ...mg, messages: Array.isArray(mg.messages) ? mg.messages : [] }
-        : PREVIEW_DATA.messages);
+        : EMPTY_DATA.messages);
       setPrivateViewing(pv && typeof pv === "object" && !Array.isArray(pv)
         ? { ...pv, requests: Array.isArray(pv.requests) ? pv.requests : [] }
-        : PREVIEW_DATA.privateViewing);
+        : EMPTY_DATA.privateViewing);
       setPasswordResets(Array.isArray(pr) ? pr : []);
       setAuthenticated(true);
     } catch { setAuthError("Cannot connect to server"); }

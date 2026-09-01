@@ -121,7 +121,7 @@ router.delete("/subcategories/:subId", adminAuth, async (req, res) => {
 router.get("/products/:source", async (req, res) => {
   try {
     const { source } = req.params;
-    if (source !== "store" && source !== "mart") return res.status(400).json({ error: "source must be store or mart" });
+    if (source !== "store" && source !== "mart" && source !== "mediverse") return res.status(400).json({ error: "source must be store, mart, or mediverse" });
     const products = await prisma.product.findMany({
       where: { source },
       orderBy: { name: "asc" },

@@ -8,7 +8,7 @@ import { cn, formatPrice } from "@/lib/utils";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import { useCart } from "@/components/cart/CartContext";
 import { trackRecentlyViewed } from "@/lib/recentlyViewed";
-import { getMartProduct, MART_PRODUCTS } from "../products";
+import { getMartProduct } from "../products";
 import SiteLayout from "@/components/layout/SiteLayout";
 import { resolveImageUrl } from "@/lib/imageUrl";
 import type { MartProduct } from "../products";
@@ -133,7 +133,7 @@ export default function MartProductPage() {
   }
 
   const related = (() => {
-    const all = [...MART_PRODUCTS, ...dbAllProducts];
+    const all = dbAllProducts;
     const seen = new Set<string>();
     return all.filter((p) => {
       if (p.category !== product.category || p.id === product.id || seen.has(p.id)) return false;

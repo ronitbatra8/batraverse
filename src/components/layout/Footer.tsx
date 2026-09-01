@@ -11,7 +11,6 @@ import {
   LayoutGrid,
   Mail,
   MapPin,
-  Package,
   Phone,
   Receipt,
   ShieldCheck,
@@ -40,7 +39,6 @@ const COMPANY_LINKS = [
 ] as const;
 
 const SUPPORT_LINKS = [
-  { label: "Track Order", href: "/tracking/demo", icon: Package },
   { label: "My Orders", href: "/orders", icon: Receipt },
   { label: "Private Viewing", href: "/private-viewing", icon: Eye },
   { label: "Wishlist", href: "/wishlist", icon: Heart },

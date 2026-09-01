@@ -1,11 +1,69 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { cn, formatPrice } from "@/lib/utils";
+import { resolveImageUrl } from "@/lib/imageUrl";
 import { useTheme } from "@/components/theme/ThemeProvider";
-import { MEDIVERSE_PRODUCTS, type MediverseProduct } from "./products";
+import type { MediverseProduct } from "./products";
 import { Star } from "lucide-react";
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+
+const DB_GRADIENT_MAP: Record<string, string> = {
+  wellness: "bg-gradient-to-br from-yellow-400 to-amber-500",
+  fitness: "bg-gradient-to-br from-red-500 to-orange-500",
+  healthcare: "bg-gradient-to-br from-cyan-400 to-blue-500",
+  nutrition: "bg-gradient-to-br from-green-500 to-lime-500",
+  beauty: "bg-gradient-to-br from-pink-400 to-rose-500",
+  sleep: "bg-gradient-to-br from-indigo-400 to-purple-600",
+  default: "bg-gradient-to-br from-stone-400 to-stone-600",
+};
+
+interface DbProduct {
+  id: string;
+  name: string;
+  brand: string | null;
+  category: string | null;
+  subCategory: string | null;
+  price: number;
+  originalPrice: number | null;
+  description: string | null;
+  images: string[];
+  inStock: boolean;
+  badge: string | null;
+  rating: number;
+  reviewCount: number;
+  seller: { name: string; shopName: string | null; email: string } | null;
+  specifications: unknown;
+  keyFeatures: unknown;
+  colorOptions: unknown;
+}
+
+function dbToMediverseProduct(p: DbProduct): MediverseProduct {
+  const rawColors = Array.isArray(p.colorOptions)
+    ? (p.colorOptions as { name: string; images?: string[] }[])
+    : [];
+  const firstColorImages = rawColors[0]?.images || [];
+  const images = p.images.length > 0 ? p.images : firstColorImages;
+  return {
+    id: `db-${p.id}`,
+    name: p.name,
+    brand: p.brand || "",
+    price: p.price,
+    originalPrice: p.originalPrice ?? undefined,
+    category: p.category || "uncategorized",
+    sub: p.subCategory || "all",
+    badge: p.badge || undefined,
+    gradient: DB_GRADIENT_MAP[p.category || ""] || DB_GRADIENT_MAP.default,
+    rating: p.rating,
+    reviews: p.reviewCount,
+    unit: "1 unit",
+    inStock: p.inStock,
+    dbImages: images,
+    seller: p.seller || null,
+  };
+}
 
 interface MediverseGridProps {
   category: string;
@@ -24,14 +82,31 @@ const CATEGORY_LABELS: Record<string, string> = {
 export default function MediverseGrid({ category, subCategory }: MediverseGridProps) {
   const { theme } = useTheme();
   const light = theme === "light";
+  const [dbProducts, setDbProducts] = useState<MediverseProduct[]>([]);
+
+  const fetchDbProducts = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/categories/products/mediverse`, {
+        headers: { "ngrok-skip-browser-warning": "true" },
+      });
+      if (!res.ok) return;
+      const data: DbProduct[] = await res.json();
+      if (Array.isArray(data)) setDbProducts(data.map(dbToMediverseProduct));
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { fetchDbProducts(); }, [fetchDbProducts]);
 
   const filtered = useMemo(() => {
-    return MEDIVERSE_PRODUCTS.filter((p) => {
+    return dbProducts.filter((p) => {
       if (category !== "all" && p.category !== category) return false;
       if (subCategory !== "all" && p.sub !== subCategory) return false;
       return true;
     });
-  }, [category, subCategory]);
+  }, [category, subCategory, dbProducts]);
 
   const grouped = useMemo(() => {
     const map = new Map<string, MediverseProduct[]>();
@@ -83,12 +158,21 @@ function MediverseProductCard({ product, light }: { product: MediverseProduct; l
       )}
     >
       <div className="relative aspect-[4/5] sm:aspect-[4/3] overflow-hidden">
-        <div
-          className={cn(
-            "absolute inset-0 bg-gradient-to-br transition-transform duration-700 group-hover:scale-105",
-            product.gradient
-          )}
-        />
+        {product.dbImages && product.dbImages.length > 0 ? (
+          <img
+            src={resolveImageUrl(product.dbImages[0])}
+            alt={product.name}
+            className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+            onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+          />
+        ) : (
+          <div
+            className={cn(
+              "absolute inset-0 bg-gradient-to-br transition-transform duration-700 group-hover:scale-105",
+              product.gradient
+            )}
+          />
+        )}
         {product.badge && (
           <span
             className={cn(

@@ -22,8 +22,8 @@ function inr(n: number): string {
   return `₹${n.toLocaleString("en-IN")}`;
 }
 
-export default function FeaturedShelf({ fallback }: { fallback: ShelfItem[] }) {
-  const [items, setItems] = useState<ShelfItem[]>(fallback);
+export default function FeaturedShelf() {
+  const [items, setItems] = useState<ShelfItem[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -52,6 +52,8 @@ export default function FeaturedShelf({ fallback }: { fallback: ShelfItem[] }) {
       .catch(() => {});
     return () => { cancelled = true; };
   }, []);
+
+  if (items.length === 0) return null;
 
   return (
     <ProductShelf

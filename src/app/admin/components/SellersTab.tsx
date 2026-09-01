@@ -9,20 +9,7 @@ import { resolveImageUrl } from "@/lib/imageUrl";
 import { formatPrice } from "@/lib/utils";
 
 export default function SellersTab({ adminKey }: { adminKey: string }) {
-  const [sellers, setSellers] = useState<any[]>([
-    { id: "slr-1", name: "Meera Joshi", email: "meera@example.com", phone: "+91 98989 00909", approved: true, createdAt: "2025-12-05T16:22:00.000Z", _count: { products: 3 }, products: [
-      { id: "prd-1", images: [], name: "Antique Brass Chandelier", brand: "Meera Artisan", price: 42500, originalPrice: 52000, category: "Lighting", inStock: true, description: "Handcrafted antique brass chandelier with hand-polished finish." },
-      { id: "prd-2", images: [], name: "Carved Brass Vase", brand: "Meera Artisan", price: 5400, originalPrice: 5400, category: "Decor", inStock: true, description: "Carved brass vase, one of a kind." },
-      { id: "prd-3", images: [], name: "Rosewood Jewelry Box", brand: "Meera Artisan", price: 3200, originalPrice: 4200, category: "Decor", inStock: false, description: "Rosewood jewelry box with brass inlay." },
-    ], orders: [{ id: "ORD-9V4C1H7", totalAmount: 5400 }] },
-    { id: "slr-2", name: "Tara Kapoor", email: "tara@example.com", phone: "+91 97777 12121", approved: true, createdAt: "2026-02-14T11:08:00.000Z", _count: { products: 2 }, products: [
-      { id: "prd-4", images: [], name: "Handwoven Silk Rug", brand: "Tara Textiles", price: 12800, originalPrice: 16000, category: "Furnishings", inStock: true, description: "Handwoven pure silk rug, 6x4 ft." },
-      { id: "prd-5", images: [], name: "Velvet Cushion Covers", brand: "Tara Textiles", price: 1800, originalPrice: 1800, category: "Furnishings", inStock: true, description: "Set of two velvet cushion covers." },
-    ], orders: [{ id: "ORD-5T9QX2A", totalAmount: 25600 }] },
-    { id: "slr-3", name: "Arjun Nair", email: "arjun@example.com", phone: "+91 96555 43434", approved: false, createdAt: "2026-07-19T17:45:00.000Z", _count: { products: 1 }, products: [
-      { id: "prd-6", images: [], name: "Marble Table Lamp", brand: "Arjun Studio", price: 8600, originalPrice: 8600, category: "Lighting", inStock: true, description: "Carved marble table lamp with brass base." },
-    ], orders: [] },
-  ]);
+  const [sellers, setSellers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [sellerDetail, setSellerDetail] = useState<Record<string, any>>({});

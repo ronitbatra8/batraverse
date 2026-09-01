@@ -6,7 +6,7 @@ import { cn, formatPrice } from "@/lib/utils";
 import { resolveImageUrl } from "@/lib/imageUrl";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import { useCart } from "@/components/cart/CartContext";
-import { MART_PRODUCTS, type MartProduct } from "./products";
+import type { MartProduct } from "./products";
 import { Star, Check } from "lucide-react";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
@@ -100,7 +100,7 @@ export default function MartGrid({ category, subCategory, searchQuery }: MartGri
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { fetchDbProducts(); }, [fetchDbProducts]);
 
-  const allProducts = useMemo(() => [...MART_PRODUCTS, ...dbProducts], [dbProducts]);
+  const allProducts = dbProducts;
 
   const filtered = useMemo(() => {
     return allProducts.filter((p) => {

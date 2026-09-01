@@ -9,8 +9,7 @@ import { useTheme } from "@/components/theme/ThemeProvider";
 import { useCart } from "@/components/cart/CartContext";
 import { useWishlist } from "@/components/wishlist/WishlistContext";
 import { trackRecentlyViewed } from "@/lib/recentlyViewed";
-import { getProduct, getRelated, PRODUCTS } from "../products";
-import { getProductReviews, getReviewStats } from "../reviews";
+import { getProduct, getRelated } from "../products";
 import { apiFetch } from "@/lib/api";
 import { resolveImageUrl } from "@/lib/imageUrl";
 import SiteLayout from "@/components/layout/SiteLayout";
@@ -199,7 +198,7 @@ export default function ProductPage() {
   }
 
   const related = (() => {
-    const all = [...PRODUCTS, ...dbAllProducts];
+    const all = dbAllProducts;
     const seen = new Set<string>();
     return all.filter((p) => {
       if (p.category !== product.category || p.id === product.id || seen.has(p.id)) return false;
@@ -207,34 +206,25 @@ export default function ProductPage() {
       return true;
     }).slice(0, 10);
   })();
-  const mockReviews = getProductReviews(product.id);
-  const mockStats = getReviewStats(mockReviews);
+  const reviews = realReviews.map((r) => ({
+    id: r.id,
+    author: r.user?.name || "Anonymous",
+    avatar: "bg-violet-600",
+    rating: r.rating,
+    date: new Date(r.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+    title: r.comment?.split("\n")[0] || "",
+    body: r.comment || "",
+    helpful: 0,
+    verified: true,
+    color: undefined as string | undefined,
+    size: undefined as string | undefined,
+    isReal: true as const,
+  }));
 
-  const allReviews = [
-    ...realReviews.map((r) => ({
-      id: r.id,
-      author: r.user?.name || "Anonymous",
-      avatar: "bg-violet-600",
-      rating: r.rating,
-      date: new Date(r.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
-      title: r.comment?.split("\n")[0] || "",
-      body: r.comment || "",
-      helpful: 0,
-      verified: true,
-      color: undefined as string | undefined,
-      size: undefined as string | undefined,
-      isReal: true as const,
-    })),
-    ...mockReviews.map((r) => ({ ...r, isReal: false as const })),
-  ];
-
-  const reviews = allReviews;
   const stats = {
-    total: realStats.total + mockStats.total,
-    avg: realStats.total > 0 && mockStats.total > 0
-      ? (realStats.avg * realStats.total + mockStats.avg * mockStats.total) / (realStats.total + mockStats.total)
-      : realStats.total > 0 ? realStats.avg : mockStats.avg,
-    dist: realStats.dist.map((v, i) => v + mockStats.dist[i]),
+    total: realStats.total,
+    avg: realStats.total > 0 ? realStats.avg : 0,
+    dist: realStats.dist,
   };
 
   async function handleSubmitReview() {

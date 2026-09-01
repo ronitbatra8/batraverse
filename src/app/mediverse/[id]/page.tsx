@@ -1,14 +1,27 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { Star, ShoppingBag, ChevronRight, Check, Truck, Shield, RotateCcw, Zap } from "lucide-react";
+import { Star, ShoppingBag, ChevronRight, Check, Truck, Shield, RotateCcw, Zap, Loader2 } from "lucide-react";
 import { cn, formatPrice } from "@/lib/utils";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import { useCart } from "@/components/cart/CartContext";
-import { MEDIVERSE_PRODUCTS, type MediverseProduct } from "../products";
+import type { MediverseProduct } from "../products";
 import SiteLayout from "@/components/layout/SiteLayout";
+import { resolveImageUrl } from "@/lib/imageUrl";
+
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api").replace("/api", "");
+
+const DB_GRADIENT_MAP: Record<string, string> = {
+  wellness: "bg-gradient-to-br from-yellow-400 to-amber-500",
+  fitness: "bg-gradient-to-br from-red-500 to-orange-500",
+  healthcare: "bg-gradient-to-br from-cyan-400 to-blue-500",
+  nutrition: "bg-gradient-to-br from-green-500 to-lime-500",
+  beauty: "bg-gradient-to-br from-pink-400 to-rose-500",
+  sleep: "bg-gradient-to-br from-indigo-400 to-purple-600",
+  default: "bg-gradient-to-br from-stone-400 to-stone-600",
+};
 
 export default function MediverseProductPage() {
   const params = useParams();
@@ -18,10 +31,72 @@ export default function MediverseProductPage() {
   const { addItem } = useCart();
 
   const id = params.id as string;
-  const product = MEDIVERSE_PRODUCTS.find((p) => p.id === id);
-
+  const isDb = id.startsWith("db-");
+  const [dbProduct, setDbProduct] = useState<MediverseProduct | null>(null);
+  const [dbAllProducts, setDbAllProducts] = useState<MediverseProduct[]>([]);
+  const [dbLoading, setDbLoading] = useState(false);
   const [qty, setQty] = useState(1);
   const [addedToCart, setAddedToCart] = useState(false);
+
+  const fetchDbProduct = useCallback(async () => {
+    if (!isDb) return;
+    const rawId = id.replace("db-", "");
+    setDbLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/categories/products/mediverse`, {
+        headers: { "ngrok-skip-browser-warning": "true" },
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (!Array.isArray(data)) return;
+
+      const rawColors = (p: any) => (Array.isArray(p.colorOptions) ? p.colorOptions as { images?: string[] }[] : []);
+      const mapDbToMed = (found: any): MediverseProduct => {
+        const firstColorImages = rawColors(found)[0]?.images || [];
+        const images = (found.images && found.images.length > 0) ? found.images : firstColorImages;
+        return {
+          id: `db-${found.id}`,
+          name: found.name,
+          brand: found.brand || "",
+          price: found.price,
+          originalPrice: found.originalPrice ?? undefined,
+          category: found.category || "uncategorized",
+          sub: found.subCategory || "all",
+          badge: found.badge || undefined,
+          gradient: DB_GRADIENT_MAP[found.category || ""] || DB_GRADIENT_MAP.default,
+          rating: found.rating,
+          reviews: found.reviewCount,
+          unit: found.unit || "1 unit",
+          inStock: found.inStock,
+          dbImages: images,
+          seller: found.seller || null,
+        };
+      };
+
+      const allMapped = data.map(mapDbToMed);
+      setDbAllProducts(allMapped);
+
+      const found = data.find((p: { id: string }) => p.id === rawId);
+      if (!found) return;
+      setDbProduct(mapDbToMed(found));
+    } catch { /* ignore */ }
+    setDbLoading(false);
+  }, [id, isDb]);
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { fetchDbProduct(); }, [fetchDbProduct]);
+
+  const product = dbProduct;
+
+  if (dbLoading && isDb) {
+    return (
+      <SiteLayout>
+        <div className="flex min-h-screen items-center justify-center">
+          <Loader2 size={24} className="text-gold-400 animate-spin" />
+        </div>
+      </SiteLayout>
+    );
+  }
 
   if (!product) {
     return (
@@ -43,9 +118,9 @@ export default function MediverseProductPage() {
     );
   }
 
-  const related = MEDIVERSE_PRODUCTS.filter(
-    (p) => p.category === product.category && p.id !== product.id
-  ).slice(0, 10);
+  const related = dbAllProducts
+    .filter((p) => p.category === product.category && p.id !== product.id)
+    .slice(0, 10);
 
   const handleAddToCart = () => {
     addItem(
@@ -53,9 +128,25 @@ export default function MediverseProductPage() {
         id: product.id,
         name: product.name,
         price: product.price,
+        brand: product.brand,
+        unit: product.unit,
         category: product.category,
+        sub: product.sub,
+        badge: product.badge,
+        rating: product.rating,
+        reviews: product.reviews,
+        originalPrice: product.originalPrice,
+        gradient: product.gradient,
+        colors: [{ name: "Default", value: "#18181b" }],
+        sizes: [],
+        description: "",
+        features: [],
+        sku: product.id,
+        inStock: product.inStock,
+        dbImages: product.dbImages,
+        seller: product.seller,
       } as any,
-      { color: "Default", colorHex: "#18181b", qty, source: "mediverse" }
+      { color: "Default", colorHex: "#18181b", colorImage: product.dbImages?.[0], qty, source: "mediverse" }
     );
     setAddedToCart(true);
     setTimeout(() => setAddedToCart(false), 2000);
@@ -67,9 +158,25 @@ export default function MediverseProductPage() {
         id: product.id,
         name: product.name,
         price: product.price,
+        brand: product.brand,
+        unit: product.unit,
         category: product.category,
+        sub: product.sub,
+        badge: product.badge,
+        rating: product.rating,
+        reviews: product.reviews,
+        originalPrice: product.originalPrice,
+        gradient: product.gradient,
+        colors: [{ name: "Default", value: "#18181b" }],
+        sizes: [],
+        description: "",
+        features: [],
+        sku: product.id,
+        inStock: product.inStock,
+        dbImages: product.dbImages,
+        seller: product.seller,
       } as any,
-      { color: "Default", colorHex: "#18181b", qty, source: "mediverse" }
+      { color: "Default", colorHex: "#18181b", colorImage: product.dbImages?.[0], qty, source: "mediverse" }
     );
     router.push("/cart");
   };
@@ -97,7 +204,15 @@ export default function MediverseProductPage() {
           {/* Gallery */}
           <div className="flex flex-col gap-3">
             <div className={cn("relative aspect-square overflow-hidden rounded-2xl", light ? "bg-dark-100" : "bg-graphite")}>
-              <div className={cn("absolute inset-0 bg-gradient-to-br transition-all duration-700", product.gradient)} />
+              {product.dbImages && product.dbImages.length > 0 ? (
+                <img
+                  src={resolveImageUrl(product.dbImages[0])}
+                  alt={product.name}
+                  className="absolute inset-0 w-full h-full object-cover"
+                />
+              ) : (
+                <div className={cn("absolute inset-0 bg-gradient-to-br transition-all duration-700", product.gradient)} />
+              )}
               {product.badge && (
                 <span className={cn("absolute left-4 top-4 rounded-full px-3 py-1.5 text-[9px] font-bold uppercase tracking-[0.2em]", light ? "bg-white/90 text-dark-900 shadow-sm" : "bg-abyss/80 text-gold-light backdrop-blur-sm")}>
                   {product.badge}

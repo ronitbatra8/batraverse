@@ -9,16 +9,7 @@ import { formatPrice } from "@/lib/utils";
 import { resolveImageUrl } from "@/lib/imageUrl";
 
 export default function DeliveryExecTab({ adminKey }: { adminKey: string }) {
-  const [execs, setExecs] = useState<any[]>([
-    { id: "dlv-1", name: "Rohan Sharma", email: "rohan@example.com", phone: "+91 90040 11223", approved: true, createdAt: "2025-09-10T10:00:00.000Z", _count: { assignedOrders: 2 }, orders: [
-      { id: "ORD-8F3K2M1", totalAmount: 42500, shippingAddress: "24 Marine Drive, Apt 7B", shippingCity: "Mumbai", items: [{ name: "Antique Brass Chandelier", quantity: 1, price: 42500 }] },
-      { id: "ORD-7B1L4W9", totalAmount: 8600, shippingAddress: "88 Residency Road", shippingCity: "Bengaluru", items: [{ name: "Marble Table Lamp", quantity: 1, price: 8600 }] },
-    ] },
-    { id: "dlv-2", name: "Sana Qureshi", email: "sana@example.com", phone: "+91 90211 33445", approved: true, createdAt: "2025-11-22T12:15:00.000Z", _count: { assignedOrders: 1 }, orders: [
-      { id: "ORD-5T9QX2A", totalAmount: 25600, shippingAddress: "12 Lodi Estate", shippingCity: "New Delhi", items: [{ name: "Handwoven Silk Rug", quantity: 2, price: 12800 }] },
-    ] },
-    { id: "dlv-3", name: "Vikram Rathore", email: "vikram@example.com", phone: "+91 93456 77889", approved: false, createdAt: "2026-07-01T09:00:00.000Z", _count: { assignedOrders: 0 }, orders: [] },
-  ]);
+  const [execs, setExecs] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [execDetail, setExecDetail] = useState<Record<string, any>>({});

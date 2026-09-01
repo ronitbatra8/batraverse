@@ -3,9 +3,9 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { getAuth } from "@/lib/authStorage";
-import { getProduct } from "@/app/store/products";
-import { MART_PRODUCTS } from "@/app/mart/products";
 import type { Product } from "@/app/store/products";
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
 interface WishlistCtx {
   ids: Set<string>;
@@ -37,6 +37,71 @@ function loadLocal(): string[] {
 
 function saveLocal(ids: string[]) {
   localStorage.setItem(getWishlistKey(), JSON.stringify(ids));
+}
+
+function mapStore(r: any): Product {
+  const rawColors = Array.isArray(r.colorOptions) ? r.colorOptions as { name: string; hex: string; images?: string[]; price?: number; originalPrice?: number }[] : [];
+  const colors: { name: string; value: string; images?: string[]; price?: number; originalPrice?: number }[] =
+    rawColors.length > 0
+      ? rawColors.map((c) => ({ name: c.name, value: c.hex, images: Array.isArray(c.images) ? c.images : undefined, price: c.price, originalPrice: c.originalPrice }))
+      : [{ name: "Default", value: "#18181b" }];
+  const sizeOpts = (r.sizeOptions && typeof r.sizeOptions === "object" && !Array.isArray(r.sizeOptions))
+    ? r.sizeOptions as Record<string, { name: string; price?: number }[]>
+    : {};
+  const firstName = colors[0]?.name || "";
+  const firstSizes = sizeOpts[firstName] || Object.values(sizeOpts)[0] || [];
+  let price = r.price;
+  if ((price === 0 || price == null) && firstSizes[0]?.price) price = firstSizes[0].price;
+  if ((price === 0 || price == null) && colors[0]?.price) price = colors[0].price;
+  const firstColorImages = colors[0]?.images || [];
+  const images = (r.images && r.images.length > 0) ? r.images : firstColorImages;
+  return {
+    id: `db-${r.id}`,
+    name: r.name,
+    price,
+    originalPrice: r.originalPrice ?? undefined,
+    category: r.category || "uncategorized",
+    sub: r.subCategory || "all",
+    badge: r.badge || undefined,
+    gradient: "from-zinc-700 to-zinc-900",
+    rating: r.rating || 0,
+    reviews: r.reviewCount || 0,
+    description: r.description || "",
+    features: Array.isArray(r.keyFeatures) ? r.keyFeatures : [],
+    colors,
+    sizes: Object.values(sizeOpts).flat().map((s: { name: string }) => s.name),
+    sku: r.id,
+    inStock: r.inStock !== false,
+    dbImages: images,
+    brand: r.brand || undefined,
+    source: "store",
+    seller: r.seller || null,
+  };
+}
+
+function mapMart(r: any): Product {
+  return {
+    id: `db-${r.id}`,
+    name: r.name,
+    price: r.price,
+    originalPrice: r.originalPrice ?? undefined,
+    category: r.category || "uncategorized",
+    sub: r.subCategory || "all",
+    badge: r.badge || undefined,
+    gradient: "from-zinc-700 to-zinc-900",
+    rating: r.rating || 0,
+    reviews: r.reviewCount || 0,
+    unit: "1 unit",
+    inStock: r.inStock !== false,
+    dbImages: (r.images && r.images.length > 0) ? r.images : ((Array.isArray(r.colorOptions) && (r.colorOptions as { images?: string[] }[])[0]?.images) || []),
+    brand: r.brand || "",
+    source: r.source === "mediverse" ? "mediverse" : "mart",
+    seller: r.seller || null,
+    description: r.description || "",
+    features: Array.isArray(r.keyFeatures) ? r.keyFeatures : [],
+    colors: [{ name: "Default", value: "#18181b" }],
+    sku: r.id,
+  };
 }
 
 const Ctx = createContext<WishlistCtx | null>(null);
@@ -141,34 +206,43 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
 
   const has = useCallback((id: string) => ids.has(id), [ids]);
 
-  const items = useMemo(() => {
-    const result: Product[] = [];
+  const [catalog, setCatalog] = useState<Product[]>([]);
+
+  const items = useMemo<Product[]>(() => {
+    const resolved: Product[] = [];
     for (const id of ids) {
-      const staticProduct = getProduct(id);
-      if (staticProduct) {
-        result.push(staticProduct);
-        continue;
-      }
-      const martProduct = MART_PRODUCTS.find((p) => p.id === id);
-      if (martProduct) {
-        result.push({
-          ...martProduct,
-          originalPrice: martProduct.originalPrice,
-          sub: martProduct.sub || "",
-          badge: martProduct.badge,
-          colors: [],
-          specs: [],
-          features: [],
-          description: "",
-          sku: id,
-          brand: martProduct.brand,
-          unit: martProduct.unit,
-          dbImages: (martProduct as unknown as { dbImages?: string[] }).dbImages,
-        } as Product);
-        continue;
-      }
+      const found = catalog.find((p) => p.id === id);
+      if (found) resolved.push(found);
     }
-    return result;
+    return resolved;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ids, catalog]);
+
+  useEffect(() => {
+    if (ids.size === 0) { setCatalog([]); return; }
+    const sources = [
+      { path: "/categories/products/store", map: mapStore },
+      { path: "/categories/products/mart", map: mapMart },
+      { path: "/categories/products/mediverse", map: mapMart },
+    ];
+    let cancelled = false;
+    (async () => {
+      const out: Product[] = [];
+      for (const s of sources) {
+        try {
+          const res = await fetch(`${API_BASE}${s.path}`, {
+            headers: { "ngrok-skip-browser-warning": "true" },
+          });
+          if (!res.ok) continue;
+          const data = await res.json();
+          if (Array.isArray(data)) {
+            for (const r of data) out.push(s.map(r));
+          }
+        } catch { /* ignore */ }
+      }
+      if (!cancelled) setCatalog(out);
+    })();
+    return () => { cancelled = true; };
   }, [ids]);
 
   const count = ids.size;

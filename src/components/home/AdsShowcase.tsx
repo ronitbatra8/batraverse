@@ -20,30 +20,6 @@ interface Billboard {
   duration: number;
 }
 
-const FALLBACK: Billboard[] = [
-  {
-    img: "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=1920&h=1080&fit=crop",
-    tagline: "The Fall Edit",
-    line: "Where light meets fabric — a season cast in shadow and gold.",
-    href: "/store",
-    duration: DEFAULT_DURATION,
-  },
-  {
-    img: "https://images.unsplash.com/photo-1521334884684-d80222895322?w=1920&h=1080&fit=crop",
-    tagline: "Fine Watches",
-    line: "Hand-finished calibers for those who measure their days in moments, not minutes.",
-    href: "/store",
-    duration: DEFAULT_DURATION,
-  },
-  {
-    img: "https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=1920&h=1080&fit=crop",
-    tagline: "Heritage Leather",
-    line: "Full-grain hides, tanned over seasons and made to outlive them.",
-    href: "/store",
-    duration: DEFAULT_DURATION,
-  },
-];
-
 export default function AdsShowcase({ page = "home", hideHeader = false }: { page?: string; hideHeader?: boolean }) {
   const { theme } = useTheme();
   const light = theme === "light";

@@ -10,9 +10,11 @@ import SiteLayout from "@/components/layout/SiteLayout";
 import { resolveImageUrl } from "@/lib/imageUrl";
 import type { Product } from "@/app/store/products";
 
-function getHref(id: string) {
-  if (id.startsWith("m")) return `/mart/${id}`;
-  return `/store/${id}`;
+function getHref(p: Product) {
+  const src = p.source || "store";
+  if (src === "mart") return `/mart/${p.id}`;
+  if (src === "mediverse") return `/mediverse/${p.id}`;
+  return `/store/${p.id}`;
 }
 
 function getImageSrc(p: Product): string {
@@ -26,7 +28,7 @@ function WishlistRow({ product, light }: { product: Product; light: boolean }) {
   const imgSrc = getImageSrc(product);
 
   return (
-    <Link href={getHref(product.id)} className="group block">
+    <Link href={getHref(product)} className="group block">
       {/* Mobile: row */}
       <div className={cn(
         "flex flex-col rounded-xl border overflow-hidden transition-all duration-300 sm:hidden",
@@ -58,7 +60,7 @@ function WishlistRow({ product, light }: { product: Product; light: boolean }) {
                 color: product.colors?.[0]?.name || "",
                 colorHex: product.colors?.[0]?.value || "#0a0a0a",
                 qty: 1,
-                source: product.id.startsWith("m") ? "mart" : "store",
+                source: product.source || "store",
               });
             }}
             className={cn(
@@ -115,7 +117,7 @@ function WishlistRow({ product, light }: { product: Product; light: boolean }) {
                   color: product.colors?.[0]?.name || "",
                   colorHex: product.colors?.[0]?.value || "#0a0a0a",
                   qty: 1,
-                  source: product.id.startsWith("m") ? "mart" : "store",
+                  source: product.source || "store",
                 });
               }}
               className={cn(

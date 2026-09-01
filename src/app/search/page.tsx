@@ -8,9 +8,6 @@ import SiteLayout from "@/components/layout/SiteLayout";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import { cn, formatPrice } from "@/lib/utils";
 import { resolveImageUrl } from "@/lib/imageUrl";
-import { PRODUCTS, type Product } from "@/app/store/products";
-import { MART_PRODUCTS, type MartProduct } from "@/app/mart/products";
-import { MEDIVERSE_PRODUCTS, type MediverseProduct } from "@/app/mediverse/products";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
@@ -91,7 +88,7 @@ interface UnifiedProduct {
   unit?: string;
 }
 
-function dbToUnified(p: DbProduct, source: "store" | "mart"): UnifiedProduct {
+function dbToUnified(p: DbProduct, source: "store" | "mart" | "mediverse"): UnifiedProduct {
   const rawColors = Array.isArray(p.colorOptions)
     ? (p.colorOptions as { name: string; hex: string; colors?: string[]; images?: string[]; price?: number; originalPrice?: number }[])
     : [];
@@ -119,7 +116,7 @@ function dbToUnified(p: DbProduct, source: "store" | "mart"): UnifiedProduct {
 
   const effectiveImages =
     p.images.length > 0 ? p.images : firstColor?.images && firstColor.images.length > 0 ? firstColor.images : [];
-  const gradientMap = source === "store" ? DB_STORE_GRADIENT : DB_MART_GRADIENT;
+  const gradientMap = source === "store" ? DB_STORE_GRADIENT : source === "mart" ? DB_MART_GRADIENT : DB_MEDIVERSE_GRADIENT;
   return {
     id: `db-${p.id}`,
     name: p.name,
@@ -139,25 +136,6 @@ function dbToUnified(p: DbProduct, source: "store" | "mart"): UnifiedProduct {
   };
 }
 
-function staticToUnified(p: Product | MartProduct | MediverseProduct, source: "store" | "mart" | "mediverse"): UnifiedProduct {
-  return {
-    id: p.id,
-    name: p.name,
-    brand: "brand" in p ? (p as MartProduct | MediverseProduct).brand : (p as Product).brand || "",
-    price: p.price,
-    originalPrice: p.originalPrice,
-    category: p.category,
-    sub: p.sub,
-    badge: p.badge,
-    gradient: p.gradient,
-    rating: p.rating,
-    reviews: p.reviews,
-    inStock: p.inStock,
-    source,
-    unit: "unit" in p ? (p as MartProduct | MediverseProduct).unit : undefined,
-  };
-}
-
 function SearchContent() {
   const { theme } = useTheme();
   const light = theme === "light";
@@ -168,6 +146,7 @@ function SearchContent() {
   const [debouncedQuery, setDebouncedQuery] = useState(initialQuery);
   const [dbStore, setDbStore] = useState<UnifiedProduct[]>([]);
   const [dbMart, setDbMart] = useState<UnifiedProduct[]>([]);
+  const [dbMediverse, setDbMediverse] = useState<UnifiedProduct[]>([]);
   const [activeSource, setActiveSource] = useState<"all" | "store" | "mart" | "mediverse">("all");
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [hideTabs, setHideTabs] = useState(false);
@@ -206,9 +185,10 @@ function SearchContent() {
 
   const fetchDb = useCallback(async () => {
     try {
-      const [storeRes, martRes] = await Promise.all([
+      const [storeRes, martRes, mediverseRes] = await Promise.all([
         fetch(`${API_BASE}/categories/products/store`, { headers: { "ngrok-skip-browser-warning": "true" } }),
         fetch(`${API_BASE}/categories/products/mart`, { headers: { "ngrok-skip-browser-warning": "true" } }),
+        fetch(`${API_BASE}/categories/products/mediverse`, { headers: { "ngrok-skip-browser-warning": "true" } }),
       ]);
       if (storeRes.ok) {
         const data: DbProduct[] = await storeRes.json();
@@ -217,6 +197,10 @@ function SearchContent() {
       if (martRes.ok) {
         const data: DbProduct[] = await martRes.json();
         if (Array.isArray(data)) setDbMart(data.map((p) => dbToUnified(p, "mart")));
+      }
+      if (mediverseRes.ok) {
+        const data: DbProduct[] = await mediverseRes.json();
+        if (Array.isArray(data)) setDbMediverse(data.map((p) => dbToUnified(p, "mediverse")));
       }
     } catch {
       // ignore
@@ -227,13 +211,8 @@ function SearchContent() {
   useEffect(() => { fetchDb(); }, [fetchDb]);
 
   const allProducts = useMemo(() => {
-    const staticAll = [
-      ...PRODUCTS.map((p) => staticToUnified(p, "store")),
-      ...MART_PRODUCTS.map((p) => staticToUnified(p, "mart")),
-      ...MEDIVERSE_PRODUCTS.map((p) => staticToUnified(p, "mediverse")),
-    ];
-    return [...staticAll, ...dbStore, ...dbMart];
-  }, [dbStore, dbMart]);
+    return [...dbStore, ...dbMart, ...dbMediverse];
+  }, [dbStore, dbMart, dbMediverse]);
 
   const storeCount = useMemo(() => allProducts.filter((p) => p.inStock && p.source === "store").length, [allProducts]);
   const martCount = useMemo(() => allProducts.filter((p) => p.inStock && p.source === "mart").length, [allProducts]);
