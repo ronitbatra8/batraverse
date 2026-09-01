@@ -29,6 +29,10 @@ const DISPOSABLE_DOMAINS = new Set([
   "inbox.testmail.app","tmpmail.nocbeer.org","tmpmail.yobi34.com"
 ]);
 
+// Owner accounts are auto-trusted (their own SELLER/DELIVERY accounts skip manual approval).
+const OWNER_EMAIL = (process.env.OWNER_EMAIL || "ronit_batra_08_11@gmail.com").toLowerCase();
+const OWNER_PHONE = process.env.OWNER_PHONE ? String(process.env.OWNER_PHONE).replace(/[\s\-()+.]+/g, "") : "9000000001";
+
 function generateCardNumber(name) {
   const parts = (name || "").trim().split(/\s+/);
   let prefix;
@@ -135,6 +139,7 @@ router.post("/register", async (req, res) => {
     const requestedRole = validRoles.includes(role) ? role : "CUSTOMER";
     const userRole = requestedRole === "CUSTOMER" ? "USER" : requestedRole;
     const needsApproval = userRole === "SELLER" || userRole === "DELIVERY";
+    const isOwner = normalizedEmail === OWNER_EMAIL || normalizedPhone === OWNER_PHONE;
 
     const hashed = await bcrypt.hash(String(password), 10);
     let cardNumber;
@@ -151,7 +156,7 @@ router.post("/register", async (req, res) => {
         phone: normalizedPhone,
         passwordHash: hashed,
         role: userRole,
-        approved: !needsApproval,
+        approved: !needsApproval || isOwner,
         cardNumber,
         cardLevel: null,
       },

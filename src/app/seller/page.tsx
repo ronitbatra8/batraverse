@@ -316,7 +316,7 @@ export default function SellerDashboardPage() {
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- initial data fetch
-    if (user && user.role === "SELLER") fetchDashboard();
+    if (user && user.role === "SELLER" && user.approved !== false) fetchDashboard();
   }, [user, fetchDashboard]);
 
   async function handleProfileSave() {
@@ -441,6 +441,24 @@ export default function SellerDashboardPage() {
     } finally {
       setTogglingStock(null);
     }
+  }
+
+  if (!authLoading && user && user.role === "SELLER" && user.approved === false) {
+    return (
+      <SiteLayout>
+        <div className="min-h-screen flex items-center justify-center px-4">
+          <div className="max-w-md w-full text-center">
+            <div className="mx-auto w-16 h-16 rounded-2xl bg-gold-500/10 border border-gold-500/20 flex items-center justify-center mb-6">
+              <Store className="w-8 h-8 text-gold-400" />
+            </div>
+            <h1 className="text-2xl font-bold text-white mb-2">Seller account pending approval</h1>
+            <p className="text-dark-400 text-sm leading-relaxed">
+              Your seller account is being reviewed. Once approved, you will be able to manage your products and orders here.
+            </p>
+          </div>
+        </div>
+      </SiteLayout>
+    );
   }
 
   if (authLoading || loading) {

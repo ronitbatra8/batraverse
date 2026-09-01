@@ -68,8 +68,10 @@ function RegisterContent() {
   };
 
   const goAfterRegister = (user: { role?: string }) => {
-    if (user.role === "SELLER" || user.role === "DELIVERY") {
-      router.push("/dashboard");
+    if (user.role === "SELLER") {
+      router.push("/seller");
+    } else if (user.role === "DELIVERY") {
+      router.push("/delivery");
     } else {
       router.push("/");
     }

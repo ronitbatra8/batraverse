@@ -107,7 +107,7 @@ export default function DeliveryPage() {
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    if (user) fetchOrders();
+    if (user && user.approved !== false) fetchOrders();
   }, [user, fetchOrders]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
@@ -243,6 +243,24 @@ export default function DeliveryPage() {
             >
               Sign In
             </Link>
+          </div>
+        </div>
+      </SiteLayout>
+    );
+  }
+
+  if (user && user.approved === false) {
+    return (
+      <SiteLayout>
+        <div className="flex min-h-screen items-center justify-center px-4">
+          <div className="max-w-md text-center">
+            <div className={cn("mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl border", light ? "border-sapphire/20 bg-sapphire/10" : "border-gold/20 bg-gold/10")}>
+              <Truck className={cn("h-8 w-8", light ? "text-sapphire" : "text-gold")} />
+            </div>
+            <h1 className={cn("mb-2 text-2xl font-bold", light ? "text-dark-900" : "text-cream")}>Delivery account pending approval</h1>
+            <p className={cn("text-sm leading-relaxed", light ? "text-dark-400" : "text-cream-dim")}>
+              Your delivery account is being reviewed. Once approved, you will be able to see assigned orders here.
+            </p>
           </div>
         </div>
       </SiteLayout>
