@@ -55,21 +55,22 @@ const HEADER = `
 const FOOTER = `
   <p style="color:#666;font-size:12px;margin:24px 0 0;text-align:center;">BATRAVERSE — luxury, curated.</p>`;
 
+const CODE_BLOCK = (code) => `
+  <p style="font-size:28px;font-weight:bold;letter-spacing:6px;margin:12px 0;">${escapeHtml(code)}</p>`;
+
 async function sendOTPEmail(to, code, name) {
   await sendMail({
     to,
-    subject: "Verify Your Email — BATRAVERSE",
+    subject: "Your BATRAVERSE verification code",
     codeForConsole: code,
     html: `
-      <div style="max-width:480px;margin:0 auto;font-family:Arial,sans-serif;background:#0a0a0a;color:#fff;padding:40px;border-radius:16px;">
-        ${HEADER}
-        <p style="color:#999;font-size:14px;margin:0 0 8px;">Hello ${escapeHtml(name || "there")},</p>
-        <p style="color:#999;font-size:14px;margin:0 0 24px;">Use the following OTP to verify your email address:</p>
-        <div style="text-align:center;margin:24px 0;">
-          <span style="display:inline-block;background:#d4a853;color:#0a0a0a;font-size:32px;font-weight:bold;letter-spacing:8px;padding:16px 32px;border-radius:12px;">${escapeHtml(code)}</span>
-        </div>
-        <p style="color:#666;font-size:12px;margin:24px 0 0;">This OTP expires in 5 minutes. If you did not request this, please ignore this email.</p>
-        ${FOOTER}
+      <div style="margin:0 auto;max-width:480px;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:#111;">
+        <p style="font-size:18px;font-weight:bold;margin:0 0 16px;">BATRAVERSE</p>
+        <p style="margin:0 0 8px;">Hello ${escapeHtml(name || "there")},</p>
+        <p style="margin:0 0 8px;">Your verification code is:</p>
+        ${CODE_BLOCK(code)}
+        <p style="color:#555;font-size:12px;margin:12px 0 0;">This code expires in 5 minutes. If you did not request this, you can ignore this email.</p>
+        <p style="color:#555;font-size:12px;margin:16px 0 0;">BATRAVERSE — luxury, curated.</p>
       </div>
     `,
   });
@@ -78,18 +79,16 @@ async function sendOTPEmail(to, code, name) {
 async function sendResetPasswordEmail(to, code, name) {
   await sendMail({
     to,
-    subject: "Reset Your Password — BATRAVERSE",
+    subject: "Reset your BATRAVERSE password",
     codeForConsole: code,
     html: `
-      <div style="max-width:480px;margin:0 auto;font-family:Arial,sans-serif;background:#0a0a0a;color:#fff;padding:40px;border-radius:16px;">
-        ${HEADER}
-        <p style="color:#999;font-size:14px;margin:0 0 8px;">Hello ${escapeHtml(name || "there")},</p>
-        <p style="color:#999;font-size:14px;margin:0 0 24px;">We received a request to reset your password. Use the following OTP to proceed:</p>
-        <div style="text-align:center;margin:24px 0;">
-          <span style="display:inline-block;background:#d4a853;color:#0a0a0a;font-size:32px;font-weight:bold;letter-spacing:8px;padding:16px 32px;border-radius:12px;">${escapeHtml(code)}</span>
-        </div>
-        <p style="color:#666;font-size:12px;margin:24px 0 0;">This OTP expires in 5 minutes. If you did not request a password reset, please ignore this email and your password will remain unchanged.</p>
-        ${FOOTER}
+      <div style="margin:0 auto;max-width:480px;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:#111;">
+        <p style="font-size:18px;font-weight:bold;margin:0 0 16px;">BATRAVERSE</p>
+        <p style="margin:0 0 8px;">Hello ${escapeHtml(name || "there")},</p>
+        <p style="margin:0 0 8px;">We received a request to reset your password. Use the following code to proceed:</p>
+        ${CODE_BLOCK(code)}
+        <p style="color:#555;font-size:12px;margin:12px 0 0;">This code expires in 5 minutes. If you did not request a password reset, you can ignore this email and your password will stay the same.</p>
+        <p style="color:#555;font-size:12px;margin:16px 0 0;">BATRAVERSE — luxury, curated.</p>
       </div>
     `,
   });
@@ -276,9 +275,7 @@ async function sendDeliveryVerificationEmail(to, name, orderId, code) {
         ${HEADER}
         <p style="color:#999;font-size:14px;margin:0 0 8px;">Hello ${escapeHtml(name || "there")},</p>
         <p style="color:#fff;font-size:14px;margin:0 0 20px;">Your delivery executive has marked your order as delivered. Please verify by entering the OTP below:</p>
-        <div style="text-align:center;margin:24px 0;">
-          <span style="display:inline-block;background:#d4a853;color:#0a0a0a;font-size:32px;font-weight:bold;letter-spacing:8px;padding:16px 32px;border-radius:12px;">${escapeHtml(code)}</span>
-        </div>
+        ${CODE_BLOCK(code)}
         <p style="color:#666;font-size:12px;margin:24px 0 0;">This OTP expires in 15 minutes. Enter it in the orders section to confirm delivery.</p>
         ${FOOTER}
       </div>
