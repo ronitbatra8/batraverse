@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { RefreshCw, LogOut, Shield, Sparkles, LayoutDashboard, Package, Users, MessageSquare, KeyRound, BarChart3, Newspaper, Truck, Store, Eye, CreditCard, AlertTriangle, ShoppingCart, ClipboardList, Tags, Megaphone, Wallet } from "lucide-react";
+import { RefreshCw, LogOut, Shield, Sparkles, LayoutDashboard, Package, Users, MessageSquare, KeyRound, BarChart3, Newspaper, Truck, Store, Eye, CreditCard, AlertTriangle, ShoppingCart, ClipboardList, Tags, Megaphone, Wallet, Quote } from "lucide-react";
 import { Tab } from "./types";
 
 export const topNavItems: { key: Tab; label: string; icon: any }[] = [
@@ -19,6 +19,7 @@ export const sideNavItems: { key: Tab; label: string; icon: any }[] = [
   { key: "categories", label: "Categories", icon: Tags },
   { key: "sellerrequests", label: "Seller Requests", icon: ClipboardList },
   { key: "featured", label: "Featured", icon: Sparkles },
+  { key: "testimonials", label: "Testimonials", icon: Quote },
   { key: "ads", label: "Ads", icon: Megaphone },
   { key: "wallet", label: "Wallet Top-Ups", icon: Wallet },
   { key: "messages", label: "Messages", icon: MessageSquare },

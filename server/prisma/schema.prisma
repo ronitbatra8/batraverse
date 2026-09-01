@@ -513,3 +513,22 @@ model FeaturedProduct {
 
   @@index([sortOrder])
 }
+
+model Testimonial {
+  id          String   @id @default(cuid())
+  source      String   @default("custom") // "custom" or "review"
+  reviewId    String?  // reference to a Review id when source = review
+  quote       String
+  name        String
+  role        String?
+  avatar      String?
+  rating      Int?
+  productName String?
+  active      Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([active])
+  @@index([sortOrder])
+}

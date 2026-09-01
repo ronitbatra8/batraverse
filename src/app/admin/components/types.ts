@@ -2,7 +2,7 @@
 
 import { getAuth } from "@/lib/authStorage";
 
-export type Tab = "overview" | "orders" | "users" | "messages" | "security" | "analytics" | "newsletter" | "delivery" | "sellers" | "privateviewing" | "cards" | "violations" | "categories" | "productcatalog" | "sellerrequests" | "ads" | "wallet" | "featured";
+export type Tab = "overview" | "orders" | "users" | "messages" | "security" | "analytics" | "newsletter" | "delivery" | "sellers" | "privateviewing" | "cards" | "violations" | "categories" | "productcatalog" | "sellerrequests" | "ads" | "wallet" | "featured" | "testimonials";
 export type UserDetailTab = "overview" | "orders" | "addresses" | "reviews" | "wishlist" | "messages" | "security";
 
 export const API = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000").replace("/api", "");

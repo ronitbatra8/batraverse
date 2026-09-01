@@ -18,6 +18,7 @@ const sellerRoutes = require("./routes/seller");
 const categoryRoutes = require("./routes/categories");
 const wishlistRoutes = require("./routes/wishlist");
 const reviewRoutes = require("./routes/reviews");
+const testimonialRoutes = require("./routes/testimonials");
 const walletRoutes = require("./routes/wallet");
 
 const app = express();
@@ -28,8 +29,8 @@ app.use(cors());
 app.use(express.json({ limit: "10mb" }));
 app.use("/uploads", express.static(path.join(__dirname, "..", "uploads")));
 
-const authLimiter = rateLimit({ windowMs: 60 * 1000, max: 20, message: { error: "Too many requests, please try again later" } });
-const strictAuthLimiter = rateLimit({ windowMs: 10 * 60 * 1000, max: 30, message: { error: "Too many requests, please try again later" } });
+const authLimiter = rateLimit({ windowMs: 60 * 1000, max: Number(process.env.AUTH_LIMIT_MAX || 20), message: { error: "Too many requests, please try again later" } });
+const strictAuthLimiter = rateLimit({ windowMs: 10 * 60 * 1000, max: Number(process.env.AUTH_STRICT_LIMIT_MAX || 30), message: { error: "Too many requests, please try again later" } });
 
 app.get("/", (req, res) => res.json({ name: "BATRAVERSE API", status: "ok" }));
 app.get("/api/health", (req, res) => res.json({ status: "ok" }));
@@ -128,6 +129,7 @@ app.use("/api/seller", sellerRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/wishlist", wishlistRoutes);
 app.use("/api/reviews", reviewRoutes);
+app.use("/api/testimonials", testimonialRoutes);
 app.use("/api/wallet", walletRoutes);
 
 app.use((req, res) => res.status(404).json({ error: "Not found" }));

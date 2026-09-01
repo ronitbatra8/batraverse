@@ -1071,4 +1071,136 @@ router.put("/featured", async (req, res) => {
   }
 });
 
+// ── Testimonials ─────────────────────────────────────────────
+
+async function nextTestimonialSort(prisma) {
+  const agg = await prisma.testimonial.aggregate({ _max: { sortOrder: true } });
+  return (agg._max.sortOrder || 0) + 1;
+}
+
+/* Reviews list for the owner dashboard's "feature a review" picker. */
+router.get("/reviews", async (req, res) => {
+  try {
+    const take = Math.min(parseInt(req.query.take, 10) || 100, 500);
+    const reviews = await prisma.review.findMany({
+      orderBy: { createdAt: "desc" },
+      take,
+      include: {
+        user: { select: { id: true, name: true, email: true } },
+        product: { select: { id: true, name: true } },
+      },
+    });
+    res.json(reviews);
+  } catch (err) {
+    res.status(500).json({ error: safeErrorMessage(err) });
+  }
+});
+
+router.get("/testimonials", async (_req, res) => {
+  try {
+    const items = await prisma.testimonial.findMany({
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+    });
+    res.json(items);
+  } catch (err) {
+    res.status(500).json({ error: safeErrorMessage(err) });
+  }
+});
+
+router.post("/testimonials", async (req, res) => {
+  try {
+    const { quote, name, role, avatar, rating, productName } = req.body;
+    if (!quote || !quote.trim() || !name || !name.trim()) {
+      return res.status(400).json({ error: "Quote and name are required" });
+    }
+    const t = await prisma.testimonial.create({
+      data: {
+        source: "custom",
+        quote: quote.trim(),
+        name: name.trim(),
+        role: role?.trim() || null,
+        avatar: avatar?.trim() || null,
+        rating: rating != null && rating >= 1 && rating <= 5 ? Math.round(rating) : null,
+        productName: productName?.trim() || null,
+        sortOrder: await nextTestimonialSort(prisma),
+      },
+    });
+    res.status(201).json(t);
+  } catch (err) {
+    res.status(500).json({ error: safeErrorMessage(err) });
+  }
+});
+
+router.post("/testimonials/feature-review", async (req, res) => {
+  try {
+    const { reviewId } = req.body;
+    if (!reviewId) return res.status(400).json({ error: "reviewId is required" });
+    const existing = await prisma.testimonial.findFirst({ where: { source: "review", reviewId } });
+    if (existing) return res.status(409).json({ error: "This review is already featured" });
+    const review = await prisma.review.findUnique({
+      where: { id: reviewId },
+      include: {
+        user: { select: { id: true, name: true } },
+        product: { select: { id: true, name: true } },
+      },
+    });
+    if (!review) return res.status(404).json({ error: "Review not found" });
+    const t = await prisma.testimonial.create({
+      data: {
+        source: "review",
+        reviewId: review.id,
+        quote: review.comment || "Great experience with this product.",
+        name: review.user?.name || "Verified Customer",
+        rating: review.rating,
+        productName: review.product?.name || null,
+        sortOrder: await nextTestimonialSort(prisma),
+      },
+    });
+    res.status(201).json(t);
+  } catch (err) {
+    res.status(500).json({ error: safeErrorMessage(err) });
+  }
+});
+
+router.put("/testimonials/:id", async (req, res) => {
+  try {
+    const { quote, name, role, avatar, rating, productName, active, sortOrder } = req.body;
+    const t = await prisma.testimonial.findUnique({ where: { id: req.params.id } });
+    if (!t) return res.status(404).json({ error: "Testimonial not found" });
+    const data = {};
+    if (quote !== undefined) data.quote = quote;
+    if (name !== undefined) data.name = name;
+    if (role !== undefined) data.role = role;
+    if (avatar !== undefined) data.avatar = avatar;
+    if (rating !== undefined) data.rating = (rating != null && rating >= 1 && rating <= 5) ? Math.round(rating) : null;
+    if (productName !== undefined) data.productName = productName;
+    if (active !== undefined) data.active = !!active;
+    if (sortOrder !== undefined) data.sortOrder = Number(sortOrder);
+    const updated = await prisma.testimonial.update({ where: { id: req.params.id }, data });
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ error: safeErrorMessage(err) });
+  }
+});
+
+router.put("/testimonials/:id/toggle", async (req, res) => {
+  try {
+    const t = await prisma.testimonial.findUnique({ where: { id: req.params.id } });
+    if (!t) return res.status(404).json({ error: "Testimonial not found" });
+    const updated = await prisma.testimonial.update({ where: { id: t.id }, data: { active: !t.active } });
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ error: safeErrorMessage(err) });
+  }
+});
+
+router.delete("/testimonials/:id", async (req, res) => {
+  try {
+    await prisma.testimonial.delete({ where: { id: req.params.id } });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: safeErrorMessage(err) });
+  }
+});
+
 module.exports = router;

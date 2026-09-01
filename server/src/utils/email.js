@@ -27,8 +27,8 @@ function makeTransporter() {
 
 async function sendMail({ to, subject, html, codeForConsole }) {
   const transporter = makeTransporter();
-  if (!transporter) {
-    // Dev fallback — no email credentials configured, log instead.
+  if (!transporter || process.env.EMAIL_DISABLED === "true") {
+    // Dev/test fallback — email disabled (log instead of SMTP).
     console.log(`[email] To: ${to} | Subject: ${subject}${codeForConsole ? ` | OTP: ${codeForConsole}` : ""}`);
     return;
   }
