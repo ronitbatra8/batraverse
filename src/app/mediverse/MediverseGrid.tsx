@@ -6,6 +6,7 @@ import { cn, formatPrice } from "@/lib/utils";
 import { resolveImageUrl } from "@/lib/imageUrl";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import ProductGridSkeleton from "@/components/ui/ProductGridSkeleton";
+import { seedSlimProduct, warmProduct } from "@/lib/productCache";
 import type { MediverseProduct } from "./products";
 import { Star } from "lucide-react";
 
@@ -143,6 +144,10 @@ export default function MediverseGrid({ category, subCategory }: MediverseGridPr
     setVisibleCount(48);
   }, [category, subCategory]);
 
+  useEffect(() => {
+    for (const p of filtered) seedSlimProduct(p.id, p);
+  }, [filtered]);
+
   return (
     <div className="mx-auto max-w-[100rem] px-0 py-10 sm:px-5 md:px-10">
       {loading && dbProducts.length === 0 ? (
@@ -186,6 +191,7 @@ function MediverseProductCard({ product, light }: { product: MediverseProduct; l
   return (
     <Link
       href={`/mediverse/${product.id}`}
+      onMouseEnter={() => warmProduct(product.id)}
       className={cn(
         "group block overflow-hidden rounded-none border-0 transition-all duration-500 sm:rounded-2xl sm:border",
         light

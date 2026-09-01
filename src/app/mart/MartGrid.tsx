@@ -7,6 +7,7 @@ import { resolveImageUrl } from "@/lib/imageUrl";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import { useCart } from "@/components/cart/CartContext";
 import ProductGridSkeleton from "@/components/ui/ProductGridSkeleton";
+import { seedSlimProduct, warmProduct } from "@/lib/productCache";
 import type { MartProduct } from "./products";
 import { Star, Check } from "lucide-react";
 
@@ -149,6 +150,10 @@ export default function MartGrid({ category, subCategory, searchQuery }: MartGri
     setVisibleCount(48);
   }, [category, subCategory, searchQuery]);
 
+  useEffect(() => {
+    for (const p of filtered) seedSlimProduct(p.id, p);
+  }, [filtered]);
+
   return (
     <div className="mx-auto max-w-[100rem] px-0 py-10 sm:px-5 md:px-10">
       {loading && dbProducts.length === 0 ? (
@@ -225,6 +230,7 @@ function MartProductCard({ product, light }: { product: MartProduct; light: bool
   return (
     <Link
       href={`/mart/${product.id}`}
+      onMouseEnter={() => warmProduct(product.id)}
       className={cn(
         "group block overflow-hidden rounded-none border-0 transition-all duration-500 sm:rounded-2xl sm:border",
         light

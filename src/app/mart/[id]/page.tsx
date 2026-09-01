@@ -11,6 +11,7 @@ import { trackRecentlyViewed } from "@/lib/recentlyViewed";
 import { getMartProduct } from "../products";
 import SiteLayout from "@/components/layout/SiteLayout";
 import ProductDetailSkeleton from "@/components/ui/ProductDetailSkeleton";
+import { getFullProduct, getSlimProduct } from "@/lib/productCache";
 import { resolveImageUrl } from "@/lib/imageUrl";
 import type { MartProduct } from "../products";
 
@@ -25,6 +26,26 @@ const CATEGORY_LABELS: Record<string, string> = {
   personal: "Personal Care",
   cleaning: "Cleaning",
 };
+
+function mapDbToMart(found: any): MartProduct {
+  return {
+    id: `db-${found.id}`,
+    name: found.name,
+    brand: found.brand || "",
+    price: found.price,
+    originalPrice: found.originalPrice ?? undefined,
+    category: found.category || "uncategorized",
+    sub: found.subCategory || "all",
+    badge: found.badge || undefined,
+    gradient: "bg-gradient-to-br from-stone-400 to-stone-600",
+    rating: found.rating,
+    reviews: found.reviewCount,
+    unit: "1 unit",
+    inStock: found.inStock,
+    dbImages: found.images || [],
+    seller: found.seller || null,
+  };
+}
 
 export default function MartProductPage() {
   const params = useParams();
@@ -45,6 +66,16 @@ export default function MartProductPage() {
     if (!isDb) return;
     const rawId = id.replace("db-", "");
     setDbMissing(false);
+
+    const cachedFull = getFullProduct(rawId);
+    if (cachedFull?.product) {
+      setDbProduct(mapDbToMart(cachedFull.product));
+      setDbAllProducts((cachedFull.related || []).map(mapDbToMart));
+      return;
+    }
+    const slim = getSlimProduct<MartProduct>(id);
+    if (slim) setDbProduct(slim);
+
     try {
       const res = await fetch(`${API_BASE}/api/products/${rawId}?related=true`, {
         headers: { "ngrok-skip-browser-warning": "true" },
@@ -56,28 +87,10 @@ export default function MartProductPage() {
         return;
       }
 
-      const mapDbToMart = (found: any): MartProduct => ({
-        id: `db-${found.id}`,
-        name: found.name,
-        brand: found.brand || "",
-        price: found.price,
-        originalPrice: found.originalPrice ?? undefined,
-        category: found.category || "uncategorized",
-        sub: found.subCategory || "all",
-        badge: found.badge || undefined,
-        gradient: "bg-gradient-to-br from-stone-400 to-stone-600",
-        rating: found.rating,
-        reviews: found.reviewCount,
-        unit: "1 unit",
-        inStock: found.inStock,
-        dbImages: found.images || [],
-        seller: found.seller || null,
-      });
-
       const allMapped = (data.related || []).map(mapDbToMart);
       setDbAllProducts(allMapped);
       setDbProduct(mapDbToMart(data.product));
-    } catch { /* treat as offline; skeleton stays */ }
+    } catch { /* treat as offline; seeded content stays */ }
   }, [id, isDb]);
 
   // eslint-disable-next-line react-hooks/set-state-in-effect

@@ -7,6 +7,7 @@ import { resolveImageUrl } from "@/lib/imageUrl";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import { useCart } from "@/components/cart/CartContext";
 import ProductGridSkeleton from "@/components/ui/ProductGridSkeleton";
+import { seedSlimProduct, warmProduct } from "@/lib/productCache";
 import type { Product } from "./products";
 import { Star, Check } from "lucide-react";
 
@@ -180,6 +181,10 @@ export default function StoreGrid({ category, subCategory }: StoreGridProps) {
     setVisibleCount(48);
   }, [category, subCategory]);
 
+  useEffect(() => {
+    for (const p of filtered) seedSlimProduct(p.id, p);
+  }, [filtered]);
+
   const categoryLabels: Record<string, string> = {
     watches: "Watches",
     fashion: "Fashion",
@@ -276,6 +281,7 @@ function ProductCard({
   return (
     <Link
       href={`/store/${product.id}`}
+      onMouseEnter={() => warmProduct(product.id)}
       className={cn(
         "group block overflow-hidden rounded-none border-0 transition-all duration-500 sm:rounded-2xl sm:border",
         light

@@ -14,9 +14,72 @@ import { apiFetch } from "@/lib/api";
 import { resolveImageUrl } from "@/lib/imageUrl";
 import SiteLayout from "@/components/layout/SiteLayout";
 import ProductDetailSkeleton from "@/components/ui/ProductDetailSkeleton";
+import { getFullProduct, getSlimProduct } from "@/lib/productCache";
 import type { Product } from "../products";
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api").replace("/api", "");
+
+function mapDbToProduct(found: any): Product {
+  const specs = Array.isArray(found.specifications) ? (found.specifications as { key: string; value: string }[]) : [];
+  const feats = Array.isArray(found.keyFeatures) ? (found.keyFeatures as string[]) : [];
+  const rawColors = Array.isArray(found.colorOptions) ? found.colorOptions as { name: string; hex: string; colors?: string[]; images?: string[]; specifications?: { key: string; value: string }[]; keyFeatures?: string[]; price?: number; originalPrice?: number }[] : [];
+  const colors = rawColors.length > 0 ? rawColors.map((c) => ({
+    name: c.name,
+    value: c.hex,
+    colors: Array.isArray(c.colors) && c.colors.length > 0 ? c.colors : undefined,
+    images: Array.isArray(c.images) ? c.images : undefined,
+    specifications: Array.isArray(c.specifications) ? c.specifications.map((s) => ({ label: s.key, value: s.value })) : undefined,
+    keyFeatures: Array.isArray(c.keyFeatures) ? c.keyFeatures : undefined,
+    price: c.price,
+    originalPrice: c.originalPrice,
+  })) : [{ name: "Default", value: "#18181b" }];
+  const firstColor = rawColors.length > 0 ? rawColors[0] : null;
+  const sizeOpts = (found.sizeOptions && typeof found.sizeOptions === "object" && !Array.isArray(found.sizeOptions))
+    ? found.sizeOptions as Record<string, { name: string; price?: number; originalPrice?: number }[]>
+    : {};
+  const firstName = firstColor?.name || "";
+  const firstSizes = sizeOpts[firstName] || Object.values(sizeOpts)[0] || [];
+  const firstSizeWithPrice = firstSizes.find((s: { name: string; price?: number }) => s.price != null && s.price > 0);
+
+  let effectivePrice = found.price;
+  let effectiveOriginalPrice: number | undefined = found.originalPrice ?? undefined;
+  if (effectivePrice === 0 || effectivePrice == null) {
+    if (firstColor?.price) {
+      effectivePrice = firstColor.price;
+      effectiveOriginalPrice = firstColor.originalPrice ?? effectiveOriginalPrice;
+    } else if (firstSizeWithPrice?.price) {
+      effectivePrice = firstSizeWithPrice.price;
+      effectiveOriginalPrice = firstSizeWithPrice.originalPrice ?? effectiveOriginalPrice;
+    }
+  }
+  const effectiveImages = (Array.isArray(found.images) && found.images.length === 0 && firstColor?.images && firstColor.images.length > 0)
+    ? firstColor.images
+    : (found.images || []);
+
+  return {
+    id: `db-${found.id}`,
+    name: found.name,
+    price: effectivePrice,
+    originalPrice: effectiveOriginalPrice,
+    category: found.category || "uncategorized",
+    sub: found.subCategory || "all",
+    badge: found.badge || undefined,
+    gradient: "from-zinc-700 to-zinc-900",
+    rating: found.rating,
+    reviews: found.reviewCount,
+    description: found.description || "",
+    features: feats,
+    colors,
+    sizes: Object.values(sizeOpts).flat().map((s: { name: string }) => s.name),
+    sizeOptions: sizeOpts,
+    specs: specs.length > 0 ? specs.map((s) => ({ label: s.key, value: s.value })) : undefined,
+    sku: found.id,
+    inStock: found.inStock,
+    dbImages: effectiveImages,
+    brand: found.brand || undefined,
+    seller: found.seller || null,
+  } as Product;
+}
 
 export default function ProductPage() {
   const params = useParams();
@@ -36,6 +99,16 @@ export default function ProductPage() {
     if (!isDb) return;
     const rawId = id.replace("db-", "");
     setDbMissing(false);
+
+    const cachedFull = getFullProduct(rawId);
+    if (cachedFull?.product) {
+      setDbProduct(mapDbToProduct(cachedFull.product));
+      setDbAllProducts((cachedFull.related || []).map(mapDbToProduct));
+      return;
+    }
+    const slim = getSlimProduct<Product>(id);
+    if (slim) setDbProduct(slim);
+
     try {
       const res = await fetch(`${API_BASE}/api/products/${rawId}?related=true`, {
         headers: { "ngrok-skip-browser-warning": "true" },
@@ -47,72 +120,10 @@ export default function ProductPage() {
         return;
       }
 
-      const mapDbToProduct = (found: any): Product => {
-        const specs = Array.isArray(found.specifications) ? (found.specifications as { key: string; value: string }[]) : [];
-        const feats = Array.isArray(found.keyFeatures) ? (found.keyFeatures as string[]) : [];
-        const rawColors = Array.isArray(found.colorOptions) ? found.colorOptions as { name: string; hex: string; colors?: string[]; images?: string[]; specifications?: { key: string; value: string }[]; keyFeatures?: string[]; price?: number; originalPrice?: number }[] : [];
-        const colors = rawColors.length > 0 ? rawColors.map((c) => ({
-          name: c.name,
-          value: c.hex,
-          colors: Array.isArray(c.colors) && c.colors.length > 0 ? c.colors : undefined,
-          images: Array.isArray(c.images) ? c.images : undefined,
-          specifications: Array.isArray(c.specifications) ? c.specifications.map((s) => ({ label: s.key, value: s.value })) : undefined,
-          keyFeatures: Array.isArray(c.keyFeatures) ? c.keyFeatures : undefined,
-          price: c.price,
-          originalPrice: c.originalPrice,
-        })) : [{ name: "Default", value: "#18181b" }];
-        const firstColor = rawColors.length > 0 ? rawColors[0] : null;
-        const sizeOpts = (found.sizeOptions && typeof found.sizeOptions === "object" && !Array.isArray(found.sizeOptions))
-          ? found.sizeOptions as Record<string, { name: string; price?: number; originalPrice?: number }[]>
-          : {};
-        const firstName = firstColor?.name || "";
-        const firstSizes = sizeOpts[firstName] || Object.values(sizeOpts)[0] || [];
-        const firstSizeWithPrice = firstSizes.find((s: { name: string; price?: number }) => s.price != null && s.price > 0);
-
-        let effectivePrice = found.price;
-        let effectiveOriginalPrice: number | undefined = found.originalPrice ?? undefined;
-        if (effectivePrice === 0 || effectivePrice == null) {
-          if (firstColor?.price) {
-            effectivePrice = firstColor.price;
-            effectiveOriginalPrice = firstColor.originalPrice ?? effectiveOriginalPrice;
-          } else if (firstSizeWithPrice?.price) {
-            effectivePrice = firstSizeWithPrice.price;
-            effectiveOriginalPrice = firstSizeWithPrice.originalPrice ?? effectiveOriginalPrice;
-          }
-        }
-        const effectiveImages = (Array.isArray(found.images) && found.images.length === 0 && firstColor?.images && firstColor.images.length > 0)
-          ? firstColor.images
-          : (found.images || []);
-
-        return {
-          id: `db-${found.id}`,
-          name: found.name,
-          price: effectivePrice,
-          originalPrice: effectiveOriginalPrice,
-          category: found.category || "uncategorized",
-          sub: found.subCategory || "all",
-          badge: found.badge || undefined,
-          gradient: "from-zinc-700 to-zinc-900",
-          rating: found.rating,
-          reviews: found.reviewCount,
-          description: found.description || "",
-          features: feats,
-          colors,
-          sizes: Object.values(sizeOpts).flat().map((s: { name: string }) => s.name),
-          sizeOptions: sizeOpts,
-          specs: specs.length > 0 ? specs.map((s) => ({ label: s.key, value: s.value })) : undefined,
-          sku: found.id,
-          inStock: found.inStock,
-          dbImages: effectiveImages,
-          brand: found.brand || undefined,
-          seller: found.seller || null,
-        } as Product;
-      };
-
       const allMapped = (data.related || []).map(mapDbToProduct);
       setDbAllProducts(allMapped);
       setDbProduct(mapDbToProduct(data.product));
-    } catch { /* treat as offline; skeleton stays */ }
+    } catch { /* treat as offline; seeded content stays */ }
   }, [id, isDb]);
 
   // eslint-disable-next-line react-hooks/set-state-in-effect

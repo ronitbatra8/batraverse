@@ -10,6 +10,7 @@ import { useCart } from "@/components/cart/CartContext";
 import type { MediverseProduct } from "../products";
 import SiteLayout from "@/components/layout/SiteLayout";
 import ProductDetailSkeleton from "@/components/ui/ProductDetailSkeleton";
+import { getFullProduct, getSlimProduct } from "@/lib/productCache";
 import { resolveImageUrl } from "@/lib/imageUrl";
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api").replace("/api", "");
@@ -23,6 +24,29 @@ const DB_GRADIENT_MAP: Record<string, string> = {
   sleep: "bg-gradient-to-br from-indigo-400 to-purple-600",
   default: "bg-gradient-to-br from-stone-400 to-stone-600",
 };
+
+function mapDbToMed(found: any): MediverseProduct {
+  const rawColors = (p: any) => (Array.isArray(p.colorOptions) ? p.colorOptions as { images?: string[] }[] : []);
+  const firstColorImages = rawColors(found)[0]?.images || [];
+  const images = (found.images && found.images.length > 0) ? found.images : firstColorImages;
+  return {
+    id: `db-${found.id}`,
+    name: found.name,
+    brand: found.brand || "",
+    price: found.price,
+    originalPrice: found.originalPrice ?? undefined,
+    category: found.category || "uncategorized",
+    sub: found.subCategory || "all",
+    badge: found.badge || undefined,
+    gradient: DB_GRADIENT_MAP[found.category || ""] || DB_GRADIENT_MAP.default,
+    rating: found.rating,
+    reviews: found.reviewCount,
+    unit: found.unit || "1 unit",
+    inStock: found.inStock,
+    dbImages: images,
+    seller: found.seller || null,
+  };
+}
 
 export default function MediverseProductPage() {
   const params = useParams();
@@ -43,6 +67,16 @@ export default function MediverseProductPage() {
     if (!isDb) return;
     const rawId = id.replace("db-", "");
     setDbMissing(false);
+
+    const cachedFull = getFullProduct(rawId);
+    if (cachedFull?.product) {
+      setDbProduct(mapDbToMed(cachedFull.product));
+      setDbAllProducts((cachedFull.related || []).map(mapDbToMed));
+      return;
+    }
+    const slim = getSlimProduct<MediverseProduct>(id);
+    if (slim) setDbProduct(slim);
+
     try {
       const res = await fetch(`${API_BASE}/api/products/${rawId}?related=true`, {
         headers: { "ngrok-skip-browser-warning": "true" },
@@ -54,33 +88,10 @@ export default function MediverseProductPage() {
         return;
       }
 
-      const rawColors = (p: any) => (Array.isArray(p.colorOptions) ? p.colorOptions as { images?: string[] }[] : []);
-      const mapDbToMed = (found: any): MediverseProduct => {
-        const firstColorImages = rawColors(found)[0]?.images || [];
-        const images = (found.images && found.images.length > 0) ? found.images : firstColorImages;
-        return {
-          id: `db-${found.id}`,
-          name: found.name,
-          brand: found.brand || "",
-          price: found.price,
-          originalPrice: found.originalPrice ?? undefined,
-          category: found.category || "uncategorized",
-          sub: found.subCategory || "all",
-          badge: found.badge || undefined,
-          gradient: DB_GRADIENT_MAP[found.category || ""] || DB_GRADIENT_MAP.default,
-          rating: found.rating,
-          reviews: found.reviewCount,
-          unit: found.unit || "1 unit",
-          inStock: found.inStock,
-          dbImages: images,
-          seller: found.seller || null,
-        };
-      };
-
       const allMapped = (data.related || []).map(mapDbToMed);
       setDbAllProducts(allMapped);
       setDbProduct(mapDbToMed(data.product));
-    } catch { /* treat as offline; skeleton stays */ }
+    } catch { /* treat as offline; seeded content stays */ }
   }, [id, isDb]);
 
   // eslint-disable-next-line react-hooks/set-state-in-effect
