@@ -5,51 +5,9 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/components/theme/ThemeProvider";
 
-const DEFAULT_MEDIVERSE_CATEGORIES = [
-  { id: "all", label: "All" },
-  { id: "wellness", label: "Wellness" },
-  { id: "fitness", label: "Fitness" },
-  { id: "healthcare", label: "Healthcare" },
-  { id: "nutrition", label: "Nutrition" },
-  { id: "beauty", label: "Beauty" },
-  { id: "sleep", label: "Sleep" },
-];
+const DEFAULT_MEDIVERSE_CATEGORIES = [{ id: "all", label: "All" }];
 
-const DEFAULT_SUB_CATEGORIES: Record<string, { id: string; label: string }[]> = {
-  wellness: [
-    { id: "all", label: "All" },
-    { id: "vitamins", label: "Vitamins" },
-    { id: "supplements", label: "Supplements" },
-    { id: "probiotics", label: "Probiotics" },
-  ],
-  fitness: [
-    { id: "all", label: "All" },
-    { id: "protein", label: "Protein" },
-    { id: "amino", label: "Amino Acids" },
-    { id: "performance", label: "Performance" },
-  ],
-  healthcare: [
-    { id: "all", label: "All" },
-    { id: "diagnostics", label: "Diagnostics" },
-    { id: "monitoring", label: "Monitoring" },
-  ],
-  nutrition: [
-    { id: "all", label: "All" },
-    { id: "vitamins", label: "Vitamins" },
-    { id: "protein", label: "Protein" },
-    { id: "collagen", label: "Collagen" },
-  ],
-  beauty: [
-    { id: "all", label: "All" },
-    { id: "skincare", label: "Skincare" },
-  ],
-  sleep: [
-    { id: "all", label: "All" },
-    { id: "supplements", label: "Supplements" },
-    { id: "blankets", label: "Blankets" },
-    { id: "machines", label: "Machines" },
-  ],
-};
+const DEFAULT_SUB_CATEGORIES: Record<string, { id: string; label: string }[]> = {};
 
 interface MediverseNavProps {
   active: string;

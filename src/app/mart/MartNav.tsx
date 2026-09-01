@@ -5,67 +5,9 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/components/theme/ThemeProvider";
 
-const DEFAULT_MART_CATEGORIES = [
-  { id: "all", label: "All" },
-  { id: "fruits", label: "Fruits & Veggies" },
-  { id: "dairy", label: "Dairy & Bakery" },
-  { id: "snacks", label: "Snacks" },
-  { id: "beverages", label: "Beverages" },
-  { id: "instant", label: "Instant Food" },
-  { id: "personal", label: "Personal Care" },
-  { id: "cleaning", label: "Cleaning" },
-];
+const DEFAULT_MART_CATEGORIES = [{ id: "all", label: "All" }];
 
-const DEFAULT_SUB_CATEGORIES: Record<string, { id: string; label: string }[]> = {
-  fruits: [
-    { id: "all", label: "All" },
-    { id: "fruits", label: "Fruits" },
-    { id: "veggies", label: "Vegetables" },
-  ],
-  dairy: [
-    { id: "all", label: "All" },
-    { id: "milk", label: "Milk" },
-    { id: "butter", label: "Butter" },
-    { id: "paneer", label: "Paneer" },
-    { id: "curd", label: "Curd" },
-    { id: "cheese", label: "Cheese" },
-    { id: "bread", label: "Bread" },
-  ],
-  snacks: [
-    { id: "all", label: "All" },
-    { id: "chips", label: "Chips" },
-    { id: "biscuits", label: "Biscuits" },
-    { id: "namkeen", label: "Namkeen" },
-    { id: "dryfruits", label: "Dry Fruits" },
-  ],
-  beverages: [
-    { id: "all", label: "All" },
-    { id: "cold", label: "Cold Drinks" },
-    { id: "juice", label: "Juices" },
-    { id: "water", label: "Water" },
-    { id: "tea", label: "Tea" },
-    { id: "coffee", label: "Coffee" },
-  ],
-  instant: [
-    { id: "all", label: "All" },
-    { id: "noodles", label: "Noodles" },
-    { id: "ready", label: "Ready to Eat" },
-    { id: "cereals", label: "Cereals" },
-  ],
-  personal: [
-    { id: "all", label: "All" },
-    { id: "oral", label: "Oral Care" },
-    { id: "hair", label: "Hair Care" },
-    { id: "bath", label: "Bath" },
-    { id: "skincare", label: "Skincare" },
-  ],
-  cleaning: [
-    { id: "all", label: "All" },
-    { id: "laundry", label: "Laundry" },
-    { id: "bathroom", label: "Bathroom" },
-    { id: "floor", label: "Floor" },
-  ],
-};
+const DEFAULT_SUB_CATEGORIES: Record<string, { id: string; label: string }[]> = {};
 
 interface MartNavProps {
   active: string;

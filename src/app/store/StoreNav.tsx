@@ -5,73 +5,9 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/components/theme/ThemeProvider";
 
-const DEFAULT_STORE_CATEGORIES = [
-  { id: "all", label: "All" },
-  { id: "watches", label: "Watches" },
-  { id: "fashion", label: "Fashion" },
-  { id: "accessories", label: "Accessories" },
-  { id: "footwear", label: "Footwear" },
-  { id: "tech", label: "Tech" },
-  { id: "lifestyle", label: "Lifestyle" },
-  { id: "limited", label: "Limited Editions" },
-];
+const DEFAULT_STORE_CATEGORIES = [{ id: "all", label: "All" }];
 
-const DEFAULT_SUB_CATEGORIES: Record<string, { id: string; label: string }[]> = {
-  watches: [
-    { id: "all", label: "All Watches" },
-    { id: "smart", label: "Smart" },
-    { id: "analog", label: "Analog" },
-    { id: "luxury", label: "Luxury" },
-    { id: "sport", label: "Sport" },
-    { id: "pilot", label: "Pilot" },
-  ],
-  fashion: [
-    { id: "all", label: "All Fashion" },
-    { id: "jerseys", label: "Jerseys" },
-    { id: "jackets", label: "Jackets" },
-    { id: "tshirts", label: "T-Shirts" },
-    { id: "hoodies", label: "Hoodies" },
-    { id: "bottoms", label: "Bottoms" },
-    { id: "outerwear", label: "Outerwear" },
-  ],
-  accessories: [
-    { id: "all", label: "All Accessories" },
-    { id: "bags", label: "Bags" },
-    { id: "belts", label: "Belts" },
-    { id: "hats", label: "Hats" },
-    { id: "sunglasses", label: "Sunglasses" },
-    { id: "wallets", label: "Wallets" },
-    { id: "jewelry", label: "Jewelry" },
-  ],
-  footwear: [
-    { id: "all", label: "All Footwear" },
-    { id: "sneakers", label: "Sneakers" },
-    { id: "boots", label: "Boots" },
-    { id: "formal", label: "Formal" },
-    { id: "sandals", label: "Sandals" },
-  ],
-  tech: [
-    { id: "all", label: "All Tech" },
-    { id: "audio", label: "Audio" },
-    { id: "phones", label: "Phones" },
-    { id: "tablets", label: "Tablets" },
-    { id: "wearables", label: "Wearables" },
-  ],
-  lifestyle: [
-    { id: "all", label: "All Lifestyle" },
-    { id: "fragrances", label: "Fragrances" },
-    { id: "home", label: "Home" },
-    { id: "wellness", label: "Wellness" },
-    { id: "stationery", label: "Stationery" },
-  ],
-  limited: [
-    { id: "all", label: "All Limited" },
-    { id: "drops", label: "Drops" },
-    { id: "collabs", label: "Collabs" },
-    { id: "signed", label: "Signed" },
-    { id: "numbered", label: "Numbered" },
-  ],
-};
+const DEFAULT_SUB_CATEGORIES: Record<string, { id: string; label: string }[]> = {};
 
 interface StoreNavProps {
   active: string;

@@ -1,5 +1,3 @@
-import type { ShelfItem } from "@/components/home/ProductShelf";
-
 const STORAGE_KEY = "bt-recently-viewed";
 const MAX_ITEMS = 8;
 
@@ -25,26 +23,13 @@ export function trackRecentlyViewed(item: RecentItem) {
   } catch { /* ignore */ }
 }
 
-export function getRecentlyViewed(): ShelfItem[] {
+export function getRecentItems(): RecentItem[] {
   if (typeof window === "undefined") return [];
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     const items: RecentItem[] = raw ? JSON.parse(raw) : [];
-    const seen = new Set<string>();
-    return items
-      .filter((i) => {
-        if (!i.href || !i.img || seen.has(i.href)) return false;
-        seen.add(i.href);
-        return true;
-      })
-      .map((i) => ({
-        name: i.name,
-        category: i.category,
-        price: i.price,
-        compareAt: i.compareAt,
-        img: i.img,
-        href: i.href,
-      }));
+    if (!Array.isArray(items)) return [];
+    return items;
   } catch {
     return [];
   }
