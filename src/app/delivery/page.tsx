@@ -523,6 +523,9 @@ export default function DeliveryPage() {
                             <p className={cn("text-xs font-medium", light ? "text-amber-700" : "text-amber-400")}>
                               Verification code sent to customer. Enter the code they received:
                             </p>
+                            <p className={cn("text-[10px]", light ? "text-amber-600/80" : "text-amber-400/70")}>
+                              If they didn&apos;t get it, ask them to check Spam, Promotions, or All Mail folders.
+                            </p>
                             <div className="flex flex-wrap items-center gap-3">
                               <input
                                 type="text"

@@ -82,7 +82,7 @@ function ForgotPasswordContent() {
             </div>
             <p className={cn("mt-4 text-sm leading-relaxed", light ? "text-onyx/70" : "text-cream-dim")}>
               Enter the code on the next screen to reset your password. Check your
-              spam folder if it doesn&apos;t arrive in a minute.
+              spam, promotions, or All Mail folders if it doesn&apos;t arrive in a minute.
             </p>
             <button
               type="button"

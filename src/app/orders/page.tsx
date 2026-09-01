@@ -423,6 +423,9 @@ export default function OrdersPage() {
                                 <p className={cn("text-xs font-medium", light ? "text-dark-900" : "text-cream")}>
                                   Enter the OTP sent to your email to confirm delivery:
                                 </p>
+                                <p className={cn("text-[10px]", light ? "text-dark-400" : "text-cream-dim/60")}>
+                                  Not received? Check your Spam, Promotions, or All Mail folders.
+                                </p>
                                 <div className="flex gap-2">
                                   <input
                                     type="text"

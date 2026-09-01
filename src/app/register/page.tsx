@@ -200,6 +200,9 @@ function RegisterContent() {
               Change email
             </button>
           </div>
+          <p className={cn("mt-4 text-center text-[11px] leading-relaxed", light ? "text-onyx/60" : "text-dark-500")}>
+            Didn&apos;t receive it? Check your <span className="font-medium">Spam</span>, <span className="font-medium">Promotions</span>, or <span className="font-medium">All Mail</span> folders — the code may have landed there.
+          </p>
         </AuthCard>
       </AuthShell>
     );
