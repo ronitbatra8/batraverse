@@ -153,7 +153,7 @@ export default function CartPage() {
                                 )}
                               </div>
                             </div>
-                            <div className="mt-3 flex items-center justify-between">
+                            <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                               <div className={cn("flex items-center rounded-xl border", light ? "border-dark-200" : "border-white/10")}>
                                 <button
                                   type="button"
@@ -253,7 +253,7 @@ export default function CartPage() {
                                 )}
                               </div>
                             </div>
-                            <div className="mt-3 flex items-center justify-between">
+                            <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                               <div className={cn("flex items-center rounded-xl border", light ? "border-dark-200" : "border-white/10")}>
                                 <button
                                   type="button"
