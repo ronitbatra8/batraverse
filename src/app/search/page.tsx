@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useMemo, useState, useEffect, useCallback, Suspense, useRef } from "react";
+import { useMemo, useState, useEffect, useCallback, Suspense, useRef, memo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Search, X, Star, ChevronUp } from "lucide-react";
@@ -346,7 +346,7 @@ function SearchContent() {
             ) : (
               <div className="grid grid-cols-2 gap-px sm:gap-5 lg:grid-cols-4">
                 {filtered.map((p) => (
-                  <SearchCard key={`${p.source}-${p.id}`} product={p} light={light} />
+                  <MemoSearchCard key={`${p.source}-${p.id}`} product={p} light={light} />
                 ))}
               </div>
             )}
@@ -377,6 +377,8 @@ function SearchCard({ product, light }: { product: UnifiedProduct; light: boolea
       ? `/store/${product.id}`
       : `/mart/${product.id}`;
   const hasImage = (product.dbImages && product.dbImages.length > 0) || product.img;
+  const isStocked = product.inStock;
+  const img = product.dbImages?.[0] || product.img;
 
   return (
     <Link
@@ -392,7 +394,7 @@ function SearchCard({ product, light }: { product: UnifiedProduct; light: boolea
       <div className="relative aspect-[4/5] sm:aspect-[4/3] overflow-hidden">
         {hasImage ? (
           <img
-            src={resolveImageUrl(product.dbImages?.[0] || product.img)}
+            src={resolveImageUrl(img)}
             alt={product.name}
             loading="lazy"
             decoding="async"
@@ -427,7 +429,7 @@ function SearchCard({ product, light }: { product: UnifiedProduct; light: boolea
             {product.badge}
           </span>
         )}
-        {!product.inStock && (
+        {!isStocked && (
           <span className={cn("absolute inset-0 flex items-center justify-center bg-black/40 text-[9px] font-bold uppercase tracking-[0.25em] text-white/80 backdrop-blur-sm")}>
             Out of Stock
           </span>
@@ -473,6 +475,8 @@ function SearchCard({ product, light }: { product: UnifiedProduct; light: boolea
     </Link>
   );
 }
+
+const MemoSearchCard = memo(SearchCard);
 
 export default function SearchPage() {
   return (
