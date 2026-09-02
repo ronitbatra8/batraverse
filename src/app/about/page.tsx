@@ -501,18 +501,48 @@ export default function AboutPage() {
           <Link
             href="/store"
             className={cn(
-              "group mt-10 inline-flex items-center gap-3 rounded-full px-10 py-4 text-[11px] font-semibold uppercase tracking-[0.3em] transition-all duration-500",
+              "group relative mt-10 inline-flex items-center rounded-full p-[3px] transition-transform duration-500 hover:scale-[1.04]",
               light
-                ? "bg-sapphire text-white hover:shadow-[0_0_50px_rgba(30,58,138,0.3)]"
-                : "bg-gold text-abyss hover:shadow-[0_0_50px_rgba(212,175,55,0.4)]"
+                ? "bg-gradient-to-r from-sapphire-deep via-sapphire-light to-sapphire-deep"
+                : "bg-gradient-to-r from-gold-deep via-gold-light to-gold-deep"
             )}
           >
-            Explore Now
-            <ArrowRight
-              size={16}
-              strokeWidth={2}
-              className="transition-transform duration-500 group-hover:translate-x-1"
+            <span
+              className={cn(
+                "pointer-events-none absolute -inset-1.5 rounded-full opacity-0 blur-lg transition-opacity duration-500 group-hover:opacity-60",
+                light ? "bg-sapphire/40" : "bg-gold/30"
+              )}
+              aria-hidden
             />
+            <span
+              className={cn(
+                "relative flex items-center gap-4 overflow-hidden rounded-full py-3.5 pl-9 pr-3.5",
+                light ? "bg-white" : "bg-abyss"
+              )}
+            >
+              <span
+                className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent transition-transform duration-700 group-hover:translate-x-full"
+                aria-hidden
+              />
+              <span
+                className={cn(
+                  "text-[11px] font-semibold uppercase tracking-[0.3em]",
+                  light ? "text-sapphire" : "text-gold-light"
+                )}
+              >
+                Explore Now
+              </span>
+              <span
+                className={cn(
+                  "flex h-9 w-9 items-center justify-center rounded-full transition-all duration-500 group-hover:translate-x-0.5",
+                  light
+                    ? "bg-sapphire text-white"
+                    : "bg-gradient-to-br from-gold-light to-gold-deep text-abyss"
+                )}
+              >
+                <ArrowRight size={15} strokeWidth={2} />
+              </span>
+            </span>
           </Link>
         </div>
       </section>
