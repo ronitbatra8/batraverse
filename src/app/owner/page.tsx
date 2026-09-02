@@ -287,8 +287,8 @@ export default function AdminPage() {
           {tab === "categories" && <ProductsTab adminKey={adminKey} />}
           {tab === "productcatalog" && <ProductCatalogTab adminKey={adminKey} />}
           {tab === "sellerrequests" && <SellerRequestsTab adminKey={adminKey} />}
-          {tab === "ads" && <AdsTab adminKey="" />}
-          {tab === "wallet" && <WalletTopUpsTab adminKey="" />}
+          {tab === "ads" && <AdsTab adminKey={adminKey} />}
+          {tab === "wallet" && <WalletTopUpsTab adminKey={adminKey} />}
           {tab === "featured" && <FeaturedTab adminKey={adminKey} />}
           {tab === "testimonials" && <TestimonialsTab adminKey={adminKey} />}
         </div>

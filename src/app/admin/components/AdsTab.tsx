@@ -7,6 +7,7 @@ import { adminHeaders } from "./types";
 import { resolveImageUrl } from "@/lib/imageUrl";
 import { API_URL } from "@/lib/api";
 import { useConfirm } from "@/components/useConfirm";
+import { useToast } from "@/components/Toast";
 
 interface SpotlightAd {
   id: string;
@@ -58,6 +59,7 @@ export default function AdsTab({ adminKey }: { adminKey: string }) {
   const [activeTab, setActiveTab] = useState<PageKey>("home");
 
   const { confirm, prompt, ConfirmDialog, PromptDialog } = useConfirm();
+  const { toast } = useToast();
 
   const loadAds = async () => {
     setLoading(true);
@@ -127,9 +129,15 @@ export default function AdsTab({ adminKey }: { adminKey: string }) {
       });
       if (res.ok) {
         await loadAds();
+        toast(expandedId ? "Ad updated" : "Ad created", "success");
         closeForm();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        toast(data.error || (expandedId ? "Failed to update ad" : "Failed to create ad"), "error");
       }
-    } catch {}
+    } catch {
+      toast("Network error — could not save ad. Please try again.", "error");
+    }
     setSaving(false);
   };
 
@@ -143,8 +151,14 @@ export default function AdsTab({ adminKey }: { adminKey: string }) {
       if (res.ok) {
         setAds((prev) => prev.filter((ad) => ad.id !== id));
         if (expandedId === id) closeForm();
+        toast("Ad deleted", "success");
+      } else {
+        const data = await res.json().catch(() => ({}));
+        toast(data.error || "Failed to delete ad", "error");
       }
-    } catch {}
+    } catch {
+      toast("Network error — could not delete ad.", "error");
+    }
   };
 
   const handleToggle = async (id: string) => {
