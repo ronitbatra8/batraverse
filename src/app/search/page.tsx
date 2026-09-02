@@ -125,20 +125,9 @@ function dbToUnified(p: DbProduct, source: "store" | "mart"): UnifiedProduct {
   };
 }
 
-function SearchContent() {
-  const { theme } = useTheme();
-  const light = theme === "light";
-  const router = useRouter();
+function SearchInput({ initialQuery, onDebounced, light }: { initialQuery: string; onDebounced: (q: string) => void; light: boolean }) {
+  const [value, setValue] = useState(initialQuery);
   const searchParams = useSearchParams();
-  const initialQuery = searchParams.get("q") || "";
-  const [query, setQuery] = useState(initialQuery);
-  const [debouncedQuery, setDebouncedQuery] = useState(initialQuery);
-  const [dbStore, setDbStore] = useState<UnifiedProduct[]>([]);
-  const [dbMart, setDbMart] = useState<UnifiedProduct[]>([]);
-  const [activeSource, setActiveSource] = useState<"all" | "store" | "mart">("all");
-  const [showScrollTop, setShowScrollTop] = useState(false);
-  const [hideTabs, setHideTabs] = useState(false);
-  const lastScrollY = useRef(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -146,9 +135,52 @@ function SearchContent() {
   }, [searchParams]);
 
   useEffect(() => {
-    const t = setTimeout(() => setDebouncedQuery(query), 200);
+    const t = setTimeout(() => onDebounced(value), 200);
     return () => clearTimeout(t);
-  }, [query]);
+  }, [value, onDebounced]);
+
+  return (
+    <div className="relative flex-1">
+      <Search size={16} strokeWidth={1.5} className={cn("pointer-events-none absolute left-4 top-1/2 -translate-y-1/2", light ? "text-dark-400" : "text-cream-dim/50")} />
+      <input
+        ref={inputRef}
+        type="text"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder="Search products..."
+        aria-label="Search products"
+        className={cn(
+          "w-full rounded-full border py-3.5 pl-11 pr-10 text-[13px] font-light tracking-wide backdrop-blur-xl transition-all duration-300 focus:outline-none",
+          light ? "border-dark-200/60 bg-white/50 text-dark-900 placeholder:text-dark-400 focus:border-sapphire/40" : "border-white/10 bg-white/10 text-cream placeholder:text-cream-dim/40 focus:border-gold/40"
+        )}
+      />
+      {value && (
+        <button
+          type="button"
+          onClick={() => setValue("")}
+          aria-label="Clear search"
+          className={cn("absolute right-4 top-1/2 -translate-y-1/2 transition-colors duration-300", light ? "text-dark-400 hover:text-dark-900" : "text-cream-dim/50 hover:text-cream")}
+        >
+          <X size={14} strokeWidth={1.5} />
+        </button>
+      )}
+    </div>
+  );
+}
+
+function SearchContent() {
+  const { theme } = useTheme();
+  const light = theme === "light";
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const initialQuery = searchParams.get("q") || "";
+  const [debouncedQuery, setDebouncedQuery] = useState(initialQuery);
+  const [dbStore, setDbStore] = useState<UnifiedProduct[]>([]);
+  const [dbMart, setDbMart] = useState<UnifiedProduct[]>([]);
+  const [activeSource, setActiveSource] = useState<"all" | "store" | "mart">("all");
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const [hideTabs, setHideTabs] = useState(false);
+  const lastScrollY = useRef(0);
 
   useEffect(() => {
     const params = new URLSearchParams();
@@ -265,31 +297,7 @@ function SearchContent() {
           {/* Search bar */}
           <div className="relative z-10 mx-auto max-w-[100rem] px-5 sm:px-10">
             <div className="flex items-center gap-3 pt-3 pb-2">
-              <div className="relative flex-1">
-                <Search size={16} strokeWidth={1.5} className={cn("pointer-events-none absolute left-4 top-1/2 -translate-y-1/2", light ? "text-dark-400" : "text-cream-dim/50")} />
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search products..."
-                  aria-label="Search products"
-                  className={cn(
-                    "w-full rounded-full border py-3.5 pl-11 pr-10 text-[13px] font-light tracking-wide backdrop-blur-xl transition-all duration-300 focus:outline-none",
-                    light ? "border-dark-200/60 bg-white/50 text-dark-900 placeholder:text-dark-400 focus:border-sapphire/40" : "border-white/10 bg-white/10 text-cream placeholder:text-cream-dim/40 focus:border-gold/40"
-                  )}
-                />
-                {query && (
-                  <button
-                    type="button"
-                    onClick={() => setQuery("")}
-                    aria-label="Clear search"
-                    className={cn("absolute right-4 top-1/2 -translate-y-1/2 transition-colors duration-300", light ? "text-dark-400 hover:text-dark-900" : "text-cream-dim/50 hover:text-cream")}
-                  >
-                    <X size={14} strokeWidth={1.5} />
-                  </button>
-                )}
-              </div>
+              <SearchInput initialQuery={initialQuery} onDebounced={setDebouncedQuery} light={light} />
             </div>
           </div>
 
