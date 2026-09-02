@@ -575,7 +575,7 @@ src={resolveImageUrl(item.colorImage) || ""}
                                 {item.color}{item.size ? ` · ${item.size}` : ""}
                                 {isMart && deliveryMode === "express" && (
                                   <span className={cn("inline-flex items-center gap-0.5 rounded-full px-1 py-0.5 text-[7px] font-bold uppercase", light ? "bg-sapphire/10 text-sapphire" : "bg-gold/10 text-gold")}>
-                                    <Zap size={7} /> 10 Min
+                                    <Zap size={7} /> 20 Min
                                   </span>
                                 )}
                               </p>
@@ -612,7 +612,7 @@ src={resolveImageUrl(item.colorImage) || ""}
                       {hasMartItems && (
                         <p className={cn("text-xs mt-1 flex items-center gap-1", light ? "text-dark-400" : "text-cream-dim/40")}>
                           {deliveryMode === "express" ? <Zap size={10} /> : deliveryMode === "regular" ? <Truck size={10} /> : <Clock size={10} />}
-                          Mart: {deliveryMode === "express" ? "Express (10 Min)" : deliveryMode === "regular" ? "Regular (3-5 Days)" : "Standard (30 Min)"}
+                          Mart: {deliveryMode === "express" ? "Express (20 Min)" : deliveryMode === "regular" ? "Regular (3-5 Days)" : "Standard (1 Hour)"}
                         </p>
                       )}
                       <p className={cn("text-xs mt-0.5", light ? "text-dark-400" : "text-cream-dim/40")}>{ship.email}</p>
@@ -662,7 +662,7 @@ src={resolveImageUrl(item.colorImage) || ""}
                           {item.color}{item.size ? ` · ${item.size}` : ""}
                           {isMart && deliveryMode === "express" && (
                             <span className={cn("inline-flex items-center gap-0.5 rounded-full px-1 py-0.5 text-[6px] font-bold uppercase", light ? "bg-sapphire/10 text-sapphire" : "bg-gold/10 text-gold")}>
-                              <Zap size={6} /> 10 Min
+                              <Zap size={6} /> 20 Min
                             </span>
                           )}
                         </p>
@@ -714,7 +714,7 @@ src={resolveImageUrl(item.colorImage) || ""}
                         <Clock size={14} className={deliveryMode === "standard" ? (light ? "text-sapphire" : "text-gold") : (light ? "text-dark-400" : "text-cream-dim/50")} />
                         <div className="text-left">
                           <p className={cn("text-[10px] font-semibold", deliveryMode === "standard" ? (light ? "text-dark-900" : "text-cream") : (light ? "text-dark-500" : "text-cream-dim/60"))}>
-                            30 Min
+                            1 Hour
                           </p>
                           <p className={cn("text-[8px]", light ? "text-dark-400" : "text-cream-dim/40")}>Standard</p>
                         </div>
@@ -732,7 +732,7 @@ src={resolveImageUrl(item.colorImage) || ""}
                         <Zap size={14} className={deliveryMode === "express" ? (light ? "text-sapphire" : "text-gold") : (light ? "text-dark-400" : "text-cream-dim/50")} />
                         <div className="text-left">
                           <p className={cn("text-[10px] font-semibold", deliveryMode === "express" ? (light ? "text-dark-900" : "text-cream") : (light ? "text-dark-500" : "text-cream-dim/60"))}>
-                            10 Min
+                            20 Min
                           </p>
                           <p className={cn("text-[8px]", deliveryMode === "express" ? (light ? "text-sapphire font-medium" : "text-gold-light font-medium") : (light ? "text-dark-400" : "text-cream-dim/40"))}>
                             Express +₹49

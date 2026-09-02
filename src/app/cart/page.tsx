@@ -248,7 +248,7 @@ export default function CartPage() {
                                 )}
                                 {deliveryMode === "express" && (
                                   <span className={cn("inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[7px] font-bold uppercase tracking-wider", light ? "bg-sapphire/10 text-sapphire" : "bg-gold/10 text-gold")}>
-                                    <Zap size={7} /> 10 Min
+                                    <Zap size={7} /> 20 Min
                                   </span>
                                 )}
                               </div>
@@ -306,10 +306,10 @@ export default function CartPage() {
                       >
                         <Clock size={18} className={deliveryMode === "standard" ? (light ? "text-sapphire" : "text-gold") : (light ? "text-dark-400" : "text-cream-dim/50")} />
                         <div className="text-left">
-                          <p className={cn("text-xs font-semibold", deliveryMode === "standard" ? (light ? "text-dark-900" : "text-cream") : (light ? "text-dark-500" : "text-cream-dim/60"))}>
-                            30 Min
-                          </p>
-                          <p className={cn("text-[9px]", light ? "text-dark-400" : "text-cream-dim/40")}>Standard</p>
+                            <p className={cn("text-xs font-semibold", deliveryMode === "standard" ? (light ? "text-dark-900" : "text-cream") : (light ? "text-dark-500" : "text-cream-dim/60"))}>
+                              1 Hour
+                            </p>
+                            <p className={cn("text-[9px]", light ? "text-dark-400" : "text-cream-dim/40")}>Standard</p>
                         </div>
                       </button>
                       <button
@@ -324,12 +324,12 @@ export default function CartPage() {
                       >
                         <Zap size={18} className={deliveryMode === "express" ? (light ? "text-sapphire" : "text-gold") : (light ? "text-dark-400" : "text-cream-dim/50")} />
                         <div className="text-left">
-                          <p className={cn("text-xs font-semibold", deliveryMode === "express" ? (light ? "text-dark-900" : "text-cream") : (light ? "text-dark-500" : "text-cream-dim/60"))}>
-                            10 Min
-                          </p>
-                          <p className={cn("text-[9px]", deliveryMode === "express" ? (light ? "text-sapphire font-medium" : "text-gold-light font-medium") : (light ? "text-dark-400" : "text-cream-dim/40"))}>
-                            Express +₹49
-                          </p>
+                            <p className={cn("text-xs font-semibold", deliveryMode === "express" ? (light ? "text-dark-900" : "text-cream") : (light ? "text-dark-500" : "text-cream-dim/60"))}>
+                              20 Min
+                            </p>
+                            <p className={cn("text-[9px]", deliveryMode === "express" ? (light ? "text-sapphire font-medium" : "text-gold-light font-medium") : (light ? "text-dark-400" : "text-cream-dim/40"))}>
+                              Express +₹49
+                            </p>
                         </div>
                       </button>
                     </div>

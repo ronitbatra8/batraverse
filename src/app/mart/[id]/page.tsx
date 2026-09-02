@@ -341,7 +341,7 @@ export default function MartProductPage() {
                   <Clock size={18} className={deliveryMode === "standard" ? (light ? "text-sapphire" : "text-gold") : (light ? "text-dark-400" : "text-cream-dim/50")} />
                   <div className="text-left">
                     <p className={cn("text-xs font-semibold", deliveryMode === "standard" ? (light ? "text-dark-900" : "text-cream") : (light ? "text-dark-500" : "text-cream-dim/60"))}>
-                      30 Min
+                      1 Hour
                     </p>
                     <p className={cn("text-[9px]", light ? "text-dark-400" : "text-cream-dim/40")}>Standard</p>
                   </div>
@@ -359,7 +359,7 @@ export default function MartProductPage() {
                   <Zap size={18} className={deliveryMode === "express" ? (light ? "text-sapphire" : "text-gold") : (light ? "text-dark-400" : "text-cream-dim/50")} />
                   <div className="text-left">
                     <p className={cn("text-xs font-semibold", deliveryMode === "express" ? (light ? "text-dark-900" : "text-cream") : (light ? "text-dark-500" : "text-cream-dim/60"))}>
-                      10 Min
+                      20 Min
                     </p>
                     <p className={cn("text-[9px]", deliveryMode === "express" ? (light ? "text-sapphire font-medium" : "text-gold-light font-medium") : (light ? "text-dark-400" : "text-cream-dim/40"))}>
                        Express +₹49
@@ -440,7 +440,7 @@ export default function MartProductPage() {
             {/* Trust badges */}
             <div className={cn("mt-8 grid grid-cols-3 gap-3 rounded-2xl border p-4", light ? "border-dark-100 bg-dark-50/50" : "border-white/5 bg-graphite/50")}>
               {[
-                { icon: <Clock size={16} />, label: deliveryMode === "express" ? "10 Min Delivery" : "30 Min Delivery" },
+                { icon: <Clock size={16} />, label: deliveryMode === "express" ? "20 Min Delivery" : "1 Hour Delivery" },
                 { icon: <Shield size={16} />, label: "Quality Checked" },
                 { icon: <RotateCcw size={16} />, label: "Easy Returns" },
               ].map((b) => (

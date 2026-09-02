@@ -736,7 +736,7 @@ export default function OrdersTab({
                             <div>
                               <div className="text-xs text-dark-500">Delivery</div>
                               <div className={`text-sm font-medium ${order.deliveryMode === "express" ? "text-emerald-400" : order.deliveryMode === "regular" ? "text-violet-400" : "text-sky-400"}`}>
-                                {order.deliveryMode === "express" ? "10 Min Express" : order.deliveryMode === "regular" ? "3-5 Days Regular" : "30 Min Standard"}
+                                {order.deliveryMode === "express" ? "20 Min Express" : order.deliveryMode === "regular" ? "3-5 Days Regular" : "1 Hour Standard"}
                               </div>
                             </div>
                           </div>

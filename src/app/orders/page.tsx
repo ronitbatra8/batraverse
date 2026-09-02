@@ -540,7 +540,7 @@ export default function OrdersPage() {
                           <div className={cn("rounded-xl p-3", light ? "bg-dark-50/80" : "bg-onyx/50")}>
                             <p className={cn("text-[9px] font-semibold uppercase tracking-wider", light ? "text-dark-400" : "text-cream-dim/50")}>Delivery</p>
                             <p className={cn("mt-1 text-xs font-medium", light ? "text-dark-900" : "text-cream")}>
-                              {order.deliveryMode === "express" ? "10 Min Express" : order.deliveryMode === "regular" ? "3-5 Days Regular" : isQuickDelivery ? "30 Min Standard" : "Standard"}
+                              {order.deliveryMode === "express" ? "20 Min Express" : order.deliveryMode === "regular" ? "3-5 Days Regular" : isQuickDelivery ? "1 Hour Standard" : "Standard"}
                             </p>
                           </div>
                           <div className={cn("rounded-xl p-3", light ? "bg-dark-50/80" : "bg-onyx/50")}>
