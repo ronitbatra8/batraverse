@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { AnimatePresence, motion, useAnimationControls, useMotionValueEvent, useScroll } from "framer-motion";
 import {
   Home,
+  Phone,
   Search,
   ShoppingCart,
   Store,
@@ -57,6 +58,7 @@ const BOTTOM_TABS = [
   { label: "Home", href: "/", icon: Home },
   { label: "Store", href: "/store", icon: Store },
   { label: "Mart", href: "/mart", icon: ShoppingCart },
+  { label: "Contact", href: "/contact", icon: Phone },
 ] as const;
 
 export default function Navbar() {
