@@ -76,19 +76,19 @@ const office = {
 const faqs = [
   {
     q: "How do I track my order?",
-    a: "Once your order is dispatched, you will receive a tracking link via email and SMS. You can also view real-time status from your BatraVerse account under 'My Orders'.",
+    a: "Once your order is dispatched, you will receive a Delhivery waybill number and a tracking link via email and SMS. You can also track your order in real time from your BatraVerse account under 'My Orders' — just click the tracking link shown against the order.",
   },
   {
     q: "What is your return policy?",
-    a: "We offer a 15-day return window on most items, provided they are unused and in original packaging. Bespoke and limited-edition pieces are final sale. Visit our Returns page for full details.",
+    a: "Store orders can be returned within 12 hours of delivery, provided they are unused and in original packaging — requests must be submitted from the order page. Mart (grocery) orders are final sale and cannot be returned.",
   },
   {
     q: "Do you offer international shipping?",
-    a: "Yes. We ship to over 30 countries worldwide. International orders typically arrive within 7–14 business days. Duties and taxes are calculated at checkout.",
+    a: "We currently ship only within India. All deliveries are handled through Delhivery, and shipping is free on orders above ₹500.",
   },
   {
     q: "How do I become a seller on BatraVerse?",
-    a: "We curate our marketplace carefully. If you represent an artisan collective or luxury brand, submit an application through our Seller Portal. Our team reviews applications on a rolling basis.",
+    a: "Visit our Seller Portal at /seller, sign up with your business details, and submit your application. Once the owner reviews and approves it, you can start listing products on Store or Mart and receive orders directly.",
   },
   {
     q: "How do I contact support?",
@@ -794,14 +794,14 @@ export default function ContactPage() {
               light ? "text-onyx/60" : "text-cream-dim/60"
             )}
           >
-            Follow our journey and join the conversation across social media.
+            Follow our journey and join the conversation across social media — coming soon.
           </p>
           <div className="mx-auto mt-12 flex items-center justify-center gap-5">
             {socials.map((s) => (
-              <a
+              <button
                 key={s.label}
-                href={s.href}
-                aria-label={s.label}
+                type="button"
+                onClick={() => toast(`${s.label} is not live yet — but we'll be there soon.`, "info")}
                 className={cn(
                   "flex h-14 w-14 items-center justify-center rounded-full border transition-all duration-500",
                   light
@@ -810,7 +810,7 @@ export default function ContactPage() {
                 )}
               >
                 <s.icon size={20} />
-              </a>
+              </button>
             ))}
           </div>
         </div>
