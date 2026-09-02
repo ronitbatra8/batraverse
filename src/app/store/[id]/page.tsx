@@ -344,11 +344,11 @@ export default function ProductPage() {
               Store
             </Link>
             <ChevronRight size={10} className={light ? "text-dark-300" : "text-cream-dim/30"} />
-            <Link href={`/store`} className={cn("transition-colors", light ? "text-dark-400 hover:text-sapphire" : "text-cream-dim/50 hover:text-gold-light")}>
+            <Link href={`/store?cat=${encodeURIComponent(product.category)}`} className={cn("transition-colors", light ? "text-dark-400 hover:text-sapphire" : "text-cream-dim/50 hover:text-gold-light")}>
               {product.category}
             </Link>
             <ChevronRight size={10} className={light ? "text-dark-300" : "text-cream-dim/30"} />
-            <span className={cn(light ? "text-dark-900" : "text-cream")}>{product.name}</span>
+            <span className={cn("truncate", light ? "text-dark-900" : "text-cream")}>{product.name}</span>
           </nav>
         </div>
 
@@ -647,13 +647,13 @@ export default function ProductPage() {
             {/* Trust badges */}
             <div className={cn("mt-8 grid grid-cols-3 gap-3 rounded-2xl border p-4", light ? "border-dark-100 bg-dark-50/50" : "border-white/5 bg-graphite/50")}>
               {[
-                { icon: <Truck size={16} />, label: "Free Shipping" },
-                { icon: <Shield size={16} />, label: "2-Year Warranty" },
-                { icon: <RotateCcw size={16} />, label: "30-Day Returns" },
+                { icon: <Truck size={16} />, label: "Free Shipping\nAbove ₹800" },
+                { icon: <RotateCcw size={16} />, label: "12-Hour Returns" },
+                { icon: <Shield size={16} />, label: "No Warranty\nBuyer Verified" },
               ].map((b) => (
                 <div key={b.label} className="flex flex-col items-center gap-2 text-center">
                   <span className={cn(light ? "text-sapphire" : "text-gold")}>{b.icon}</span>
-                  <span className={cn("text-[8px] font-semibold uppercase tracking-[0.2em]", light ? "text-dark-500" : "text-cream-dim/60")}>
+                  <span className={cn("whitespace-pre-line text-[8px] font-semibold uppercase tracking-[0.2em] leading-tight", light ? "text-dark-500" : "text-cream-dim/60")}>
                     {b.label}
                   </span>
                 </div>
@@ -933,55 +933,60 @@ export default function ProductPage() {
 
         {/* Related */}
         {related.length > 0 && (
-          <div className="mt-16 sm:mx-auto sm:max-w-[100rem] sm:px-5 sm:px-10">
-            <h2 className={cn("mb-6 px-5 text-[11px] font-semibold uppercase tracking-[0.35em] sm:px-0", light ? "text-dark-400" : "text-cream-dim/60")}>
+          <div className="mt-16 mx-auto max-w-[100rem] px-5 sm:px-10">
+            <h2 className={cn("mb-6 text-[11px] font-semibold uppercase tracking-[0.35em]", light ? "text-dark-400" : "text-cream-dim/60")}>
               You May Also Like
             </h2>
-            <div className="flex flex-col gap-5">
-              {[related.slice(0, 10), related.slice(10, 20)].filter(row => row.length > 0).map((row, ri) => (
-                <div key={ri} className="flex overflow-x-auto snap-x snap-mandatory gap-3 pb-2 sm:gap-5">
-                  {row.map((p) => {
-                    const img = p.dbImages?.[0] || p.colors?.[0]?.images?.[0] || "";
-                    return (
-                      <Link
-                        key={p.id}
-                        href={`/store/${p.id}`}
-                        onMouseEnter={() => warmProduct(p.id)}
-                        className={cn(
-                          "group w-[44vw] shrink-0 snap-start overflow-hidden rounded-none border-0 transition-all duration-500 sm:w-[48%] lg:w-[9.5%] sm:shrink-0 sm:rounded-2xl sm:border",
-                          light
-                            ? "border-dark-200/60 bg-white hover:border-sapphire/30 hover:shadow-[0_8px_40px_rgba(30,58,138,0.1)]"
-                            : "border-white/5 bg-graphite hover:border-gold/20 hover:shadow-[0_8px_40px_rgba(212,175,55,0.08)]"
-                        )}
-                      >
-                        <div className="relative aspect-[4/5] sm:aspect-[4/3] overflow-hidden">
-                          {img ? (
-                            <img
-                              src={resolveImageUrl(img)}
-                              alt={p.name}
-                              className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
-                              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                            />
-                          ) : (
-                            <div className={cn("absolute inset-0 bg-gradient-to-br transition-transform duration-700 group-hover:scale-105", p.gradient)} />
-                          )}
+            <div className="flex gap-3 overflow-x-auto pb-2 sm:gap-5 [&::-webkit-scrollbar]:hidden">
+              {related.slice(0, 4).map((p) => {
+                const img = p.dbImages?.[0] || p.colors?.[0]?.images?.[0] || "";
+                return (
+                  <Link
+                    key={p.id}
+                    href={`/store/${p.id}`}
+                    onMouseEnter={() => warmProduct(p.id)}
+                    className="group block w-[42%] shrink-0 snap-start overflow-hidden rounded-none border-0 transition-all duration-500 sm:w-[320px] sm:shrink-0 sm:rounded-2xl sm:border"
+                  >
+                    <div className="relative aspect-[4/5] sm:aspect-[4/3] overflow-hidden">
+                      <img
+                        src={resolveImageUrl(img)}
+                        alt={p.name}
+                        className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                      />
+                      {!img && <div className={cn("absolute inset-0 bg-gradient-to-br transition-transform duration-700 group-hover:scale-105", p.gradient)} />}
+                      {p.badge && (
+                        <span className={cn("absolute left-3 top-3 rounded-full px-3 py-1 text-[8px] font-bold uppercase tracking-[0.2em]", light ? "bg-white/90 text-dark-900 shadow-sm" : "bg-abyss/80 text-gold-light backdrop-blur-sm")}>
+                          {p.badge}
+                        </span>
+                      )}
+                    </div>
+                    <div className={cn("p-4", light ? "sm:bg-white" : "sm:bg-graphite")}>
+                      <h3 className={cn("text-sm font-medium leading-tight", light ? "text-dark-900" : "text-cream")}>
+                        {p.name}
+                      </h3>
+                      <span className={cn("mt-1 block text-sm font-semibold tabular-nums", light ? "text-sapphire" : "text-gold-light")}>
+                        {formatPrice(p.price)}
+                      </span>
+                      {p.originalPrice && (
+                        <span className={cn("text-xs line-through", light ? "text-dark-400" : "text-cream-dim/40")}>
+                          {formatPrice(p.originalPrice)}
+                        </span>
+                      )}
+                      <div className="mt-2 flex items-center gap-1.5">
+                        <div className="flex items-center gap-0.5">
+                          {[...Array(5)].map((_, i) => (
+                            <Star key={i} size={10} className={cn(i < Math.floor(p.rating) ? light ? "fill-sapphire text-sapphire" : "fill-gold text-gold" : light ? "fill-dark-200 text-dark-200" : "fill-white/10 text-white/10")} />
+                          ))}
                         </div>
-                        <div className="p-4">
-                          <h3 className={cn("text-sm font-medium leading-tight", light ? "text-dark-900" : "text-cream")}>{p.name}</h3>
-                          <span className={cn("mt-1 block text-sm font-semibold tabular-nums", light ? "text-sapphire" : "text-gold-light")}>{formatPrice(p.price)}</span>
-                          <div className="mt-2 hidden sm:flex items-center gap-1.5">
-                            <div className="flex items-center gap-0.5">
-                              {[...Array(5)].map((_, i) => (
-                                <Star key={i} size={10} className={cn(i < Math.floor(p.rating) ? light ? "fill-sapphire text-sapphire" : "fill-gold text-gold" : light ? "fill-dark-200 text-dark-200" : "fill-white/10 text-white/10")} />
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      </Link>
-                    );
-                  })}
-                </div>
-              ))}
+                        <span className={cn("text-[9px] font-medium", light ? "text-dark-400" : "text-cream-dim/50")}>
+                          ({p.reviews})
+                        </span>
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
             </div>
           </div>
         )}

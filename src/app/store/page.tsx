@@ -1,13 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import SiteLayout from "@/components/layout/SiteLayout";
 import StoreNav from "./StoreNav";
 import StoreGrid from "./StoreGrid";
 import AdsShowcase from "@/components/home/AdsShowcase";
 
-export default function StorePage() {
-  const [category, setCategory] = useState("all");
+function StorePageInner() {
+  const searchParams = useSearchParams();
+  const catParam = searchParams.get("cat");
+  const initialCat = catParam && catParam !== "all" ? catParam : "all";
+  const [category, setCategory] = useState(initialCat);
   const [subCategories, setSubCategories] = useState<string[]>([]);
 
   const handleSubChange = (id: string) => {
@@ -30,5 +34,13 @@ export default function StorePage() {
         <StoreGrid category={category} subCategories={subCategories} />
       </div>
     </SiteLayout>
+  );
+}
+
+export default function StorePage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen" />}>
+      <StorePageInner />
+    </Suspense>
   );
 }

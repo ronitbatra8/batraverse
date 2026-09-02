@@ -385,8 +385,8 @@ function ProductCard({
             {formatPrice(product.originalPrice)}
           </span>
         )}
-        {/* Rating — desktop only */}
-        <div className="mt-2 hidden sm:flex items-center gap-1.5">
+        {/* Rating */}
+        <div className="mt-2 flex items-center gap-1.5">
           <div className="flex items-center gap-0.5">
             {[...Array(5)].map((_, i) => (
               <Star
