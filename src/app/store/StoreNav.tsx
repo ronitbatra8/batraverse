@@ -12,7 +12,7 @@ const DEFAULT_SUB_CATEGORIES: Record<string, { id: string; label: string }[]> = 
 interface StoreNavProps {
   active: string;
   onCategoryChange: (id: string) => void;
-  subActive: string;
+  subActive: string[];
   onSubChange: (id: string) => void;
 }
 
@@ -122,9 +122,9 @@ export default function StoreNav({
         <div className={cn("border-t transition-colors duration-500", light ? "border-dark-100" : "border-white/5")}>
           <div className="mx-auto flex w-full max-w-[100rem] items-center gap-2 overflow-x-auto px-5 py-2.5 sm:px-10 [&::-webkit-scrollbar]:hidden">
             {hasSub.map((sub) => {
-              const isActive = sub.id === "all" ? subActive === "all" : subActive === sub.id;
+              const isActive = sub.id === "all" ? subActive.length === 0 : subActive.includes(sub.id);
               return (
-                <button key={sub.id} type="button" onClick={() => { onSubChange(sub.id); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+                <button key={sub.id} type="button" onClick={() => onSubChange(sub.id)}
                   className={cn("whitespace-nowrap rounded-full border px-3.5 py-1.5 text-[9px] font-medium uppercase tracking-[0.24em] transition-all duration-300",
                     isActive
                       ? light ? "border-sapphire/40 bg-sapphire/10 text-sapphire" : "border-gold/40 bg-gold/10 text-gold-light"

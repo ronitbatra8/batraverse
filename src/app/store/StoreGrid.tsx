@@ -113,10 +113,10 @@ function dbToStoreProduct(p: DbProduct): Product {
 
 interface StoreGridProps {
   category: string;
-  subCategory: string;
+  subCategories: string[];
 }
 
-export default function StoreGrid({ category, subCategory }: StoreGridProps) {
+export default function StoreGrid({ category, subCategories }: StoreGridProps) {
   const { theme } = useTheme();
   const light = theme === "light";
   const [dbProducts, setDbProducts] = useState<Product[]>([]);
@@ -147,10 +147,10 @@ export default function StoreGrid({ category, subCategory }: StoreGridProps) {
   const filtered = useMemo(() => {
     return allProducts.filter((p) => {
       if (category !== "all" && p.category !== category) return false;
-      if (subCategory !== "all" && p.sub !== subCategory) return false;
+      if (subCategories.length > 0 && !subCategories.includes(p.sub)) return false;
       return true;
     });
-  }, [category, subCategory, allProducts]);
+  }, [category, subCategories, allProducts]);
 
   const grouped = useMemo(() => {
     const map = new Map<string, Product[]>();
@@ -179,7 +179,7 @@ export default function StoreGrid({ category, subCategory }: StoreGridProps) {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setVisibleCount(48);
-  }, [category, subCategory]);
+  }, [category, subCategories]);
 
   useEffect(() => {
     for (const p of filtered) seedSlimProduct(p.id, p);

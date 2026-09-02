@@ -8,7 +8,14 @@ import AdsShowcase from "@/components/home/AdsShowcase";
 
 export default function MartPage() {
   const [category, setCategory] = useState("all");
-  const [subCategory, setSubCategory] = useState("all");
+  const [subCategories, setSubCategories] = useState<string[]>([]);
+
+  const handleSubChange = (id: string) => {
+    setSubCategories((prev) => {
+      if (id === "all") return [];
+      return prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id];
+    });
+  };
 
   return (
     <SiteLayout>
@@ -17,10 +24,10 @@ export default function MartPage() {
         <MartNav
           active={category}
           onCategoryChange={setCategory}
-          subActive={subCategory}
-          onSubChange={setSubCategory}
+          subActive={subCategories}
+          onSubChange={handleSubChange}
         />
-        <MartGrid category={category} subCategory={subCategory} searchQuery="" />
+        <MartGrid category={category} subCategories={subCategories} searchQuery="" />
       </div>
     </SiteLayout>
   );

@@ -66,7 +66,7 @@ function dbToMartProduct(p: DbProduct): MartProduct {
 
 interface MartGridProps {
   category: string;
-  subCategory: string;
+  subCategories: string[];
   searchQuery: string;
 }
 
@@ -81,7 +81,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   bakery: "Bakery & Biscuits",
 };
 
-export default function MartGrid({ category, subCategory, searchQuery }: MartGridProps) {
+export default function MartGrid({ category, subCategories, searchQuery }: MartGridProps) {
   const { theme } = useTheme();
   const light = theme === "light";
   const [dbProducts, setDbProducts] = useState<MartProduct[]>([]);
@@ -112,14 +112,14 @@ export default function MartGrid({ category, subCategory, searchQuery }: MartGri
   const filtered = useMemo(() => {
     return allProducts.filter((p) => {
       if (category !== "all" && p.category !== category) return false;
-      if (subCategory !== "all" && p.sub !== subCategory) return false;
+      if (subCategories.length > 0 && !subCategories.includes(p.sub)) return false;
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
         if (!p.name.toLowerCase().includes(q) && !p.brand.toLowerCase().includes(q)) return false;
       }
       return true;
     });
-  }, [category, subCategory, searchQuery, allProducts]);
+  }, [category, subCategories, searchQuery, allProducts]);
 
   const grouped = useMemo(() => {
     const map = new Map<string, MartProduct[]>();
@@ -148,7 +148,7 @@ export default function MartGrid({ category, subCategory, searchQuery }: MartGri
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setVisibleCount(48);
-  }, [category, subCategory, searchQuery]);
+  }, [category, subCategories, searchQuery]);
 
   useEffect(() => {
     for (const p of filtered) seedSlimProduct(p.id, p);
