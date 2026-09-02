@@ -33,12 +33,6 @@ const DB_MART_GRADIENT: Record<string, string> = {
   default: "from-stone-400 to-stone-600",
 };
 
-const SOURCE_TABS = [
-  { key: "all" as const, label: "All Products" },
-  { key: "store" as const, label: "Store" },
-  { key: "mart" as const, label: "Mart" },
-];
-
 interface DbProduct {
   id: string;
   name: string;
@@ -177,7 +171,6 @@ function SearchContent() {
   const [debouncedQuery, setDebouncedQuery] = useState(initialQuery);
   const [dbStore, setDbStore] = useState<UnifiedProduct[]>([]);
   const [dbMart, setDbMart] = useState<UnifiedProduct[]>([]);
-  const [activeSource, setActiveSource] = useState<"all" | "store" | "mart">("all");
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [hideTabs, setHideTabs] = useState(false);
   const [visibleCount, setVisibleCount] = useState(48);
@@ -234,26 +227,8 @@ function SearchContent() {
   const storeCount = useMemo(() => allProducts.filter((p) => p.inStock && p.source === "store").length, [allProducts]);
   const martCount = useMemo(() => allProducts.filter((p) => p.inStock && p.source === "mart").length, [allProducts]);
 
-  const sourceCounts = useMemo(() => {
-    const q = debouncedQuery.toLowerCase().trim();
-    const base = allProducts.filter((p) => {
-      if (!p.inStock) return false;
-      if (q && !p.name.toLowerCase().includes(q) && !p.brand.toLowerCase().includes(q) && !p.category.toLowerCase().includes(q) && !p.sub.toLowerCase().includes(q)) return false;
-      return true;
-    });
-    return {
-      all: base.length,
-      store: base.filter((p) => p.source === "store").length,
-      mart: base.filter((p) => p.source === "mart").length,
-    };
-  }, [allProducts, debouncedQuery]);
-
   const filtered = useMemo(() => {
     let results = allProducts.filter((p) => p.inStock);
-
-    if (activeSource !== "all") {
-      results = results.filter((p) => p.source === activeSource);
-    }
 
     if (debouncedQuery.trim()) {
       const q = debouncedQuery.toLowerCase();
@@ -268,14 +243,14 @@ function SearchContent() {
 
     results.sort((a, b) => a.name.localeCompare(b.name));
     return results;
-  }, [allProducts, activeSource, debouncedQuery]);
+  }, [allProducts, debouncedQuery]);
 
   const visible = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setVisibleCount(48);
-  }, [activeSource, debouncedQuery]);
+  }, [debouncedQuery]);
 
   /* Progressive render: grow the visible slice as the sentinel scrolls in */
   useEffect(() => {
@@ -322,45 +297,6 @@ function SearchContent() {
             <div className="flex items-center gap-3 pt-3 pb-2">
               <SearchInput initialQuery={initialQuery} onDebounced={setDebouncedQuery} light={light} />
             </div>
-          </div>
-
-          {/* Source tabs — desktop only */}
-          <div className="relative z-10 hidden sm:block">
-            <div className={cn("border-t transition-colors duration-500", light ? "border-dark-100/40" : "border-white/5")}>
-            <div className="mx-auto flex w-full max-w-[100rem] items-center gap-3 overflow-x-auto px-14 py-4 [&::-webkit-scrollbar]:hidden">
-              {SOURCE_TABS.map((tab) => {
-                const isActive = activeSource === tab.key;
-                const count = sourceCounts[tab.key];
-                return (
-                  <button
-                    key={tab.key}
-                    type="button"
-                    onClick={() => setActiveSource(tab.key)}
-                    className={cn(
-                      "shrink-0 whitespace-nowrap rounded-full border px-5 py-2.5 text-[11px] font-medium uppercase tracking-[0.24em] backdrop-blur-sm transition-all duration-300",
-                      isActive
-                        ? light
-                          ? "border-sapphire/40 bg-sapphire/10 text-sapphire"
-                          : "border-gold/40 bg-gold/10 text-gold-light"
-                        : light
-                          ? "border-dark-200 text-dark-400 hover:border-sapphire/30 hover:text-sapphire"
-                          : "border-white/5 text-cream-dim/60 hover:border-gold/20 hover:text-cream-dim"
-                    )}
-                  >
-                    {tab.label}
-                    <span className={cn("ml-1 text-[8px]", isActive ? (light ? "text-sapphire/50" : "text-gold-light/50") : (light ? "text-dark-300" : "text-cream-dim/30"))}>
-                      {count}
-                    </span>
-                  </button>
-                );
-              })}
-
-              <span className={cn("ml-auto shrink-0 text-[10px] font-medium whitespace-nowrap", light ? "text-dark-400" : "text-cream-dim/50")}>
-                {filtered.length} product{filtered.length !== 1 ? "s" : ""}
-                {debouncedQuery && <span className="ml-1">for &ldquo;{debouncedQuery}&rdquo;</span>}
-              </span>
-            </div>
-          </div>
           </div>
         </div>
 
