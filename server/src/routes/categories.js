@@ -15,9 +15,8 @@ router.get("/", async (_req, res) => {
     });
     const store = categories.filter((c) => c.source === "store");
     const mart = categories.filter((c) => c.source === "mart");
-    const mediverse = categories.filter((c) => c.source === "mediverse");
     res.set("Cache-Control", "public, max-age=600");
-    res.json({ store, mart, mediverse, all: categories });
+    res.json({ store, mart, all: categories });
   } catch (err) {
     res.status(500).json({ error: safeErrorMessage(err) });
   }
@@ -39,7 +38,7 @@ router.post("/", adminAuth, async (req, res) => {
   try {
     const { name, source, icon } = req.body;
     if (!name || !source) return res.status(400).json({ error: "Name and source are required" });
-    if (!["store", "mart", "mediverse"].includes(source)) return res.status(400).json({ error: "Source must be store, mart, or mediverse" });
+    if (!["store", "mart"].includes(source)) return res.status(400).json({ error: "Source must be store or mart" });
     const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
     const existing = await prisma.category.findFirst({ where: { slug, source } });
     if (existing) return res.status(400).json({ error: "Category already exists" });
@@ -123,7 +122,7 @@ router.delete("/subcategories/:subId", adminAuth, async (req, res) => {
 router.get("/products/:source", async (req, res) => {
   try {
     const { source } = req.params;
-    if (source !== "store" && source !== "mart" && source !== "mediverse") return res.status(400).json({ error: "source must be store, mart, or mediverse" });
+    if (source !== "store" && source !== "mart") return res.status(400).json({ error: "source must be store or mart" });
     const full = req.query.mode === "full";
     const products = await prisma.product.findMany({
       where: { source },

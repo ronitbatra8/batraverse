@@ -144,7 +144,6 @@ const STATUS_LABELS = {
 const SOURCE_LABELS = {
   store: "Store",
   mart: "Grocery/Mart",
-  mediverse: "Mediverse",
 };
 
 async function sendOrderStatusEmail(to, name, orderId, status) {

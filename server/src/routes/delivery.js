@@ -16,7 +16,7 @@ const STORE_CANCEL_WINDOW_MS = 2 * 60 * 60 * 1000;
 
 function isWithinCancelWindow(order) {
   if (!order.assignedAt) return false;
-  const windowMs = (order.source === "mart" || order.source === "mediverse") ? MART_CANCEL_WINDOW_MS : STORE_CANCEL_WINDOW_MS;
+  const windowMs = order.source === "mart" ? MART_CANCEL_WINDOW_MS : STORE_CANCEL_WINDOW_MS;
   return Date.now() - new Date(order.assignedAt).getTime() <= windowMs;
 }
 
@@ -195,59 +195,12 @@ router.post("/orders/:id/verify-otp", userAuth, async (req, res) => {
 
     await prisma.deliveryOTP.update({ where: { id: otpRecord.id }, data: { verified: true } });
 
-    if (order.source === "mediverse") {
-      return res.json({ needsSignature: true, message: "OTP verified. Customer must now provide signature." });
-    }
-
     const updatedItems = Array.isArray(order.items)
       ? order.items.map((it) => ({ ...it, status: "delivered" }))
       : order.items;
     const updated = await prisma.order.update({
       where: { id: order.id },
       data: { items: updatedItems, status: "delivered", deliveredAt: new Date() },
-    });
-
-    const customer = await prisma.user.findUnique({
-      where: { id: order.userId },
-      select: { name: true, email: true },
-    });
-    sendOrderStatusEmail(customer.email, customer.name, order.id, "delivered").catch(() => {});
-
-    res.json(updated);
-  } catch (err) {
-    res.status(500).json({ error: safeErrorMessage(err) });
-  }
-});
-
-router.post("/orders/:id/submit-signature", userAuth, async (req, res) => {
-  try {
-    const { signatureData, securityPhotos } = req.body;
-    if (!signatureData) return res.status(400).json({ error: "Signature data is required" });
-    const user = await prisma.user.findUnique({ where: { id: req.userId }, select: { role: true } });
-    if (!user || user.role !== "DELIVERY") {
-      return res.status(403).json({ error: "Only delivery executives can access this" });
-    }
-    const order = await prisma.order.findUnique({ where: { id: req.params.id } });
-    if (!order) return res.status(404).json({ error: "Order not found" });
-    if (order.assignedTo !== req.userId) {
-      return res.status(403).json({ error: "This order is not assigned to you" });
-    }
-    if (order.source !== "mediverse") return res.status(400).json({ error: "Signature is only required for mediverse orders" });
-    if (order.status !== "out_for_delivery") return res.status(400).json({ error: "Order is not out for delivery" });
-
-    const updatedItems = Array.isArray(order.items)
-      ? order.items.map((it) => ({ ...it, status: "delivered" }))
-      : order.items;
-    const updated = await prisma.order.update({
-      where: { id: order.id },
-      data: {
-        items: updatedItems,
-        status: "delivered",
-        deliveredAt: new Date(),
-        signatureData,
-        signedAt: new Date(),
-        securityPhotos: securityPhotos ? JSON.stringify(securityPhotos) : null,
-      },
     });
 
     const customer = await prisma.user.findUnique({

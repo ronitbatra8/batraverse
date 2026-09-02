@@ -32,7 +32,6 @@ import {
   ShoppingCart,
   ClipboardList,
   Megaphone,
-  Heart,
 } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthContext";
 import { useToast } from "@/components/Toast";
@@ -302,7 +301,7 @@ export default function SellerDashboardPage() {
         }))
       );
       setOrders(Array.isArray(o) ? o : []);
-      setDbCategories(Array.isArray(cats?.store) && Array.isArray(cats?.mart) ? [...cats.store, ...cats.mart, ...(Array.isArray(cats?.mediverse) ? cats.mediverse : [])] : []);
+      setDbCategories(Array.isArray(cats?.store) && Array.isArray(cats?.mart) ? [...cats.store, ...cats.mart] : []);
       setCatRequests(Array.isArray(cr) ? cr : []);
       setAdRequests(Array.isArray(adr) ? adr : []);
       setShopName(p.shopName || "");
@@ -1157,7 +1156,7 @@ function AddProductTab({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="text-xs text-dark-500 uppercase tracking-wider font-semibold mb-1.5 block">Sell On</label>
-                <div className="grid grid-cols-3 sm:grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-2 gap-2">
                   <button type="button" onClick={() => handleSourceChange("store")}
                     className={cn("flex flex-col items-center justify-center gap-1 px-2 py-2.5 rounded-xl border text-[11px] font-medium transition-all",
                       form.source === "store" ? "bg-sky-500/10 border-sky-500/40 text-sky-400" : "bg-dark-800/60 border-dark-700/50 text-dark-400 hover:text-dark-200")}>
@@ -1167,11 +1166,6 @@ function AddProductTab({
                     className={cn("flex flex-col items-center justify-center gap-1 px-2 py-2.5 rounded-xl border text-[11px] font-medium transition-all",
                       form.source === "mart" ? "bg-emerald-500/10 border-emerald-500/40 text-emerald-400" : "bg-dark-800/60 border-dark-700/50 text-dark-400 hover:text-dark-200")}>
                     <ShoppingCart size={16} /> Mart
-                  </button>
-                  <button type="button" onClick={() => handleSourceChange("mediverse")}
-                    className={cn("flex flex-col items-center justify-center gap-1 px-2 py-2.5 rounded-xl border text-[11px] font-medium transition-all",
-                      form.source === "mediverse" ? "bg-violet-500/10 border-violet-500/40 text-violet-400" : "bg-dark-800/60 border-dark-700/50 text-dark-400 hover:text-dark-200")}>
-                    <Heart size={16} /> Mediverse
                   </button>
                 </div>
               </div>
@@ -1701,7 +1695,7 @@ function AdRequestsTab({ requests, form, onChange, saving, onSubmit, onDelete }:
           <div className="flex flex-col sm:flex-row flex-wrap gap-4 items-stretch sm:items-end">
             <div className="w-full sm:w-36"><label className="block text-xs font-medium text-dark-400 mb-1.5">Page</label>
               <select value={form.page} onChange={(e) => onChange({ ...form, page: e.target.value })} className={inputCls}>
-                <option value="home">Home</option><option value="store">Store</option><option value="mart">Mart</option><option value="mediverse">Mediverse</option>
+                <option value="home">Home</option><option value="store">Store</option><option value="mart">Mart</option>
               </select>
             </div>
             <div className="w-full sm:w-28"><label className="block text-xs font-medium text-dark-400 mb-1.5">Duration (sec)</label>
@@ -1809,7 +1803,7 @@ function CategoryRequestsTab({
           </div>
           <div>
             <label className="text-xs text-dark-500 uppercase tracking-wider font-semibold mb-1.5 block">Source</label>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               <button type="button" onClick={() => setCatReqSource("store")}
                 className={cn("px-3 py-2 rounded-xl border text-xs font-medium transition-all",
                   catReqSource === "store" ? "bg-sky-500/10 border-sky-500/40 text-sky-400" : "bg-dark-800/60 border-dark-700/50 text-dark-400")}>
@@ -1819,11 +1813,6 @@ function CategoryRequestsTab({
                 className={cn("px-3 py-2 rounded-xl border text-xs font-medium transition-all",
                   catReqSource === "mart" ? "bg-emerald-500/10 border-emerald-500/40 text-emerald-400" : "bg-dark-800/60 border-dark-700/50 text-dark-400")}>
                 Mart
-              </button>
-              <button type="button" onClick={() => setCatReqSource("mediverse")}
-                className={cn("px-3 py-2 rounded-xl border text-xs font-medium transition-all",
-                  catReqSource === "mediverse" ? "bg-violet-500/10 border-violet-500/40 text-violet-400" : "bg-dark-800/60 border-dark-700/50 text-dark-400")}>
-                Mediverse
               </button>
             </div>
           </div>

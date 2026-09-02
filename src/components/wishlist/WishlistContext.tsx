@@ -95,7 +95,7 @@ function mapMart(r: any): Product {
     inStock: r.inStock !== false,
     dbImages: (r.images && r.images.length > 0) ? r.images : ((Array.isArray(r.colorOptions) && (r.colorOptions as { images?: string[] }[])[0]?.images) || []),
     brand: r.brand || "",
-    source: r.source === "mediverse" ? "mediverse" : "mart",
+    source: "mart",
     seller: r.seller || null,
     description: r.description || "",
     features: Array.isArray(r.keyFeatures) ? r.keyFeatures : [],
@@ -223,7 +223,6 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
     const sources = [
       { path: "/categories/products/store", map: mapStore },
       { path: "/categories/products/mart", map: mapMart },
-      { path: "/categories/products/mediverse", map: mapMart },
     ];
     let cancelled = false;
     (async () => {

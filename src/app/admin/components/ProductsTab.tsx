@@ -79,7 +79,7 @@ function getEffectiveAdminOriginalPrice(p: SellerProduct): number | null {
 
 export default function ProductsTab({ adminKey }: { adminKey: string }) {
   const { confirm, ConfirmDialog } = useConfirm();
-  const [activeSub, setActiveSub] = useState<"categories" | "seller-products" | "store" | "mart" | "mediverse">("categories");
+  const [activeSub, setActiveSub] = useState<"categories" | "seller-products" | "store" | "mart">("categories");
   const [categories, setCategories] = useState<Category[]>([]);
   const [sellerProducts, setSellerProducts] = useState<SellerProduct[]>([]);
   const [loading, setLoading] = useState(true);
@@ -88,7 +88,7 @@ export default function ProductsTab({ adminKey }: { adminKey: string }) {
   const [showInStock, setShowInStock] = useState(true);
 
   const [newCatName, setNewCatName] = useState("");
-  const [newCatSource, setNewCatSource] = useState<"store" | "mart" | "mediverse">("store");
+  const [newCatSource, setNewCatSource] = useState<"store" | "mart">("store");
   const [newSubCatName, setNewSubCatName] = useState("");
   const [addingCat, setAddingCat] = useState(false);
   const [addingSub, setAddingSub] = useState<string | null>(null);
@@ -186,7 +186,6 @@ export default function ProductsTab({ adminKey }: { adminKey: string }) {
 
   const storeCats = categories.filter((c) => c.source === "store");
   const martCats = categories.filter((c) => c.source === "mart");
-  const mediverseCats = categories.filter((c) => c.source === "mediverse");
 
   const filteredProducts = sellerProducts.filter((p) => {
     if (!showInStock && p.inStock) return false;
@@ -258,7 +257,7 @@ export default function ProductsTab({ adminKey }: { adminKey: string }) {
       <h2 className="text-lg font-bold text-white">Products & Categories</h2>
 
       <div className="flex gap-2 p-1 bg-dark-900/60 border border-dark-800/50 rounded-xl w-fit">
-        {([["categories", "Categories"], ["seller-products", "Seller Products"], ["store", "Store"], ["mart", "Mart"], ["mediverse", "Mediverse"]] as const).map(([key, label]) => (
+        {([["categories", "Categories"], ["seller-products", "Seller Products"], ["store", "Store"], ["mart", "Mart"]] as const).map(([key, label]) => (
           <button key={key} onClick={() => setActiveSub(key)}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeSub === key ? "bg-gold-500/10 text-gold-400 border border-gold-500/20" : "text-dark-400 hover:text-dark-200 border border-transparent"}`}>
             {label}
@@ -319,16 +318,15 @@ export default function ProductsTab({ adminKey }: { adminKey: string }) {
         </div>
       )}
 
-      {(activeSub === "store" || activeSub === "mart" || activeSub === "mediverse" || activeSub === "categories") && (
+      {(activeSub === "store" || activeSub === "mart" || activeSub === "categories") && (
         <>
           <div className="bg-dark-900/60 border border-dark-800/50 rounded-xl p-4">
             <h3 className="text-sm font-semibold text-white mb-3">Add New Category</h3>
             <div className="flex items-center gap-3">
-              <select value={newCatSource} onChange={(e) => setNewCatSource(e.target.value as "store" | "mart" | "mediverse")}
+              <select value={newCatSource} onChange={(e) => setNewCatSource(e.target.value as "store" | "mart")}
                 className="bg-dark-800/60 border border-dark-700/50 rounded-lg px-3 py-2 text-white text-sm">
                 <option value="store">Store</option>
                 <option value="mart">Mart</option>
-                <option value="mediverse">Mediverse</option>
               </select>
               <input value={newCatName} onChange={(e) => setNewCatName(e.target.value)} placeholder="Category name"
                 className="bg-dark-800/60 border border-dark-700/50 rounded-lg px-3 py-2 text-white text-sm w-48 placeholder:text-dark-500"
@@ -343,7 +341,6 @@ export default function ProductsTab({ adminKey }: { adminKey: string }) {
 
           {activeSub === "store" && renderCategoryList(storeCats)}
           {activeSub === "mart" && renderCategoryList(martCats)}
-          {activeSub === "mediverse" && renderCategoryList(mediverseCats)}
           {activeSub === "categories" && renderCategoryList(categories)}
         </>
       )}

@@ -13,7 +13,6 @@ import type { Product } from "@/app/store/products";
 function getHref(p: Product) {
   const src = p.source || "store";
   if (src === "mart") return `/mart/${p.id}`;
-  if (src === "mediverse") return `/mediverse/${p.id}`;
   return `/store/${p.id}`;
 }
 

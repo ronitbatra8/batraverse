@@ -99,8 +99,7 @@ export default function CheckoutPage() {
   }, [user]);
 
   const hasMartItems = items.some((it) => it.source === "mart");
-  const hasMediverseItems = items.some((it) => it.source === "mediverse");
-  const hasQuickDeliveryItems = hasMartItems || hasMediverseItems;
+  const hasQuickDeliveryItems = hasMartItems;
   const expressFee = hasQuickDeliveryItems && deliveryMode === "express" ? 49 : 0;
 
   const effectiveLevel: LevelKey = user?.cardLevel && user.cardLevel in LEVELS ? user.cardLevel as LevelKey : "none";
@@ -165,12 +164,10 @@ export default function CheckoutPage() {
 
       const hasStore = orderItems.some((i) => i.source === "store");
       const hasMart = orderItems.some((i) => i.source === "mart");
-      const hasMediverse = orderItems.some((i) => i.source === "mediverse");
 
       const sources = [];
       if (hasStore) sources.push("store");
       if (hasMart) sources.push("mart");
-      if (hasMediverse) sources.push("mediverse");
 
       if (isUpiPayment) {
         setPendingOrderData({ orderItems, shippingData, paymentMethod, sources, deliveryMode });
@@ -184,12 +181,10 @@ export default function CheckoutPage() {
       if (sources.length > 1) {
         const storeItems = orderItems.filter((i) => i.source === "store");
         const martItems = orderItems.filter((i) => i.source === "mart");
-        const mediverseItems = orderItems.filter((i) => i.source === "mediverse");
 
         const fetches = [];
         if (storeItems.length > 0) fetches.push(apiFetch("/orders", { method: "POST", body: JSON.stringify({ items: storeItems, shipping: shippingData, paymentMethod, source: "store", deliveryMode }) }));
         if (martItems.length > 0) fetches.push(apiFetch("/orders", { method: "POST", body: JSON.stringify({ items: martItems, shipping: shippingData, paymentMethod, source: "mart", deliveryMode }) }));
-        if (mediverseItems.length > 0) fetches.push(apiFetch("/orders", { method: "POST", body: JSON.stringify({ items: mediverseItems, shipping: shippingData, paymentMethod, source: "mediverse", deliveryMode }) }));
 
         const results = await Promise.all(fetches);
         createdOrderId = results.map((r: { orderId?: string; id: string }) => r.orderId || r.id).join(", ");
@@ -617,7 +612,7 @@ src={resolveImageUrl(item.colorImage) || ""}
                       {hasMartItems && (
                         <p className={cn("text-xs mt-1 flex items-center gap-1", light ? "text-dark-400" : "text-cream-dim/40")}>
                           {deliveryMode === "express" ? <Zap size={10} /> : deliveryMode === "regular" ? <Truck size={10} /> : <Clock size={10} />}
-                          {hasMartItems && hasMediverseItems ? "Quick" : hasMartItems ? "Mart" : "Mediverse"}: {deliveryMode === "express" ? "Express (10 Min)" : deliveryMode === "regular" ? "Regular (3-5 Days)" : "Standard (30 Min)"}
+                          Mart: {deliveryMode === "express" ? "Express (10 Min)" : deliveryMode === "regular" ? "Regular (3-5 Days)" : "Standard (30 Min)"}
                         </p>
                       )}
                       <p className={cn("text-xs mt-0.5", light ? "text-dark-400" : "text-cream-dim/40")}>{ship.email}</p>
@@ -703,7 +698,7 @@ src={resolveImageUrl(item.colorImage) || ""}
                 {hasQuickDeliveryItems && (
                   <div className={cn("rounded-lg border p-3", light ? "border-dark-100 bg-dark-50/50" : "border-white/5 bg-onyx/50")}>
                     <p className={cn("text-[9px] font-semibold uppercase tracking-[0.2em] mb-2", light ? "text-dark-500" : "text-cream-dim/60")}>
-                      {hasMartItems && hasMediverseItems ? "Quick Delivery" : hasMartItems ? "Mart Delivery" : "Mediverse Delivery"}
+                      Mart Delivery
                     </p>
                     <div className="flex flex-wrap gap-2">
                       <button

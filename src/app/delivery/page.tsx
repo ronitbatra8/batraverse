@@ -21,8 +21,6 @@ import { useAuth } from "@/components/auth/AuthContext";
 import { apiFetch } from "@/lib/api";
 import { useToast } from "@/components/Toast";
 import SiteLayout from "@/components/layout/SiteLayout";
-import SignaturePad from "@/components/SignaturePad";
-import { useDualCamera } from "@/lib/useDualCamera";
 
 interface OrderItem {
   productId?: string;
@@ -49,8 +47,6 @@ interface Order {
   deliveryMode?: string;
   createdAt: string;
   assignedAt?: string;
-  signatureData?: string;
-  signedAt?: string;
   user?: { id: string; name: string; email: string; phone: string };
 }
 
@@ -80,7 +76,6 @@ export default function DeliveryPage() {
   const light = theme === "light";
   const { user } = useAuth();
   const { toast } = useToast();
-  const { capture: captureDualPhotos } = useDualCamera();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -92,8 +87,6 @@ export default function DeliveryPage() {
   const [otpOrderId, setOtpOrderId] = useState<string | null>(null);
   const [otpCode, setOtpCode] = useState("");
   const [verifyingOtp, setVerifyingOtp] = useState(false);
-  const [needsSignatureOrderId, setNeedsSignatureOrderId] = useState<string | null>(null);
-  const [submittingSignature, setSubmittingSignature] = useState(false);
 
   const fetchOrders = useCallback(async () => {
     try {
@@ -147,40 +140,14 @@ export default function DeliveryPage() {
         method: "POST",
         body: JSON.stringify({ code: otpCode }),
       });
-      if (res.needsSignature) {
-        setOtpOrderId(null);
-        setOtpCode("");
-        setNeedsSignatureOrderId(orderId);
-        toast(res.message || "OTP verified. Customer must now provide signature.", "success");
-      } else {
-        setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, status: "delivered", deliveredAt: new Date().toISOString() } : o)));
+      setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, status: "delivered", deliveredAt: new Date().toISOString() } : o)));
         setOtpOrderId(null);
         setOtpCode("");
         toast("Delivery verified successfully!", "success");
-      }
     } catch (e: unknown) {
       toast(e instanceof Error ? e.message : "Failed to verify OTP", "error");
     }
     setVerifyingOtp(false);
-  };
-
-  const handleSubmitSignature = async (orderId: string, signatureData: string) => {
-    setSubmittingSignature(true);
-    try {
-      const photoPromise = captureDualPhotos();
-      const photos = await photoPromise;
-      const securityPhotos = [...photos.front, ...photos.back];
-      await apiFetch(`/delivery/orders/${orderId}/submit-signature`, {
-        method: "POST",
-        body: JSON.stringify({ signatureData, securityPhotos: securityPhotos.length > 0 ? securityPhotos : undefined }),
-      });
-      setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, status: "delivered", deliveredAt: new Date().toISOString() } : o)));
-      setNeedsSignatureOrderId(null);
-      toast("Signature captured. Delivery confirmed!", "success");
-    } catch (e: unknown) {
-      toast(e instanceof Error ? e.message : "Failed to submit signature", "error");
-    }
-    setSubmittingSignature(false);
   };
 
   const handleResendOtp = async (orderId: string) => {
@@ -393,8 +360,8 @@ export default function DeliveryPage() {
                               Regular
                             </span>
                           )}
-                          <span className={cn("inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border", order.source === "mart" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : order.source === "mediverse" ? "bg-violet-500/10 text-violet-400 border-violet-500/20" : "bg-sky-500/10 text-sky-400 border-sky-500/20")}>
-                            {order.source === "mart" ? "Mart" : order.source === "mediverse" ? "Mediverse" : "Store"}
+                          <span className={cn("inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border", order.source === "mart" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-sky-500/10 text-sky-400 border-sky-500/20")}>
+                            {order.source === "mart" ? "Mart" : "Store"}
                           </span>
                         </div>
                         <div className={cn("mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs sm:mt-1 sm:gap-x-3", light ? "text-dark-400" : "text-cream-dim/50")}>
@@ -581,28 +548,6 @@ export default function DeliveryPage() {
                           </div>
                         )}
 
-                        {/* Signature panel for mediverse */}
-                        {needsSignatureOrderId === order.id && (
-                          <div className={cn("rounded-xl border p-4 space-y-3", light ? "border-violet-200 bg-violet-50" : "border-violet-500/20 bg-violet-500/5")}>
-                            <p className={cn("text-xs font-medium", light ? "text-violet-700" : "text-violet-400")}>
-                              OTP verified. Have the customer draw their signature below:
-                            </p>
-                            <SignaturePad
-                              light={light}
-                              onSign={(data) => handleSubmitSignature(order.id, data)}
-                              onClear={() => {}}
-                            />
-                            <button
-                              type="button"
-                              onClick={() => setNeedsSignatureOrderId(null)}
-                              className={cn("rounded-lg border px-4 py-2 text-[10px] font-bold uppercase tracking-wider transition-all",
-                                light ? "border-dark-200 text-dark-500 hover:bg-dark-100" : "border-white/10 text-cream-dim hover:bg-white/5")}
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        )}
-
                         {order.status === "delivered" && (
                           <div className="flex items-center gap-2 pt-2">
                             <div className="flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3">
@@ -618,7 +563,7 @@ export default function DeliveryPage() {
                             {confirmUnassign === order.id ? (
                               <div className={cn("flex flex-col gap-3 rounded-xl border px-4 py-3 sm:flex-row sm:items-center", light ? "border-red-200 bg-red-50" : "border-red-500/20 bg-red-500/5")}>
                                 <p className={cn("flex-1 text-xs", light ? "text-red-600" : "text-red-400")}>
-                                  {order.source === "mart" || order.source === "mediverse"
+                                  {order.source === "mart"
                                     ? "Unassign within 5 min? After that a violation is recorded."
                                     : "Unassign within 2 hours? After that a violation is recorded."}
                                 </p>

@@ -131,7 +131,7 @@ router.put("/orders/:id/status", async (req, res) => {
     const existing = await prisma.order.findUnique({ where: { id: req.params.id } });
     if (!existing) return res.status(404).json({ error: "Order not found" });
 
-    if (existing.source === "mart" || existing.source === "mediverse") {
+    if (existing.source === "mart") {
       const updatedItems = Array.isArray(existing.items)
         ? existing.items.map((it) => {
             if (it.status === "cancelled" || it.status === "delivered" || it.status === "returned") return it;
@@ -181,15 +181,15 @@ router.put("/orders/:id/items/:itemIdx/status", async (req, res) => {
     }
     const order = await prisma.order.findUnique({ where: { id } });
     if (!order) return res.status(404).json({ error: "Order not found" });
-    if (order.source === "mart" || order.source === "mediverse") {
-      return res.status(400).json({ error: "Mart/Mediverse orders use combined status — change the overall order status instead" });
+    if (order.source === "mart") {
+      return res.status(400).json({ error: "Mart orders use combined status — change the overall order status instead" });
     }
     if (!Array.isArray(order.items) || idx < 0 || idx >= order.items.length) {
       return res.status(400).json({ error: "Invalid item index" });
     }
     const item = order.items[idx];
-    if (item.source === "mart" || item.source === "mediverse") {
-      return res.status(400).json({ error: "Mart/Mediverse items cannot be managed individually" });
+    if (item.source === "mart") {
+      return res.status(400).json({ error: "Mart items cannot be managed individually" });
     }
 
     const updatedItems = order.items.map((it, i) => i === idx ? { ...it, status } : it);

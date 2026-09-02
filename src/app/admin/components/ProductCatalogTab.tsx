@@ -83,7 +83,7 @@ export default function ProductCatalogTab({ adminKey }: { adminKey: string }) {
   const [products, setProducts] = useState<SellerProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [sourceFilter, setSourceFilter] = useState<"all" | "store" | "mart" | "mediverse">("all");
+  const [sourceFilter, setSourceFilter] = useState<"all" | "store" | "mart">("all");
   const [stockFilter, setStockFilter] = useState<"all" | "in" | "out">("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -200,7 +200,6 @@ export default function ProductCatalogTab({ adminKey }: { adminKey: string }) {
     total: products.length,
     store: products.filter((p) => p.source === "store").length,
     mart: products.filter((p) => p.source === "mart").length,
-    mediverse: products.filter((p) => p.source === "mediverse").length,
     inStock: products.filter((p) => p.inStock).length,
     outOfStock: products.filter((p) => !p.inStock).length,
     totalValue: products.reduce((sum, p) => sum + p.price, 0),
@@ -240,7 +239,6 @@ export default function ProductCatalogTab({ adminKey }: { adminKey: string }) {
               className="bg-dark-800/60 border border-dark-700/50 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-gold-500/50">
               <option value="store">Store</option>
               <option value="mart">Mart</option>
-              <option value="mediverse">Mediverse</option>
             </select>
             <select value={addForm.category} onChange={(e) => setAddForm({ ...addForm, category: e.target.value, subCategory: "" })}
               className="bg-dark-800/60 border border-dark-700/50 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-gold-500/50 appearance-none cursor-pointer">
@@ -279,12 +277,11 @@ export default function ProductCatalogTab({ adminKey }: { adminKey: string }) {
       )}
 
       {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         {[
           { label: "Total", value: stats.total, color: "text-white" },
           { label: "Store", value: stats.store, color: "text-sapphire-400" },
           { label: "Mart", value: stats.mart, color: "text-emerald-400" },
-          { label: "Mediverse", value: stats.mediverse, color: "text-violet-400" },
           { label: "In Stock", value: stats.inStock, color: "text-emerald-400" },
           { label: "Out of Stock", value: stats.outOfStock, color: "text-red-400" },
         ].map((s) => (
@@ -304,7 +301,7 @@ export default function ProductCatalogTab({ adminKey }: { adminKey: string }) {
         </div>
         <div className="flex items-center gap-1.5">
           <Filter size={13} className="text-dark-500" />
-          {(["all", "store", "mart", "mediverse"] as const).map((s) => (
+          {(["all", "store", "mart"] as const).map((s) => (
             <button key={s} onClick={() => setSourceFilter(s)}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${
                 sourceFilter === s ? "border-gold-500/30 bg-gold-500/10 text-gold-400" : "border-dark-700/50 text-dark-400 hover:text-white"
@@ -359,7 +356,7 @@ export default function ProductCatalogTab({ adminKey }: { adminKey: string }) {
                     {p.brand || "No brand"} &middot; {p.category || "uncategorized"}
                     {p.subCategory ? ` / ${p.subCategory}` : ""}
                     {" "}&middot;{" "}
-                    <span className={p.source === "mart" ? "text-emerald-400" : p.source === "mediverse" ? "text-violet-400" : "text-sapphire-400"}>
+                    <span className={p.source === "mart" ? "text-emerald-400" : "text-sapphire-400"}>
                       {p.source || "store"}
                     </span>
                   </p>

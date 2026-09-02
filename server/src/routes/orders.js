@@ -12,7 +12,7 @@ const {
 const router = express.Router();
 
 function generateOrderId(source) {
-  const prefix = source === "store" ? "st" : source === "mart" ? "mt" : source === "mediverse" ? "md" : "xx";
+  const prefix = source === "store" ? "st" : "mt";
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   let suffix = "";
   for (let i = 0; i < 6; i++) suffix += chars[Math.floor(Math.random() * chars.length)];
@@ -71,10 +71,10 @@ router.post("/", userAuth, async (req, res) => {
       return res.status(400).json({ error: "Shipping information is required" });
     }
     if (source === "mixed") {
-      return res.status(400).json({ error: "Mixed orders are not allowed. Please place store, mart, and mediverse orders separately." });
+      return res.status(400).json({ error: "Mixed orders are not allowed. Please place store and mart orders separately." });
     }
-    if (source !== "store" && source !== "mart" && source !== "mediverse") {
-      return res.status(400).json({ error: "Source must be 'store', 'mart', or 'mediverse'" });
+    if (source !== "store" && source !== "mart") {
+      return res.status(400).json({ error: "Source must be 'store' or 'mart'" });
     }
 
     const orderItems = items.map((item) => {
@@ -112,7 +112,7 @@ router.post("/", userAuth, async (req, res) => {
     const freeDelLimit = LEVEL_FREE_DEL[effectiveLevel] || 0;
     const hasFreeDelivery = freeDelLimit > 0 && freeDeliveryUsed < freeDelLimit;
 
-    const expressFee = (source === "mart" || source === "mediverse") && deliveryMode === "express" ? 49 : 0;
+    const expressFee = source === "mart" && deliveryMode === "express" ? 49 : 0;
     let deliveryCharge = discountedSubtotal >= 150 ? 0 : 49;
     if (hasFreeDelivery) deliveryCharge = 0;
 
@@ -184,8 +184,8 @@ router.put("/:id/cancel", userAuth, async (req, res) => {
     const order = await prisma.order.findUnique({ where: { id: req.params.id } });
     if (!order) return res.status(404).json({ error: "Order not found" });
     if (order.userId !== req.userId) return res.status(403).json({ error: "Not your order" });
-    if (order.source === "mart" || order.source === "mediverse") {
-      return res.status(400).json({ error: "Mart/Mediverse orders cannot be cancelled by customer" });
+    if (order.source === "mart") {
+      return res.status(400).json({ error: "Mart orders cannot be cancelled by customer" });
     }
     if (["packed", "out_for_delivery", "delivered", "cancelled", "returned"].includes(order.status)) {
       return res.status(400).json({ error: "Order cannot be cancelled at this stage" });
@@ -213,7 +213,7 @@ router.put("/:id/items/:itemIdx/cancel", userAuth, async (req, res) => {
     const order = await prisma.order.findUnique({ where: { id } });
     if (!order) return res.status(404).json({ error: "Order not found" });
     if (order.userId !== req.userId) return res.status(403).json({ error: "Not your order" });
-    if (order.source === "mart" || order.source === "mediverse") return res.status(400).json({ error: "Mart/Mediverse orders cannot be cancelled by customer" });
+    if (order.source === "mart") return res.status(400).json({ error: "Mart orders cannot be cancelled by customer" });
     if (!Array.isArray(order.items) || idx < 0 || idx >= order.items.length) {
       return res.status(400).json({ error: "Invalid item index" });
     }
@@ -251,8 +251,8 @@ router.post("/:id/return-request", userAuth, async (req, res) => {
     const order = await prisma.order.findUnique({ where: { id: req.params.id } });
     if (!order) return res.status(404).json({ error: "Order not found" });
     if (order.userId !== req.userId) return res.status(403).json({ error: "Not your order" });
-    if (order.source === "mart" || order.source === "mediverse") {
-      return res.status(400).json({ error: "Mart/Mediverse orders cannot be returned" });
+    if (order.source === "mart") {
+      return res.status(400).json({ error: "Mart orders cannot be returned" });
     }
     if (order.status !== "delivered") {
       return res.status(400).json({ error: "Can only request return for delivered orders" });
@@ -316,46 +316,10 @@ router.post("/:id/verify-delivery", userAuth, async (req, res) => {
 
     await prisma.deliveryOTP.update({ where: { id: otpRecord.id }, data: { verified: true } });
 
-    if (order.source === "mediverse") {
-      return res.json({ needsSignature: true, message: "OTP verified. Please provide your signature to confirm delivery." });
-    }
-
     const updatedItems = order.items.map((it) => ({ ...it, status: "delivered" }));
     const updated = await prisma.order.update({
       where: { id: order.id },
       data: { items: updatedItems, status: "delivered", deliveredAt: new Date() },
-    });
-
-    const user = await prisma.user.findUnique({ where: { id: req.userId }, select: { name: true, email: true } });
-    sendOrderStatusEmail(user.email, user.name, order.id, "delivered").catch(() => {});
-
-    res.json(updated);
-  } catch (err) {
-    res.status(500).json({ error: safeErrorMessage(err) });
-  }
-});
-
-router.post("/:id/submit-signature", userAuth, async (req, res) => {
-  try {
-    const { signatureData, securityPhotos } = req.body;
-    if (!signatureData) return res.status(400).json({ error: "Signature data is required" });
-    const order = await prisma.order.findUnique({ where: { id: req.params.id } });
-    if (!order) return res.status(404).json({ error: "Order not found" });
-    if (order.userId !== req.userId) return res.status(403).json({ error: "Not your order" });
-    if (order.source !== "mediverse") return res.status(400).json({ error: "Signature is only required for mediverse orders" });
-    if (order.status !== "out_for_delivery") return res.status(400).json({ error: "Order is not out for delivery" });
-
-    const updatedItems = order.items.map((it) => ({ ...it, status: "delivered" }));
-    const updated = await prisma.order.update({
-      where: { id: order.id },
-      data: {
-        items: updatedItems,
-        status: "delivered",
-        deliveredAt: new Date(),
-        signatureData,
-        signedAt: new Date(),
-        securityPhotos: securityPhotos ? JSON.stringify(securityPhotos) : null,
-      },
     });
 
     const user = await prisma.user.findUnique({ where: { id: req.userId }, select: { name: true, email: true } });

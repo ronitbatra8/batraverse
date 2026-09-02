@@ -37,12 +37,11 @@ interface AdRequest {
   createdAt: string;
 }
 
-type PageKey = "home" | "store" | "mart" | "mediverse" | "requests";
+type PageKey = "home" | "store" | "mart" | "requests";
 const PAGE_TABS: { key: PageKey; label: string }[] = [
   { key: "home", label: "Home" },
   { key: "store", label: "Store" },
   { key: "mart", label: "Mart" },
-  { key: "mediverse", label: "Mediverse" },
   { key: "requests", label: "Requests" },
 ];
 

@@ -20,14 +20,6 @@ const SEED_DATA = {
     personal: ["Oral Care", "Hair Care", "Bath", "Skincare"],
     cleaning: ["Laundry", "Bathroom", "Floor"],
   },
-  mediverse: {
-    wellness: ["Vitamins", "Supplements", "Probiotics"],
-    fitness: ["Protein", "Amino Acids", "Performance"],
-    healthcare: ["Diagnostics", "Monitoring"],
-    nutrition: ["Vitamins", "Protein", "Collagen"],
-    beauty: ["Skincare"],
-    sleep: ["Supplements", "Blankets", "Machines"],
-  },
 };
 
 const MEDEVISE_NAMES = {
@@ -48,7 +40,7 @@ async function main() {
       let cat = await prisma.category.findFirst({ where: { slug: catSlug, source } });
       if (!cat) {
         const maxOrder = await prisma.category.aggregate({ where: { source }, _max: { sortOrder: true } });
-        const iconName = source === "mediverse" ? "heart" : "tag";
+        const iconName = "tag";
         cat = await prisma.category.create({
           data: {
             name: MEDEVISE_NAMES[catSlug] || catSlug.charAt(0).toUpperCase() + catSlug.slice(1),

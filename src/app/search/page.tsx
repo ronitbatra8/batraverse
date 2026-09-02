@@ -33,21 +33,10 @@ const DB_MART_GRADIENT: Record<string, string> = {
   default: "from-stone-400 to-stone-600",
 };
 
-const DB_MEDIVERSE_GRADIENT: Record<string, string> = {
-  wellness: "from-yellow-400 to-amber-500",
-  fitness: "from-red-500 to-orange-500",
-  healthcare: "from-blue-500 to-indigo-600",
-  nutrition: "from-green-500 to-lime-500",
-  beauty: "from-pink-400 to-rose-500",
-  sleep: "from-indigo-400 to-purple-600",
-  default: "from-teal-400 to-cyan-500",
-};
-
 const SOURCE_TABS = [
   { key: "all" as const, label: "All Products" },
   { key: "store" as const, label: "Store" },
   { key: "mart" as const, label: "Mart" },
-  { key: "mediverse" as const, label: "Mediverse" },
 ];
 
 interface DbProduct {
@@ -84,11 +73,11 @@ interface UnifiedProduct {
   inStock: boolean;
   img?: string;
   dbImages?: string[];
-  source: "store" | "mart" | "mediverse";
+  source: "store" | "mart";
   unit?: string;
 }
 
-function dbToUnified(p: DbProduct, source: "store" | "mart" | "mediverse"): UnifiedProduct {
+function dbToUnified(p: DbProduct, source: "store" | "mart"): UnifiedProduct {
   const rawColors = Array.isArray(p.colorOptions)
     ? (p.colorOptions as { name: string; hex: string; colors?: string[]; images?: string[]; price?: number; originalPrice?: number }[])
     : [];
@@ -116,7 +105,7 @@ function dbToUnified(p: DbProduct, source: "store" | "mart" | "mediverse"): Unif
 
   const effectiveImages =
     p.images.length > 0 ? p.images : firstColor?.images && firstColor.images.length > 0 ? firstColor.images : [];
-  const gradientMap = source === "store" ? DB_STORE_GRADIENT : source === "mart" ? DB_MART_GRADIENT : DB_MEDIVERSE_GRADIENT;
+  const gradientMap = source === "store" ? DB_STORE_GRADIENT : DB_MART_GRADIENT;
   return {
     id: `db-${p.id}`,
     name: p.name,
@@ -146,8 +135,7 @@ function SearchContent() {
   const [debouncedQuery, setDebouncedQuery] = useState(initialQuery);
   const [dbStore, setDbStore] = useState<UnifiedProduct[]>([]);
   const [dbMart, setDbMart] = useState<UnifiedProduct[]>([]);
-  const [dbMediverse, setDbMediverse] = useState<UnifiedProduct[]>([]);
-  const [activeSource, setActiveSource] = useState<"all" | "store" | "mart" | "mediverse">("all");
+  const [activeSource, setActiveSource] = useState<"all" | "store" | "mart">("all");
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [hideTabs, setHideTabs] = useState(false);
   const lastScrollY = useRef(0);
@@ -185,10 +173,9 @@ function SearchContent() {
 
   const fetchDb = useCallback(async () => {
     try {
-      const [storeRes, martRes, mediverseRes] = await Promise.all([
+      const [storeRes, martRes] = await Promise.all([
         fetch(`${API_BASE}/categories/products/store`, { headers: { "ngrok-skip-browser-warning": "true" } }),
         fetch(`${API_BASE}/categories/products/mart`, { headers: { "ngrok-skip-browser-warning": "true" } }),
-        fetch(`${API_BASE}/categories/products/mediverse`, { headers: { "ngrok-skip-browser-warning": "true" } }),
       ]);
       if (storeRes.ok) {
         const data: DbProduct[] = await storeRes.json();
@@ -197,10 +184,6 @@ function SearchContent() {
       if (martRes.ok) {
         const data: DbProduct[] = await martRes.json();
         if (Array.isArray(data)) setDbMart(data.map((p) => dbToUnified(p, "mart")));
-      }
-      if (mediverseRes.ok) {
-        const data: DbProduct[] = await mediverseRes.json();
-        if (Array.isArray(data)) setDbMediverse(data.map((p) => dbToUnified(p, "mediverse")));
       }
     } catch {
       // ignore
@@ -211,12 +194,11 @@ function SearchContent() {
   useEffect(() => { fetchDb(); }, [fetchDb]);
 
   const allProducts = useMemo(() => {
-    return [...dbStore, ...dbMart, ...dbMediverse];
-  }, [dbStore, dbMart, dbMediverse]);
+    return [...dbStore, ...dbMart];
+  }, [dbStore, dbMart]);
 
   const storeCount = useMemo(() => allProducts.filter((p) => p.inStock && p.source === "store").length, [allProducts]);
   const martCount = useMemo(() => allProducts.filter((p) => p.inStock && p.source === "mart").length, [allProducts]);
-  const mediverseCount = useMemo(() => allProducts.filter((p) => p.inStock && p.source === "mediverse").length, [allProducts]);
 
   const sourceCounts = useMemo(() => {
     const q = debouncedQuery.toLowerCase().trim();
@@ -229,7 +211,6 @@ function SearchContent() {
       all: base.length,
       store: base.filter((p) => p.source === "store").length,
       mart: base.filter((p) => p.source === "mart").length,
-      mediverse: base.filter((p) => p.source === "mediverse").length,
     };
   }, [allProducts, debouncedQuery]);
 
@@ -267,7 +248,7 @@ function SearchContent() {
                 <span className={cn(light ? "text-sapphire-gradient" : "text-gold-gradient")}>Products</span>
               </h1>
               <p className={cn("mt-3 text-sm tracking-wide", light ? "text-dark-400" : "text-cream-dim/50")}>
-                Browse {storeCount} store items, {martCount} mart items and {mediverseCount} mediverse items
+                Browse {storeCount} store items and {martCount} mart items
               </p>
             </div>
           </div>
@@ -394,9 +375,7 @@ function SearchCard({ product, light }: { product: UnifiedProduct; light: boolea
   const href =
     source === "store"
       ? `/store/${product.id}`
-      : source === "mediverse"
-        ? `/mediverse/${product.id}`
-        : `/mart/${product.id}`;
+      : `/mart/${product.id}`;
   const hasImage = (product.dbImages && product.dbImages.length > 0) || product.img;
 
   return (
@@ -429,16 +408,12 @@ function SearchCard({ product, light }: { product: UnifiedProduct; light: boolea
               ? light
                 ? "bg-sapphire/90 text-white"
                 : "bg-gold/90 text-abyss"
-              : source === "mediverse"
-                ? light
-                  ? "bg-violet-600/90 text-white"
-                  : "bg-violet-500/90 text-white"
-                : light
-                  ? "bg-emerald-600/90 text-white"
-                  : "bg-emerald-500/90 text-white"
+              : light
+                ? "bg-emerald-600/90 text-white"
+                : "bg-emerald-500/90 text-white"
           )}
         >
-          {source === "store" ? "Store" : source === "mediverse" ? "Mediverse" : "Mart"}
+          {source === "store" ? "Store" : "Mart"}
         </span>
         {product.badge && (
           <span

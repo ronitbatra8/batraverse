@@ -48,11 +48,9 @@ const statusBorders: Record<string, string> = {
 
 function getOrderSource(order: any): string {
   if (order.source === "mart") return "mart";
-  if (order.source === "mediverse") return "mediverse";
   if (order.source === "store") return "store";
   if (order.orderId) {
     if (order.orderId.startsWith("mt")) return "mart";
-    if (order.orderId.startsWith("md")) return "mediverse";
     if (order.orderId.startsWith("st")) return "store";
   }
   if (Array.isArray(order.items) && order.items.length > 0) {
@@ -92,16 +90,12 @@ export default function OrdersTab({
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
   const [orderSearch, setOrderSearch] = useState("");
   const [orderFilter, setOrderFilter] = useState("all");
-  const [sourceFilter, setSourceFilter] = useState<"all" | "store" | "mart" | "mediverse">("all");
+  const [sourceFilter, setSourceFilter] = useState<"all" | "store" | "mart">("all");
   const [deliveryExecs, setDeliveryExecs] = useState<any[]>([]);
   const [assignSelections, setAssignSelections] = useState<Record<string, string>>({});
   const [assigningId, setAssigningId] = useState<string | null>(null);
   const [pendingStatusAction, setPendingStatusAction] = useState<{ orderId: string; status: string } | null>(null);
   const [pendingPaymentAction, setPendingPaymentAction] = useState<{ orderId: string; action: "approve" | "reject" } | null>(null);
-  const [lightboxPhoto, setLightboxPhoto] = useState<string | null>(null);
-  const [unlockedOrders, setUnlockedOrders] = useState<Set<string>>(new Set());
-  const [photoPasswordInput, setPhotoPasswordInput] = useState("");
-  const [photoUnlockTarget, setPhotoUnlockTarget] = useState<string | null>(null);
   const lastFocusRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -157,7 +151,6 @@ export default function OrdersTab({
     all: orders.length,
     store: orders.filter((o) => getOrderSource(o) === "store").length,
     mart: orders.filter((o) => getOrderSource(o) === "mart").length,
-    mediverse: orders.filter((o) => getOrderSource(o) === "mediverse").length,
   };
 
   function handleStatusChange(orderId: string, status: string) {
@@ -215,9 +208,9 @@ export default function OrdersTab({
         </div>
       </div>
 
-      {/* Source filter: Store / Mart / Mediverse */}
+      {/* Source filter: Store / Mart */}
       <div className="flex items-center gap-2 p-1 bg-dark-900/80 border border-dark-800/50 rounded-xl w-fit">
-        {(["all", "store", "mart", "mediverse"] as const).map((s) => (
+        {(["all", "store", "mart"] as const).map((s) => (
           <button
             key={s}
             onClick={() => setSourceFilter(s)}
@@ -225,21 +218,17 @@ export default function OrdersTab({
               sourceFilter === s
                 ? s === "mart"
                   ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
-                  : s === "mediverse"
-                    ? "bg-violet-500/15 text-violet-400 border border-violet-500/30"
-                    : "bg-gold/15 text-gold border border-gold/30"
+                  : "bg-gold/15 text-gold border border-gold/30"
                 : "text-dark-400 hover:text-dark-200 border border-transparent"
             }`}
           >
             <span className="flex items-center gap-2">
-              {s === "all" ? "All Orders" : s === "store" ? "Store" : s === "mart" ? "Mart" : "Mediverse"}
+              {s === "all" ? "All Orders" : s === "store" ? "Store" : "Mart"}
               <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
                 sourceFilter === s
                   ? s === "mart"
                     ? "bg-emerald-500/20 text-emerald-300"
-                    : s === "mediverse"
-                      ? "bg-violet-500/20 text-violet-300"
-                      : "bg-gold/20 text-gold-light"
+                    : "bg-gold/20 text-gold-light"
                   : "bg-dark-800 text-dark-500"
               }`}>
                 {sourceCounts[s]}
@@ -319,25 +308,21 @@ export default function OrdersTab({
                         className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
                           getOrderSource(order) === "mart"
                             ? "bg-emerald-500/15 text-emerald-400"
-                            : getOrderSource(order) === "mediverse"
-                              ? "bg-violet-500/15 text-violet-400"
-                              : "bg-gold/10 text-gold/80"
+                            : "bg-gold/10 text-gold/80"
                         }`}
                       >
-                        {getOrderSource(order) === "mart" ? "Mart" : getOrderSource(order) === "mediverse" ? "Mediverse" : "Store"}
+                        {getOrderSource(order) === "mart" ? "Mart" : "Store"}
                       </span>
                       {order.orderId && (
                         <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider bg-dark-800 text-dark-300">
                           {order.orderId}
                         </span>
                       )}
-                      {(order.deliveryMode === "express" || order.deliveryMode === "regular") && (getOrderSource(order) === "mart" || getOrderSource(order) === "mediverse") && (
-                        <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                          getOrderSource(order) === "mart" ? "bg-emerald-500/15 text-emerald-400" : "bg-violet-500/15 text-violet-400"
-                        }`}>
-                          {order.deliveryMode === "express" ? "10 min" : order.deliveryMode === "regular" ? "3-5 days" : "30 min"}
+                      {order.deliveryMode === "express" || order.deliveryMode === "regular" ? (getOrderSource(order) === "mart") && (
+                        <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-500/15 text-emerald-400`}>
+                          {order.deliveryMode === "express" ? "10 min" : "3-5 days"}
                         </span>
-                      )}
+                      ) : null}
                     </div>
                     <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 mt-1">
                       <span className="text-dark-300 text-sm truncate">
@@ -737,15 +722,15 @@ export default function OrdersTab({
                           </div>
                         )}
                         <div className="flex items-center gap-3">
-                          <div className={`w-4 h-4 rounded-full ${getOrderSource(order) === "mart" ? "bg-emerald-500" : getOrderSource(order) === "mediverse" ? "bg-violet-500" : "bg-gold"}`} />
+                          <div className={`w-4 h-4 rounded-full ${getOrderSource(order) === "mart" ? "bg-emerald-500" : "bg-gold"}`} />
                           <div>
                             <div className="text-xs text-dark-500">Source</div>
-                            <div className={`text-sm font-medium ${getOrderSource(order) === "mart" ? "text-emerald-400" : getOrderSource(order) === "mediverse" ? "text-violet-400" : "text-gold-400"}`}>
-                              {getOrderSource(order) === "mart" ? "Mart" : getOrderSource(order) === "mediverse" ? "Mediverse" : "Store"}
+                            <div className={`text-sm font-medium ${getOrderSource(order) === "mart" ? "text-emerald-400" : "text-gold-400"}`}>
+                              {getOrderSource(order) === "mart" ? "Mart" : "Store"}
                             </div>
                           </div>
                         </div>
-                        {order.deliveryMode && (getOrderSource(order) === "mart" || getOrderSource(order) === "mediverse") && (
+                        {order.deliveryMode && getOrderSource(order) === "mart" && (
                           <div className="flex items-center gap-3">
                             <div className={`w-4 h-4 rounded-full ${order.deliveryMode === "express" ? "bg-emerald-500" : order.deliveryMode === "regular" ? "bg-violet-500" : "bg-sky-500"}`} />
                             <div>
@@ -760,59 +745,6 @@ export default function OrdersTab({
                           <div className="text-xs text-dark-500">Total</div>
                           <div className="text-white font-bold text-lg">{formatPrice(order.totalAmount || 0)}</div>
                         </div>
-                        {getOrderSource(order) === "mediverse" && order.signatureData && (
-                          <div className="flex flex-col gap-1 border-l border-dark-700 pl-3 ml-1">
-                            <div className="text-xs text-dark-500">Signature</div>
-                            <div className="rounded-lg border border-dark-700/50 bg-dark-800 p-1 inline-block">
-                              <img src={resolveImageUrl(order.signatureData)} alt="Delivery signature" className="h-14" />
-                            </div>
-                            {order.signedAt && <div className="text-[9px] text-dark-600">{new Date(order.signedAt).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</div>}
-                          </div>
-                        )}
-                        {getOrderSource(order) === "mediverse" && order.securityPhotos && Array.isArray(order.securityPhotos) && order.securityPhotos.length > 0 && (
-                          <div className="flex flex-col gap-1 border-l border-dark-700 pl-3 ml-1">
-                            <div className="text-xs text-dark-500">Security Photos</div>
-                            {!unlockedOrders.has(order.id) ? (
-                              photoUnlockTarget === order.id ? (
-                                <div className="flex items-center gap-1">
-                                  <input
-                                    type="password"
-                                    value={photoPasswordInput}
-                                    onChange={(e) => setPhotoPasswordInput(e.target.value)}
-                                    onKeyDown={(e) => {
-                                      if (e.key === "Enter") {
-                                        if (photoPasswordInput === "0811") {
-                                          setUnlockedOrders((prev) => new Set(prev).add(order.id));
-                                          setPhotoUnlockTarget(null);
-                                          setPhotoPasswordInput("");
-                                        } else {
-                                          setPhotoPasswordInput("");
-                                        }
-                                      }
-                                      if (e.key === "Escape") { setPhotoUnlockTarget(null); setPhotoPasswordInput(""); }
-                                    }}
-                                    placeholder="PIN"
-                                    autoFocus
-                                    className="w-16 px-2 py-1 rounded text-[10px] bg-dark-800 border border-dark-600 text-white focus:border-gold focus:outline-none"
-                                  />
-                                  <button onClick={() => { setPhotoUnlockTarget(null); setPhotoPasswordInput(""); }} className="text-[9px] text-dark-500 hover:text-dark-300">Cancel</button>
-                                </div>
-                              ) : (
-                                <button onClick={() => setPhotoUnlockTarget(order.id)} className="text-[9px] text-gold hover:text-gold-light cursor-pointer font-medium">
-                                  {order.securityPhotos.length} photo{order.securityPhotos.length > 1 ? "s" : ""} — Enter PIN to view
-                                </button>
-                              )
-                            ) : (
-                              <div className="flex gap-1">
-                                {order.securityPhotos.slice(0, 3).map((photo: string, idx: number) => (
-                                  <button key={idx} onClick={() => setLightboxPhoto(photo)} className="cursor-pointer">
-                                    <img src={resolveImageUrl(photo)} alt={`Security photo ${idx + 1}`} className="h-14 w-14 object-cover rounded-lg border border-dark-700/50 hover:border-gold/50 transition-colors" />
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        )}
                         {order.paymentStatus === "PENDING" && order.status !== "cancelled" && onPaymentAction && !["COD", "UPI_DELIVERY"].includes(order.paymentMethod) && (
                           <div className="flex flex-wrap items-center gap-2 sm:border-l sm:border-dark-700 sm:pl-3 sm:ml-1">
                             <button
@@ -872,12 +804,6 @@ export default function OrdersTab({
         }}
         onCancel={() => setPendingPaymentAction(null)}
       />
-      {lightboxPhoto && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4" onClick={() => setLightboxPhoto(null)}>
-          <button onClick={() => setLightboxPhoto(null)} className="absolute top-4 right-4 text-white/70 hover:text-white text-2xl font-bold">&times;</button>
-          <img src={resolveImageUrl(lightboxPhoto)} alt="Security photo" className="max-h-[85vh] max-w-[90vw] rounded-xl object-contain shadow-2xl" onClick={(e) => e.stopPropagation()} />
-        </div>
-      )}
     </div>
   );
 }

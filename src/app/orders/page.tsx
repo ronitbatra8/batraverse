@@ -245,7 +245,7 @@ export default function OrdersPage() {
   };
 
   const isWithinReturnWindow = useCallback((order: Order) => {
-    if (order.source === "mart" || order.source === "mediverse" || order.status !== "delivered" || !order.deliveredAt) return false;
+    if (order.source === "mart" || order.status !== "delivered" || !order.deliveredAt) return false;
     return Date.now() - new Date(order.deliveredAt).getTime() <= 2 * 60 * 60 * 1000;
   }, []);
 
@@ -301,8 +301,7 @@ export default function OrdersPage() {
                 const isExpanded = expandedId === order.id;
                 const trackIdx = getTrackingIndex(order.status, order.paymentMethod);
                 const isMart = order.source === "mart";
-                const isMediverse = order.source === "mediverse";
-                const isQuickDelivery = isMart || isMediverse;
+                const isQuickDelivery = isMart;
                 const canCancel = !isQuickDelivery && CANCEL_STATUSES.includes(order.status);
                 const returnWindow = isWithinReturnWindow(order);
 
@@ -338,12 +337,7 @@ export default function OrdersPage() {
                               Mart
                             </span>
                           )}
-                          {isMediverse && (
-                            <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-violet-500/10 text-violet-400 border border-violet-500/20">
-                              Mediverse
-                            </span>
-                          )}
-                          {!isMart && !isMediverse && (
+                          {!isMart && (
                             <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-gold/10 text-gold/80 border border-gold/20">
                               Store
                             </span>
@@ -473,7 +467,7 @@ export default function OrdersPage() {
                           <div className="space-y-2">
                             {order.items.map((item, idx) => {
                               const itemStatus = item.status || "pending";
-                              const isStore = item.source !== "mart" && item.source !== "mediverse";
+                              const isStore = item.source !== "mart";
                               const canCancelItem = isQuickDelivery ? false : isStore && ["pending", "confirmed"].includes(itemStatus);
                               const itemStatusColors: Record<string, string> = {
                                 pending: light ? "text-amber-600 bg-amber-50 border-amber-200" : "text-amber-400 bg-amber-500/10 border-amber-500/20",
@@ -495,9 +489,6 @@ export default function OrdersPage() {
                                       </span>
                                       {isMart && (
                                         <span className="inline-block px-1.5 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Mart</span>
-                                      )}
-                                      {isMediverse && (
-                                        <span className="inline-block px-1.5 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider bg-violet-500/10 text-violet-400 border border-violet-500/20">Mediverse</span>
                                       )}
                                     </div>
                                     <p className={cn("text-[10px] mt-0.5", light ? "text-dark-400" : "text-cream-dim/50")}>
@@ -557,23 +548,6 @@ export default function OrdersPage() {
                             <p className={cn("mt-1 text-lg font-bold tabular-nums", light ? "text-dark-900" : "text-cream")}>{formatPrice(order.totalAmount)}</p>
                           </div>
                         </div>
-
-                        {/* Signature proof for mediverse */}
-                        {order.source === "mediverse" && order.signatureData && order.status === "delivered" && (
-                          <div className={cn("rounded-xl border p-4", light ? "border-dark-200 bg-dark-50/50" : "border-white/5 bg-onyx/50")}>
-                            <p className={cn("text-[10px] font-semibold uppercase tracking-wider mb-2", light ? "text-dark-500" : "text-cream-dim/60")}>
-                              Delivery Signature
-                            </p>
-                            <div className={cn("rounded-lg border p-2 inline-block", light ? "border-dark-200 bg-dark-100" : "border-white/10 bg-dark-800")}>
-                              <img src={order.signatureData} alt="Delivery signature" className="h-16 w-auto max-w-full" />
-                            </div>
-                            {order.signedAt && (
-                              <p className={cn("text-[10px] mt-2", light ? "text-dark-400" : "text-cream-dim/40")}>
-                                Signed at {new Date(order.signedAt).toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" })}
-                              </p>
-                            )}
-                          </div>
-                        )}
 
                         {/* Cancel order button */}
                         {canCancel && (

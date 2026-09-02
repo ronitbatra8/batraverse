@@ -31,7 +31,7 @@ export interface Product {
   dbImages?: string[];
   brand?: string;
   unit?: string;
-  source?: "store" | "mart" | "mediverse";
+  source?: "store" | "mart";
   seller?: { name: string; shopName?: string | null; email?: string } | null;
 }
 

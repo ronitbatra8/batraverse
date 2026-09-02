@@ -6,7 +6,7 @@ import { getRecentItems, type RecentItem } from "@/lib/recentlyViewed";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
-type Source = "store" | "mart" | "mediverse";
+type Source = "store" | "mart";
 
 interface DbProduct {
   id: string;
@@ -22,7 +22,6 @@ interface DbProduct {
 function parseSource(href: string): Source | null {
   if (href.startsWith("/store/")) return "store";
   if (href.startsWith("/mart/")) return "mart";
-  if (href.startsWith("/mediverse/")) return "mediverse";
   return null;
 }
 
@@ -78,7 +77,7 @@ export default function RecentlyViewedShelf() {
       const recent = getRecentItems();
       if (recent.length === 0) return;
 
-      const sources: Source[] = ["store", "mart", "mediverse"];
+      const sources: Source[] = ["store", "mart"];
       const valid = new Map<Source, Set<string>>();
       const byKey = new Map<Source, Map<string, DbProduct>>();
 

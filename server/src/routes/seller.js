@@ -295,7 +295,7 @@ router.post("/category-requests", async (req, res) => {
     const { type, source, categoryName, subCategoryName, reason } = req.body;
     if (!type || !source || !categoryName) return res.status(400).json({ error: "type, source, categoryName are required" });
     if (!["new_category", "new_subcategory"].includes(type)) return res.status(400).json({ error: "type must be new_category or new_subcategory" });
-    if (!["store", "mart", "mediverse"].includes(source)) return res.status(400).json({ error: "source must be store, mart, or mediverse" });
+    if (!["store", "mart"].includes(source)) return res.status(400).json({ error: "source must be store or mart" });
     const request = await prisma.categoryRequest.create({
       data: {
         sellerId: req.userId,

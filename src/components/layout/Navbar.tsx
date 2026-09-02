@@ -8,7 +8,6 @@ import {
   Home,
   Search,
   ShoppingCart,
-  Stethoscope,
   Store,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -50,7 +49,6 @@ const NAV_LINKS = [
   { label: "Home", href: "/" },
   { label: "Store", href: "/store" },
   { label: "Mart", href: "/mart" },
-  { label: "Mediverse", href: "/mediverse" },
   { label: "About", href: "/about", hideOnOpen: true },
   { label: "Contact", href: "/contact", hideOnOpen: true },
 ] as const;
@@ -59,7 +57,6 @@ const BOTTOM_TABS = [
   { label: "Home", href: "/", icon: Home },
   { label: "Store", href: "/store", icon: Store },
   { label: "Mart", href: "/mart", icon: ShoppingCart },
-  { label: "Mediverse", href: "/mediverse", icon: Stethoscope },
 ] as const;
 
 export default function Navbar() {
