@@ -285,6 +285,7 @@ model CartItem {
   colorHex  String?
   image     String?
   size      String?
+  source    String?
   qty       Int      @default(1)
   createdAt DateTime @default(now())
 

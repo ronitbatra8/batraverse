@@ -157,6 +157,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
             image: i.colorImage,
             size: i.size,
             qty: i.qty,
+            source: i.source || "store",
           })),
         }),
       });
@@ -202,7 +203,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
                 colorPrice: b.price || local?.colorPrice,
                 size: b.size || undefined,
                 qty: b.qty || 1,
-                source: local?.source || (b.productId?.startsWith("m") ? "mart" : "store"),
+                source: b.source || local?.source || "store",
               };
             });
             itemsRef.current = hydrated;
