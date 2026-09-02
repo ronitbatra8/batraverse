@@ -24,6 +24,8 @@ import {
   CircleDollarSign,
   Zap,
   Clock,
+  Navigation,
+  Loader2,
 } from "lucide-react";
 import { cn, formatPrice } from "@/lib/utils";
 import { useTheme } from "@/components/theme/ThemeProvider";
@@ -72,6 +74,8 @@ export default function CheckoutPage() {
   const [upiModal, setUpiModal] = useState(false);
   const [upiAmount, setUpiAmount] = useState(0);
   const [pendingOrderData, setPendingOrderData] = useState<any>(null);
+  const [locating, setLocating] = useState(false);
+  const [locationError, setLocationError] = useState("");
 
   const [ship, setShip] = useState<ShippingForm>(EMPTY_SHIP);
   const [payMethod, setPayMethod] = useState<PaymentMethod | "">("");
@@ -131,7 +135,56 @@ export default function CheckoutPage() {
 
   const updateShip = (field: keyof ShippingForm, value: string) => setShip((p) => ({ ...p, [field]: value }));
 
-  const shipValid = ship.firstName && ship.email && ship.phone && ship.address && ship.city;
+  const useCurrentLocation = () => {
+    if (!("geolocation" in navigator)) {
+      setLocationError("Geolocation is not supported in this browser.");
+      return;
+    }
+    setLocating(true);
+    setLocationError("");
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        try {
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}&addressdetails=1`);
+          const data = await res.json();
+          const a = data.address || {};
+          const pincode = a.postcode || "";
+          const city = a.city || a.town || a.village || a.county || "";
+          let state = a.state || "";
+          if (a.state_district && !state) state = a.state_district;
+          const house = a.house_number ? `${a.house_number} ` : "";
+          const road = a.road || a.pedestrian || "";
+          const suburb = a.suburb || a.neighbourhood || "";
+          const address = [road ? `${house}${road}` : "", suburb].filter(Boolean).join(", ");
+          setShip((p) => ({
+            ...p,
+            address: address || p.address,
+            city: city || p.city,
+            state: state || p.state,
+            pincode: pincode || p.pincode,
+          }));
+        } catch {
+          setLocationError("Could not fetch your address. Please fill it manually.");
+        } finally {
+          setLocating(false);
+        }
+      },
+      (err) => {
+        setLocating(false);
+        setLocationError(err.message || "Could not get your location.");
+      },
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 }
+    );
+  };
+
+  const shipValid = ship.firstName && ship.email && ship.phone && ship.address && ship.city && ship.state && ship.pincode;
+  const missingShip = [
+    !ship.address && "Address",
+    !ship.city && "City",
+    !ship.state && "State",
+    !ship.pincode && "Pincode",
+  ].filter(Boolean) as string[];
   const payValid = payMethod !== "" && (
     payMethod === "cod" || payMethod === "upi_delivery" || payMethod === "upi" || payMethod === "wallet_balance"
   );
@@ -379,10 +432,26 @@ export default function CheckoutPage() {
             {/* Step 1: Shipping */}
             {step === "shipping" && (
               <div className={cn("rounded-2xl border p-6 sm:p-8", light ? "border-dark-200/60 bg-white" : "border-white/5 bg-graphite")}>
-                <div className="flex items-center gap-2 mb-6">
-                  <MapPin size={16} className={light ? "text-sapphire" : "text-gold"} />
-                  <h2 className={cn("text-[11px] font-semibold uppercase tracking-[0.3em]", light ? "text-dark-400" : "text-cream-dim/60")}>Shipping Address</h2>
+                <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <MapPin size={16} className={light ? "text-sapphire" : "text-gold"} />
+                    <h2 className={cn("text-[11px] font-semibold uppercase tracking-[0.3em]", light ? "text-dark-400" : "text-cream-dim/60")}>Shipping Address</h2>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={useCurrentLocation}
+                    disabled={locating}
+                    className={cn("inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-[10px] font-semibold uppercase tracking-wider transition-all duration-300 disabled:opacity-60", light ? "border-sapphire/30 text-sapphire hover:bg-sapphire/10" : "border-gold/30 text-gold hover:bg-gold/10")}
+                  >
+                    {locating ? <Loader2 size={13} className="animate-spin" /> : <Navigation size={13} />}
+                    {locating ? "Detecting..." : "Use Current Location"}
+                  </button>
                 </div>
+                {locationError && (
+                  <p className="mb-4 flex items-center gap-1.5 text-[11px] text-amber-500">
+                    <Navigation size={11} /> {locationError}
+                  </p>
+                )}
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
                     <label className={labelCls}>First Name</label>
@@ -435,11 +504,11 @@ export default function CheckoutPage() {
                     <input type="text" placeholder="New Delhi" value={ship.city} onChange={(e) => updateShip("city", e.target.value)} className={inputCls} />
                   </div>
                   <div>
-                    <label className={labelCls}>State</label>
+                    <label className={labelCls}>State *</label>
                     <input type="text" placeholder="Delhi" value={ship.state} onChange={(e) => updateShip("state", e.target.value)} className={inputCls} />
                   </div>
                   <div>
-                    <label className={labelCls}>Pincode</label>
+                    <label className={labelCls}>Pincode *</label>
                     <div className="relative">
                       <Hash size={14} className={cn("absolute left-3.5 top-1/2 -translate-y-1/2", light ? "text-dark-400" : "text-cream-dim/30")} />
                       <input type="text" placeholder="110001" value={ship.pincode} onChange={(e) => updateShip("pincode", e.target.value)} className={cn(inputCls, "pl-10")} />
@@ -453,7 +522,12 @@ export default function CheckoutPage() {
                     </div>
                   </div>
                 </div>
-                <div className="mt-8 flex justify-end">
+                <div className="mt-6 flex flex-col items-end gap-3">
+                  {!shipValid && missingShip.length > 0 && (
+                    <p className={cn("text-[11px]", light ? "text-amber-600" : "text-amber-400")}>
+                      Please fill: {missingShip.join(", ")}
+                    </p>
+                  )}
                   <button type="button" onClick={() => setStep("payment")} disabled={!shipValid}
                     className={cn("rounded-xl px-8 py-3.5 text-[11px] font-bold uppercase tracking-[0.25em] transition-all duration-300", !shipValid ? "opacity-40 cursor-not-allowed" : "", light ? "bg-sapphire text-white hover:bg-sapphire-light hover:shadow-[0_0_30px_rgba(30,58,138,0.3)]" : "bg-gold text-abyss hover:bg-gold-light hover:shadow-[0_0_30px_rgba(212,175,55,0.3)]")}>
                     Continue to Payment
