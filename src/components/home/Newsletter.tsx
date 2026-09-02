@@ -88,14 +88,12 @@ export default function Newsletter() {
   const [subMessage, setSubMessage] = useState("");
   const [checkingStatus, setCheckingStatus] = useState(true);
 
-  const [hasPendingView, setHasPendingView] = useState(false);
   const [viewName, setViewName] = useState("");
   const [viewPhone, setViewPhone] = useState("");
   const [viewNote, setViewNote] = useState("");
   const [viewErr, setViewErr] = useState("");
   const [viewSubmitting, setViewSubmitting] = useState(false);
-  const [viewChecking, setViewChecking] = useState(true);
-  const [resending, setResending] = useState(false);
+  const [viewSent, setViewSent] = useState(false);
 
   useEffect(() => {
     if (!user?.email) { setCheckingStatus(false); return; }
@@ -107,17 +105,6 @@ export default function Newsletter() {
       .catch(() => {})
       .finally(() => setCheckingStatus(false));
   }, [user?.email]);
-
-  useEffect(() => {
-    if (!user?.phone) { setViewChecking(false); return; }
-    fetch(`${API}/api/private-viewing/status?phone=${encodeURIComponent(user.phone)}`, {
-        headers: { "ngrok-skip-browser-warning": "true" },
-      })
-      .then((r) => r.json())
-      .then((d) => setHasPendingView(d.hasPendingRequest))
-      .catch(() => {})
-      .finally(() => setViewChecking(false));
-  }, [user?.phone]);
 
   useEffect(() => {
     if (user) {
@@ -188,31 +175,17 @@ export default function Newsletter() {
       });
       const data = await res.json();
       if (!res.ok) { setViewErr(data.error || "Something went wrong."); return; }
-      setHasPendingView(true);
+      setViewSent(true);
+      setViewErr("");
+      setTimeout(() => {
+        setViewSent(false);
+        setViewNote("");
+      }, 2000);
     } catch {
       setViewErr("The maison is unreachable — please try again.");
     } finally {
       setViewSubmitting(false);
     }
-  };
-
-  const handleResend = async () => {
-    if (!viewName.trim() || !viewPhone.trim()) return;
-    setResending(true);
-    try {
-      const res = await fetch(`${API}/api/private-viewing/request`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
-        body: JSON.stringify({
-          name: viewName.trim(),
-          phone: viewPhone.trim(),
-          note: viewNote.trim() || undefined,
-        }),
-      });
-      const data = await res.json();
-      if (res.ok) setHasPendingView(true);
-    } catch {}
-    setResending(false);
   };
 
   return (
@@ -394,51 +367,18 @@ export default function Newsletter() {
                   Sign in to request a viewing
                 </p>
               </div>
-            ) : viewChecking ? (
-              <div className={cn("mt-8 flex items-center gap-3 border py-4 pl-4 pr-6", light ? "border-onyx/15 bg-onyx/[0.03]" : "border-white/10 bg-white/[0.02]")}>
-                <div className={cn("h-4 w-4 animate-spin rounded-full border-2", light ? "border-sapphire border-t-transparent" : "border-gold border-t-transparent")} />
-                <p className={cn("text-[10px] uppercase tracking-[0.2em]", light ? "text-onyx/40" : "text-cream-dim/40")}>Checking status…</p>
-              </div>
-            ) : hasPendingView ? (
-              <div className={cn("mt-8 flex flex-col gap-4", light ? "" : "")}>
-                <div className={cn("flex flex-col items-center gap-3 border py-8 text-center", light ? "border-amber-500/25 bg-amber-500/5" : "border-amber-400/25 bg-amber-400/5")}>
-                  <span className={cn("flex h-12 w-12 shrink-0 items-center justify-center rounded-full", light ? "bg-amber-500 text-white" : "bg-amber-400 text-abyss")}>
-                    <Clock size={20} strokeWidth={2} />
-                  </span>
-                  <div>
-                    <p className={cn("text-sm font-semibold uppercase tracking-[0.2em]", light ? "text-amber-600" : "text-amber-400")}>
-                      Request Pending
-                    </p>
-                    <p className={cn("mt-2 text-xs", light ? "text-onyx/40" : "text-cream-dim/40")}>
-                      A member of the maison will contact you shortly
-                    </p>
-                  </div>
-                </div>
-                <div className="flex flex-col gap-3 sm:flex-row">
-                <Link
-                  href="/private-viewing"
-                  className={cn(
-                    "inline-flex items-center justify-center gap-2 rounded-xl border px-6 py-3 text-[10px] font-semibold uppercase tracking-[0.28em] transition-all duration-500",
-                    light
-                      ? "border-onyx/20 text-onyx/70 hover:border-sapphire hover:text-sapphire"
-                      : "border-gold/20 text-gold/70 hover:border-gold hover:text-gold-light"
-                  )}
-                >
-                  View My Requests
-                  <ArrowRight size={13} strokeWidth={2} className="transition-transform duration-500 group-hover:translate-x-1" />
-                </Link>
-                <button
-                  onClick={handleResend}
-                  disabled={resending}
-                  className={cn(
-                    "inline-flex items-center justify-center gap-2 rounded-xl border px-6 py-3 text-[10px] font-semibold uppercase tracking-[0.28em] transition-all duration-500 disabled:opacity-50",
-                    light
-                      ? "border-amber-500/25 text-amber-600 hover:border-amber-500 hover:bg-amber-500/5"
-                      : "border-amber-400/25 text-amber-400 hover:border-amber-400 hover:bg-amber-400/5"
-                  )}
-                >
-                  {resending ? "Sending…" : "Resend Request"}
-                </button>
+            ) : viewSent ? (
+              <div className={cn("mt-8 flex flex-col items-center gap-4 border py-8 text-center", light ? "border-emerald-500/25 bg-emerald-500/5" : "border-emerald-400/25 bg-emerald-400/5")}>
+                <span className={cn("flex h-12 w-12 shrink-0 items-center justify-center rounded-full", light ? "bg-emerald-500 text-white" : "bg-emerald-400 text-abyss")}>
+                  <Check size={20} strokeWidth={2} />
+                </span>
+                <div>
+                  <p className={cn("text-sm font-semibold uppercase tracking-[0.2em]", light ? "text-emerald-600" : "text-emerald-400")}>
+                    Request received
+                  </p>
+                  <p className={cn("mt-2 text-xs", light ? "text-onyx/40" : "text-cream-dim/40")}>
+                    A member of the maison will call you shortly
+                  </p>
                 </div>
               </div>
             ) : (
@@ -473,18 +413,31 @@ export default function Newsletter() {
                     className={inputCls(light)}
                   />
                 </label>
-                <button
-                  type="submit"
-                  disabled={viewSubmitting}
-                  className="group relative inline-flex items-center gap-2 overflow-hidden rounded-xl border border-rose-400/60 bg-transparent px-6 py-3 text-[10px] font-semibold uppercase tracking-[0.28em] text-rose-400 transition-all duration-500 hover:border-rose-300 hover:bg-rose-400/10 hover:text-rose-300 disabled:cursor-wait disabled:opacity-60"
-                >
-                  {viewSubmitting ? "Sending" : "Request Viewing"}
-                  <ArrowRight
-                    size={13}
-                    strokeWidth={2}
-                    className="transition-transform duration-500 group-hover:translate-x-1"
-                  />
-                </button>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                  <button
+                    type="submit"
+                    disabled={viewSubmitting}
+                    className="group relative inline-flex items-center gap-2 overflow-hidden rounded-xl border border-rose-400/60 bg-transparent px-6 py-3 text-[10px] font-semibold uppercase tracking-[0.28em] text-rose-400 transition-all duration-500 hover:border-rose-300 hover:bg-rose-400/10 hover:text-rose-300 disabled:cursor-wait disabled:opacity-60"
+                  >
+                    {viewSubmitting ? "Sending" : "Send Request"}
+                    <ArrowRight
+                      size={13}
+                      strokeWidth={2}
+                      className="transition-transform duration-500 group-hover:translate-x-1"
+                    />
+                  </button>
+                  <Link
+                    href="/private-viewing"
+                    className={cn(
+                      "inline-flex items-center justify-center gap-2 rounded-xl border px-6 py-3 text-[10px] font-semibold uppercase tracking-[0.28em] transition-all duration-500",
+                      light
+                        ? "border-onyx/20 text-onyx/70 hover:border-sapphire hover:text-sapphire"
+                        : "border-gold/20 text-gold/70 hover:border-gold hover:text-gold-light"
+                    )}
+                  >
+                    View My Requests
+                  </Link>
+                </div>
                 <p className={noteCls(light)}>
                   {viewErr ||
                     "No obligation — a member of the maison will confirm."}
