@@ -43,7 +43,11 @@ const values = [
   },
 ];
 
-const press = ["Vogue India", "GQ India", "Architectural Digest", "Forbes India", "Harper's Bazaar"];
+const partners = [
+  { name: "Razorpay", role: "Payments & Checkout" },
+  { name: "Delhivery", role: "Shipping & Logistics" },
+  { name: "Resend", role: "Transactional Email" },
+];
 
 export default function AboutPage() {
   const light = useLight();
@@ -433,25 +437,38 @@ export default function AboutPage() {
         <div className="mx-auto max-w-6xl px-6 text-center">
           <p
             className={cn(
-              "mb-10 text-[10px] font-semibold uppercase tracking-[0.5em]",
+              "mb-4 text-[10px] font-semibold uppercase tracking-[0.5em]",
               light ? "text-onyx/40" : "text-cream-dim/40"
             )}
           >
-            As Featured In
+            Powering the Marketplace
           </p>
-          <div className="flex flex-wrap items-center justify-center gap-x-12 gap-y-6">
-            {press.map((name) => (
-              <span
-                key={name}
+          <div className="flex flex-wrap items-stretch justify-center gap-6">
+            {partners.map((p) => (
+              <div
+                key={p.name}
                 className={cn(
-                  "font-display text-lg font-medium italic tracking-wide transition-opacity hover:opacity-100 sm:text-xl",
-                  light
-                    ? "text-onyx/25 hover:text-onyx/60"
-                    : "text-cream/15 hover:text-cream/40"
+                  "flex w-56 flex-col items-center justify-center px-6 py-8 transition-all duration-500",
+                  light ? "bg-white border border-onyx/5" : "bg-[#0e0e11] border border-gold/8"
                 )}
               >
-                {name}
-              </span>
+                <span
+                  className={cn(
+                    "font-display text-lg font-medium tracking-wide sm:text-xl",
+                    light ? "text-onyx/80" : "text-cream/80"
+                  )}
+                >
+                  {p.name}
+                </span>
+                <span
+                  className={cn(
+                    "mt-2 text-[9px] font-medium uppercase tracking-[0.3em]",
+                    light ? "text-onyx/35" : "text-cream-dim/40"
+                  )}
+                >
+                  {p.role}
+                </span>
+              </div>
             ))}
           </div>
         </div>
