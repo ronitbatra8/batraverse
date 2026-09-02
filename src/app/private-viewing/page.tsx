@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Eye, MessageSquare, Clock, CheckCircle, XCircle, AlertCircle, Loader2 } from "lucide-react";
+import { Eye, MessageSquare, Clock, CheckCircle, XCircle, AlertCircle, Loader2, Check } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthContext";
 import { API_URL } from "@/lib/api";
 import SiteLayout from "@/components/layout/SiteLayout";
@@ -23,6 +23,18 @@ const statusConfig: Record<string, { label: string; color: string; icon: typeof 
   completed: { label: "Completed", color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20", icon: CheckCircle },
   cancelled: { label: "Cancelled", color: "text-red-400 bg-red-500/10 border-red-500/20", icon: XCircle },
 };
+
+const TRACKING_STEPS = [
+  { key: "requested", label: "Requested", icon: Clock },
+  { key: "confirmed", label: "Confirmed", icon: CheckCircle },
+  { key: "completed", label: "Completed", icon: Check },
+];
+
+function trackingIndex(status: string): number {
+  if (status === "cancelled") return -1;
+  const idx = TRACKING_STEPS.findIndex((s) => s.key === status);
+  return idx >= 0 ? idx : 0;
+}
 
 export default function PrivateViewingPage() {
   const { user, loading: authLoading } = useAuth();
@@ -124,6 +136,40 @@ export default function PrivateViewingPage() {
                       </div>
                       <p className="text-[10px] text-dark-500">#{req.id.slice(-8).toUpperCase()}</p>
                     </div>
+
+                    {req.status === "cancelled" ? (
+                      <div className="rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3">
+                        <p className="text-xs text-red-400 font-medium">
+                          This request was cancelled on {new Date(req.updatedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="mb-4">
+                        <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.25em] text-dark-400">
+                          Request Tracking
+                        </p>
+                        <div className="flex items-start gap-0 overflow-x-auto">
+                          {TRACKING_STEPS.map((step, i) => {
+                            const isCompleted = i <= trackingIndex(req.status);
+                            const isCurrent = i === trackingIndex(req.status);
+                            const Icon = step.icon;
+                            return (
+                              <div key={step.key} className="relative flex flex-1 flex-col items-center">
+                                {i > 0 && (
+                                  <div className={`absolute top-4 right-1/2 h-0.5 w-full -translate-y-1/2 ${isCompleted ? "bg-emerald-500" : "bg-white/10"}`} />
+                                )}
+                                <div className={`relative z-10 flex h-8 w-8 items-center justify-center rounded-full border-2 transition-all ${isCompleted ? "border-emerald-500 bg-emerald-500/10" : isCurrent ? "border-emerald-500 bg-emerald-500/10 animate-pulse" : "border-white/10 bg-dark-900/60"}`}>
+                                  <Icon size={14} className={isCompleted ? "text-emerald-500" : "text-cream-dim/40"} />
+                                </div>
+                                <p className={`mt-2 text-center text-[8px] font-medium leading-tight ${isCompleted ? "text-emerald-500" : "text-cream-dim/40"}`}>
+                                  {step.label}
+                                </p>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
 
                     {req.note && (
                       <div className="mb-3 bg-dark-950/50 rounded-xl px-4 py-2.5">
