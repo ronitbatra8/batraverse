@@ -149,7 +149,7 @@ export default function CheckoutPage() {
           const data = await apiFetch(`/location/reverse?lat=${latitude}&lon=${longitude}`);
           const a = data.address || {};
           const pincode = a.postcode || "";
-          const city = a.city || a.town || a.village || a.municipality || a.city_district || "";
+          const city = a.city || a.state_district || a.county || "";
           let state = a.state || "";
           if (!state) state = a.state_district || "";
           const address = [
