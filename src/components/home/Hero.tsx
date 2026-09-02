@@ -13,10 +13,10 @@ import { cn } from "@/lib/utils";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 
-/* Full-bleed luxury backdrop — one atelier image for both modes; the night
+/* Full-bleed hero backdrop — one neon sale-sign image for both modes; the night
    overlays deepen it in dark mode, day keeps it original. */
-const HERO_IMG = "/hero.jpg";
-const HERO_IMG_MOBILE = "https://thumbs.dreamstime.com/b/beautiful-happy-female-model-long-brown-hair-posing-cowb-cowboy-hat-fashion-green-top-dark-background-closeup-84024984.jpg";
+const HERO_IMG = "https://img.magnific.com/free-photo/black-friday-sales-sign-neon-light_23-2151833073.jpg?semt=ais_hybrid&w=740&q=80";
+const HERO_IMG_MOBILE = "https://img.magnific.com/free-photo/black-friday-sales-sign-neon-light_23-2151833073.jpg?semt=ais_hybrid&w=740&q=80";
 
 export default function Hero() {
   const phase = useBootPhase();
