@@ -65,7 +65,7 @@ export default function PrivateViewingTab({
       const updated = await res.json();
       setPrivateViewing((prev: any) => ({
         ...prev,
-        requests: prev.requests.map((r: any) => (r.id === id ? { ...r, reply: updated.reply } : r)),
+        requests: prev.requests.map((r: any) => (r.id === id ? { ...r, reply: updated.reply, status: updated.status || "completed" } : r)),
       }));
       setReplyTexts((prev) => ({ ...prev, [id]: "" }));
     } catch {}

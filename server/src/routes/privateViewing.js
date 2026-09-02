@@ -111,7 +111,7 @@ router.put("/:id/reply", adminAuth, async (req, res) => {
     if (!existing) return res.status(404).json({ error: "Request not found" });
     const updated = await prisma.privateViewing.update({
       where: { id: req.params.id },
-      data: { reply: String(reply).trim().slice(0, 2000) },
+      data: { reply: String(reply).trim().slice(0, 2000), status: "completed", read: true },
     });
     res.json(updated);
   } catch (err) {
