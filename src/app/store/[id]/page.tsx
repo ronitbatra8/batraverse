@@ -948,10 +948,10 @@ export default function ProductPage() {
                         href={`/store/${p.id}`}
                         onMouseEnter={() => warmProduct(p.id)}
                         className={cn(
-                          "group w-[44vw] shrink-0 snap-start overflow-hidden rounded-none border-0 transition-all duration-500 sm:w-[48%] lg:w-[9.5%] sm:shrink-0 sm:rounded-2xl sm:border",
+                          "group w-[calc(50%-6px)] shrink-0 snap-start overflow-hidden rounded-none border-0 transition-all duration-500 sm:w-[calc(33.333%-17px)] md:w-[calc(25%-18px)] md:shrink-0 md:rounded-2xl md:border",
                           light
-                            ? "border-dark-200/60 bg-white hover:border-sapphire/30 hover:shadow-[0_8px_40px_rgba(30,58,138,0.1)]"
-                            : "border-white/5 bg-graphite hover:border-gold/20 hover:shadow-[0_8px_40px_rgba(212,175,55,0.08)]"
+                            ? "md:border-dark-200/60 md:bg-white md:hover:border-sapphire/30 md:hover:shadow-[0_8px_40px_rgba(30,58,138,0.1)]"
+                            : "md:border-white/5 md:bg-graphite md:hover:border-gold/20 md:hover:shadow-[0_8px_40px_rgba(212,175,55,0.08)]"
                         )}
                       >
                         <div className="relative aspect-[4/5] sm:aspect-[4/3] overflow-hidden">
