@@ -62,7 +62,7 @@ router.get("/my", userAuth, async (req, res) => {
 
 router.post("/", userAuth, async (req, res) => {
   try {
-    const { items, shipping, paymentMethod, source, deliveryMode, transactionId } = req.body;
+    const { items, shipping, paymentMethod, source, deliveryMode, transactionId, deliveryAmount, expressAmount } = req.body;
 
     if (!items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ error: "At least one item is required" });
@@ -112,10 +112,8 @@ router.post("/", userAuth, async (req, res) => {
     const freeDelLimit = LEVEL_FREE_DEL[effectiveLevel] || 0;
     const hasFreeDelivery = freeDelLimit > 0 && freeDeliveryUsed < freeDelLimit;
 
-    const expressFee = source === "mart" && deliveryMode === "express" ? 49 : 0;
-    const freeThreshold = source === "mart" ? 200 : 800;
-    let deliveryCharge = discountedSubtotal >= freeThreshold ? 0 : 49;
-    if (hasFreeDelivery) deliveryCharge = 0;
+    const expressFee = Number(expressAmount) || 0;
+    const deliveryCharge = hasFreeDelivery ? 0 : (Number(deliveryAmount) || 0);
 
     const totalAmount = Math.round((discountedSubtotal + deliveryCharge + expressFee) * 100) / 100;
 

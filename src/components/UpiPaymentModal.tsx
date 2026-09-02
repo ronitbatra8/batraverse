@@ -20,8 +20,8 @@ function buildUpiLink(amount: number): string {
   return `upi://pay?${params.toString()}`;
 }
 
-interface PendingOrderData {
-  orderItems: Array<{
+interface PendingOrderRequest {
+  items: Array<{
     productId: string;
     name: string;
     price: number;
@@ -31,10 +31,17 @@ interface PendingOrderData {
     size?: string | null;
     source: string;
   }>;
-  shippingData: Record<string, string>;
+  shipping: Record<string, string>;
   paymentMethod: string;
-  sources: string[];
+  source: string;
   deliveryMode: string;
+  deliveryAmount: number;
+  expressAmount: number;
+}
+
+interface PendingOrderData {
+  orderRequests: PendingOrderRequest[];
+  total: number;
 }
 
 export default function UpiPaymentModal({
@@ -84,28 +91,16 @@ export default function UpiPaymentModal({
     setSubmitting(true);
     setError("");
     try {
-      const { orderItems, shippingData, paymentMethod, sources, deliveryMode } = pendingOrderData;
+      const { orderRequests } = pendingOrderData;
       const createdIds: string[] = [];
 
-      if (sources.length > 1) {
-        const fetches = sources.map((source) => {
-          const sourceItems = orderItems.filter((i) => i.source === source);
-          return apiFetch("/orders", {
-            method: "POST",
-            body: JSON.stringify({ items: sourceItems, shipping: shippingData, paymentMethod, source, deliveryMode, transactionId: txnId.trim() }),
-          });
-        });
-        const results = await Promise.all(fetches);
-        for (const r of results as Array<{ orderId?: string; id: string }>) {
-          createdIds.push(r.orderId || r.id);
-        }
-      } else {
-        const source = sources[0] || "store";
-        const data = await apiFetch("/orders", {
-          method: "POST",
-          body: JSON.stringify({ items: orderItems, shipping: shippingData, paymentMethod, source, deliveryMode, transactionId: txnId.trim() }),
-        });
-        createdIds.push(data.orderId || data.id);
+      const results = await Promise.all(
+        orderRequests.map((r) =>
+          apiFetch("/orders", { method: "POST", body: JSON.stringify({ ...r, transactionId: txnId.trim() }) })
+        )
+      );
+      for (const r of results as Array<{ orderId?: string; id: string }>) {
+        createdIds.push(r.orderId || r.id);
       }
 
       onSuccess(createdIds.join(", "));

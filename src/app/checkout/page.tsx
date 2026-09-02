@@ -117,8 +117,9 @@ export default function CheckoutPage() {
   const freeDeliveryUsed = user?.freeDeliveryUsed || 0;
   const hasFreeDelivery = freeDelLimit > 0 && freeDeliveryUsed < freeDelLimit;
 
-  let deliveryCharge = (hasStoreItems ? (storeSubtotal >= 800 ? 0 : 49) : 0) + (hasMartItems ? (martSubtotal >= 200 ? 0 : 49) : 0);
-  if (hasFreeDelivery) deliveryCharge = 0;
+  const storeDelivery = hasFreeDelivery ? 0 : (hasStoreItems ? (storeSubtotal >= 800 ? 0 : 49) : 0);
+  const martDelivery = hasFreeDelivery ? 0 : (hasMartItems ? (martSubtotal >= 200 ? 0 : 49) : 0);
+  const deliveryCharge = storeDelivery + martDelivery;
   const total = discountedSubtotal + deliveryCharge + expressFee;
 
   const steps: { key: Step; label: string; num: number }[] = [
@@ -168,40 +169,40 @@ export default function CheckoutPage() {
       };
       const paymentMethod = PAYMENT_METHOD_MAP[payMethod as PaymentMethod];
 
-      const hasStore = orderItems.some((i) => i.source === "store");
-      const hasMart = orderItems.some((i) => i.source === "mart");
+      const buildOrderRequests = (sourceItems: typeof orderItems, source: string) => {
+        const srcSubtotal = sourceItems.reduce((s, i) => s + i.price * i.qty, 0);
+        if (srcSubtotal <= 0) return [];
+        const srcDelivery = source === "mart" ? martDelivery : storeDelivery;
+        const srcExpress = source === "mart" ? expressFee : 0;
+        return sourceItems.map((i) => {
+          const itemTotal = i.price * i.qty;
+          const share = itemTotal / srcSubtotal;
+          return {
+            items: [i],
+            shipping: shippingData,
+            paymentMethod,
+            source,
+            deliveryMode,
+            deliveryAmount: srcDelivery > 0 ? Math.round(share * srcDelivery * 100) / 100 : 0,
+            expressAmount: srcExpress > 0 ? Math.round(share * srcExpress * 100) / 100 : 0,
+          };
+        });
+      };
 
-      const sources = [];
-      if (hasStore) sources.push("store");
-      if (hasMart) sources.push("mart");
+      const orderRequests = [
+        ...buildOrderRequests(orderItems.filter((i) => i.source === "store"), "store"),
+        ...buildOrderRequests(orderItems.filter((i) => i.source === "mart"), "mart"),
+      ];
 
       if (isUpiPayment) {
-        setPendingOrderData({ orderItems, shippingData, paymentMethod, sources, deliveryMode });
+        setPendingOrderData({ orderRequests, total });
         setUpiAmount(total);
         setUpiModal(true);
         return;
       }
 
-      let createdOrderId = "";
-
-      if (sources.length > 1) {
-        const storeItems = orderItems.filter((i) => i.source === "store");
-        const martItems = orderItems.filter((i) => i.source === "mart");
-
-        const fetches = [];
-        if (storeItems.length > 0) fetches.push(apiFetch("/orders", { method: "POST", body: JSON.stringify({ items: storeItems, shipping: shippingData, paymentMethod, source: "store", deliveryMode }) }));
-        if (martItems.length > 0) fetches.push(apiFetch("/orders", { method: "POST", body: JSON.stringify({ items: martItems, shipping: shippingData, paymentMethod, source: "mart", deliveryMode }) }));
-
-        const results = await Promise.all(fetches);
-        createdOrderId = results.map((r: { orderId?: string; id: string }) => r.orderId || r.id).join(", ");
-      } else {
-        const source = sources[0] || "store";
-        const data = await apiFetch("/orders", {
-          method: "POST",
-          body: JSON.stringify({ items: orderItems, shipping: shippingData, paymentMethod, source, deliveryMode }),
-        });
-        createdOrderId = data.orderId || data.id;
-      }
+      const results = await Promise.all(orderRequests.map((r) => apiFetch("/orders", { method: "POST", body: JSON.stringify(r) })));
+      const createdOrderId = results.map((r: { orderId?: string; id: string }) => r.orderId || r.id).join(", ");
 
       setOrderId(createdOrderId);
       setPlaced(true);
