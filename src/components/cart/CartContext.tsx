@@ -120,45 +120,16 @@ function hydrateLocal(slim: SlimCartItem[]): CartItem[] {
     }));
 }
 
-function mergeCart(local: CartItem[], backend: BackendCartItem[]): CartItem[] {
-  const map = new Map<string, CartItem>();
-  for (const item of local) {
-    map.set(fullItemKey(item.product.id, item.color, item.size), item);
-  }
-  for (const b of backend) {
-    const key = fullItemKey(b.productId, b.color || "", b.size || undefined);
-    if (!map.has(key)) {
-      map.set(key, {
-        product: {
-          id: b.productId,
-          name: b.name || "Unknown",
-          price: b.price || 0,
-          gradient: "",
-          category: "",
-        } as Product,
-        color: b.color || "",
-        colorHex: b.colorHex || "#0a0a0a",
-        colorImage: b.image || undefined,
-        size: b.size || undefined,
-        qty: b.qty || 1,
-        source: b.source || "store",
-      });
-    } else {
-      const existing = map.get(key)!;
-      existing.qty = Math.min(10, Math.max(existing.qty, b.qty || 1));
-    }
-  }
-  return Array.from(map.values());
-}
-
 const Ctx = createContext<CartCtx | null>(null);
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>(() => hydrateLocal(loadLocal()));
   const [deliveryMode, setDeliveryMode] = useState<"standard" | "express" | "regular">("standard");
   const userRef = useRef<string | null>(null);
+  const itemsRef = useRef<CartItem[]>(items);
 
   useEffect(() => {
+    itemsRef.current = items;
     saveLocal(items);
   }, [items]);
 
@@ -207,11 +178,37 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       const token = getToken();
       if (token && currentUserId) {
         try {
-          const backendItems = await apiFetch("/cart");
-          const merged = mergeCart(hydrateLocal(localItems), (backendItems || []) as BackendCartItem[]);
-          setItems(merged);
-          saveLocal(merged);
-          syncToBackend(merged);
+          const backendItems = (await apiFetch("/cart")) as BackendCartItem[];
+          if (Array.isArray(backendItems)) {
+            // Backend is the source of truth so deletions on any device stick.
+            // Enrich each backend item with local product display data (image, gradient, category).
+            const localByKey = new Map(
+              hydrateLocal(localItems).map((i) => [fullItemKey(i.product.id, i.color, i.size), i])
+            );
+            const hydrated: CartItem[] = backendItems.map((b) => {
+              const key = fullItemKey(b.productId, b.color || "", b.size || undefined);
+              const local = localByKey.get(key);
+              return {
+                product: {
+                  id: b.productId,
+                  name: b.name || local?.product.name || "Unknown",
+                  price: b.price || local?.product.price || 0,
+                  gradient: local?.product.gradient || "",
+                  category: local?.product.category || "",
+                } as Product,
+                color: b.color || "",
+                colorHex: b.colorHex || "#0a0a0a",
+                colorImage: b.image || local?.colorImage,
+                colorPrice: b.price || local?.colorPrice,
+                size: b.size || undefined,
+                qty: b.qty || 1,
+                source: local?.source || (b.productId?.startsWith("m") ? "mart" : "store"),
+              };
+            });
+            itemsRef.current = hydrated;
+            setItems(hydrated);
+            saveLocal(hydrated);
+          }
         } catch {
           // keep localStorage items
         }
@@ -226,51 +223,52 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     };
   }, [getToken, syncToBackend]);
 
+  const applyAndSync = useCallback(async (next: CartItem[]) => {
+    itemsRef.current = next;
+    setItems(next);
+    saveLocal(next);
+    if (getToken()) await syncToBackend(next);
+  }, [getToken, syncToBackend]);
+
   const addItem = useCallback(
     (product: Product, opts: { color: string; colorHex: string; colorImage?: string; colorPrice?: number; size?: string; qty: number; source?: string }) => {
       const key = itemKey(opts.color, opts.size);
-      setItems((prev) => {
-        const existing = prev.find(
-          (i) => itemKey(i.color, i.size) === key && i.product.id === product.id
-        );
-        const next = existing
-          ? prev.map((i) =>
-              itemKey(i.color, i.size) === key && i.product.id === product.id
-                ? { ...i, qty: Math.min(10, i.qty + opts.qty) }
-                : i
-            )
-          : [...prev, { product, color: opts.color, colorHex: opts.colorHex, colorImage: opts.colorImage, colorPrice: opts.colorPrice, size: opts.size, qty: opts.qty, source: opts.source || "store" }];
-        if (getToken()) syncToBackend(next);
-        return next;
-      });
+      const prev = itemsRef.current;
+      const existing = prev.find(
+        (i) => itemKey(i.color, i.size) === key && i.product.id === product.id
+      );
+      const next = existing
+        ? prev.map((i) =>
+            itemKey(i.color, i.size) === key && i.product.id === product.id
+              ? { ...i, qty: Math.min(10, i.qty + opts.qty) }
+              : i
+          )
+        : [...prev, { product, color: opts.color, colorHex: opts.colorHex, colorImage: opts.colorImage, colorPrice: opts.colorPrice, size: opts.size, qty: opts.qty, source: opts.source || "store" }];
+      applyAndSync(next);
     },
-    [getToken, syncToBackend]
+    [applyAndSync]
   );
 
   const removeItem = useCallback((key: string) => {
-    setItems((prev) => {
-      const next = prev.filter((i) => fullItemKey(i.product.id, i.color, i.size) !== key);
-      if (getToken()) syncToBackend(next);
-      return next;
-    });
-  }, [getToken, syncToBackend]);
+    const next = itemsRef.current.filter((i) => fullItemKey(i.product.id, i.color, i.size) !== key);
+    applyAndSync(next);
+  }, [applyAndSync]);
 
   const updateQty = useCallback((key: string, qty: number) => {
-    setItems((prev) => {
-      const next = prev
-        .map((i) =>
-          fullItemKey(i.product.id, i.color, i.size) === key
-            ? { ...i, qty: Math.max(1, Math.min(10, qty)) }
-            : i
-        )
-        .filter((i) => i.qty > 0);
-      if (getToken()) syncToBackend(next);
-      return next;
-    });
-  }, [getToken, syncToBackend]);
+    const next = itemsRef.current
+      .map((i) =>
+        fullItemKey(i.product.id, i.color, i.size) === key
+          ? { ...i, qty: Math.max(1, Math.min(10, qty)) }
+          : i
+      )
+      .filter((i) => i.qty > 0);
+    applyAndSync(next);
+  }, [applyAndSync]);
 
   const clear = useCallback(() => {
+    itemsRef.current = [];
     setItems([]);
+    saveLocal([]);
     const token = getToken();
     if (token) {
       apiFetch("/cart", { method: "DELETE" }).catch(() => {});
