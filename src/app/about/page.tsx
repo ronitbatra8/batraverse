@@ -11,6 +11,7 @@ import {
   Crown,
   ArrowRight,
   Quote,
+  ShoppingBasket,
 } from "lucide-react";
 import AboutAnimation from "@/components/AboutAnimation";
 import TrustMarquee from "@/components/TrustMarquee";
@@ -247,26 +248,129 @@ export default function AboutPage() {
             : "bg-gradient-to-r from-[#1a1608] to-abyss text-cream"
         )}
       >
-        <div className="mx-auto max-w-4xl px-6">
-          <div className="text-center">
+        <div className="mx-auto max-w-6xl px-6">
+          <div className="mb-16 text-center">
             <p
               className={cn(
-                "mb-6 text-[10px] font-semibold uppercase tracking-[0.5em]",
+                "mb-4 text-[10px] font-semibold uppercase tracking-[0.5em]",
                 light ? "text-white/60" : "text-gold/70"
               )}
             >
-              What We Are
+              Two Worlds, One Address
             </p>
-            <p
+            <h2
               className={cn(
-                "font-display text-2xl font-light italic leading-relaxed tracking-wide sm:text-3xl md:text-4xl",
+                "font-display text-3xl font-medium tracking-wide sm:text-4xl",
                 light ? "text-white" : "text-cream"
               )}
             >
-              BatraVerse is a marketplace — not a label. Store and Mart in one
-              place, launched in 2024 from Bengaluru, where every listing is real
-              and every order is tracked to your door.
-            </p>
+              Store &amp; Mart
+            </h2>
+          </div>
+          <div className="grid gap-6 md:grid-cols-2">
+            <div
+              className={cn(
+                "group flex flex-col rounded-2xl p-8 transition-all duration-500",
+                light
+                  ? "bg-white border border-white/10"
+                  : "bg-[#0e0e11] border border-gold/15"
+              )}
+            >
+              <div
+                className={cn(
+                  "mb-6 flex h-12 w-12 items-center justify-center rounded-xl transition-colors duration-500",
+                  light
+                    ? "bg-sapphire/10 text-sapphire group-hover:bg-sapphire group-hover:text-white"
+                    : "bg-gold/10 text-gold group-hover:bg-gold group-hover:text-abyss"
+                )}
+              >
+                <Gem size={22} strokeWidth={1.5} />
+              </div>
+              <h3
+                className={cn(
+                  "mb-3 font-display text-xl font-medium tracking-wide",
+                  light ? "text-white" : "text-cream"
+                )}
+              >
+                Store
+              </h3>
+              <p
+                className={cn(
+                  "mb-8 text-sm leading-relaxed",
+                  light ? "text-white/70" : "text-cream-dim/70"
+                )}
+              >
+                Curated goods with real product listings — fashion, tech,
+                accessories, and limited drops from sellers on the platform.
+              </p>
+              <div className="mt-auto flex flex-wrap gap-2">
+                {["Watches", "Fashion", "Accessories", "Footwear", "Tech", "Lifestyle", "Limited Edition"].map((c) => (
+                  <span
+                    key={c}
+                    className={cn(
+                      "rounded-full border px-3 py-1.5 text-[10px] font-medium uppercase tracking-[0.2em]",
+                      light
+                        ? "border-white/15 text-white/60"
+                        : "border-gold/20 text-cream-dim/60"
+                    )}
+                  >
+                    {c}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <div
+              className={cn(
+                "group flex flex-col rounded-2xl p-8 transition-all duration-500",
+                light
+                  ? "bg-white border border-white/10"
+                  : "bg-[#0e0e11] border border-gold/15"
+              )}
+            >
+              <div
+                className={cn(
+                  "mb-6 flex h-12 w-12 items-center justify-center rounded-xl transition-colors duration-500",
+                  light
+                    ? "bg-sapphire/10 text-sapphire group-hover:bg-sapphire group-hover:text-white"
+                    : "bg-gold/10 text-gold group-hover:bg-gold group-hover:text-abyss"
+                )}
+              >
+                <ShoppingBasket size={22} strokeWidth={1.5} />
+              </div>
+              <h3
+                className={cn(
+                  "mb-3 font-display text-xl font-medium tracking-wide",
+                  light ? "text-white" : "text-cream"
+                )}
+              >
+                Mart
+              </h3>
+              <p
+                className={cn(
+                  "mb-8 text-sm leading-relaxed",
+                  light ? "text-white/70" : "text-cream-dim/70"
+                )}
+              >
+                Everyday essentials, delivered — fresh groceries, dairy, snacks,
+                beverages, and household supplies from local sellers.
+              </p>
+              <div className="mt-auto flex flex-wrap gap-2">
+                {["Fruits & Veggies", "Dairy", "Snacks", "Beverages", "Instant Food", "Personal Care", "Cleaning", "Bakery"].map((c) => (
+                  <span
+                    key={c}
+                    className={cn(
+                      "rounded-full border px-3 py-1.5 text-[10px] font-medium uppercase tracking-[0.2em]",
+                      light
+                        ? "border-white/15 text-white/60"
+                        : "border-gold/20 text-cream-dim/60"
+                    )}
+                  >
+                    {c}
+                  </span>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </section>
