@@ -19,9 +19,9 @@ const playfair = Playfair_Display({
 });
 
 export const metadata: Metadata = {
-  title: "BATRAVERSE — Luxury Marketplace",
+  title: "BATRAVERSE — Shop Everything",
   description:
-    "BATRAVERSE — a curated luxury marketplace for the world's finest goods. Crafted for those who accept nothing less than extraordinary.",
+    "BATRAVERSE — a marketplace for everything. Shop electronics, fashion, home, groceries and more from trusted sellers, all in one place.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

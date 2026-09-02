@@ -103,7 +103,7 @@ export default function Hero() {
                   light ? "text-sapphire" : "text-gold"
                 )}
               >
-                A Marketplace of the Extraordinary
+                A Marketplace for Everything
               </p>
             </motion.div>
 
@@ -112,14 +112,14 @@ export default function Hero() {
               {...line(0.35)}
               className="mt-5 font-display text-4xl font-semibold leading-[1.05] text-white sm:mt-6 sm:text-7xl"
             >
-              Timeless Pieces,
+              Everything You Need,
               <br />
               <span
                 className={cn(
                   light ? "text-sapphire-light" : "text-gold-gradient"
                 )}
               >
-                Modern Luxury.
+                In One Place.
               </span>
             </motion.h1>
 
@@ -132,12 +132,12 @@ export default function Hero() {
               )}
             >
               <span className="sm:hidden">
-                Hand-selected goods from the world&apos;s finest ateliers.
+                Electronics, fashion, home &amp; more — shop it all from trusted sellers.
               </span>
               <span className="hidden sm:inline">
-                Rare, hand-selected goods from verified ateliers across the globe —
-                curated for the discerning few who accept nothing less than
-                extraordinary.
+                From everyday essentials to that perfect find, BATRAVERSE brings you
+                thousands of products across every category from trusted sellers —
+                all in one marketplace, all in one place.
               </span>
             </motion.p>
 
