@@ -146,8 +146,7 @@ export default function CheckoutPage() {
       async (pos) => {
         const { latitude, longitude } = pos.coords;
         try {
-          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}&addressdetails=1`);
-          const data = await res.json();
+          const data = await apiFetch(`/location/reverse?lat=${latitude}&lon=${longitude}`);
           const a = data.address || {};
           const pincode = a.postcode || "";
           const city = a.city || a.town || a.village || a.county || "";
