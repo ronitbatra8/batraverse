@@ -227,7 +227,7 @@ export default function Newsletter() {
         {/* Left panel — image */}
         <div className="relative min-h-[440px] overflow-hidden sm:min-h-[540px]">
           <img
-            src="https://images.unsplash.com/photo-1497366754035-f200968a6e72?w=1000&h=1200&fit=crop"
+            src="https://www.designlimitededition.com/wp-content/uploads/2021/06/LX-20-1.jpg"
             alt="The atelier at dusk"
             loading="lazy"
             decoding="async"
@@ -282,14 +282,14 @@ export default function Newsletter() {
           initial="hidden"
           whileInView="show"
           viewport={{ once: true, margin: "-80px" }}
-          className="flex flex-col justify-center gap-6 p-8 sm:p-12 lg:p-16"
+          className="flex flex-col justify-center gap-6 px-4 py-8 sm:p-12 lg:p-16"
           style={{ minHeight: "100%" }}
         >
           {/* Subscribe card */}
           <motion.div
             variants={animItem}
             className={cn(
-              "rounded-2xl border p-7 backdrop-blur-xl sm:p-8",
+              "rounded-2xl border p-5 backdrop-blur-xl sm:p-8",
               light ? "border-onyx/10 bg-white/70" : "border-gold/10 bg-onyx/60"
             )}
           >
@@ -375,7 +375,7 @@ export default function Newsletter() {
           <motion.div
             variants={animItem}
             className={cn(
-              "rounded-2xl border p-7 backdrop-blur-xl sm:p-8",
+              "rounded-2xl border p-5 backdrop-blur-xl sm:p-8",
               light ? "border-onyx/10 bg-white/70" : "border-gold/10 bg-onyx/60"
             )}
           >
