@@ -965,16 +965,40 @@ export default function ProductPage() {
                           ) : (
                             <div className={cn("absolute inset-0 bg-gradient-to-br transition-transform duration-700 group-hover:scale-105", p.gradient)} />
                           )}
+                          {p.badge && (
+                            <span
+                              className={cn(
+                                "absolute left-3 top-3 rounded-full px-3 py-1 text-[8px] font-bold uppercase tracking-[0.2em]",
+                                light
+                                  ? "bg-white/90 text-dark-900 shadow-sm"
+                                  : "bg-abyss/80 text-gold-light backdrop-blur-sm"
+                              )}
+                            >
+                              {p.badge}
+                            </span>
+                          )}
                         </div>
                         <div className="p-4">
-                          <h3 className={cn("text-sm font-medium leading-tight", light ? "text-dark-900" : "text-cream")}>{p.name}</h3>
-                          <span className={cn("mt-1 block text-sm font-semibold tabular-nums", light ? "text-sapphire" : "text-gold-light")}>{formatPrice(p.price)}</span>
-                          <div className="mt-2 hidden sm:flex items-center gap-1.5">
+                          <h3 className={cn("text-sm font-medium leading-tight", light ? "text-dark-900" : "text-cream")}>
+                            {p.name}
+                          </h3>
+                          <span className={cn("mt-1 block text-sm font-semibold tabular-nums", light ? "text-sapphire" : "text-gold-light")}>
+                            {formatPrice(p.price)}
+                          </span>
+                          {p.originalPrice && (
+                            <span className={cn("text-xs line-through", light ? "text-dark-400" : "text-cream-dim/40")}>
+                              {formatPrice(p.originalPrice)}
+                            </span>
+                          )}
+                          <div className="mt-2 flex items-center gap-1.5">
                             <div className="flex items-center gap-0.5">
                               {[...Array(5)].map((_, i) => (
                                 <Star key={i} size={10} className={cn(i < Math.floor(p.rating) ? light ? "fill-sapphire text-sapphire" : "fill-gold text-gold" : light ? "fill-dark-200 text-dark-200" : "fill-white/10 text-white/10")} />
                               ))}
                             </div>
+                            <span className={cn("text-[9px] font-medium", light ? "text-dark-400" : "text-cream-dim/50")}>
+                              ({p.reviews})
+                            </span>
                           </div>
                         </div>
                       </Link>
