@@ -142,6 +142,11 @@ model Order {
   source String @default("store")
   deliveryMode String @default("standard")
 
+  carrier String?
+  waybill String?
+  carrierOrderId String?
+  trackingUrl String?
+
   @@index([status])
   @@index([paymentStatus])
   @@index([userId])

@@ -17,6 +17,7 @@ import {
   X,
   Clock,
   Hash,
+  Truck,
 } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
 import { resolveImageUrl } from "@/lib/imageUrl";

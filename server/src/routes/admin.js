@@ -8,6 +8,11 @@ const {
   sendDeliveryAssignedEmail,
   sendReturnApprovedEmail,
 } = require("../utils/email");
+const {
+  config: delhiveryConfig,
+  createShipment: delhiveryCreateShipment,
+  trackShipment: delhiveryTrackShipment,
+} = require("../services/delhivery");
 
 const router = express.Router();
 
@@ -69,6 +74,49 @@ router.get("/orders", async (req, res) => {
     const parsed = orders.map((o) => ({ ...o, securityPhotos: o.securityPhotos ? JSON.parse(o.securityPhotos) : null }));
     await resolveOrderItemImages(parsed);
     res.json(parsed);
+  } catch (err) {
+    res.status(500).json({ error: safeErrorMessage(err) });
+  }
+});
+
+router.post("/orders/:id/delhivery-ship", async (req, res) => {
+  try {
+    const cfg = delhiveryConfig();
+    if (!cfg.enabled) return res.status(403).json({ error: "Delhivery shipping is disabled (DELHIVERY_ENABLED is not 'true')" });
+    const existing = await prisma.order.findUnique({
+      where: { id: req.params.id },
+      include: { user: { select: { id: true, name: true, email: true, phone: true } } },
+    });
+    if (!existing) return res.status(404).json({ error: "Order not found" });
+    if (existing.carrier === "DELHIVERY" && existing.waybill) {
+      return res.json({ order: existing, waybill: existing.waybill, trackingUrl: existing.trackingUrl, already: true });
+    }
+    const shipped = await delhiveryCreateShipment({ order: existing, customer: existing.user });
+    const updated = await prisma.order.update({
+      where: { id: existing.id },
+      data: {
+        carrier: "DELHIVERY",
+        waybill: shipped.waybill,
+        carrierOrderId: shipped.carrierOrderId,
+        trackingUrl: shipped.trackingUrl,
+      },
+      include: { user: { select: { id: true, name: true, email: true, phone: true } } },
+    });
+    res.json({ order: updated, waybill: shipped.waybill, trackingUrl: shipped.trackingUrl });
+  } catch (err) {
+    res.status(500).json({ error: safeErrorMessage(err) });
+  }
+});
+
+router.get("/orders/:id/delhivery-track", async (req, res) => {
+  try {
+    const cfg = delhiveryConfig();
+    if (!cfg.enabled) return res.status(403).json({ error: "Delhivery shipping is disabled (DELHIVERY_ENABLED is not 'true')" });
+    const existing = await prisma.order.findUnique({ where: { id: req.params.id } });
+    if (!existing) return res.status(404).json({ error: "Order not found" });
+    if (!existing.waybill) return res.status(400).json({ error: "This order has no Delhivery waybill yet" });
+    const tracking = await delhiveryTrackShipment(existing.waybill);
+    res.json({ order: existing, tracking });
   } catch (err) {
     res.status(500).json({ error: safeErrorMessage(err) });
   }
