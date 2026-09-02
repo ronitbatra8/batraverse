@@ -79,15 +79,16 @@ export default function MartNav({
     scrollToNav();
   };
 
-  const navRef = useRef<HTMLDivElement>(null);
+  const navAnchorRef = useRef<HTMLDivElement>(null);
 
   const scrollToNav = () => {
-    window.scrollTo({ top: Math.max(0, (navRef.current?.offsetTop ?? 0) - 84), behavior: "smooth" });
+    navAnchorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   return (
-    <div
-      ref={navRef} className={cn(        "sticky z-30 border-b backdrop-blur-xl transition-all duration-500 max-sm:duration-300",
+    <>
+      <div ref={navAnchorRef} aria-hidden />
+      <div className={cn(        "sticky z-30 border-b backdrop-blur-xl transition-all duration-500 max-sm:duration-300",
         light
           ? "border-dark-200/50 bg-white/70"
           : "border-white/10 bg-abyss/70",
@@ -130,5 +131,6 @@ export default function MartNav({
         </div>
       )}
     </div>
+    </>
   );
 }
