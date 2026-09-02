@@ -14,7 +14,6 @@ import {
 } from "lucide-react";
 import AboutAnimation from "@/components/AboutAnimation";
 import TrustMarquee from "@/components/TrustMarquee";
-import AboutStats from "@/components/AboutStats";
 
 const values = [
   {
@@ -248,16 +247,27 @@ export default function AboutPage() {
             : "bg-gradient-to-r from-[#1a1608] to-abyss text-cream"
         )}
       >
-        <div className="mx-auto">
-          <AboutStats />
-          <p
-            className={cn(
-              "mx-auto mt-10 max-w-md text-center text-xs uppercase tracking-[0.3em]",
-              light ? "text-white/50" : "text-cream-dim/50"
-            )}
-          >
-            Live numbers from the BatraVerse marketplace — Bengaluru, India
-          </p>
+        <div className="mx-auto max-w-4xl px-6">
+          <div className="text-center">
+            <p
+              className={cn(
+                "mb-6 text-[10px] font-semibold uppercase tracking-[0.5em]",
+                light ? "text-white/60" : "text-gold/70"
+              )}
+            >
+              What We Are
+            </p>
+            <p
+              className={cn(
+                "font-display text-2xl font-light italic leading-relaxed tracking-wide sm:text-3xl md:text-4xl",
+                light ? "text-white" : "text-cream"
+              )}
+            >
+              BatraVerse is a marketplace — not a label. Store and Mart in one
+              place, launched in 2024 from Bengaluru, where every listing is real
+              and every order is tracked to your door.
+            </p>
+          </div>
         </div>
       </section>
 
