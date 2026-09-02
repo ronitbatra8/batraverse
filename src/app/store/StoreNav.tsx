@@ -76,11 +76,18 @@ export default function StoreNav({
   const handleCategory = (id: string) => {
     onCategoryChange(id);
     onSubChange("all");
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    scrollToNav();
+  };
+
+  const navRef = useRef<HTMLDivElement>(null);
+
+  const scrollToNav = () => {
+    window.scrollTo({ top: Math.max(0, (navRef.current?.offsetTop ?? 0) - 84), behavior: "smooth" });
   };
 
   return (
     <div
+      ref={navRef}
       className={cn(
         "sticky z-30 border-b backdrop-blur-xl transition-all duration-500 max-sm:duration-300",
         light
@@ -124,7 +131,7 @@ export default function StoreNav({
             {hasSub.map((sub) => {
               const isActive = sub.id === "all" ? subActive.length === 0 : subActive.includes(sub.id);
               return (
-                <button key={sub.id} type="button" onClick={() => onSubChange(sub.id)}
+                <button key={sub.id} type="button" onClick={() => { onSubChange(sub.id); scrollToNav(); }}
                   className={cn("whitespace-nowrap rounded-full border px-3.5 py-1.5 text-[9px] font-medium uppercase tracking-[0.24em] transition-all duration-300",
                     isActive
                       ? light ? "border-sapphire/40 bg-sapphire/10 text-sapphire" : "border-gold/40 bg-gold/10 text-gold-light"
