@@ -95,7 +95,7 @@ export default function MartNav({
         light
           ? "border-dark-200/50 bg-white/70"
           : "border-white/10 bg-abyss/70",
-        navHidden && (hasSub ? "max-sm:-translate-y-[calc(100%+84px)]" : "max-sm:-translate-y-[calc(100%+5px)]"))} style={{ top: "84px" }}>
+        navHidden && (hasSub ? "-translate-y-[calc(100%+84px)]" : "-translate-y-[calc(100%+5px)]"))} style={{ top: "84px" }}>
       <div className="mx-auto flex w-full max-w-[100rem] items-center justify-between gap-3 px-5 sm:px-10">
         <div className="flex items-center gap-2.5 overflow-x-auto py-3 [&::-webkit-scrollbar]:hidden">
           {martCategories.map((cat) => {

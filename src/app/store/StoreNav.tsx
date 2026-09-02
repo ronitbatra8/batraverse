@@ -97,7 +97,7 @@ export default function StoreNav({
         light
           ? "border-dark-200/50 bg-white/70"
           : "border-white/10 bg-abyss/70",
-        navHidden && (hasSub ? "max-sm:-translate-y-[calc(100%+84px)]" : "max-sm:-translate-y-[calc(100%+5px)]")
+        navHidden && (hasSub ? "-translate-y-[calc(100%+84px)]" : "-translate-y-[calc(100%+5px)]")
       )}
       style={{ top: "84px" }}
     >
