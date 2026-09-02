@@ -37,7 +37,22 @@ function shippingHeaders(cfg) {
 }
 
 async function parseRes(res) {
-  const data = await res.json().catch(() => ({}));
+  const text = await res.text().catch(() => "");
+  let data = {};
+  try {
+    data = JSON.parse(text);
+  } catch {
+    const rmk = text.match(/<rmk>([\s\S]*?)<\/rmk>/i);
+    const err = text.match(/<error>(.*?)<\/error>/i);
+    const success = text.match(/<success>(.*?)<\/success>/i);
+    const detail = text.match(/<detail>(.*?)<\/detail>/i);
+    data = {
+      rmk: rmk ? rmk[1].replace(/<[^>]+>/g, "").trim() : undefined,
+      error: err ? err[1] !== "False" : undefined,
+      success: success ? success[1] === "True" : undefined,
+      detail: detail ? detail[1].replace(/<[^>]+>/g, "").trim() : undefined,
+    };
+  }
   if (!res.ok) {
     const err = new Error(`Delhivery error ${res.status}: ${JSON.stringify(data)}`);
     err.data = data;
@@ -70,27 +85,28 @@ async function createShipment({ order, customer }) {
   if (cfg.gst) shipment.seller_gst_tin = cfg.gst;
   if (cfg.hsn) shipment.hsn_code = cfg.hsn;
 
-  const body = {
-    format: "json",
-    data: {
-      shipments: [shipment],
-      pickup_location: cfg.pickup,
-      client: cfg.client,
-      client_name: cfg.client,
-      payment_mode: paymentMode,
-    },
+  const payload = {
+    pickup_location: { name: cfg.pickup },
+    shipments: [shipment],
+    client: cfg.client,
+    client_name: cfg.client,
+    payment_mode: paymentMode,
   };
+  const body = "format=json&data=" + JSON.stringify(payload);
 
-  const res = await fetch(`${baseUrl(cfg.env)}/api/cmu/create`, {
+  const res = await fetch(`${baseUrl(cfg.env)}/api/cmu/create.json`, {
     method: "POST",
     headers: shippingHeaders(cfg),
-    body: JSON.stringify(body),
+    body,
   });
   const data = await parseRes(res);
 
   const pkg = (Array.isArray(data.packages) && data.packages[0]) || {};
   const waybill = pkg.waybill || data.waybill || "";
-  if (!waybill) throw new Error(`Delhivery did not return a waybill: ${JSON.stringify(data)}`);
+  if (!waybill) {
+    const rmk = typeof data.rmk === "string" && data.rmk.trim() ? data.rmk.trim() : "";
+    throw new Error(rmk || `Delhivery did not return a waybill: ${JSON.stringify(data)}`);
+  }
 
   return {
     waybill,
