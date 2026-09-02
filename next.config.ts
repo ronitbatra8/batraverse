@@ -7,6 +7,7 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "wwd.com" },
       { protocol: "https", hostname: "thumbs.dreamstime.com" },
       { protocol: "https", hostname: "img.magnific.com" },
+      { protocol: "https", hostname: "images.pexels.com" },
     ],
   },
 };
