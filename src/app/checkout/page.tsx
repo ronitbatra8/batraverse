@@ -149,13 +149,18 @@ export default function CheckoutPage() {
           const data = await apiFetch(`/location/reverse?lat=${latitude}&lon=${longitude}`);
           const a = data.address || {};
           const pincode = a.postcode || "";
-          const city = a.city || a.town || a.village || a.county || "";
+          const city = a.city || a.town || a.village || a.municipality || a.city_district || "";
           let state = a.state || "";
-          if (a.state_district && !state) state = a.state_district;
-          const house = a.house_number ? `${a.house_number} ` : "";
-          const road = a.road || a.pedestrian || "";
-          const suburb = a.suburb || a.neighbourhood || "";
-          const address = [road ? `${house}${road}` : "", suburb].filter(Boolean).join(", ");
+          if (!state) state = a.state_district || "";
+          const address = [
+            a.house_number,
+            a.road || a.pedestrian || a.footway,
+            a.neighbourhood,
+            a.suburb,
+            a.quarter,
+            a.hamlet,
+            a.village || a.town,
+          ].filter(Boolean).join(", ");
           setShip((p) => ({
             ...p,
             address: address || p.address,
