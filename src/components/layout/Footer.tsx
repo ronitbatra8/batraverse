@@ -29,7 +29,7 @@ const SHOP_LINKS = [
   { label: "Store", href: "/store", icon: LayoutGrid },
   { label: "Mart", href: "/mart", icon: ShoppingBag },
   { label: "Search", href: "/search", icon: Sparkles },
-  { label: "Products", href: "/products", icon: BadgePercent },
+  { label: "Contact", href: "/contact", icon: BadgePercent },
 ] as const;
 
 const COMPANY_LINKS = [
