@@ -283,6 +283,7 @@ model CartItem {
   price     Float
   color     String?
   colorHex  String?
+  image     String?
   size      String?
   qty       Int      @default(1)
   createdAt DateTime @default(now())

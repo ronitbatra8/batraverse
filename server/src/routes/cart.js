@@ -39,7 +39,7 @@ router.post("/sync", userAuth, async (req, res) => {
         ops.push(
           prisma.cartItem.update({
             where: { id: existingItem.id },
-            data: { qty: item.qty || existingItem.qty, price: item.price || existingItem.price },
+            data: { qty: item.qty || existingItem.qty, price: item.price || existingItem.price, image: item.image || existingItem.image },
           })
         );
       } else {
@@ -52,6 +52,7 @@ router.post("/sync", userAuth, async (req, res) => {
               price: item.price,
               color: item.color || null,
               colorHex: item.colorHex || null,
+              image: item.image || null,
               size: item.size || null,
               qty: item.qty || 1,
             },

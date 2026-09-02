@@ -93,6 +93,7 @@ interface BackendCartItem {
   price?: number;
   color?: string;
   colorHex?: string;
+  image?: string;
   size?: string;
   qty?: number;
   source?: string;
@@ -137,6 +138,7 @@ function mergeCart(local: CartItem[], backend: BackendCartItem[]): CartItem[] {
         } as Product,
         color: b.color || "",
         colorHex: b.colorHex || "#0a0a0a",
+        colorImage: b.image || undefined,
         size: b.size || undefined,
         qty: b.qty || 1,
         source: b.source || "store",
@@ -181,6 +183,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
             price: i.product.price,
             color: i.color,
             colorHex: i.colorHex,
+            image: i.colorImage,
             size: i.size,
             qty: i.qty,
           })),
