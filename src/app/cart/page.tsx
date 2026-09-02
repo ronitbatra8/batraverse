@@ -370,8 +370,10 @@ export default function CartPage() {
                           {storeDelivery === 0 ? "Free" : formatPrice(storeDelivery)}
                         </span>
                       </div>
-                      {storeDelivery === 0 && (
+                      {storeDelivery === 0 ? (
                         <p className="text-[9px] text-emerald-500">Free store delivery on orders above ₹800</p>
+                      ) : (
+                        <p className="text-[9px] text-amber-500">Add {formatPrice(800 - storeSubtotal)} more to get free store delivery</p>
                       )}
                     </div>
                   )}
@@ -383,8 +385,10 @@ export default function CartPage() {
                           {martDelivery === 0 ? "Free" : formatPrice(martDelivery)}
                         </span>
                       </div>
-                      {martDelivery === 0 && (
+                      {martDelivery === 0 ? (
                         <p className="text-[9px] text-emerald-500">Free mart delivery on orders above ₹200</p>
+                      ) : (
+                        <p className="text-[9px] text-amber-500">Add {formatPrice(200 - martSubtotal)} more to get free mart delivery</p>
                       )}
                     </div>
                   )}

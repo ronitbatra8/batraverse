@@ -696,19 +696,37 @@ src={resolveImageUrl(item.colorImage) || ""}
                   </div>
                 )}
                 {hasStoreItems && (
-                  <div className="flex justify-between">
-                    <span className={cn("text-xs", light ? "text-dark-500" : "text-cream-dim/60")}>Store Delivery</span>
-                    <span className={cn("text-xs font-medium tabular-nums", (hasFreeDelivery || storeSubtotal >= 800) ? "text-emerald-500" : "", light ? "text-dark-900" : "text-cream")}>
-                      {(hasFreeDelivery || storeSubtotal >= 800) ? "Free" : formatPrice(49)}
-                    </span>
+                  <div>
+                    <div className="flex justify-between">
+                      <span className={cn("text-xs", light ? "text-dark-500" : "text-cream-dim/60")}>Store Delivery</span>
+                      <span className={cn("text-xs font-medium tabular-nums", (hasFreeDelivery || storeSubtotal >= 800) ? "text-emerald-500" : "", light ? "text-dark-900" : "text-cream")}>
+                        {(hasFreeDelivery || storeSubtotal >= 800) ? "Free" : formatPrice(49)}
+                      </span>
+                    </div>
+                    {hasFreeDelivery ? (
+                      <p className="text-[9px] text-emerald-500">Free via card benefit</p>
+                    ) : storeSubtotal >= 800 ? (
+                      <p className="text-[9px] text-emerald-500">Free store delivery above ₹800</p>
+                    ) : (
+                      <p className="text-[9px] text-amber-500">Add {formatPrice(800 - storeSubtotal)} more to get free store delivery</p>
+                    )}
                   </div>
                 )}
                 {hasMartItems && (
-                  <div className="flex justify-between">
-                    <span className={cn("text-xs", light ? "text-dark-500" : "text-cream-dim/60")}>Mart Delivery</span>
-                    <span className={cn("text-xs font-medium tabular-nums", (hasFreeDelivery || martSubtotal >= 200) ? "text-emerald-500" : "", light ? "text-dark-900" : "text-cream")}>
-                      {(hasFreeDelivery || martSubtotal >= 200) ? "Free" : formatPrice(49)}
-                    </span>
+                  <div>
+                    <div className="flex justify-between">
+                      <span className={cn("text-xs", light ? "text-dark-500" : "text-cream-dim/60")}>Mart Delivery</span>
+                      <span className={cn("text-xs font-medium tabular-nums", (hasFreeDelivery || martSubtotal >= 200) ? "text-emerald-500" : "", light ? "text-dark-900" : "text-cream")}>
+                        {(hasFreeDelivery || martSubtotal >= 200) ? "Free" : formatPrice(49)}
+                      </span>
+                    </div>
+                    {hasFreeDelivery ? (
+                      <p className="text-[9px] text-emerald-500">Free via card benefit</p>
+                    ) : martSubtotal >= 200 ? (
+                      <p className="text-[9px] text-emerald-500">Free mart delivery above ₹200</p>
+                    ) : (
+                      <p className="text-[9px] text-amber-500">Add {formatPrice(200 - martSubtotal)} more to get free mart delivery</p>
+                    )}
                   </div>
                 )}
                 {hasQuickDeliveryItems && (
