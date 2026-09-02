@@ -84,7 +84,7 @@ export default function StoreNav({
   const scrollToNav = () => {
     const el = navAnchorRef.current;
     if (!el) return;
-    const top = el.getBoundingClientRect().top + window.scrollY - 24;
+    const top = el.getBoundingClientRect().top + window.scrollY - 64;
     window.scrollTo({ top, behavior: "smooth" });
   };
 
