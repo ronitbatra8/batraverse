@@ -82,7 +82,10 @@ export default function MartNav({
   const navAnchorRef = useRef<HTMLDivElement>(null);
 
   const scrollToNav = () => {
-    navAnchorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    const el = navAnchorRef.current;
+    if (!el) return;
+    const top = el.getBoundingClientRect().top + window.scrollY + 24;
+    window.scrollTo({ top, behavior: "smooth" });
   };
 
   return (
