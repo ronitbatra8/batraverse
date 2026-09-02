@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Eye, MessageSquare, Clock, CheckCircle, XCircle, AlertCircle, Loader2, Check } from "lucide-react";
+import { Eye, MessageSquare, Clock, CheckCircle, XCircle, AlertCircle, Loader2, Check, ChevronDown } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthContext";
 import { API_URL } from "@/lib/api";
 import SiteLayout from "@/components/layout/SiteLayout";
@@ -40,6 +40,16 @@ export default function PrivateViewingPage() {
   const { user, loading: authLoading } = useAuth();
   const [requests, setRequests] = useState<PVRequest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    if (!requests.length) return;
+    setExpanded((prev) => {
+      if (Object.keys(prev).length > 0) return prev;
+      const first = requests[0].id;
+      return { [first]: true };
+    });
+  }, [requests]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -113,13 +123,18 @@ export default function PrivateViewingPage() {
               {requests.map((req) => {
                 const cfg = statusConfig[req.status] || statusConfig.requested;
                 const StatusIcon = cfg.icon;
+                const isOpen = !!expanded[req.id];
                 return (
                   <div
                     key={req.id}
-                    className="bg-dark-900/60 border border-dark-800/50 rounded-2xl p-6"
+                    className="bg-dark-900/60 border border-dark-800/50 rounded-2xl overflow-hidden"
                   >
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setExpanded((prev) => ({ ...prev, [req.id]: !prev[req.id] }))}
+                      className="w-full flex items-center justify-between gap-3 px-5 py-4 text-left hover:bg-dark-900 transition-colors"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
                         <span
                           className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border ${cfg.color}`}
                         >
@@ -134,64 +149,73 @@ export default function PrivateViewingPage() {
                           })}
                         </span>
                       </div>
-                      <p className="text-[10px] text-dark-500">#{req.id.slice(-8).toUpperCase()}</p>
-                    </div>
-
-                    {req.status === "cancelled" ? (
-                      <div className="rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3">
-                        <p className="text-xs text-red-400 font-medium">
-                          This request was cancelled on {new Date(req.updatedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}.
-                        </p>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <p className="text-[10px] text-dark-500">#{req.id.slice(-8).toUpperCase()}</p>
+                        <ChevronDown
+                          className={`w-4 h-4 text-dark-400 transition-transform ${isOpen ? "rotate-180" : ""}`}
+                        />
                       </div>
-                    ) : (
-                      <div className="mb-4">
-                        <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.25em] text-dark-400">
-                          Request Tracking
-                        </p>
-                        <div className="flex items-start gap-0 overflow-x-auto">
-                          {TRACKING_STEPS.map((step, i) => {
-                            const isCompleted = i <= trackingIndex(req.status);
-                            const isCurrent = i === trackingIndex(req.status);
-                            const Icon = step.icon;
-                            return (
-                              <div key={step.key} className="relative flex flex-1 flex-col items-center">
-                                {i > 0 && (
-                                  <div className={`absolute top-4 right-1/2 h-0.5 w-full -translate-y-1/2 ${isCompleted ? "bg-emerald-500" : "bg-white/10"}`} />
-                                )}
-                                <div className={`relative z-10 flex h-8 w-8 items-center justify-center rounded-full border-2 transition-all ${isCompleted ? "border-emerald-500 bg-emerald-500/10" : isCurrent ? "border-emerald-500 bg-emerald-500/10 animate-pulse" : "border-white/10 bg-dark-900/60"}`}>
-                                  <Icon size={14} className={isCompleted ? "text-emerald-500" : "text-cream-dim/40"} />
-                                </div>
-                                <p className={`mt-2 text-center text-[8px] font-medium leading-tight ${isCompleted ? "text-emerald-500" : "text-cream-dim/40"}`}>
-                                  {step.label}
-                                </p>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
+                    </button>
 
-                    {req.note && (
-                      <div className="mb-3 bg-dark-950/50 rounded-xl px-4 py-2.5">
-                        <p className="text-[10px] font-semibold text-dark-400 mb-1">Your Request</p>
-                        <p className="text-xs text-dark-300">{req.note}</p>
-                      </div>
-                    )}
+                    {isOpen && (
+                      <div className="px-5 pb-5">
+                        {req.status === "cancelled" ? (
+                          <div className="rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3">
+                            <p className="text-xs text-red-400 font-medium">
+                              This request was cancelled on {new Date(req.updatedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}.
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="mb-4">
+                            <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.25em] text-dark-400">
+                              Request Tracking
+                            </p>
+                            <div className="flex items-start gap-0 overflow-x-auto">
+                              {TRACKING_STEPS.map((step, i) => {
+                                const isCompleted = i <= trackingIndex(req.status);
+                                const isCurrent = i === trackingIndex(req.status);
+                                const Icon = step.icon;
+                                return (
+                                  <div key={step.key} className="relative flex flex-1 flex-col items-center">
+                                    {i > 0 && (
+                                      <div className={`absolute top-4 right-1/2 h-0.5 w-full -translate-y-1/2 ${isCompleted ? "bg-emerald-500" : "bg-white/10"}`} />
+                                    )}
+                                    <div className={`relative z-10 flex h-8 w-8 items-center justify-center rounded-full border-2 transition-all ${isCompleted ? "border-emerald-500 bg-emerald-500/10" : isCurrent ? "border-emerald-500 bg-emerald-500/10 animate-pulse" : "border-white/10 bg-dark-900/60"}`}>
+                                      <Icon size={14} className={isCompleted ? "text-emerald-500" : "text-cream-dim/40"} />
+                                    </div>
+                                    <p className={`mt-2 text-center text-[8px] font-medium leading-tight ${isCompleted ? "text-emerald-500" : "text-cream-dim/40"}`}>
+                                      {step.label}
+                                    </p>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
 
-                    {req.reply && (
-                      <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl px-4 py-3">
-                        <div className="flex items-center gap-2 mb-1.5">
-                          <MessageSquare className="w-3.5 h-3.5 text-emerald-400" />
-                          <p className="text-[11px] font-semibold text-emerald-400">Reply from Batra House</p>
-                        </div>
-                        <p className="text-xs text-dark-300 whitespace-pre-wrap">{req.reply}</p>
-                      </div>
-                    )}
+                        {req.note && (
+                          <div className="mb-3 bg-dark-950/50 rounded-xl px-4 py-2.5">
+                            <p className="text-[10px] font-semibold text-dark-400 mb-1">Your Request</p>
+                            <p className="text-xs text-dark-300">{req.note}</p>
+                          </div>
+                        )}
 
-                    {!req.reply && req.status === "requested" && (
-                      <div className="flex items-center gap-2 text-dark-500">
-                        <AlertCircle className="w-3.5 h-3.5" />
-                        <p className="text-[11px]">Awaiting response from our team</p>
+                        {req.reply && (
+                          <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl px-4 py-3">
+                            <div className="flex items-center gap-2 mb-1.5">
+                              <MessageSquare className="w-3.5 h-3.5 text-emerald-400" />
+                              <p className="text-[11px] font-semibold text-emerald-400">Reply from Batra House</p>
+                            </div>
+                            <p className="text-xs text-dark-300 whitespace-pre-wrap">{req.reply}</p>
+                          </div>
+                        )}
+
+                        {!req.reply && req.status === "requested" && (
+                          <div className="flex items-center gap-2 text-dark-500">
+                            <AlertCircle className="w-3.5 h-3.5" />
+                            <p className="text-[11px]">Awaiting response from our team</p>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
