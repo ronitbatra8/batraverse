@@ -57,6 +57,7 @@ export default function StoreNav({
   useEffect(() => { fetchCategories(); }, [fetchCategories]);
 
   const hasSub = subCategories[active];
+  const navAnchorRef = useRef<HTMLDivElement>(null);
   const [navHidden, setNavHidden] = useState(false);
   const lastY = useRef(0);
 
@@ -65,8 +66,10 @@ export default function StoreNav({
       const y = window.scrollY;
       const diff = y - lastY.current;
       if (Math.abs(diff) < 10) return;
-      if (diff > 0 && y > 120) setNavHidden(true);
-      else setNavHidden(false);
+      const anchor = navAnchorRef.current;
+      const stickY = anchor ? anchor.getBoundingClientRect().top + y - 84 : Infinity;
+      if (diff > 0 && y > stickY) setNavHidden(true);
+      else if (diff < 0) setNavHidden(false);
       lastY.current = y;
     };
     window.addEventListener("scroll", onScroll, { passive: true });
@@ -78,8 +81,6 @@ export default function StoreNav({
     onSubChange("all");
     scrollToNav();
   };
-
-  const navAnchorRef = useRef<HTMLDivElement>(null);
 
   const scrollToNav = () => {
     const el = navAnchorRef.current;
