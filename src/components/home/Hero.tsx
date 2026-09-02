@@ -144,7 +144,7 @@ export default function Hero() {
             {/* CTAs */}
             <motion.div {...line(0.85)} className="mt-7 flex flex-wrap items-center gap-4 sm:mt-10">
               <Link
-                href="/products"
+                href="/store"
                 className={cn(
                   "group relative inline-flex items-center gap-2.5 overflow-hidden rounded-xl border px-6 py-3 sm:px-9 sm:py-4 text-[11px] font-semibold uppercase tracking-[0.28em] transition-all duration-300 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]",
                   light
