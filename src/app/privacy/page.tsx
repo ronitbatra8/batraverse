@@ -34,7 +34,7 @@ const sections = [
   },
   {
     title: "7. Your Rights",
-    body: "You have the right to: access your personal data, correct inaccurate data, request deletion of your data, opt out of marketing communications, and export your data in a portable format. To exercise these rights, contact our support team at privacy@batraverse.com.",
+    body: "You have the right to: access your personal data, correct inaccurate data, request deletion of your data, opt out of marketing communications, and export your data in a portable format. To exercise these rights, contact our support team at ronit.batra.08@gmail.com.",
   },
   {
     title: "8. Children's Privacy",
@@ -50,7 +50,7 @@ const sections = [
   },
   {
     title: "11. Contact Us",
-    body: "For questions or concerns about this Privacy Policy, reach us at privacy@batraverse.com or visit our Contact page. Our Data Protection Officer can be contacted at dpo@batraverse.com.",
+    body: "For questions or concerns about this Privacy Policy, reach us at ronit.batra.08@gmail.com or visit our Contact page. Our Data Protection Officer can be contacted at ronit.batra.08@gmail.com.",
   },
 ];
 
