@@ -180,7 +180,9 @@ function SearchContent() {
   const [activeSource, setActiveSource] = useState<"all" | "store" | "mart">("all");
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [hideTabs, setHideTabs] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(48);
   const lastScrollY = useRef(0);
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const params = new URLSearchParams();
@@ -268,6 +270,27 @@ function SearchContent() {
     return results;
   }, [allProducts, activeSource, debouncedQuery]);
 
+  const visible = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setVisibleCount(48);
+  }, [activeSource, debouncedQuery]);
+
+  /* Progressive render: grow the visible slice as the sentinel scrolls in */
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el || filtered.length <= visibleCount) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) setVisibleCount((c) => Math.min(c + 48, filtered.length));
+      },
+      { rootMargin: "800px" }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [filtered.length, visibleCount]);
+
   return (
     <SiteLayout>
       <div className="min-h-screen pt-24 pb-20">
@@ -352,11 +375,20 @@ function SearchContent() {
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 gap-px sm:gap-5 lg:grid-cols-4">
-                {filtered.map((p) => (
-                  <MemoSearchCard key={`${p.source}-${p.id}`} product={p} light={light} />
-                ))}
-              </div>
+              <>
+                <div className="grid grid-cols-2 gap-px sm:gap-5 lg:grid-cols-4">
+                  {visible.map((p) => (
+                    <MemoSearchCard key={`${p.source}-${p.id}`} product={p} light={light} />
+                  ))}
+                </div>
+                {filtered.length > visibleCount && (
+                  <div ref={sentinelRef} className="flex items-center justify-center py-12">
+                    <span className={cn("text-[10px] uppercase tracking-[0.3em]", light ? "text-dark-400" : "text-cream-dim/40")}>
+                      Loading more…
+                    </span>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
