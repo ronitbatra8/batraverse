@@ -18,6 +18,7 @@ import {
   Building2,
   CheckCircle,
   LogIn,
+  Moon,
 } from "lucide-react";
 import ContactAnimation from "@/components/ContactAnimation";
 import TrustMarquee from "@/components/TrustMarquee";
@@ -57,32 +58,20 @@ function YoutubeIcon({ size = 20 }: { size?: number }) {
 }
 
 const contactInfo = [
-  { icon: Phone, label: "Phone", value: "+91 90000 00001" },
-  { icon: Mail, label: "Email", value: "hello@batraverse.com" },
-  { icon: Clock, label: "Hours", value: "Mon – Sat, 10 AM – 8 PM IST" },
-  { icon: MapPin, label: "Address", value: "Bengaluru, Karnataka, India" },
+  { icon: Phone, label: "Phone", value: "+91 93513 96757" },
+  { icon: Mail, label: "Email", value: "ronit.batra.08@gmail.com" },
+  { icon: Clock, label: "Hours", value: "Mon – Sat, 8 AM – 10 AM" },
+  { icon: MapPin, label: "Address", value: "Alwar, Rajasthan, India" },
+  { icon: Moon, label: "Mart Holiday", value: "Closed on New Moon & Full Moon" },
 ];
 
-const stores = [
-  {
-    name: "Bengaluru Flagship",
-    address: "123 Brigade Road, Bengaluru 560001",
-    phone: "+91 90000 00001",
-    hours: "Mon – Sat, 10 AM – 8 PM",
-  },
-  {
-    name: "Mumbai Atelier",
-    address: "45 Bandra West, Mumbai 400050",
-    phone: "+91 90000 00002",
-    hours: "Mon – Sat, 11 AM – 8 PM",
-  },
-  {
-    name: "Delhi Studio",
-    address: "67 Khan Market, New Delhi 110003",
-    phone: "+91 90000 00003",
-    hours: "Mon – Sat, 10 AM – 7 PM",
-  },
-];
+const office = {
+  name: "BatraVerse Office",
+  address: "Alwar, Rajasthan, India",
+  phone: "+91 93513 96757",
+  email: "ronit.batra.08@gmail.com",
+  hours: "Mon – Sat, 8 AM – 10 AM",
+};
 
 const faqs = [
   {
@@ -103,7 +92,7 @@ const faqs = [
   },
   {
     q: "How do I contact support?",
-    a: "You can reach us via the form on this page, email hello@batraverse.com, or call +91 90000 00001 during business hours. We aim to respond within 24 hours.",
+    a: "You can reach us via the form on this page, email ronit.batra.08@gmail.com, or call +91 93513 96757 during business hours. We aim to respond within 24 hours.",
   },
 ];
 
@@ -566,7 +555,7 @@ export default function ContactPage() {
                 light ? "text-sapphire" : "text-gold/70"
               )}
             >
-              Visit Us
+              Our Office
             </p>
             <h2
               className={cn(
@@ -574,87 +563,122 @@ export default function ContactPage() {
                 light ? "text-onyx" : "text-cream"
               )}
             >
-              Store Locations
+              We Don&rsquo;t Sell — Our Sellers Do
             </h2>
+            <p
+              className={cn(
+                "mx-auto mt-4 max-w-xl text-sm leading-relaxed",
+                light ? "text-onyx/60" : "text-cream-dim/60"
+              )}
+            >
+              BatraVerse is the technology and logistics platform behind the
+              marketplace. Products are listed, sold, and shipped by the sellers
+              on our platform, not by us.
+            </p>
           </div>
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {stores.map((store) => (
-              <div
-                key={store.name}
-                className={cn(
-                  "group relative rounded-2xl p-8 transition-all duration-500",
-                  light
-                    ? "bg-white border border-onyx/5 hover:border-sapphire/20 hover:shadow-[0_8px_40px_rgba(30,58,138,0.08)]"
-                    : "bg-[#0e0e11] border border-gold/8 hover:border-gold/25 hover:shadow-[0_8px_40px_rgba(212,175,55,0.06)]"
-                )}
-              >
-                <div
+          <div
+            className={cn(
+              "group relative mx-auto max-w-xl rounded-2xl p-8 transition-all duration-500",
+              light
+                ? "bg-white border border-onyx/5 hover:border-sapphire/20 hover:shadow-[0_8px_40px_rgba(30,58,138,0.08)]"
+                : "bg-[#0e0e11] border border-gold/8 hover:border-gold/25 hover:shadow-[0_8px_40px_rgba(212,175,55,0.06)]"
+            )}
+          >
+            <div
+              className={cn(
+                "mb-6 flex h-12 w-12 items-center justify-center rounded-xl transition-colors duration-500",
+                light
+                  ? "bg-sapphire/8 text-sapphire group-hover:bg-sapphire group-hover:text-white"
+                  : "bg-gold/10 text-gold group-hover:bg-gold group-hover:text-abyss"
+              )}
+            >
+              <Building2 size={22} strokeWidth={1.5} />
+            </div>
+            <h3
+              className={cn(
+                "mb-6 font-display text-lg font-medium tracking-wide",
+                light ? "text-onyx" : "text-cream"
+              )}
+            >
+              {office.name}
+            </h3>
+            <div className="space-y-3">
+              <div className="flex items-start gap-3">
+                <MapPin
+                  size={14}
+                  strokeWidth={1.5}
+                  className={cn("mt-0.5 shrink-0", light ? "text-onyx/35" : "text-cream-dim/40")}
+                />
+                <p
                   className={cn(
-                    "mb-6 flex h-12 w-12 items-center justify-center rounded-xl transition-colors duration-500",
-                    light
-                      ? "bg-sapphire/8 text-sapphire group-hover:bg-sapphire group-hover:text-white"
-                      : "bg-gold/10 text-gold group-hover:bg-gold group-hover:text-abyss"
+                    "text-sm leading-relaxed",
+                    light ? "text-onyx/70" : "text-cream-dim/70"
                   )}
                 >
-                  <Building2 size={22} strokeWidth={1.5} />
-                </div>
-                <h3
-                  className={cn(
-                    "mb-4 font-display text-lg font-medium tracking-wide",
-                    light ? "text-onyx" : "text-cream"
-                  )}
-                >
-                  {store.name}
-                </h3>
-                <div className="space-y-3">
-                  <div className="flex items-start gap-3">
-                    <MapPin
-                      size={14}
-                      strokeWidth={1.5}
-                      className={cn("mt-0.5 shrink-0", light ? "text-onyx/35" : "text-cream-dim/40")}
-                    />
-                    <p
-                      className={cn(
-                        "text-sm leading-relaxed",
-                        light ? "text-onyx/70" : "text-cream-dim/70"
-                      )}
-                    >
-                      {store.address}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Phone
-                      size={14}
-                      strokeWidth={1.5}
-                      className={cn("shrink-0", light ? "text-onyx/35" : "text-cream-dim/40")}
-                    />
-                    <p
-                      className={cn(
-                        "text-sm",
-                        light ? "text-onyx/70" : "text-cream-dim/70"
-                      )}
-                    >
-                      {store.phone}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Clock
-                      size={14}
-                      strokeWidth={1.5}
-                      className={cn("shrink-0", light ? "text-onyx/35" : "text-cream-dim/40")}
-                    />
-                    <p
-                      className={cn(
-                        "text-sm",
-                        light ? "text-onyx/70" : "text-cream-dim/70"
-                      )}
-                    >
-                      {store.hours}
-                    </p>
-                  </div>
-                </div>
+                  {office.address}
+                </p>
               </div>
-            ))}
+              <div className="flex items-center gap-3">
+                <Phone
+                  size={14}
+                  strokeWidth={1.5}
+                  className={cn("shrink-0", light ? "text-onyx/35" : "text-cream-dim/40")}
+                />
+                <p
+                  className={cn(
+                    "text-sm",
+                    light ? "text-onyx/70" : "text-cream-dim/70"
+                  )}
+                >
+                  {office.phone}
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <Mail
+                  size={14}
+                  strokeWidth={1.5}
+                  className={cn("shrink-0", light ? "text-onyx/35" : "text-cream-dim/40")}
+                />
+                <p
+                  className={cn(
+                    "text-sm",
+                    light ? "text-onyx/70" : "text-cream-dim/70"
+                  )}
+                >
+                  {office.email}
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <Clock
+                  size={14}
+                  strokeWidth={1.5}
+                  className={cn("shrink-0", light ? "text-onyx/35" : "text-cream-dim/40")}
+                />
+                <p
+                  className={cn(
+                    "text-sm",
+                    light ? "text-onyx/70" : "text-cream-dim/70"
+                  )}
+                >
+                  {office.hours}
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <Moon
+                  size={14}
+                  strokeWidth={1.5}
+                  className={cn("shrink-0", light ? "text-onyx/35" : "text-cream-dim/40")}
+                />
+                <p
+                  className={cn(
+                    "text-sm",
+                    light ? "text-onyx/70" : "text-cream-dim/70"
+                  )}
+                >
+                  Closed on New Moon &amp; Full Moon
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </section>
