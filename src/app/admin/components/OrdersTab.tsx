@@ -74,6 +74,7 @@ export default function OrdersTab({
   focusOrderId,
   onFocusHandled,
   adminKey,
+  onShipDelhivery,
 }: {
   orders: any[];
   updatingId: string | null;
@@ -85,7 +86,9 @@ export default function OrdersTab({
   focusOrderId?: string | null;
   onFocusHandled?: () => void;
   adminKey?: string;
+  onShipDelhivery?: (orderId: string) => Promise<void>;
 }) {
+  const [shippingOrderId, setShippingOrderId] = useState<string | null>(null);
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
   const [orderSearch, setOrderSearch] = useState("");
   const [orderFilter, setOrderFilter] = useState("all");
@@ -167,6 +170,19 @@ export default function OrdersTab({
 
   function handleItemStatusChange(orderId: string, itemIdx: number, status: string) {
     onItemStatusUpdate?.(orderId, itemIdx, status);
+  }
+
+  async function handleShipDelhivery(orderId: string) {
+    if (!onShipDelhivery) return;
+    setShippingOrderId(orderId);
+    try {
+      await onShipDelhivery(orderId);
+    } catch (e: any) {
+      const msg = e?.message || "Failed to ship via Delhivery";
+      alert(msg);
+    } finally {
+      setShippingOrderId(null);
+    }
   }
 
   return (
@@ -497,6 +513,49 @@ export default function OrdersTab({
                         </div>
                       </div>
                     </div>
+
+                      {/* Delhivery shipping */}
+                      {onShipDelhivery && (
+                      <div className="bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 border border-emerald-500/20 rounded-xl p-4 space-y-3">
+                        <h4 className="text-xs text-emerald-400 uppercase tracking-wider font-semibold flex items-center gap-2">
+                          <Truck className="w-3.5 h-3.5" /> Delhivery Courier
+                        </h4>
+                        {order.carrier === "DELHIVERY" && order.waybill ? (
+                          <>
+                            <p className="text-dark-300 text-xs">
+                              Waybill: <span className="text-emerald-400 font-mono font-medium">{order.waybill}</span>
+                            </p>
+                            {order.trackingUrl && (
+                              <a
+                                href={order.trackingUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-block text-xs text-emerald-400 underline decoration-emerald-500/40 hover:text-emerald-300"
+                              >
+                                Track on Delhivery →
+                              </a>
+                            )}
+                          </>
+                        ) : (
+                          <div className="space-y-2">
+                            <p className="text-dark-400 text-[11px]">
+                              Not shipped via courier yet. Nothing moves to Delhivery until you ship this order.
+                            </p>
+                            <button
+                              onClick={() => handleShipDelhivery(order.id)}
+                              disabled={shippingOrderId === order.id || ["delivered", "cancelled", "returned"].includes(order.status)}
+                              className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-[10px] font-bold uppercase tracking-wider bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/30 transition-colors disabled:opacity-50"
+                            >
+                              {shippingOrderId === order.id ? (
+                                <><Loader2 className="w-3 h-3 animate-spin" /> Shipping...</>
+                              ) : (
+                                <><Truck className="w-3 h-3" /> Ship via Delhivery</>
+                              )}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                      )}
 
                       {/* Return approval */}
                       {order.status === "return_requested" && (

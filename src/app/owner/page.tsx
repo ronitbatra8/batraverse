@@ -181,6 +181,19 @@ export default function AdminPage() {
     setUpdatingId(null);
   }, [adminKey, loadAll, toast]);
 
+  const shipViaDelhivery = useCallback(async (orderId: string) => {
+    const res = await fetch(`${API}/api/admin/orders/${orderId}/delhivery-ship`, {
+      method: "POST", headers: adminHeaders(adminKey),
+    });
+    if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error || "Failed to ship via Delhivery"); }
+    const data = await res.json();
+    if (data.order) setOrders((prev) => prev.map((o) => (o.id === orderId ? data.order : o)));
+    if (!data.already) {
+      toast(data.waybill ? `Shipped successfully — Waybill ${data.waybill}` : "Order shipped via Delhivery", "success");
+    }
+    return data;
+  }, [adminKey, toast]);
+
   const handleSignOut = useCallback(() => {
     setAuthenticated(false);
     setTab("overview");
@@ -260,7 +273,7 @@ export default function AdminPage() {
       <main className="pt-40 min-h-screen lg:pl-56">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-24 lg:pb-8">
           {tab === "overview" && <OverviewTab stats={stats} orders={orders} passwordResets={passwordResets} messages={messages} onNavigate={handleNavigateToTab} />}
-          {tab === "orders" && <OrdersTab orders={orders} updatingId={updatingId} onStatusUpdate={updateStatus} onItemStatusUpdate={updateItemStatus} onAssign={assignOrder} onPaymentAction={paymentAction} onReturnApprove={returnApprove} focusOrderId={focusOrderId} onFocusHandled={() => setFocusOrderId(null)} adminKey={adminKey} />}
+          {tab === "orders" && <OrdersTab orders={orders} updatingId={updatingId} onStatusUpdate={updateStatus} onItemStatusUpdate={updateItemStatus} onAssign={assignOrder} onPaymentAction={paymentAction} onReturnApprove={returnApprove} focusOrderId={focusOrderId} onFocusHandled={() => setFocusOrderId(null)} adminKey={adminKey} onShipDelhivery={shipViaDelhivery} />}
           {tab === "users" && <UsersTab users={users} adminKey={adminKey} onNavigate={handleNavigateToTab} />}
           {tab === "messages" && <MessagesTab messages={messages} adminKey={adminKey} setMessages={setMessages} />}
           {tab === "security" && <SecurityTab />}
