@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import AboutAnimation from "@/components/AboutAnimation";
 import TrustMarquee from "@/components/TrustMarquee";
+import AboutStats from "@/components/AboutStats";
 
 const values = [
   {
@@ -40,13 +41,6 @@ const values = [
     description:
       "Each creation is deliberately limited. We believe scarcity cultivates desire, and that the extraordinary should never be ordinary.",
   },
-];
-
-const stats = [
-  { value: "500+", label: "Master Artisans" },
-  { value: "12", label: "Countries Worldwide" },
-  { value: "10,000+", label: "Curated Products" },
-  { value: "₹50Cr+", label: "Annual Revenue" },
 ];
 
 const press = ["Vogue India", "GQ India", "Architectural Digest", "Forbes India", "Harper's Bazaar"];
@@ -254,27 +248,16 @@ export default function AboutPage() {
             : "bg-gradient-to-r from-[#1a1608] to-abyss text-cream"
         )}
       >
-        <div className="mx-auto grid max-w-6xl grid-cols-2 gap-8 px-6 sm:gap-12 lg:grid-cols-4">
-          {stats.map((s) => (
-            <div key={s.label} className="text-center">
-              <p
-                className={cn(
-                  "font-display text-4xl font-medium tracking-wide sm:text-5xl",
-                  light ? "" : "text-gold-gradient"
-                )}
-              >
-                {s.value}
-              </p>
-              <p
-                className={cn(
-                  "mt-3 text-xs font-medium uppercase tracking-[0.3em]",
-                  light ? "text-white/70" : "text-cream-dim"
-                )}
-              >
-                {s.label}
-              </p>
-            </div>
-          ))}
+        <div className="mx-auto">
+          <AboutStats />
+          <p
+            className={cn(
+              "mx-auto mt-10 max-w-md text-center text-xs uppercase tracking-[0.3em]",
+              light ? "text-white/50" : "text-cream-dim/50"
+            )}
+          >
+            Live numbers from the BatraVerse marketplace — Bengaluru, India
+          </p>
         </div>
       </section>
 
