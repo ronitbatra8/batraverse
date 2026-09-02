@@ -84,7 +84,7 @@ const faqs = [
   },
   {
     q: "Do you offer international shipping?",
-    a: "We currently ship only within India. All deliveries are handled through Delhivery, and shipping is free on orders above ₹500.",
+    a: "We currently ship only within India. All deliveries are handled through Delhivery, and shipping is free on Store orders above ₹800 and on Mart orders above ₹200.",
   },
   {
     q: "How do I become a seller on BatraVerse?",

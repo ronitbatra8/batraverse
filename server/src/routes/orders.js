@@ -113,7 +113,8 @@ router.post("/", userAuth, async (req, res) => {
     const hasFreeDelivery = freeDelLimit > 0 && freeDeliveryUsed < freeDelLimit;
 
     const expressFee = source === "mart" && deliveryMode === "express" ? 49 : 0;
-    let deliveryCharge = discountedSubtotal >= 150 ? 0 : 49;
+    const freeThreshold = source === "mart" ? 200 : 800;
+    let deliveryCharge = discountedSubtotal >= freeThreshold ? 0 : 49;
     if (hasFreeDelivery) deliveryCharge = 0;
 
     const totalAmount = Math.round((discountedSubtotal + deliveryCharge + expressFee) * 100) / 100;

@@ -21,7 +21,11 @@ export default function CartPage() {
   const martItems = items.filter((it) => it.source === "mart");
   const hasMartItems = martItems.length > 0;
 
-  const deliveryCharge = subtotal >= 150 ? 0 : 49;
+  const storeSubtotal = storeItems.reduce((s, i) => s + (i.colorPrice ?? i.product.price) * i.qty, 0);
+  const martSubtotal = martItems.reduce((s, i) => s + (i.colorPrice ?? i.product.price) * i.qty, 0);
+  const storeDelivery = storeItems.length > 0 ? (storeSubtotal >= 800 ? 0 : 49) : 0;
+  const martDelivery = martItems.length > 0 ? (martSubtotal >= 200 ? 0 : 49) : 0;
+  const deliveryCharge = storeDelivery + martDelivery;
   const expressFee = hasMartItems && deliveryMode === "express" ? 49 : 0;
   const total = subtotal + deliveryCharge + expressFee;
 
@@ -358,14 +362,31 @@ export default function CartPage() {
                     <span className={cn("text-sm", light ? "text-dark-500" : "text-cream-dim/60")}>Subtotal ({totalItems} items)</span>
                     <span className={cn("text-sm font-medium tabular-nums", light ? "text-dark-900" : "text-cream")}>{formatPrice(subtotal)}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className={cn("text-sm", light ? "text-dark-500" : "text-cream-dim/60")}>Delivery</span>
-                    <span className={cn("text-sm font-medium tabular-nums", deliveryCharge === 0 ? "text-emerald-500" : "", light ? "text-dark-900" : "text-cream")}>
-                      {deliveryCharge === 0 ? "Free" : formatPrice(deliveryCharge)}
-                    </span>
-                  </div>
-                  {deliveryCharge === 0 && (
-                    <p className="text-[9px] text-emerald-500">Free delivery on orders above ₹150</p>
+                  {storeItems.length > 0 && (
+                    <div>
+                      <div className="flex justify-between">
+                        <span className={cn("text-sm", light ? "text-dark-500" : "text-cream-dim/60")}>Store Delivery</span>
+                        <span className={cn("text-sm font-medium tabular-nums", storeDelivery === 0 ? "text-emerald-500" : "", light ? "text-dark-900" : "text-cream")}>
+                          {storeDelivery === 0 ? "Free" : formatPrice(storeDelivery)}
+                        </span>
+                      </div>
+                      {storeDelivery === 0 && (
+                        <p className="text-[9px] text-emerald-500">Free store delivery on orders above ₹800</p>
+                      )}
+                    </div>
+                  )}
+                  {martItems.length > 0 && (
+                    <div>
+                      <div className="flex justify-between">
+                        <span className={cn("text-sm", light ? "text-dark-500" : "text-cream-dim/60")}>Mart Delivery</span>
+                        <span className={cn("text-sm font-medium tabular-nums", martDelivery === 0 ? "text-emerald-500" : "", light ? "text-dark-900" : "text-cream")}>
+                          {martDelivery === 0 ? "Free" : formatPrice(martDelivery)}
+                        </span>
+                      </div>
+                      {martDelivery === 0 && (
+                        <p className="text-[9px] text-emerald-500">Free mart delivery on orders above ₹200</p>
+                      )}
+                    </div>
                   )}
                   {hasMartItems && deliveryMode === "express" && (
                     <div className="flex items-center gap-1.5">

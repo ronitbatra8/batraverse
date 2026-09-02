@@ -99,8 +99,14 @@ export default function CheckoutPage() {
   }, [user]);
 
   const hasMartItems = items.some((it) => it.source === "mart");
+  const hasStoreItems = items.some((it) => it.source === "store");
+  const storeItems = items.filter((it) => it.source === "store");
+  const martItems = items.filter((it) => it.source === "mart");
   const hasQuickDeliveryItems = hasMartItems;
   const expressFee = hasQuickDeliveryItems && deliveryMode === "express" ? 49 : 0;
+
+  const storeSubtotal = storeItems.reduce((s, i) => s + (i.colorPrice ?? i.product.price) * i.qty, 0);
+  const martSubtotal = martItems.reduce((s, i) => s + (i.colorPrice ?? i.product.price) * i.qty, 0);
 
   const effectiveLevel: LevelKey = user?.cardLevel && user.cardLevel in LEVELS ? user.cardLevel as LevelKey : "none";
   const discountPct = getDiscountPercent(effectiveLevel);
@@ -111,7 +117,7 @@ export default function CheckoutPage() {
   const freeDeliveryUsed = user?.freeDeliveryUsed || 0;
   const hasFreeDelivery = freeDelLimit > 0 && freeDeliveryUsed < freeDelLimit;
 
-  let deliveryCharge = discountedSubtotal >= 150 ? 0 : 49;
+  let deliveryCharge = (hasStoreItems ? (storeSubtotal >= 800 ? 0 : 49) : 0) + (hasMartItems ? (martSubtotal >= 200 ? 0 : 49) : 0);
   if (hasFreeDelivery) deliveryCharge = 0;
   const total = discountedSubtotal + deliveryCharge + expressFee;
 
@@ -689,12 +695,22 @@ src={resolveImageUrl(item.colorImage) || ""}
                     <span className="text-xs font-medium tabular-nums text-emerald-500">-{formatPrice(discountAmount)}</span>
                   </div>
                 )}
-                <div className="flex justify-between">
-                  <span className={cn("text-xs", light ? "text-dark-500" : "text-cream-dim/60")}>Delivery</span>
-                  <span className={cn("text-xs font-medium tabular-nums", deliveryCharge === 0 ? "text-emerald-500" : "", light ? "text-dark-900" : "text-cream")}>
-                    {deliveryCharge === 0 ? (hasFreeDelivery ? "Free (Card Benefit)" : "Free") : formatPrice(deliveryCharge)}
-                  </span>
-                </div>
+                {hasStoreItems && (
+                  <div className="flex justify-between">
+                    <span className={cn("text-xs", light ? "text-dark-500" : "text-cream-dim/60")}>Store Delivery</span>
+                    <span className={cn("text-xs font-medium tabular-nums", (hasFreeDelivery || storeSubtotal >= 800) ? "text-emerald-500" : "", light ? "text-dark-900" : "text-cream")}>
+                      {(hasFreeDelivery || storeSubtotal >= 800) ? "Free" : formatPrice(49)}
+                    </span>
+                  </div>
+                )}
+                {hasMartItems && (
+                  <div className="flex justify-between">
+                    <span className={cn("text-xs", light ? "text-dark-500" : "text-cream-dim/60")}>Mart Delivery</span>
+                    <span className={cn("text-xs font-medium tabular-nums", (hasFreeDelivery || martSubtotal >= 200) ? "text-emerald-500" : "", light ? "text-dark-900" : "text-cream")}>
+                      {(hasFreeDelivery || martSubtotal >= 200) ? "Free" : formatPrice(49)}
+                    </span>
+                  </div>
+                )}
                 {hasQuickDeliveryItems && (
                   <div className={cn("rounded-lg border p-3", light ? "border-dark-100 bg-dark-50/50" : "border-white/5 bg-onyx/50")}>
                     <p className={cn("text-[9px] font-semibold uppercase tracking-[0.2em] mb-2", light ? "text-dark-500" : "text-cream-dim/60")}>
@@ -777,7 +793,7 @@ src={resolveImageUrl(item.colorImage) || ""}
                 <span className={cn("text-lg font-bold tabular-nums", light ? "text-dark-900" : "text-cream")}>{formatPrice(total)}</span>
               </div>
               <div className={cn("mt-5 grid grid-cols-3 gap-2 rounded-xl border p-3", light ? "border-dark-100 bg-dark-50/50" : "border-white/5 bg-onyx/50")}>
-                {[{ icon: <Lock size={13} />, label: "Secure" }, { icon: <Truck size={13} />, label: "Free Delivery >₹150" }, { icon: <Shield size={13} />, label: "Protected" }].map((b) => (
+                {[{ icon: <Lock size={13} />, label: "Secure" }, { icon: <Truck size={13} />, label: "Free Del ₹800+ / ₹200+" }, { icon: <Shield size={13} />, label: "Protected" }].map((b) => (
                   <div key={b.label} className="flex flex-col items-center gap-1.5 text-center">
                     <span className={cn(light ? "text-sapphire" : "text-gold")}>{b.icon}</span>
                     <span className={cn("text-[7px] font-semibold uppercase tracking-[0.15em]", light ? "text-dark-500" : "text-cream-dim/60")}>{b.label}</span>
