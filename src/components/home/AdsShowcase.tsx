@@ -88,7 +88,7 @@ export default function AdsShowcase({ page = "home", hideHeader = false }: { pag
   if (!current) return null;
 
   return (
-    <section className={cn("relative overflow-hidden", hideHeader ? "py-4 pb-10" : "py-16 sm:py-16")}>
+    <section className={cn("relative overflow-hidden", hideHeader ? "py-4 pb-10" : "pt-12 pb-6 sm:py-16")}>
       {/* Desktop: padded container with heading */}
       <div className="hidden sm:block mx-auto w-full max-w-7xl px-6 sm:px-8">
         {!hideHeader && (

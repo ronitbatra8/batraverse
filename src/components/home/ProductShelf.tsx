@@ -48,7 +48,7 @@ export default function ProductShelf({
   const light = theme === "light";
 
   return (
-    <section className="relative overflow-x-clip py-16">
+    <section className="relative overflow-x-clip pt-4 pb-16 sm:py-16">
       <motion.div
         initial="hidden"
         whileInView="show"
