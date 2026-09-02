@@ -26,11 +26,11 @@ const sections = [
   },
   {
     title: "5. Shipping & Delivery",
-    body: "Standard delivery is ₹49 flat, free on orders above ₹1,500. Express delivery (mart items only) incurs an additional ₹49 fee. Delivery timelines are estimates and may vary based on location and product availability. Risk of loss and title pass to you upon delivery.",
+    body: "Delivery charges are calculated based on your delivery address and may vary from the flat rate depending on pin code and distance. Standard delivery on the Mart is ₹49, free on orders above ₹200. Orders on the Store above ₹800 are eligible for free delivery. Delivery timelines are estimates and may vary based on location and product availability. Risk of loss and title pass to you upon delivery.",
   },
   {
     title: "6. Returns & Refunds",
-    body: "You may request a return within 2 hours of delivery for eligible store products. Returns are subject to inspection and approval. Refunds are processed to the original payment method within 5–7 business days. COD refunds are processed via bank transfer. Certain items (perishables, personal care, custom orders) are non-returnable.",
+    body: "You may request a return within 12 hours of delivery for eligible store products. Returns are subject to inspection and approval by the owner. Mart (grocery) orders are final sale and cannot be returned. Approved refunds are processed to your BatraVerse card or wallet.",
   },
   {
     title: "7. Seller Obligations",
@@ -54,7 +54,7 @@ const sections = [
   },
   {
     title: "12. Contact",
-    body: "For questions about these Terms, contact us at support@batraverse.com or visit our Contact page.",
+    body: "For questions about these Terms, contact us at ronit.batra.08@gmail.com or visit our Contact page.",
   },
 ];
 
