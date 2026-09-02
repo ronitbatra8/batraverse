@@ -21,14 +21,15 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useTheme } from "@/components/theme/ThemeProvider";
+import { useToast } from "@/components/Toast";
 import Brand from "@/components/brand/Brand";
 import { cn } from "@/lib/utils";
 
 const SHOP_LINKS = [
-  { label: "All Products", href: "/products", icon: ShoppingBag },
   { label: "Store", href: "/store", icon: LayoutGrid },
-  { label: "New Arrivals", href: "/products?sort=new", icon: Sparkles },
-  { label: "Deals", href: "/products?sort=deals", icon: BadgePercent },
+  { label: "Mart", href: "/mart", icon: ShoppingBag },
+  { label: "Search", href: "/search", icon: Sparkles },
+  { label: "Products", href: "/products", icon: BadgePercent },
 ] as const;
 
 const COMPANY_LINKS = [
@@ -54,7 +55,7 @@ type FooterLink = {
 const BOTTOM_LINKS = [
   { label: "Terms", href: "/terms", icon: FileText },
   { label: "Privacy", href: "/privacy", icon: ShieldCheck },
-  { label: "Help", href: "/contact", icon: HelpCircle },
+  { label: "Help", href: "/queries", icon: HelpCircle },
 ] as const;
 
 const SOCIALS = [
@@ -98,6 +99,7 @@ const SOCIALS = [
 export default function Footer() {
   const { theme } = useTheme();
   const light = theme === "light";
+  const { toast } = useToast();
 
   const rootRef = useRef<HTMLElement>(null);
 
@@ -147,10 +149,11 @@ export default function Footer() {
           {/* Social icons */}
           <div className="mt-8 flex items-center justify-center gap-4">
             {SOCIALS.map((s) => (
-              <a
+              <button
                 key={s.label}
-                href="#"
+                type="button"
                 aria-label={s.label}
+                onClick={() => toast(`${s.label} is not live yet — but we'll be there soon.`, "info")}
                 className={cn(
                   "grid h-9 w-9 place-items-center rounded-full border transition-all duration-300 hover:scale-105",
                   light
@@ -159,7 +162,7 @@ export default function Footer() {
                 )}
               >
                 {s.icon}
-              </a>
+              </button>
             ))}
           </div>
 
@@ -240,7 +243,7 @@ export default function Footer() {
                     size={15}
                     className={cn("shrink-0", light ? "text-sapphire" : "text-gold")}
                   />
-                  India
+                  Alwar, Rajasthan, India
                 </p>
                 <p className="flex items-center gap-3">
                   <Mail
@@ -248,13 +251,13 @@ export default function Footer() {
                     className={cn("shrink-0", light ? "text-sapphire" : "text-gold")}
                   />
                   <a
-                    href="mailto:support@batraverse.com"
+                    href="mailto:ronit.batra.08@gmail.com"
                     className={cn(
                       "group relative transition-colors",
                       light ? "hover:text-sapphire" : "hover:text-gold-light"
                     )}
                   >
-                    support@batraverse.com
+                    ronit.batra.08@gmail.com
                     <span
                       className={cn(
                         "absolute bottom-0 left-0 h-px w-0 transition-all duration-700 group-hover:w-full",
@@ -268,17 +271,18 @@ export default function Footer() {
                     size={15}
                     className={cn("shrink-0", light ? "text-sapphire" : "text-gold")}
                   />
-                  +91 00000 00000
+                  +91 93513 96757
                 </p>
               </div>
 
               {/* Socials */}
               <div className="mt-7 flex items-center gap-3">
                 {SOCIALS.map((s) => (
-                  <a
+                  <button
                     key={s.label}
-                    href="#"
+                    type="button"
                     aria-label={s.label}
+                    onClick={() => toast(`${s.label} is not live yet — but we'll be there soon.`, "info")}
                     className={cn(
                       "grid h-9 w-9 place-items-center rounded-full border transition-all duration-300 hover:scale-105",
                       light
@@ -287,7 +291,7 @@ export default function Footer() {
                     )}
                   >
                     {s.icon}
-                  </a>
+                  </button>
                 ))}
               </div>
             </div>
