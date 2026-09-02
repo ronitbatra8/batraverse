@@ -236,7 +236,7 @@ function Lamp({ active }: { active: boolean }) {
 
   return (
     <div className="pointer-events-none absolute inset-0 z-20 hidden md:block">
-      <div className="absolute left-[25%] top-0 flex w-80 -translate-x-1/2 flex-col items-center">
+      <div className="absolute left-[75%] top-0 flex w-80 -translate-x-1/2 flex-col items-center">
         {/* Ceiling canopy */}
         <motion.div
           className="h-3 w-14 rounded-b-md border border-white/10 bg-gradient-to-b from-smoke via-graphite to-onyx shadow-[0_4px_12px_rgba(0,0,0,0.6)]"
