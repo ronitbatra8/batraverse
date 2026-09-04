@@ -88,6 +88,7 @@ export default function UpiPaymentModal({
       setError("Enter a valid UPI transaction ID (min 6 characters)");
       return;
     }
+    window.scrollTo({ top: 0, behavior: "smooth" });
     setSubmitting(true);
     setError("");
     try {
