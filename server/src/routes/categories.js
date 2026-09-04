@@ -15,7 +15,7 @@ router.get("/", async (_req, res) => {
     });
     const store = categories.filter((c) => c.source === "store");
     const mart = categories.filter((c) => c.source === "mart");
-    res.set("Cache-Control", "public, max-age=600");
+    res.set("Cache-Control", "public, max-age=30");
     res.json({ store, mart, all: categories });
   } catch (err) {
     res.status(500).json({ error: safeErrorMessage(err) });

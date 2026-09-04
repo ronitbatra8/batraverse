@@ -330,7 +330,7 @@ router.post("/ad-requests", async (req, res) => {
     if (!img || !tagline || !line) {
       return res.status(400).json({ error: "img, tagline, and line are required" });
     }
-    const seller = await prisma.sellerProfile.findUnique({ where: { userId: req.userId } });
+    const seller = await prisma.user.findUnique({ where: { id: req.userId }, select: { shopName: true } });
     const ad = await prisma.adRequest.create({
       data: {
         sellerId: req.userId,

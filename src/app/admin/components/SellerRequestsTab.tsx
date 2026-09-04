@@ -48,11 +48,16 @@ export default function SellerRequestsTab({ adminKey }: { adminKey: string }) {
   async function handleProcess(id: string, action: "approve" | "deny") {
     setProcessing(id);
     try {
-      await fetch(`${API}/api/admin/category-requests/${id}/process`, {
+      const res = await fetch(`${API}/api/admin/category-requests/${id}/process`, {
         method: "POST",
         headers: adminHeaders(adminKey),
         body: JSON.stringify({ action }),
       });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        alert(body.error || "Failed to process request");
+        return;
+      }
       fetchRequests();
     } finally {
       setProcessing(null);

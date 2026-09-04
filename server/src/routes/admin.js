@@ -819,7 +819,7 @@ router.post("/category-requests/:id/process", async (req, res) => {
     if (action === "approve") {
       const slug = request.categoryName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
       if (request.type === "new_category") {
-        const existing = await prisma.category.findFirst({ where: { slug, source: request.source } });
+        const existing = await prisma.category.findFirst({ where: { slug } });
         if (!existing) {
           const maxOrder = await prisma.category.aggregate({ where: { source: request.source }, _max: { sortOrder: true } });
           await prisma.category.create({
