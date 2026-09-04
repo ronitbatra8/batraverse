@@ -200,6 +200,7 @@ export default function CheckoutPage() {
       router.push("/login");
       return;
     }
+    window.scrollTo({ top: 0, behavior: "smooth" });
     setProcessing(true);
     setError("");
     try {
@@ -532,7 +533,7 @@ export default function CheckoutPage() {
                       Please fill: {missingShip.join(", ")}
                     </p>
                   )}
-                  <button type="button" onClick={() => setStep("payment")} disabled={!shipValid}
+                  <button type="button" onClick={() => { setStep("payment"); window.scrollTo({ top: 0, behavior: "smooth" }); }} disabled={!shipValid}
                     className={cn("rounded-xl px-8 py-3.5 text-[11px] font-bold uppercase tracking-[0.25em] transition-all duration-300", !shipValid ? "opacity-40 cursor-not-allowed" : "", light ? "bg-sapphire text-white hover:bg-sapphire-light hover:shadow-[0_0_30px_rgba(30,58,138,0.3)]" : "bg-gold text-abyss hover:bg-gold-light hover:shadow-[0_0_30px_rgba(212,175,55,0.3)]")}>
                     Continue to Payment
                   </button>
@@ -617,7 +618,7 @@ export default function CheckoutPage() {
 
                 <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
                   <button type="button" onClick={() => setStep("shipping")} className={cn("rounded-xl border px-6 py-3.5 text-[11px] font-bold uppercase tracking-[0.25em] transition-all duration-300", light ? "border-dark-200 text-dark-500 hover:border-sapphire hover:text-sapphire" : "border-white/10 text-cream-dim hover:border-gold hover:text-gold-light")}>Back</button>
-                  <button type="button" onClick={() => setStep("confirm")} disabled={!payValid}
+                  <button type="button" onClick={() => { setStep("confirm"); window.scrollTo({ top: 0, behavior: "smooth" }); }} disabled={!payValid}
                     className={cn("rounded-xl px-8 py-3.5 text-[11px] font-bold uppercase tracking-[0.25em] transition-all duration-300", !payValid ? "opacity-40 cursor-not-allowed" : "", light ? "bg-sapphire text-white hover:bg-sapphire-light hover:shadow-[0_0_30px_rgba(30,58,138,0.3)]" : "bg-gold text-abyss hover:bg-gold-light hover:shadow-[0_0_30px_rgba(212,175,55,0.3)]")}>Review Order</button>
                 </div>
               </div>
