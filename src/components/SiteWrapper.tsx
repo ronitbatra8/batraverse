@@ -46,33 +46,24 @@ export default function SiteWrapper({
     return () => { document.documentElement.classList.remove("scroll-locked"); };
   }, [effPhase]);
 
-  /* Scroll handling:
-     - Back/forward navigation: let Next.js restore the previous position
-       natively (we deliberately do NOT touch scroll here, so back from
-       /store/[id] lands where you left).
-     - Full page reload of a main/top-level page (e.g. /store): force scroll
-       to top after the browser finishes any late scroll-restore.
-     We detect "reload" via the Navigation Timing API, which distinguishes it
-     from back/forward. This effect only runs on a full page load (SiteWrapper
-     mounts once per load), never on client-side navigation. */
+  /* Always start every page at the top — on refresh/reload and on every
+     visit/navigation, for every page (main and nested alike). Products open
+     in a new tab, so the page you leave never changes its scroll position. */
   useEffect(() => {
-    let entry: any = null;
-    try { entry = performance.getEntriesByType?.("navigation")?.[0]; } catch {}
-    const type = entry?.type || (window.performance?.navigation?.type === 1 ? "reload" : "navigate");
-    const segments = pathname.split("/").filter(Boolean);
-    const isMain = segments.length <= 1;
-    if ((type === "reload" || type === "navigate") && isMain) {
-      const toTop = () => {
-        window.scrollTo(0, 0);
-        document.documentElement.scrollTop = 0;
-        document.body.scrollTop = 0;
-      };
-      toTop();
-      const t = window.setTimeout(toTop, 300);
-      return () => window.clearTimeout(t);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if ("scrollRestoration" in history) history.scrollRestoration = "manual";
   }, []);
+
+  useEffect(() => {
+    const toTop = () => {
+      window.scrollTo(0, 0);
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    };
+    toTop();
+    const t1 = window.setTimeout(toTop, 150);
+    const t2 = window.setTimeout(toTop, 400);
+    return () => { window.clearTimeout(t1); window.clearTimeout(t2); };
+  }, [pathname]);
 
   /* Once the boot completes, give the morph a beat, then finish */
   useEffect(() => {
