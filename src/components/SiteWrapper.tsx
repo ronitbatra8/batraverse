@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import BootScreen from "@/components/boot/BootScreen";
@@ -46,49 +46,33 @@ export default function SiteWrapper({
     return () => { document.documentElement.classList.remove("scroll-locked"); };
   }, [effPhase]);
 
-  /* Deterministic scroll management that matches what we actually want:
-     - Back/forward navigation restores the exact position you left.
-     - A fresh load of a main/top-level page (e.g. /store) goes to the top.
-     - Nested pages (e.g. /store/[id]) are left to the browser's default.
-     We detect back/forward via the popstate event (fires only on history
-     traversal, not on link clicks or reloads), and remember each page's
-     scroll position in sessionStorage so restoration is exact. */
-  const traversal = useRef(false);
-
+  /* Scroll handling:
+     - Back/forward navigation: let Next.js restore the previous position
+       natively (we deliberately do NOT touch scroll here, so back from
+       /store/[id] lands where you left).
+     - Full page reload of a main/top-level page (e.g. /store): force scroll
+       to top after the browser finishes any late scroll-restore.
+     We detect "reload" via the Navigation Timing API, which distinguishes it
+     from back/forward. This effect only runs on a full page load (SiteWrapper
+     mounts once per load), never on client-side navigation. */
   useEffect(() => {
-    const onPopState = () => { traversal.current = true; };
-    window.addEventListener("popstate", onPopState);
-    return () => window.removeEventListener("popstate", onPopState);
-  }, []);
-
-  /* Save the page we're leaving before the route changes */
-  useEffect(() => {
-    const leaving = pathname;
-    return () => {
-      try { sessionStorage.setItem(`scroll:${leaving}`, String(window.scrollY || 0)); } catch {}
-    };
-  }, [pathname]);
-
-  /* On arrival: restore (back/forward) or go to top (fresh main page) */
-  useEffect(() => {
+    let entry: any = null;
+    try { entry = performance.getEntriesByType?.("navigation")?.[0]; } catch {}
+    const type = entry?.type || (window.performance?.navigation?.type === 1 ? "reload" : "navigate");
     const segments = pathname.split("/").filter(Boolean);
     const isMain = segments.length <= 1;
-    const apply = () => {
-      if (traversal.current) {
-        traversal.current = false;
-        let y = 0;
-        try { y = parseInt(sessionStorage.getItem(`scroll:${pathname}`) || "0", 10) || 0; } catch {}
-        window.scrollTo(0, Math.max(0, y));
-        document.documentElement.scrollTop = Math.max(0, y);
-        document.body.scrollTop = Math.max(0, y);
-      } else if (isMain) {
+    if ((type === "reload" || type === "navigate") && isMain) {
+      const toTop = () => {
         window.scrollTo(0, 0);
         document.documentElement.scrollTop = 0;
         document.body.scrollTop = 0;
-      }
-    };
-    requestAnimationFrame(() => requestAnimationFrame(apply));
-  }, [pathname]);
+      };
+      toTop();
+      const t = window.setTimeout(toTop, 300);
+      return () => window.clearTimeout(t);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /* Once the boot completes, give the morph a beat, then finish */
   useEffect(() => {
