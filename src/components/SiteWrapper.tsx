@@ -103,7 +103,7 @@ export default function SiteWrapper({
   }, [loading, user, isGuest, pathname, router]);
 
   return (
-    <ThemeProvider>
+    <ThemeProvider forceDark={effPhase !== "done"}>
       <ToastProvider>
       <CustomCursor />
       <BootContext.Provider value={{ phase: effPhase, boot }}>

@@ -26,7 +26,7 @@ const STORAGE_KEY = "bt-theme";
    The chosen theme is persisted to localStorage so it holds across reloads
    and is inherited by new tabs (e.g. a product opened in a new tab follows
    the current tab's dark/light choice). */
-export function ThemeProvider({ children }: { children: ReactNode }) {
+export function ThemeProvider({ children, forceDark }: { children: ReactNode; forceDark?: boolean }) {
   /* SSR always renders dark; the stored preference is applied after
      hydration in a layout effect so there's no client/server mismatch and
      no visible flash (the layout effect runs before paint). */
@@ -44,11 +44,17 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     setTheme(stored);
   }, []);
 
-  /* Mirror the current theme onto <html> and persist it */
+  /* Mirror the current theme onto <html> and persist it. While the boot
+     animation is playing (forceDark), always use dark — regardless of the
+     saved preference — then restore the saved theme once it's done. */
   useEffect(() => {
+    if (forceDark) {
+      document.documentElement.classList.remove("light");
+      return;
+    }
     document.documentElement.classList.toggle("light", theme === "light");
     try { window.localStorage.setItem(STORAGE_KEY, theme); } catch {}
-  }, [theme]);
+  }, [forceDark, theme]);
 
   const toggle = useCallback(
     () => setTheme((t) => (t === "dark" ? "light" : "dark")),
