@@ -46,23 +46,49 @@ export default function SiteWrapper({
     return () => { document.documentElement.classList.remove("scroll-locked"); };
   }, [effPhase]);
 
-  /* Scroll to top ONLY once per full page reload, and ONLY on main/top-level
-     pages (e.g. /, /store, /mart, /checkout) — not nested pages like
-     /store/[id]. We fire on the boot->done transition (which happens exactly
-     once per reload) and never on client-side navigation or back/forward, so
-     normal browsing (and the back button) keeps its scroll position. */
-  const reloadScrolled = useRef(false);
+  /* Deterministic scroll management that matches what we actually want:
+     - Back/forward navigation restores the exact position you left.
+     - A fresh load of a main/top-level page (e.g. /store) goes to the top.
+     - Nested pages (e.g. /store/[id]) are left to the browser's default.
+     We detect back/forward via the popstate event (fires only on history
+     traversal, not on link clicks or reloads), and remember each page's
+     scroll position in sessionStorage so restoration is exact. */
+  const traversal = useRef(false);
+
   useEffect(() => {
-    if (effPhase !== "done" || reloadScrolled.current) return;
-    reloadScrolled.current = true;
+    const onPopState = () => { traversal.current = true; };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
+
+  /* Save the page we're leaving before the route changes */
+  useEffect(() => {
+    const leaving = pathname;
+    return () => {
+      try { sessionStorage.setItem(`scroll:${leaving}`, String(window.scrollY || 0)); } catch {}
+    };
+  }, [pathname]);
+
+  /* On arrival: restore (back/forward) or go to top (fresh main page) */
+  useEffect(() => {
     const segments = pathname.split("/").filter(Boolean);
-    const isMainPage = segments.length <= 1;
-    if (isMainPage) {
-      window.scrollTo(0, 0);
-      document.documentElement.scrollTop = 0;
-      document.body.scrollTop = 0;
-    }
-  }, [effPhase]);
+    const isMain = segments.length <= 1;
+    const apply = () => {
+      if (traversal.current) {
+        traversal.current = false;
+        let y = 0;
+        try { y = parseInt(sessionStorage.getItem(`scroll:${pathname}`) || "0", 10) || 0; } catch {}
+        window.scrollTo(0, Math.max(0, y));
+        document.documentElement.scrollTop = Math.max(0, y);
+        document.body.scrollTop = Math.max(0, y);
+      } else if (isMain) {
+        window.scrollTo(0, 0);
+        document.documentElement.scrollTop = 0;
+        document.body.scrollTop = 0;
+      }
+    };
+    requestAnimationFrame(() => requestAnimationFrame(apply));
+  }, [pathname]);
 
   /* Once the boot completes, give the morph a beat, then finish */
   useEffect(() => {
