@@ -472,36 +472,58 @@ export default function MartProductPage() {
                         href={`/mart/${rp.id}`}
                         onMouseEnter={() => warmProduct(rp.id)}
                         className={cn(
-                          "group block w-[44vw] shrink-0 snap-start overflow-hidden rounded-none border-0 transition-all duration-300 sm:w-[48%] lg:w-[9.5%] sm:shrink-0 sm:rounded-2xl sm:border",
+                          "group w-[calc(50%-6px)] shrink-0 snap-start overflow-hidden rounded-none border-0 transition-all duration-500 sm:w-[calc(33.333%-17px)] md:w-[calc(25%-18px)] md:shrink-0 md:rounded-2xl md:border",
                           light
-                            ? "border-dark-200/60 bg-white hover:border-sapphire/20 hover:shadow-[0_4px_24px_rgba(30,58,138,0.08)]"
-                            : "border-white/5 bg-graphite hover:border-gold/15 hover:shadow-[0_4px_24px_rgba(212,175,55,0.06)]"
+                            ? "md:border-dark-200/60 md:bg-white md:hover:border-sapphire/30 md:hover:shadow-[0_8px_40px_rgba(30,58,138,0.1)]"
+                            : "md:border-white/5 md:bg-graphite md:hover:border-gold/20 md:hover:shadow-[0_8px_40px_rgba(212,175,55,0.08)]"
                         )}
                       >
-                        <div className="relative aspect-[4/5] sm:aspect-square overflow-hidden">
+                        <div className="relative aspect-[4/5] sm:aspect-[4/3] overflow-hidden">
                           {img ? (
                             <img
                               src={resolveImageUrl(img)}
                               alt={rp.name}
-                              className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                              className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
                               onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                             />
                           ) : (
-                            <div className={cn("absolute inset-0 bg-gradient-to-br transition-transform duration-500 group-hover:scale-105", rp.gradient)} />
+                            <div className={cn("absolute inset-0 bg-gradient-to-br transition-transform duration-700 group-hover:scale-105", rp.gradient)} />
                           )}
                           {rp.badge && (
-                            <span className={cn("absolute left-2 top-2 rounded-full px-2 py-1 text-[7px] font-bold uppercase tracking-[0.15em]", light ? "bg-white/90 text-dark-900 shadow-sm" : "bg-abyss/80 text-gold-light backdrop-blur-sm")}>
+                            <span
+                              className={cn(
+                                "absolute left-3 top-3 rounded-full px-3 py-1 text-[8px] font-bold uppercase tracking-[0.2em]",
+                                light
+                                  ? "bg-white/90 text-dark-900 shadow-sm"
+                                  : "bg-abyss/80 text-gold-light backdrop-blur-sm"
+                              )}
+                            >
                               {rp.badge}
                             </span>
                           )}
                         </div>
-                        <div className="p-3">
-                          <h3 className={cn("text-xs font-medium leading-tight line-clamp-2", light ? "text-dark-900" : "text-cream")}>
+                        <div className="p-4">
+                          <h3 className={cn("text-sm font-medium leading-tight", light ? "text-dark-900" : "text-cream")}>
                             {rp.name}
                           </h3>
-                          <span className={cn("mt-1 block text-sm font-bold tabular-nums", light ? "text-dark-900" : "text-cream")}>
+                          <span className={cn("mt-1 block text-sm font-semibold tabular-nums", light ? "text-sapphire" : "text-gold-light")}>
                             {formatPrice(rp.price)}
                           </span>
+                          {rp.originalPrice && (
+                            <span className={cn("text-xs line-through", light ? "text-dark-400" : "text-cream-dim/40")}>
+                              {formatPrice(rp.originalPrice)}
+                            </span>
+                          )}
+                          <div className="mt-2 flex items-center gap-1.5">
+                            <div className="flex items-center gap-0.5">
+                              {[...Array(5)].map((_, i) => (
+                                <Star key={i} size={10} className={cn(i < Math.floor(rp.rating) ? light ? "fill-sapphire text-sapphire" : "fill-gold text-gold" : light ? "fill-dark-200 text-dark-200" : "fill-white/10 text-white/10")} />
+                              ))}
+                            </div>
+                            <span className={cn("text-[9px] font-medium", light ? "text-dark-400" : "text-cream-dim/50")}>
+                              ({rp.reviews})
+                            </span>
+                          </div>
                         </div>
                       </Link>
                     );
