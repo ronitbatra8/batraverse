@@ -46,6 +46,20 @@ export default function SiteWrapper({
     return () => { document.documentElement.classList.remove("scroll-locked"); };
   }, [effPhase]);
 
+  /* Always start every page at the top: stop the browser from restoring
+     scroll on refresh, and jump to the top on every route change and once
+     the boot reveal finishes (which covers a reload too). */
+  useEffect(() => {
+    if ("scrollRestoration" in history) history.scrollRestoration = "manual";
+  }, []);
+
+  useEffect(() => {
+    if (effPhase !== "done") return;
+    window.scrollTo(0, 0);
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+  }, [effPhase, pathname]);
+
   /* Once the boot completes, give the morph a beat, then finish */
   useEffect(() => {
     if (phase !== "morph") return;
