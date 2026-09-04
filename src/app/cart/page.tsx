@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Minus, Plus, Trash2, ShoppingBag, ChevronRight, ArrowRight, Shield, Truck, RotateCcw, Zap, Clock } from "lucide-react";
 import { cn, formatPrice } from "@/lib/utils";
-import { useTheme } from "@/components/theme/ThemeProvider";
+import { useTheme, detailQuery } from "@/components/theme/ThemeProvider";
 import { useCart } from "@/components/cart/CartContext";
 import SiteLayout from "@/components/layout/SiteLayout";
 import { resolveImageUrl } from "@/lib/imageUrl";
@@ -116,7 +116,7 @@ export default function CartPage() {
                           )}
                         >
                           <a
-                            href={`/store/${item.product.id}`}
+                            href={`/store/${item.product.id}${detailQuery(theme)}`}
                             target="_blank"
                             className="relative h-24 w-24 shrink-0 overflow-hidden rounded-xl sm:h-28 sm:w-28"
                           >
@@ -137,7 +137,7 @@ export default function CartPage() {
                             <div>
                               <div className="flex items-start justify-between gap-2">
                                 <a
-                                  href={`/store/${item.product.id}`}
+                                  href={`/store/${item.product.id}${detailQuery(theme)}`}
                                   target="_blank"
                                   className={cn("text-sm font-medium leading-tight transition-colors", light ? "text-dark-900 hover:text-sapphire" : "text-cream hover:text-gold-light")}
                                 >
@@ -213,7 +213,7 @@ export default function CartPage() {
                           )}
                         >
                           <a
-                            href={`/mart/${item.product.id}`}
+                            href={`/mart/${item.product.id}${detailQuery(theme)}`}
                             target="_blank"
                             className="relative h-24 w-24 shrink-0 overflow-hidden rounded-xl sm:h-28 sm:w-28"
                           >
@@ -234,7 +234,7 @@ export default function CartPage() {
                             <div>
                               <div className="flex items-start justify-between gap-2">
                                 <a
-                                  href={`/mart/${item.product.id}`}
+                                  href={`/mart/${item.product.id}${detailQuery(theme)}`}
                                   target="_blank"
                                   className={cn("text-sm font-medium leading-tight transition-colors", light ? "text-dark-900 hover:text-sapphire" : "text-cream hover:text-gold-light")}
                                 >

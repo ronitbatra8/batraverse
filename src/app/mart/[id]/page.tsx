@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { Star, ShoppingBag, ChevronRight, Check, Shield, RotateCcw, Zap, Clock, Info, Minus, Plus } from "lucide-react";
 import { cn, formatPrice } from "@/lib/utils";
-import { useTheme } from "@/components/theme/ThemeProvider";
+import { useTheme, detailQuery } from "@/components/theme/ThemeProvider";
 import { useCart } from "@/components/cart/CartContext";
 import { trackRecentlyViewed } from "@/lib/recentlyViewed";
 import { getMartProduct } from "../products";
@@ -469,7 +469,7 @@ export default function MartProductPage() {
                     return (
                       <a
                         key={rp.id}
-                        href={`/mart/${rp.id}`}
+                        href={`/mart/${rp.id}${detailQuery(theme)}`}
                         target="_blank"
                         onMouseEnter={() => warmProduct(rp.id)}
                         className={cn(

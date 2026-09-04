@@ -3,7 +3,7 @@
 import { useMemo, useState, useEffect, useCallback, useRef } from "react";
 import { cn, formatPrice } from "@/lib/utils";
 import { resolveImageUrl } from "@/lib/imageUrl";
-import { useTheme } from "@/components/theme/ThemeProvider";
+import { useTheme, detailQuery } from "@/components/theme/ThemeProvider";
 import { useCart } from "@/components/cart/CartContext";
 import ProductGridSkeleton from "@/components/ui/ProductGridSkeleton";
 import { seedSlimProduct, warmProduct } from "@/lib/productCache";
@@ -260,6 +260,7 @@ function ProductCard({
   light: boolean;
 }) {
   const { addItem } = useCart();
+  const { theme } = useTheme();
   const [quickAdded, setQuickAdded] = useState(false);
 
   const handleQuickAdd = (e: React.MouseEvent) => {
@@ -279,7 +280,7 @@ function ProductCard({
 
   return (
     <a
-      href={`/store/${product.id}`}
+      href={`/store/${product.id}${detailQuery(theme)}`}
       target="_blank"
       onMouseEnter={() => warmProduct(product.id)}
       className={cn(

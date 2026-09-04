@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter, useParams } from "next/navigation";
 import { Star, Heart, ShoppingBag, ChevronRight, Check, Truck, Shield, RotateCcw, Zap, ThumbsUp, MessageSquare, Loader2 } from "lucide-react";
 import { cn, formatPrice } from "@/lib/utils";
-import { useTheme } from "@/components/theme/ThemeProvider";
+import { useTheme, detailQuery } from "@/components/theme/ThemeProvider";
 import { useCart } from "@/components/cart/CartContext";
 import { useWishlist } from "@/components/wishlist/WishlistContext";
 import { trackRecentlyViewed } from "@/lib/recentlyViewed";
@@ -945,7 +945,7 @@ export default function ProductPage() {
                     return (
                       <a
                         key={p.id}
-                        href={`/store/${p.id}`}
+                        href={`/store/${p.id}${detailQuery(theme)}`}
                         target="_blank"
                         onMouseEnter={() => warmProduct(p.id)}
                         className={cn(

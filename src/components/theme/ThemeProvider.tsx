@@ -11,7 +11,17 @@ import {
   type ReactNode,
 } from "react";
 
-type Theme = "dark" | "light";
+export type Theme = "dark" | "light";
+
+/* Query param used to carry the opener's theme to a product opened in a new
+   tab. Fresh opens (no param) always start dark. */
+const THEME_QUERY_KEY = "bt-theme";
+
+/* Returns ?bt-theme=<mode> for detail links that open in a new tab, so the
+   new tab can open in the same mode. Dark is the default, so it is omitted. */
+export function detailQuery(theme: Theme): string {
+  return theme === "light" ? `?${THEME_QUERY_KEY}=light` : "";
+}
 
 const ThemeContext = createContext<{ theme: Theme; toggle: () => void } | null>(
   null
@@ -20,22 +30,28 @@ const ThemeContext = createContext<{ theme: Theme; toggle: () => void } | null>(
 const STORAGE_KEY = "bt-theme";
 
 /* The theme lives in sessionStorage. A freshly opened tab (empty
-   sessionStorage) always starts DARK by default; a tab opened from the
-   current one (e.g. a product in a new tab) inherits a copy of that
-   tab's sessionStorage, so it follows the opener's dark/light choice —
-   the same way the signed-in account carries over.
-
-   The choice is never written to localStorage, so it is not remembered
-   across fresh loads. */
+   sessionStorage) always starts DARK by default. A product opened in a new
+   tab carries the opener's mode via ?bt-theme=<mode>, which is applied on
+   mount and then stripped from the URL — reliable in every browser (unlike
+   sessionStorage cloning, which Firefox/Safari don't provide). */
 export function ThemeProvider({ children }: { children: ReactNode }) {
   /* SSR always renders dark; any stored preference is applied after
      hydration in a layout effect so there's no client/server mismatch and
      no visible flash (the layout effect runs before paint). */
   const [theme, setTheme] = useState<Theme>("dark");
 
-  /* Apply the stored theme once, before paint, after hydration */
+  /* Apply the stored / URL-carried theme once, before paint, after hydration */
   useLayoutEffect(() => {
     let stored: Theme = "dark";
+    try {
+      const url = new URL(window.location.href);
+      const carried = url.searchParams.get(THEME_QUERY_KEY);
+      if (carried === "light" || carried === "dark") stored = carried;
+      if (carried) {
+        url.searchParams.delete(THEME_QUERY_KEY);
+        window.history.replaceState({}, "", url.toString());
+      }
+    } catch {}
     try {
       const v = window.sessionStorage.getItem(STORAGE_KEY);
       if (v === "light" || v === "dark") stored = v;

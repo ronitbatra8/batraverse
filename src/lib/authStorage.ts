@@ -3,23 +3,25 @@ const AUTH_KEYS = ["bt-token", "bt-accounts", "bt-current", "bt-current-user-id"
 export type AuthKey = (typeof AUTH_KEYS)[number];
 
 /**
- * AUTH_KEYS live in sessionStorage so each browser tab keeps its own session.
- * Signing in/out in one tab never mutates the session of other tabs; a session
- * survives until that tab is closed or the user signs out manually.
+ * AUTH_KEYS live in localStorage so the signed-in account is shared reliably
+ * across every tab of the same origin (opening a product in a new tab keeps
+ * you signed in). Signing out clears them, which signs out all tabs — that
+ * shared-session behaviour is intentional so a new tab never looks logged out.
  *
- * Note: tabs opened from a tab (e.g. admin "Access Account") inherit a copy of
- * the opener's sessionStorage, so impersonate-in-new-tab keeps working.
+ * localStorage is used (not sessionStorage) because a tab cloned from the
+ * opener via target="_blank" does NOT receive a sessionStorage copy in
+ * Firefox/Safari, so the account would be lost in new tabs.
  */
 function getStore(): Storage {
-  if (typeof window === "undefined") return sessionStorage;
+  if (typeof window === "undefined") return localStorage;
   try {
-    if (!window.sessionStorage) {
+    if (!window.localStorage) {
       /* istanbul ignore next */
-      throw new Error("no sessionStorage");
+      throw new Error("no localStorage");
     }
-    return window.sessionStorage;
+    return window.localStorage;
   } catch {
-    return window.sessionStorage;
+    return window.localStorage;
   }
 }
 
