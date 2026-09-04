@@ -242,7 +242,7 @@ export default function AdsShowcase({ page = "home", hideHeader = false }: { pag
               <AnimatePresence mode="popLayout">
                 <motion.div
                   key={index}
-                  className="max-w-lg"
+                  className="mx-auto flex max-w-lg flex-col items-center text-center"
                   initial={{ opacity: 0, y: 24 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -16 }}
@@ -256,15 +256,14 @@ export default function AdsShowcase({ page = "home", hideHeader = false }: { pag
                   </p>
                   <Link
                     href={current.href}
-                    className="group relative mt-6 inline-flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.25em] text-gold-light transition-colors duration-300 hover:text-cream"
+                    className="group mt-8 inline-flex items-center gap-2.5 rounded-full border border-gold-light/40 bg-gold/15 px-9 py-3.5 text-sm font-semibold uppercase tracking-[0.15em] text-gold-light shadow-[0_0_24px_rgba(212,175,55,0.25)] transition-all duration-300 hover:bg-gold hover:text-onyx hover:shadow-[0_0_36px_rgba(212,175,55,0.5)]"
                   >
                     View Campaign
                     <ArrowRight
-                      size={14}
-                      strokeWidth={1.75}
+                      size={18}
+                      strokeWidth={2}
                       className="transition-transform duration-300 group-hover:translate-x-1"
                     />
-                    <span className="absolute -bottom-1.5 left-0 h-px w-0 bg-gold transition-all duration-700 group-hover:w-full" />
                   </Link>
                 </motion.div>
               </AnimatePresence>
