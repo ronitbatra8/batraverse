@@ -28,11 +28,12 @@ export default function SiteWrapper({
   const [boot, setBoot] = useState<BootState>("pending");
 
   /* Decide before the first paint. Until then everything is rendered hidden,
-     so SSR is a quiet black page — a first visit paints the boot screen over
-     it, a returning session paints the page directly. */
+     so SSR is a quiet black page — a first visit to the homepage paints the
+     boot screen over it. Boot only plays on "/" (skipped on product/listing
+     tabs opened in new windows) and once per tab session. */
   useLayoutEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration-safe: decide boot state from sessionStorage only after mount
-    setBoot(sessionStorage.getItem(BOOT_KEY) ? "skip" : "play");
+    setBoot(pathname === "/" && !sessionStorage.getItem(BOOT_KEY) ? "play" : "skip");
   }, []);
 
   /* pending = hidden, play = real phases, skip = instantly done */
