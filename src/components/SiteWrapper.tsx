@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import BootScreen from "@/components/boot/BootScreen";
@@ -46,19 +46,29 @@ export default function SiteWrapper({
     return () => { document.documentElement.classList.remove("scroll-locked"); };
   }, [effPhase]);
 
-  /* Always start every page at the top: stop the browser from restoring
-     scroll on refresh, and jump to the top on every route change and once
-     the boot reveal finishes (which covers a reload too). */
+  /* Stop the browser from auto-restoring scroll on a full reload, so our own
+     scroll-to-top below is what wins. */
   useEffect(() => {
     if ("scrollRestoration" in history) history.scrollRestoration = "manual";
   }, []);
 
+  /* Scroll to top ONLY once per full page reload, and ONLY on main/top-level
+     pages (e.g. /, /store, /mart, /checkout) — not nested pages like
+     /store/[id]. We fire on the boot->done transition (which happens exactly
+     once per reload) and never on client-side navigation or back/forward, so
+     normal browsing keeps its scroll position. */
+  const reloadScrolled = useRef(false);
   useEffect(() => {
-    if (effPhase !== "done") return;
-    window.scrollTo(0, 0);
-    document.documentElement.scrollTop = 0;
-    document.body.scrollTop = 0;
-  }, [effPhase, pathname]);
+    if (effPhase !== "done" || reloadScrolled.current) return;
+    reloadScrolled.current = true;
+    const segments = pathname.split("/").filter(Boolean);
+    const isMainPage = segments.length <= 1;
+    if (isMainPage) {
+      window.scrollTo(0, 0);
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    }
+  }, [effPhase]);
 
   /* Once the boot completes, give the morph a beat, then finish */
   useEffect(() => {
