@@ -46,17 +46,11 @@ export default function SiteWrapper({
     return () => { document.documentElement.classList.remove("scroll-locked"); };
   }, [effPhase]);
 
-  /* Stop the browser from auto-restoring scroll on a full reload, so our own
-     scroll-to-top below is what wins. */
-  useEffect(() => {
-    if ("scrollRestoration" in history) history.scrollRestoration = "manual";
-  }, []);
-
   /* Scroll to top ONLY once per full page reload, and ONLY on main/top-level
      pages (e.g. /, /store, /mart, /checkout) — not nested pages like
      /store/[id]. We fire on the boot->done transition (which happens exactly
      once per reload) and never on client-side navigation or back/forward, so
-     normal browsing keeps its scroll position. */
+     normal browsing (and the back button) keeps its scroll position. */
   const reloadScrolled = useRef(false);
   useEffect(() => {
     if (effPhase !== "done" || reloadScrolled.current) return;
