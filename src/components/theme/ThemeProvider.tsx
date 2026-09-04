@@ -5,6 +5,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -16,14 +17,37 @@ const ThemeContext = createContext<{ theme: Theme; toggle: () => void } | null>(
   null
 );
 
+const STORAGE_KEY = "bt-theme";
+
 /* Toggles the `light` class on <html> — globals.css re-maps the whole
    maison palette (background, neutrals, nav glass) onto a subtle-white
-   scheme, so every token-based style flips with a single class. */
+   scheme, so every token-based style flips with a single class.
+
+   The chosen theme is persisted to localStorage so it holds across reloads
+   and is inherited by new tabs (e.g. a product opened in a new tab follows
+   the current tab's dark/light choice). */
 export function ThemeProvider({ children }: { children: ReactNode }) {
+  /* SSR always renders dark; the stored preference is applied after
+     hydration in a layout effect so there's no client/server mismatch and
+     no visible flash (the layout effect runs before paint). */
   const [theme, setTheme] = useState<Theme>("dark");
 
+  /* Apply the saved theme once, before paint, after hydration */
+  useLayoutEffect(() => {
+    let stored: Theme = "dark";
+    try {
+      const v = window.localStorage.getItem(STORAGE_KEY);
+      if (v === "light" || v === "dark") stored = v;
+    } catch {}
+    document.documentElement.classList.toggle("light", stored === "light");
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate once, then match persisted preference
+    setTheme(stored);
+  }, []);
+
+  /* Mirror the current theme onto <html> and persist it */
   useEffect(() => {
     document.documentElement.classList.toggle("light", theme === "light");
+    try { window.localStorage.setItem(STORAGE_KEY, theme); } catch {}
   }, [theme]);
 
   const toggle = useCallback(
