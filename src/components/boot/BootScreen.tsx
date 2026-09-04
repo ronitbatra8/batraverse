@@ -112,7 +112,7 @@ export default function BootScreen({
         style={{ top: "calc(50% + 190px)", x: "-50%" }}
         animate={auxControls}
       >
-        <p className="text-[9px] font-medium uppercase tracking-[0.6em] text-cream-dim/80">
+        <p className="text-[9px] font-medium uppercase tracking-[0.6em] text-white/90">
           Batra Verse · MMXXVI
         </p>
 
