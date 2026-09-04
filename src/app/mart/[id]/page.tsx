@@ -471,7 +471,6 @@ export default function MartProductPage() {
                         key={rp.id}
                         href={`/mart/${rp.id}`}
                         target="_blank"
-                        rel="noopener noreferrer"
                         onMouseEnter={() => warmProduct(rp.id)}
                         className={cn(
                           "group w-[calc(50%-6px)] shrink-0 snap-start overflow-hidden rounded-none border-0 transition-all duration-500 sm:w-[calc(33.333%-17px)] md:w-[calc(25%-18px)] md:shrink-0 md:rounded-2xl md:border",

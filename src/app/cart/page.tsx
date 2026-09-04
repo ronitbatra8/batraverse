@@ -118,7 +118,6 @@ export default function CartPage() {
                           <Link
                             href={`/store/${item.product.id}`}
                             target="_blank"
-                            rel="noopener noreferrer"
                             className="relative h-24 w-24 shrink-0 overflow-hidden rounded-xl sm:h-28 sm:w-28"
                           >
                             {src ? (
@@ -140,7 +139,6 @@ export default function CartPage() {
                                 <Link
                                   href={`/store/${item.product.id}`}
                                   target="_blank"
-                                  rel="noopener noreferrer"
                                   className={cn("text-sm font-medium leading-tight transition-colors", light ? "text-dark-900 hover:text-sapphire" : "text-cream hover:text-gold-light")}
                                 >
                                   {item.product.name}
@@ -217,7 +215,6 @@ export default function CartPage() {
                           <Link
                             href={`/mart/${item.product.id}`}
                             target="_blank"
-                            rel="noopener noreferrer"
                             className="relative h-24 w-24 shrink-0 overflow-hidden rounded-xl sm:h-28 sm:w-28"
                           >
                             {src ? (
@@ -239,7 +236,6 @@ export default function CartPage() {
                                 <Link
                                   href={`/mart/${item.product.id}`}
                                   target="_blank"
-                                  rel="noopener noreferrer"
                                   className={cn("text-sm font-medium leading-tight transition-colors", light ? "text-dark-900 hover:text-sapphire" : "text-cream hover:text-gold-light")}
                                 >
                                   {item.product.name}

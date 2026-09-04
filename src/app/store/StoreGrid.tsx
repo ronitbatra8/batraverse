@@ -282,7 +282,6 @@ function ProductCard({
     <Link
       href={`/store/${product.id}`}
       target="_blank"
-      rel="noopener noreferrer"
       onMouseEnter={() => warmProduct(product.id)}
       className={cn(
         "group block overflow-hidden rounded-none border-0 transition-all duration-500 sm:rounded-2xl sm:border",
