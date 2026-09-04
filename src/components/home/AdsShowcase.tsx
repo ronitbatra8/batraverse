@@ -242,7 +242,7 @@ export default function AdsShowcase({ page = "home", hideHeader = false }: { pag
               <AnimatePresence mode="popLayout">
                 <motion.div
                   key={index}
-                  className="flex flex-col items-start text-left"
+                  className="max-w-lg text-left"
                   initial={{ opacity: 0, y: 24 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -16 }}
@@ -256,7 +256,7 @@ export default function AdsShowcase({ page = "home", hideHeader = false }: { pag
                   </p>
                   <Link
                     href={current.href}
-                    className="group mt-8 inline-flex items-center gap-2.5 self-center rounded-full border border-gold-light/40 bg-gold/15 px-9 py-3.5 text-sm font-semibold uppercase tracking-[0.15em] text-gold-light shadow-[0_0_24px_rgba(212,175,55,0.25)] transition-all duration-300 hover:bg-gold hover:text-onyx hover:shadow-[0_0_36px_rgba(212,175,55,0.5)]"
+                    className="group mt-8 inline-flex items-center gap-2.5 rounded-full border border-gold-light/40 bg-gold/15 px-9 py-3.5 text-sm font-semibold uppercase tracking-[0.15em] text-gold-light shadow-[0_0_24px_rgba(212,175,55,0.25)] transition-all duration-300 hover:bg-gold hover:text-onyx hover:shadow-[0_0_36px_rgba(212,175,55,0.5)]"
                   >
                     View Campaign
                     <ArrowRight
