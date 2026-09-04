@@ -467,7 +467,7 @@ export default function MartProductPage() {
                   {row.map((rp) => {
                     const img = rp.dbImages?.[0] || "";
                     return (
-                      <Link
+                      <a
                         key={rp.id}
                         href={`/mart/${rp.id}`}
                         target="_blank"
@@ -526,7 +526,7 @@ export default function MartProductPage() {
                             </span>
                           </div>
                         </div>
-                      </Link>
+                      </a>
                     );
                   })}
                 </div>

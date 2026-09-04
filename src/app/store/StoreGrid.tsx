@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState, useEffect, useCallback, useRef } from "react";
-import Link from "next/link";
 import { cn, formatPrice } from "@/lib/utils";
 import { resolveImageUrl } from "@/lib/imageUrl";
 import { useTheme } from "@/components/theme/ThemeProvider";
@@ -279,7 +278,7 @@ function ProductCard({
   };
 
   return (
-    <Link
+    <a
       href={`/store/${product.id}`}
       target="_blank"
       onMouseEnter={() => warmProduct(product.id)}
@@ -415,6 +414,6 @@ function ProductCard({
           </span>
         </div>
       </div>
-    </Link>
+    </a>
   );
 }

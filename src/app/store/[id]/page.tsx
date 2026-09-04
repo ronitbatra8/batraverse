@@ -943,7 +943,7 @@ export default function ProductPage() {
                   {row.map((p) => {
                     const img = p.dbImages?.[0] || p.colors?.[0]?.images?.[0] || "";
                     return (
-                      <Link
+                      <a
                         key={p.id}
                         href={`/store/${p.id}`}
                         target="_blank"
@@ -1002,7 +1002,7 @@ export default function ProductPage() {
                             </span>
                           </div>
                         </div>
-                      </Link>
+                      </a>
                     );
                   })}
                 </div>

@@ -115,7 +115,7 @@ export default function CartPage() {
                             light ? "border-dark-200/60 bg-white" : "border-white/5 bg-graphite"
                           )}
                         >
-                          <Link
+                          <a
                             href={`/store/${item.product.id}`}
                             target="_blank"
                             className="relative h-24 w-24 shrink-0 overflow-hidden rounded-xl sm:h-28 sm:w-28"
@@ -131,18 +131,18 @@ export default function CartPage() {
                             <span className={cn("absolute bottom-1.5 left-1.5 rounded-full px-2 py-0.5 text-[7px] font-bold uppercase tracking-wider backdrop-blur-sm", light ? "bg-white/80 text-dark-700" : "bg-abyss/70 text-cream-dim/80")}>
                               {item.color}
                             </span>
-                          </Link>
+                          </a>
 
                           <div className="flex flex-1 flex-col justify-between">
                             <div>
                               <div className="flex items-start justify-between gap-2">
-                                <Link
+                                <a
                                   href={`/store/${item.product.id}`}
                                   target="_blank"
                                   className={cn("text-sm font-medium leading-tight transition-colors", light ? "text-dark-900 hover:text-sapphire" : "text-cream hover:text-gold-light")}
                                 >
                                   {item.product.name}
-                                </Link>
+                                </a>
                                 <button
                                   type="button"
                                   onClick={() => removeItem(key)}
@@ -212,7 +212,7 @@ export default function CartPage() {
                             light ? "border-dark-200/60 bg-white" : "border-white/5 bg-graphite"
                           )}
                         >
-                          <Link
+                          <a
                             href={`/mart/${item.product.id}`}
                             target="_blank"
                             className="relative h-24 w-24 shrink-0 overflow-hidden rounded-xl sm:h-28 sm:w-28"
@@ -228,18 +228,18 @@ export default function CartPage() {
                             <span className={cn("absolute bottom-1.5 left-1.5 rounded-full px-2 py-0.5 text-[7px] font-bold uppercase tracking-wider backdrop-blur-sm", light ? "bg-white/80 text-dark-700" : "bg-abyss/70 text-cream-dim/80")}>
                               {item.color}
                             </span>
-                          </Link>
+                          </a>
 
                           <div className="flex flex-1 flex-col justify-between">
                             <div>
                               <div className="flex items-start justify-between gap-2">
-                                <Link
+                                <a
                                   href={`/mart/${item.product.id}`}
                                   target="_blank"
                                   className={cn("text-sm font-medium leading-tight transition-colors", light ? "text-dark-900 hover:text-sapphire" : "text-cream hover:text-gold-light")}
                                 >
                                   {item.product.name}
-                                </Link>
+                                </a>
                                 <button
                                   type="button"
                                   onClick={() => removeItem(key)}
