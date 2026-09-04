@@ -124,6 +124,25 @@ export default function StoreGrid({ category, subCategories }: StoreGridProps) {
   const [loading, setLoading] = useState(true);
   const sentinelRef = useRef<HTMLDivElement>(null);
 
+  /* When arriving back from a product detail page, restore the scroll to that
+     product's category heading (e.g. back to /store lands on the "Fashion"
+     section). The category is recorded on card click and consumed here once. */
+  const anchorCat = useRef<string | null>(null);
+  useEffect(() => {
+    let cat: string | null = null;
+    try {
+      const raw = sessionStorage.getItem("bt-store-return-cat");
+      if (raw) {
+        const i = raw.lastIndexOf("|");
+        const ts = parseInt(raw.slice(i + 1), 10);
+        if (!Number.isNaN(ts) && Date.now() - ts < 60000) cat = raw.slice(0, i);
+        sessionStorage.removeItem("bt-store-return-cat");
+      }
+    } catch {}
+    anchorCat.current = cat;
+    // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps
+  }, []);
+
   const fetchDbProducts = useCallback(async () => {
     try {
       const res = await fetch(`${API_BASE}/categories/products/store`, {
@@ -160,6 +179,15 @@ export default function StoreGrid({ category, subCategories }: StoreGridProps) {
       map.get(key)!.push(p);
     }
     return map;
+  }, [filtered, visibleCount]);
+
+  /* Scroll to the remembered category heading once its products have rendered */
+  useEffect(() => {
+    if (!anchorCat.current || filtered.length === 0 || visibleCount === 0) return;
+    const el = document.getElementById(`store-cat-${anchorCat.current}`);
+    if (!el) return;
+    el.scrollIntoView({ block: "start" });
+    anchorCat.current = null;
   }, [filtered, visibleCount]);
 
   /* Progressive render: grow the visible slice as the sentinel scrolls in */
@@ -216,8 +244,9 @@ export default function StoreGrid({ category, subCategories }: StoreGridProps) {
             <div key={cat} className="mb-14 last:mb-0">
               {category === "all" && (
                 <h2
+                  id={`store-cat-${cat}`}
                   className={cn(
-                    "mb-6 text-[11px] font-semibold uppercase tracking-[0.35em]",
+                    "mb-6 scroll-mt-32 text-[11px] font-semibold uppercase tracking-[0.35em]",
                     light ? "text-dark-400" : "text-cream-dim/60"
                   )}
                 >
@@ -282,6 +311,9 @@ function ProductCard({
     <Link
       href={`/store/${product.id}`}
       onMouseEnter={() => warmProduct(product.id)}
+      onClick={() => {
+        try { sessionStorage.setItem("bt-store-return-cat", `${product.category}|${Date.now()}`); } catch {}
+      }}
       className={cn(
         "group block overflow-hidden rounded-none border-0 transition-all duration-500 sm:rounded-2xl sm:border",
         light
