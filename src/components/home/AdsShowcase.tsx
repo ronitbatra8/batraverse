@@ -242,7 +242,7 @@ export default function AdsShowcase({ page = "home", hideHeader = false }: { pag
               <AnimatePresence mode="popLayout">
                 <motion.div
                   key={index}
-                  className="mx-auto flex max-w-lg flex-col items-start text-left"
+                  className="flex flex-col items-start text-left"
                   initial={{ opacity: 0, y: 24 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -16 }}
