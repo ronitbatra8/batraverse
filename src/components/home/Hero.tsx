@@ -249,7 +249,7 @@ function Lamp({ active }: { active: boolean }) {
         <motion.div
           className="w-[2px] bg-gradient-to-b from-cream-dim/50 to-cream-dim/75"
           initial={{ height: 0 }}
-          animate={{ height: "2rem" }}
+          animate={{ height: "6rem" }}
           transition={{ duration: 0.45, ease: EASE }}
         />
 
