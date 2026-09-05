@@ -58,6 +58,12 @@ interface SellerProfile {
   phone: string;
   shopName: string;
   shopDescription: string;
+  pickupName: string;
+  pickupAddress: string;
+  pickupCity: string;
+  pickupState: string;
+  pickupPincode: string;
+  pickupPhone: string;
   cardNumber: string;
   cardLevel: string;
 }
@@ -225,6 +231,12 @@ export default function SellerDashboardPage() {
   const [profileSaving, setProfileSaving] = useState(false);
   const [shopName, setShopName] = useState("");
   const [shopDesc, setShopDesc] = useState("");
+  const [pickupName, setPickupName] = useState("");
+  const [pickupAddress, setPickupAddress] = useState("");
+  const [pickupCity, setPickupCity] = useState("");
+  const [pickupState, setPickupState] = useState("");
+  const [pickupPincode, setPickupPincode] = useState("");
+  const [pickupPhone, setPickupPhone] = useState("");
 
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [productForm, setProductForm] = useState<ProductForm>(EMPTY_PRODUCT);
@@ -306,6 +318,12 @@ export default function SellerDashboardPage() {
       setAdRequests(Array.isArray(adr) ? adr : []);
       setShopName(p.shopName || "");
       setShopDesc(p.shopDescription || "");
+      setPickupName(p.pickupName || "");
+      setPickupAddress(p.pickupAddress || "");
+      setPickupCity(p.pickupCity || "");
+      setPickupState(p.pickupState || "");
+      setPickupPincode(p.pickupPincode || "");
+      setPickupPhone(p.pickupPhone || "");
     } catch {
       toast("Failed to load dashboard", "error");
     } finally {
@@ -323,9 +341,18 @@ export default function SellerDashboardPage() {
     try {
       await apiFetch("/seller/profile", {
         method: "PUT",
-        body: JSON.stringify({ shopName, shopDescription: shopDesc }),
+        body: JSON.stringify({
+          shopName,
+          shopDescription: shopDesc,
+          pickupName,
+          pickupAddress,
+          pickupCity,
+          pickupState,
+          pickupPincode,
+          pickupPhone,
+        }),
       });
-      setProfile((p) => (p ? { ...p, shopName, shopDescription: shopDesc } : p));
+      setProfile((p) => (p ? { ...p, shopName, shopDescription: shopDesc, pickupName, pickupAddress, pickupCity, pickupState, pickupPincode, pickupPhone } : p));
       toast("Profile updated", "success");
     } catch {
       toast("Failed to update profile", "error");
@@ -576,9 +603,21 @@ export default function SellerDashboardPage() {
               profile={profile}
               shopName={shopName}
               shopDesc={shopDesc}
+              pickupName={pickupName}
+              pickupAddress={pickupAddress}
+              pickupCity={pickupCity}
+              pickupState={pickupState}
+              pickupPincode={pickupPincode}
+              pickupPhone={pickupPhone}
               saving={profileSaving}
               onShopName={setShopName}
               onShopDesc={setShopDesc}
+              onPickupName={setPickupName}
+              onPickupAddress={setPickupAddress}
+              onPickupCity={setPickupCity}
+              onPickupState={setPickupState}
+              onPickupPincode={setPickupPincode}
+              onPickupPhone={setPickupPhone}
               onSave={handleProfileSave}
             />
           )}
@@ -981,21 +1020,53 @@ function ProfileTab({
   profile,
   shopName,
   shopDesc,
+  pickupName,
+  pickupAddress,
+  pickupCity,
+  pickupState,
+  pickupPincode,
+  pickupPhone,
   saving,
   onShopName,
   onShopDesc,
+  onPickupName,
+  onPickupAddress,
+  onPickupCity,
+  onPickupState,
+  onPickupPincode,
+  onPickupPhone,
   onSave,
 }: {
   profile: SellerProfile | null;
   shopName: string;
   shopDesc: string;
+  pickupName: string;
+  pickupAddress: string;
+  pickupCity: string;
+  pickupState: string;
+  pickupPincode: string;
+  pickupPhone: string;
   saving: boolean;
   onShopName: (v: string) => void;
   onShopDesc: (v: string) => void;
+  onPickupName: (v: string) => void;
+  onPickupAddress: (v: string) => void;
+  onPickupCity: (v: string) => void;
+  onPickupState: (v: string) => void;
+  onPickupPincode: (v: string) => void;
+  onPickupPhone: (v: string) => void;
   onSave: () => void;
 }) {
   if (!profile) return null;
-  const changed = shopName !== (profile.shopName || "") || shopDesc !== (profile.shopDescription || "");
+  const changed =
+    shopName !== (profile.shopName || "") ||
+    shopDesc !== (profile.shopDescription || "") ||
+    pickupName !== (profile.pickupName || "") ||
+    pickupAddress !== (profile.pickupAddress || "") ||
+    pickupCity !== (profile.pickupCity || "") ||
+    pickupState !== (profile.pickupState || "") ||
+    pickupPincode !== (profile.pickupPincode || "") ||
+    pickupPhone !== (profile.pickupPhone || "");
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -1030,6 +1101,79 @@ function ProfileTab({
           {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
           {saving ? "Saving..." : "Save Changes"}
         </button>
+      </div>
+
+      <div className="bg-dark-900/60 border border-dark-800/50 rounded-2xl p-6 space-y-5">
+        <div>
+          <h3 className="text-sm font-display font-bold text-white">Pickup Address</h3>
+          <p className="text-xs text-dark-500 mt-1">
+            Used as the pickup source when your orders are shipped via Delhivery. Save this so courier pickup works.
+          </p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="text-xs text-dark-500 uppercase tracking-wider font-semibold mb-1.5 block">Contact Name</label>
+            <input
+              type="text"
+              value={pickupName}
+              onChange={(e) => onPickupName(e.target.value)}
+              className="w-full bg-dark-800/60 border border-dark-700/50 rounded-xl px-4 py-3 text-white text-sm placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50 transition-colors"
+              placeholder="Pickup contact name"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-dark-500 uppercase tracking-wider font-semibold mb-1.5 block">Phone</label>
+            <input
+              type="tel"
+              value={pickupPhone}
+              onChange={(e) => onPickupPhone(e.target.value)}
+              className="w-full bg-dark-800/60 border border-dark-700/50 rounded-xl px-4 py-3 text-white text-sm placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50 transition-colors"
+              placeholder="Pickup contact phone"
+            />
+          </div>
+        </div>
+        <div>
+          <label className="text-xs text-dark-500 uppercase tracking-wider font-semibold mb-1.5 block">Address</label>
+          <textarea
+            value={pickupAddress}
+            onChange={(e) => onPickupAddress(e.target.value)}
+            rows={3}
+            className="w-full bg-dark-800/60 border border-dark-700/50 rounded-xl px-4 py-3 text-white text-sm placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50 transition-colors resize-none"
+            placeholder="Full shop/business address where the courier picks up items"
+          />
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+          <div>
+            <label className="text-xs text-dark-500 uppercase tracking-wider font-semibold mb-1.5 block">City</label>
+            <input
+              type="text"
+              value={pickupCity}
+              onChange={(e) => onPickupCity(e.target.value)}
+              className="w-full bg-dark-800/60 border border-dark-700/50 rounded-xl px-4 py-3 text-white text-sm placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50 transition-colors"
+              placeholder="City"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-dark-500 uppercase tracking-wider font-semibold mb-1.5 block">State</label>
+            <input
+              type="text"
+              value={pickupState}
+              onChange={(e) => onPickupState(e.target.value)}
+              className="w-full bg-dark-800/60 border border-dark-700/50 rounded-xl px-4 py-3 text-white text-sm placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50 transition-colors"
+              placeholder="State"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-dark-500 uppercase tracking-wider font-semibold mb-1.5 block">Pincode</label>
+            <input
+              type="text"
+              value={pickupPincode}
+              onChange={(e) => onPickupPincode(e.target.value)}
+              className="w-full bg-dark-800/60 border border-dark-700/50 rounded-xl px-4 py-3 text-white text-sm placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50 transition-colors"
+              placeholder="Pincode"
+            />
+          </div>
+        </div>
       </div>
 
       <div className="bg-dark-900/60 border border-dark-800/50 rounded-2xl p-6 space-y-5">

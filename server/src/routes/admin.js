@@ -91,7 +91,23 @@ router.post("/orders/:id/delhivery-ship", async (req, res) => {
     if (existing.carrier === "DELHIVERY" && existing.waybill) {
       return res.json({ order: existing, waybill: existing.waybill, trackingUrl: existing.trackingUrl, already: true });
     }
-    const shipped = await delhiveryCreateShipment({ order: existing, customer: existing.user });
+    const items = Array.isArray(existing.items) ? existing.items : [];
+    const productIds = items.map((it) => it.productId).filter((id) => id);
+    let pickup = null;
+    if (productIds.length > 0) {
+      const products = await prisma.product.findMany({
+        where: { id: { in: productIds } },
+        select: { id: true, sellerId: true },
+      });
+      const sellerIds = [...new Set(products.map((p) => p.sellerId).filter((id) => id))];
+      if (sellerIds.length > 0) {
+        pickup = await prisma.user.findUnique({
+          where: { id: sellerIds[0] },
+          select: { id: true, name: true, pickupName: true, pickupAddress: true, pickupCity: true, pickupState: true, pickupPincode: true, pickupPhone: true },
+        });
+      }
+    }
+    const shipped = await delhiveryCreateShipment({ order: existing, customer: existing.user, pickup });
     const updated = await prisma.order.update({
       where: { id: existing.id },
       data: {

@@ -63,14 +63,20 @@ router.get("/profile", (req, res) => {
 
 router.put("/profile", async (req, res) => {
   try {
-    const { shopName, shopDescription } = req.body;
+    const { shopName, shopDescription, pickupName, pickupAddress, pickupCity, pickupState, pickupPincode, pickupPhone } = req.body;
     const data = {};
     if (shopName !== undefined) data.shopName = shopName;
     if (shopDescription !== undefined) data.shopDescription = shopDescription;
+    if (pickupName !== undefined) data.pickupName = pickupName;
+    if (pickupAddress !== undefined) data.pickupAddress = pickupAddress;
+    if (pickupCity !== undefined) data.pickupCity = pickupCity;
+    if (pickupState !== undefined) data.pickupState = pickupState;
+    if (pickupPincode !== undefined) data.pickupPincode = pickupPincode;
+    if (pickupPhone !== undefined) data.pickupPhone = pickupPhone;
     const updated = await prisma.user.update({
       where: { id: req.userId },
       data,
-      select: { id: true, name: true, email: true, shopName: true, shopDescription: true },
+      select: { id: true, name: true, email: true, shopName: true, shopDescription: true, pickupName: true, pickupAddress: true, pickupCity: true, pickupState: true, pickupPincode: true, pickupPhone: true },
     });
     res.json(updated);
   } catch (err) {

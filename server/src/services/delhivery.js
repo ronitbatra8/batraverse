@@ -61,10 +61,14 @@ async function parseRes(res) {
   return data;
 }
 
-async function createShipment({ order, customer }) {
+async function createShipment({ order, customer, pickup }) {
   const cfg = config();
   if (!cfg.token || !cfg.client) throw new Error("Delhivery is not configured (token/client missing)");
   const paymentMode = order.paymentMethod === "COD" ? "COD" : "Prepaid";
+
+  const p = pickup && (pickup.pickupAddress || pickup.location) ? pickup : null;
+  const pickupName = (p && (p.pickupName || p.name)) || cfg.pickup;
+  const pickupLocation = pickupName || order.shippingCity || "";
 
   const shipment = {
     name: order.shippingName || customer?.name || "",
@@ -78,15 +82,24 @@ async function createShipment({ order, customer }) {
     shipment_type: "Forward",
     payment_mode: paymentMode,
     consignee_email: customer?.email || "",
-    pickup_location: cfg.pickup,
+    pickup_location: pickupLocation,
     weight: cfg.defaultWeight,
   };
+  if (p) {
+    const src = p.pickupAddress || p.address;
+    if (src) shipment.seller_address = src;
+    if (p.pickupCity || p.city) shipment.seller_city = p.pickupCity || p.city;
+    if (p.pickupState || p.state) shipment.seller_state = p.pickupState || p.state;
+    if (p.pickupPincode || p.pin) shipment.seller_pin = p.pickupPincode || p.pin;
+    if (p.pickupPhone || p.phone) shipment.seller_phone = p.pickupPhone || p.phone;
+    if (p.pickupName || p.name) shipment.seller_name = p.pickupName || p.name;
+  }
   if (paymentMode === "COD") shipment.cod_amount = Number(order.totalAmount) || 0;
   if (cfg.gst) shipment.seller_gst_tin = cfg.gst;
   if (cfg.hsn) shipment.hsn_code = cfg.hsn;
 
   const payload = {
-    pickup_location: { name: cfg.pickup },
+    pickup_location: { name: pickupLocation },
     shipments: [shipment],
     client: cfg.client,
     client_name: cfg.client,

@@ -20,7 +20,7 @@ async function requireSeller(req, res, next) {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.userId },
-      select: { id: true, role: true, approved: true, name: true, email: true, phone: true, shopName: true, shopDescription: true, cardNumber: true, cardLevel: true },
+      select: { id: true, role: true, approved: true, name: true, email: true, phone: true, shopName: true, shopDescription: true, pickupName: true, pickupAddress: true, pickupCity: true, pickupState: true, pickupPincode: true, pickupPhone: true, cardNumber: true, cardLevel: true },
     });
     if (!user) return res.status(404).json({ error: "User not found" });
     if (user.role !== "SELLER") return res.status(403).json({ error: "Seller access required" });

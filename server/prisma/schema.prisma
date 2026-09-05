@@ -76,6 +76,12 @@ model User {
   approved      Boolean  @default(false)
   shopName      String?
   shopDescription String?
+  pickupName    String?   // pickup contact name for Delhivery forward shipments
+  pickupAddress String?   // where courier picks up the seller's items
+  pickupCity    String?
+  pickupState   String?
+  pickupPincode String?
+  pickupPhone   String?
   cardNumber    String?  @unique // unique card/account number e.g. BV-XXXX-XXXX
   cardPinHash   String?  // optional separate PIN for card login (bcrypt hash)
   cardLevel     String?  // "owner" for admin override; otherwise level derived from walletBalance

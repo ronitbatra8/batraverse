@@ -129,7 +129,7 @@ router.get("/products/:source", async (req, res) => {
       orderBy: { name: "asc" },
       select: full ? FULL_SELECT : SLIM_SELECT,
     });
-    res.set("Cache-Control", "public, max-age=600");
+    res.set("Cache-Control", "public, max-age=300");
     res.json(full ? products : products.map(slimProduct));
   } catch (err) {
     res.status(500).json({ error: safeErrorMessage(err) });
