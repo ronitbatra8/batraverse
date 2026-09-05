@@ -2,6 +2,7 @@ const express = require("express");
 const prisma = require("../db");
 const { userAuth } = require("../middleware/userAuth");
 const { safeErrorMessage } = require("../utils/helpers");
+const { getEffectiveCardLevel } = require("../utils/cardLevel");
 
 const router = express.Router();
 
@@ -31,7 +32,7 @@ router.get("/balance", userAuth, async (req, res) => {
       select: { walletBalance: true, peakWalletBalance: true, cardLevel: true },
     });
     if (!user) return res.status(404).json({ error: "User not found" });
-    const level = user.cardLevel === "owner" ? "owner" : levelFromBalance(user.peakWalletBalance || 0);
+    const level = getEffectiveCardLevel(user);
     res.json({ balance: user.walletBalance, peakBalance: user.peakWalletBalance || 0, level });
   } catch (err) {
     res.status(500).json({ error: safeErrorMessage(err) });

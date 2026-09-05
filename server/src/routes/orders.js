@@ -2,6 +2,7 @@ const express = require("express");
 const prisma = require("../db");
 const { userAuth } = require("../middleware/userAuth");
 const { safeErrorMessage } = require("../utils/helpers");
+const { getEffectiveCardLevel } = require("../utils/cardLevel");
 const {
   sendOrderStatusEmail,
   sendOrderConfirmationEmail,
@@ -97,7 +98,7 @@ router.post("/", userAuth, async (req, res) => {
 
     // Card-level discount
     const user = await prisma.user.findUnique({ where: { id: req.userId }, select: { cardLevel: true, freeDeliveryUsed: true, freeDeliveryMonth: true, walletBalance: true, peakWalletBalance: true } });
-    const effectiveLevel = user.cardLevel === "owner" ? "owner" : getLevelFromBalance(user.peakWalletBalance || 0);
+    const effectiveLevel = getEffectiveCardLevel(user);
     const discountPct = LEVEL_DISCOUNT[effectiveLevel] || 0;
     const discountAmount = discountPct > 0 ? Math.round(subtotal * discountPct / 100 * 100) / 100 : 0;
     const discountedSubtotal = subtotal - discountAmount;

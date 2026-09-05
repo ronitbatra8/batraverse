@@ -18,7 +18,7 @@ import { useTheme } from "@/components/theme/ThemeProvider";
 import { useAuth } from "@/components/auth/AuthContext";
 import { useCart } from "@/components/cart/CartContext";
 import { useWishlist } from "@/components/wishlist/WishlistContext";
-import { LEVELS, getLevelFromBalance } from "@/lib/levels";
+import { LEVELS, getEffectiveLevel } from "@/lib/levels";
 import { roleDashboard } from "@/lib/roles";
 import menuStackIconData from "@/animations/menu-stack-icon.json";
 
@@ -108,8 +108,7 @@ export default function Navbar() {
      away in parallel once only the last two rows are still wiping. */
   const earlyExitRowDelay = Math.max(navRows.length - 2, 0) * 0.1;
 
-  const walletBalance = user?.walletBalance ?? 0;
-  const levelKey = getLevelFromBalance(user?.peakWalletBalance ?? walletBalance);
+  const levelKey = getEffectiveLevel(user ?? {});
   const levelMeta = LEVELS[levelKey];
   const LevelIcon = levelMeta.icon;
 

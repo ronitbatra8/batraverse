@@ -31,7 +31,7 @@ import { cn, formatPrice } from "@/lib/utils";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import { useCart } from "@/components/cart/CartContext";
 import { useAuth } from "@/components/auth/AuthContext";
-import { getDiscountPercent, getFreeDeliveries, LEVELS, type LevelKey } from "@/lib/levels";
+import { getDiscountPercent, getFreeDeliveries, getEffectiveLevel } from "@/lib/levels";
 import { apiFetch } from "@/lib/api";
 import SiteLayout from "@/components/layout/SiteLayout";
 import UpiPaymentModal from "@/components/UpiPaymentModal";
@@ -112,7 +112,7 @@ export default function CheckoutPage() {
   const storeSubtotal = storeItems.reduce((s, i) => s + (i.colorPrice ?? i.product.price) * i.qty, 0);
   const martSubtotal = martItems.reduce((s, i) => s + (i.colorPrice ?? i.product.price) * i.qty, 0);
 
-  const effectiveLevel: LevelKey = user?.cardLevel && user.cardLevel in LEVELS ? user.cardLevel as LevelKey : "none";
+  const effectiveLevel = getEffectiveLevel(user ?? {});
   const discountPct = getDiscountPercent(effectiveLevel);
   const discountAmount = discountPct > 0 ? Math.round(subtotal * discountPct / 100 * 100) / 100 : 0;
   const discountedSubtotal = subtotal - discountAmount;

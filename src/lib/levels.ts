@@ -132,6 +132,18 @@ export function getLevelFromBalance(balance: number): LevelKey {
   return "none";
 }
 
+/* An explicitly assigned card level is authoritative; otherwise the level is
+   derived from the peak lifetime wallet balance. Mirrors the server rule. */
+export function getEffectiveLevel(opts: {
+  cardLevel?: string | null;
+  peakWalletBalance?: number;
+  walletBalance?: number;
+}): LevelKey {
+  const cl = opts?.cardLevel;
+  if (cl && cl in LEVELS) return cl as LevelKey;
+  return getLevelFromBalance(opts?.peakWalletBalance ?? opts?.walletBalance ?? 0);
+}
+
 export function getBalanceForNextLevel(currentLevel: LevelKey): number | null {
   const next: Record<string, number> = { none: 100, bronze: 500, silver: 1500, gold: 5000, platinum: 15000, diamond: 30000 };
   return next[currentLevel] ?? null;

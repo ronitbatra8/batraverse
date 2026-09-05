@@ -4,6 +4,7 @@ const jwt = require("jsonwebtoken");
 const prisma = require("../db");
 const { userAuth } = require("../middleware/userAuth");
 const { safeErrorMessage, validateEmail, normalizePhone, isEmail, isPhone } = require("../utils/helpers");
+const { getEffectiveCardLevel } = require("../utils/cardLevel");
 const { generateOTP, sendResetPasswordEmail, sendPasswordChangedEmail, sendOTPEmail } = require("../utils/email");
 
 const router = express.Router();
@@ -293,8 +294,7 @@ router.put("/me/card-number", userAuth, async (req, res) => {
     const alpha = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     const nums = "0123456789";
     const rand = (s, n) => Array.from({ length: n }, () => s[Math.floor(Math.random() * s.length)]).join("");
-    const getLevelFromBal = (bal) => { if (bal >= 30000) return "black"; if (bal >= 15000) return "diamond"; if (bal >= 5000) return "platinum"; if (bal >= 1500) return "gold"; if (bal >= 500) return "silver"; if (bal >= 100) return "bronze"; return "none"; };
-    const level = user.cardLevel === "owner" ? "owner" : getLevelFromBal(user.walletBalance || 0);
+    const level = getEffectiveCardLevel(user);
     const prefix = LEVEL_PREFIX_MAP[level] || "BV";
 
     let cardNumber;

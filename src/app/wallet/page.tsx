@@ -6,7 +6,7 @@ import { useAuth } from "@/components/auth/AuthContext";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import { apiFetch } from "@/lib/api";
 import { cn, formatPrice } from "@/lib/utils";
-import { getLevelFromBalance, getBalanceForNextLevel, LEVELS, type LevelKey } from "@/lib/levels";
+import { getEffectiveLevel, getBalanceForNextLevel, LEVELS } from "@/lib/levels";
 import SiteLayout from "@/components/layout/SiteLayout";
 import { useToast } from "@/components/Toast";
 import { Wallet, ArrowUpRight, Clock, CheckCircle, XCircle, Loader2, QrCode, Copy, Smartphone } from "lucide-react";
@@ -45,7 +45,7 @@ function WalletContent() {
 
   const balance = user?.walletBalance ?? 0;
   const peakBalance = user?.peakWalletBalance ?? balance;
-  const level: LevelKey = user?.cardLevel === "owner" ? "owner" : getLevelFromBalance(peakBalance);
+  const level = getEffectiveLevel(user ?? {});
   const meta = LEVELS[level];
   const nextThreshold = getBalanceForNextLevel(level);
   const remaining = nextThreshold !== null ? Math.max(0, nextThreshold - peakBalance) : 0;

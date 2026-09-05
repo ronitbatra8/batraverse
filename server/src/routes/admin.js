@@ -724,10 +724,11 @@ router.post("/card-upgrades/:id/process", async (req, res) => {
       }),
     ]);
 
-    // Update card number prefix to match new level
+    // Update card number prefix to match new level (only for the exclusive
+    // BLACK / OWNER embossed cards — other levels keep their card number)
     const newPrefix = LEVEL_PREFIX[request.toLevel] || "BV";
     const user = request.user;
-    if (user.cardNumber) {
+    if (["black", "owner"].includes(request.toLevel) && user.cardNumber) {
       const parts = user.cardNumber.split("-");
       if (parts.length >= 2) {
         const newCardNumber = `${newPrefix}-${parts.slice(1).join("-")}`;
@@ -754,7 +755,10 @@ router.put("/users/:id/card", async (req, res) => {
     const newLevel = cardLevel === "none" ? null : cardLevel;
     const data = { cardLevel: newLevel };
     if (cardExpiry) data.cardExpiry = new Date(cardExpiry);
-    if (user.cardNumber && newLevel !== user.cardLevel) {
+    /* The card number only regenerates when the level becomes BLACK (or OWNER),
+       which gets an exclusive embossed number. Other level changes keep the
+       existing card number. */
+    if (["black", "owner"].includes(cardLevel) && user.cardNumber && newLevel !== user.cardLevel) {
       const newPrefix = LEVEL_PREFIX[cardLevel] || "BV";
       const oldPrefix = LEVEL_PREFIX[user.cardLevel || "none"] || "BV";
       let suffix = user.cardNumber.replace(/^[A-Z]+-/, "");
