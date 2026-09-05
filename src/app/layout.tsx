@@ -22,6 +22,9 @@ export const metadata: Metadata = {
   title: "BATRAVERSE — Shop Everything",
   description:
     "BATRAVERSE — a marketplace for everything. Shop electronics, fashion, home, groceries and more from trusted sellers, all in one place.",
+  verification: {
+    google: "OeyE2ORaWTUJSdGV6MhhPoHqwaisRlelE5vgrYSiOcw",
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
