@@ -84,6 +84,10 @@ export default function SiteWrapper({
      Everything else stays public; private pages guard themselves. */
   const GATE_KEY = "batraverse-gated";
 
+  /* The seller dashboard replaces the global top nav with its own sidebar,
+     so hide the top Navbar (and its offset) on /seller routes. */
+  const isSellerRoute = pathname.startsWith("/seller");
+
   useEffect(() => {
     if (loading) return;
     if (user || isGuest) return;
@@ -125,13 +129,13 @@ export default function SiteWrapper({
       )}
 
       {/* Navbar hosts the single brand element (z-50, above the boot bg) */}
-      <Navbar />
+      {!isSellerRoute && <Navbar />}
 
       {/* Page content. Remounted once the session decision lands so it mounts
           with the correct hidden/visible initial state. */}
       <motion.div
         key={boot}
-        className="relative z-10 flex min-h-screen w-full flex-col pt-16"
+        className={`relative z-10 flex min-h-screen w-full flex-col${isSellerRoute ? "" : " pt-16"}`}
         initial={boot === "skip" ? false : { opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.6, delay: 0.05, ease: EASE }}
