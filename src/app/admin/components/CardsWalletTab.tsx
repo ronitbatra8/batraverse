@@ -146,6 +146,11 @@ export default function CardsWalletTab({ adminKey }: { adminKey: string }) {
   const [walletExpanded, setWalletExpanded] = useState<string | null>(null);
   const [creditAmounts, setCreditAmounts] = useState<Record<string, string>>({});
   const [creditingId, setCreditingId] = useState<string | null>(null);
+  const [visibleCards, setVisibleCards] = useState(50);
+  const [visibleWallets, setVisibleWallets] = useState(50);
+
+  useEffect(() => { setVisibleCards(50); }, [userSearch, userFilter]);
+  useEffect(() => { setVisibleWallets(50); }, [walletSearch]);
 
   useEffect(() => {
     loadUsers();
@@ -218,6 +223,8 @@ export default function CardsWalletTab({ adminKey }: { adminKey: string }) {
     return true;
   });
 
+  const visibleCardUsers = filteredUsers.slice(0, visibleCards);
+
   const walletFiltered = users.filter((u) => {
     const q = walletSearch.toLowerCase();
     return (
@@ -227,6 +234,8 @@ export default function CardsWalletTab({ adminKey }: { adminKey: string }) {
       u.cardNumber?.toLowerCase().includes(q)
     );
   });
+
+  const visibleWalletUsers = walletFiltered.slice(0, visibleWallets);
 
   const countUpgraded = users.filter((u) => u.cardLevel && u.cardLevel !== "none").length;
   const countNone = users.filter((u) => !u.cardLevel || u.cardLevel === "none").length;
@@ -326,7 +335,7 @@ export default function CardsWalletTab({ adminKey }: { adminKey: string }) {
               </div>
             ) : (
               <div className="space-y-3">
-                {filteredUsers.map((u) => {
+                {visibleCardUsers.map((u) => {
                   const level = (u.cardLevel && u.cardLevel in LEVELS ? u.cardLevel : "none") as LevelKey;
                   const meta = LEVELS[level];
                   const LevelIcon = meta.icon;
@@ -471,6 +480,16 @@ export default function CardsWalletTab({ adminKey }: { adminKey: string }) {
                 })}
               </div>
             )}
+            {filteredUsers.length > visibleCardUsers.length && (
+              <div className="flex justify-center pt-2">
+                <button
+                  onClick={() => setVisibleCards((c) => c + 50)}
+                  className="flex items-center gap-2 px-6 py-2.5 rounded-xl border border-dark-700 text-dark-300 text-sm hover:border-gold-500/40 hover:text-gold-400 transition-all"
+                >
+                  Show more ({filteredUsers.length - visibleCardUsers.length} more)
+                </button>
+              </div>
+            )}
           </div>
         </>
       )}
@@ -509,7 +528,7 @@ export default function CardsWalletTab({ adminKey }: { adminKey: string }) {
               </div>
             ) : (
               <div className="space-y-3">
-                {walletFiltered.map((u) => {
+                {visibleWalletUsers.map((u) => {
                   const level = (u.cardLevel && u.cardLevel in LEVELS ? u.cardLevel : "none") as LevelKey;
                   const meta = LEVELS[level];
                   const isExpanded = walletExpanded === u.id;
@@ -616,6 +635,16 @@ export default function CardsWalletTab({ adminKey }: { adminKey: string }) {
                     </div>
                   );
                 })}
+              </div>
+            )}
+            {walletFiltered.length > visibleWalletUsers.length && (
+              <div className="flex justify-center pt-2">
+                <button
+                  onClick={() => setVisibleWallets((c) => c + 50)}
+                  className="flex items-center gap-2 px-6 py-2.5 rounded-xl border border-dark-700 text-dark-300 text-sm hover:border-gold-500/40 hover:text-gold-400 transition-all"
+                >
+                  Show more ({walletFiltered.length - visibleWalletUsers.length} more)
+                </button>
               </div>
             )}
           </div>

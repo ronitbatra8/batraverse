@@ -14,6 +14,8 @@ export default function SellersTab({ adminKey }: { adminKey: string }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [sellerDetail, setSellerDetail] = useState<Record<string, any>>({});
   const [detailLoading, setDetailLoading] = useState<Record<string, boolean>>({});
+  const [visibleCount, setVisibleCount] = useState(50);
+  const visibleSellers = sellers.slice(0, visibleCount);
 
   useEffect(() => {
     fetch(`${API}/api/admin/sellers`, { headers: adminHeaders(adminKey) })
@@ -79,7 +81,7 @@ export default function SellersTab({ adminKey }: { adminKey: string }) {
         <div className="text-center py-16 bg-dark-900/60 border border-dark-800/50 rounded-2xl"><Store className="w-12 h-12 text-dark-600 mx-auto mb-3" /><p className="text-dark-400 text-sm">No sellers registered</p></div>
       ) : (
         <div className="space-y-3">
-          {sellers.map((seller: any) => {
+          {visibleSellers.map((seller: any) => {
             const isExpanded = expandedId === seller.id;
             const detail = sellerDetail[seller.id];
             const products = detail?.products || [];
@@ -221,6 +223,16 @@ export default function SellersTab({ adminKey }: { adminKey: string }) {
               </div>
             );
           })}
+        </div>
+      )}
+      {sellers.length > visibleSellers.length && (
+        <div className="flex justify-center pt-2">
+          <button
+            onClick={() => setVisibleCount((c) => c + 50)}
+            className="flex items-center gap-2 px-6 py-2.5 rounded-xl border border-dark-700 text-dark-300 text-sm hover:border-gold-500/40 hover:text-gold-400 transition-all"
+          >
+            Show more ({sellers.length - visibleSellers.length} more)
+          </button>
         </div>
       )}
     </div>

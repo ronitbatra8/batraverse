@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Users,
   Mail,
@@ -147,6 +147,7 @@ export default function UsersTab({
   const [userSearch, setUserSearch] = useState("");
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
   const [userFilter, setUserFilter] = useState("all");
+  const [visibleCount, setVisibleCount] = useState(50);
   const [detailCache, setDetailCache] = useState<Record<string, any>>({});
   const [detailLoading, setDetailLoading] = useState<string | null>(null);
   const [emailModalUser, setEmailModalUser] = useState<any>(null);
@@ -155,6 +156,8 @@ export default function UsersTab({
   const [emailSending, setEmailSending] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
   const [emailError, setEmailError] = useState("");
+
+  useEffect(() => { setVisibleCount(50); }, [userSearch, userFilter]);
 
   const now = new Date();
   const thisMonth = users.filter((u) => {
@@ -191,6 +194,8 @@ export default function UsersTab({
 
     return matchesSearch && matchesFilter;
   });
+
+  const visibleUsers = filteredUsers.slice(0, visibleCount);
 
   const toggleExpand = useCallback(async (userId: string) => {
     if (expandedUser === userId) {
@@ -320,7 +325,7 @@ export default function UsersTab({
         </div>
       ) : (
         <div className="space-y-3">
-          {filteredUsers.map((user) => {
+          {visibleUsers.map((user) => {
             const isExpanded = expandedUser === user.id;
             const level = getUserLevel(user);
             const meta = LEVELS[level];
@@ -594,6 +599,17 @@ export default function UsersTab({
               </div>
             );
           })}
+        </div>
+      )}
+
+      {filteredUsers.length > visibleUsers.length && (
+        <div className="flex justify-center pt-2">
+          <button
+            onClick={() => setVisibleCount((c) => c + 50)}
+            className="flex items-center gap-2 px-6 py-2.5 rounded-xl border border-dark-700 text-dark-300 text-sm hover:border-gold-500/40 hover:text-gold-400 transition-all"
+          >
+            Show more ({filteredUsers.length - visibleUsers.length} more)
+          </button>
         </div>
       )}
 

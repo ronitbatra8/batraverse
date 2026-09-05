@@ -87,6 +87,7 @@ export default function ProductCatalogTab({ adminKey }: { adminKey: string }) {
   const [stockFilter, setStockFilter] = useState<"all" | "in" | "out">("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [visibleCount, setVisibleCount] = useState(50);
   const [showAddForm, setShowAddForm] = useState(false);
   const [addForm, setAddForm] = useState({ name: "", brand: "", category: "", subCategory: "", source: "store", price: "", originalPrice: "", description: "", badge: "", inStock: true });
   const [addSaving, setAddSaving] = useState(false);
@@ -195,6 +196,10 @@ export default function ProductCatalogTab({ adminKey }: { adminKey: string }) {
     }
     return true;
   });
+
+  const visibleProducts = filtered.slice(0, visibleCount);
+
+  useEffect(() => { setVisibleCount(50); }, [search, sourceFilter, stockFilter]);
 
   const stats = {
     total: products.length,
@@ -330,7 +335,7 @@ export default function ProductCatalogTab({ adminKey }: { adminKey: string }) {
         </div>
       ) : (
         <div className="space-y-2">
-          {filtered.map((p) => (
+          {visibleProducts.map((p) => (
             <div key={p.id} className="bg-dark-800/40 border border-dark-700/50 rounded-xl overflow-hidden cursor-pointer hover:border-dark-600/70 transition-all" onClick={() => setExpandedId(expandedId === p.id ? null : p.id)}>
               <div className="px-4 py-3 flex items-center gap-4">
                 {/* Thumbnail */}
@@ -463,6 +468,16 @@ export default function ProductCatalogTab({ adminKey }: { adminKey: string }) {
               )}
             </div>
           ))}
+        </div>
+      )}
+      {filtered.length > visibleProducts.length && (
+        <div className="flex justify-center pt-2">
+          <button
+            onClick={() => setVisibleCount((c) => c + 50)}
+            className="flex items-center gap-2 px-6 py-2.5 rounded-xl border border-dark-700 text-dark-300 text-sm hover:border-gold-500/40 hover:text-gold-400 transition-all"
+          >
+            Show more ({filtered.length - visibleProducts.length} more)
+          </button>
         </div>
       )}
       {ConfirmDialog}

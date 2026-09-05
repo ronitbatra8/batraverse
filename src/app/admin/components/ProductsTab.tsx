@@ -86,6 +86,7 @@ export default function ProductsTab({ adminKey }: { adminKey: string }) {
   const [expandedCat, setExpandedCat] = useState<string | null>(null);
   const [productFilter, setProductFilter] = useState("");
   const [showInStock, setShowInStock] = useState(true);
+  const [visibleCount, setVisibleCount] = useState(50);
 
   const [newCatName, setNewCatName] = useState("");
   const [newCatSource, setNewCatSource] = useState<"store" | "mart">("store");
@@ -196,6 +197,10 @@ export default function ProductsTab({ adminKey }: { adminKey: string }) {
     return true;
   });
 
+  const visibleProducts = filteredProducts.slice(0, visibleCount);
+
+  useEffect(() => { setVisibleCount(50); }, [productFilter, showInStock, activeSub]);
+
   function renderCategoryList(cats: Category[]) {
     return (
       <div className="space-y-3">
@@ -285,7 +290,7 @@ export default function ProductsTab({ adminKey }: { adminKey: string }) {
             <p className="text-dark-500 text-sm py-8 text-center">No seller products found</p>
           ) : (
             <div className="space-y-2">
-              {filteredProducts.map((p) => (
+              {visibleProducts.map((p) => (
                 <div key={p.id} className="bg-dark-800/40 border border-dark-700/50 rounded-xl px-4 py-3 flex items-center gap-4">
                   <div className="w-10 h-10 rounded-lg bg-dark-700/50 flex items-center justify-center text-dark-400 text-xs font-bold shrink-0 overflow-hidden">
                     {getEffectiveAdminImage(p) ? (
@@ -313,6 +318,16 @@ export default function ProductsTab({ adminKey }: { adminKey: string }) {
                   </span>
                 </div>
               ))}
+            </div>
+          )}
+          {filteredProducts.length > visibleProducts.length && (
+            <div className="flex justify-center pt-2">
+              <button
+                onClick={() => setVisibleCount((c) => c + 50)}
+                className="flex items-center gap-2 px-6 py-2.5 rounded-xl border border-dark-700 text-dark-300 text-sm hover:border-gold-500/40 hover:text-gold-400 transition-all"
+              >
+                Show more ({filteredProducts.length - visibleProducts.length} more)
+              </button>
             </div>
           )}
         </div>
