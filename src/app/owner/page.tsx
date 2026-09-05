@@ -26,6 +26,7 @@ import WalletTopUpsTab from "../admin/components/WalletTopUpsTab";
 import ViolationsTab from "../admin/components/ViolationsTab";
 import ProductsTab from "../admin/components/ProductsTab";
 import ProductCatalogTab from "../admin/components/ProductCatalogTab";
+import ProductApprovalsTab from "../admin/components/ProductApprovalsTab";
 import SellerRequestsTab from "../admin/components/SellerRequestsTab";
 import AdsTab from "../admin/components/AdsTab";
 import FeaturedTab from "../admin/components/FeaturedTab";
@@ -80,6 +81,7 @@ export default function AdminPage() {
   const [messages, setMessages] = useState<any>(EMPTY_DATA.messages);
   const [privateViewing, setPrivateViewing] = useState<any>(EMPTY_DATA.privateViewing);
   const [passwordResets, setPasswordResets] = useState<any[]>(EMPTY_DATA.passwordResets);
+  const [productApprovalCount, setProductApprovalCount] = useState(0);
 
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [focusOrderId, setFocusOrderId] = useState<string | null>(null);
@@ -89,7 +91,7 @@ export default function AdminPage() {
     setAuthError("");
     try {
       const h = adminHeaders(adminKey);
-      const [o, u, s, a, nl, mg, pv, pr] = await Promise.all([
+      const [o, u, s, a, nl, mg, pv, pr, appr] = await Promise.all([
         fetch(`${API}/api/admin/orders`, { headers: h }).then((r) => r.json()),
         fetch(`${API}/api/admin/users`, { headers: h }).then((r) => r.json()),
         fetch(`${API}/api/admin/stats`, { headers: h }).then((r) => r.json()),
@@ -98,6 +100,7 @@ export default function AdminPage() {
         fetch(`${API}/api/messages/list`, { headers: h }).then((r) => r.json()),
         fetch(`${API}/api/private-viewing/list`, { headers: h }).then((r) => r.json()),
         fetch(`${API}/api/admin/password-resets`, { headers: h }).then((r) => r.json()),
+        fetch(`${API}/api/admin/product-approvals`, { headers: h }).then((r) => r.json()),
       ]);
       if (o && o.error) { setAuthError(o.error); setLoading(false); return; }
       setOrders(Array.isArray(o) ? o : []);
@@ -114,6 +117,7 @@ export default function AdminPage() {
         ? { ...pv, requests: Array.isArray(pv.requests) ? pv.requests : [] }
         : EMPTY_DATA.privateViewing);
       setPasswordResets(Array.isArray(pr) ? pr : []);
+      setProductApprovalCount(Array.isArray(appr) ? appr.length : 0);
       setAuthenticated(true);
     } catch { setAuthError("Cannot connect to server"); }
     setLoading(false);
@@ -213,7 +217,8 @@ export default function AdminPage() {
     security: passwordResets.length,
     newsletter: newsletter?.active || 0,
     privateviewing: privateViewing?.unread || 0,
-  } as Partial<Record<Tab, number>>), [orders, users, messages, passwordResets, newsletter, privateViewing]);
+    productapprovals: productApprovalCount,
+  } as Partial<Record<Tab, number>>), [orders, users, messages, passwordResets, newsletter, privateViewing, productApprovalCount]);
 
   /* Require an actual signed-in ADMIN (owner) account. Anyone who is not
      signed in, or not the owner, is denied — the panel never opens for them. */
@@ -287,6 +292,7 @@ export default function AdminPage() {
           {tab === "violations" && <ViolationsTab adminKey={adminKey} />}
           {tab === "categories" && <ProductsTab adminKey={adminKey} />}
           {tab === "productcatalog" && <ProductCatalogTab adminKey={adminKey} />}
+          {tab === "productapprovals" && <ProductApprovalsTab adminKey={adminKey} onCount={setProductApprovalCount} />}
           {tab === "sellerrequests" && <SellerRequestsTab adminKey={adminKey} />}
           {tab === "ads" && <AdsTab adminKey={adminKey} />}
           {tab === "featured" && <FeaturedTab adminKey={adminKey} />}

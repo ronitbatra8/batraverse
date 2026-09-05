@@ -15,11 +15,12 @@ router.get("/:id", async (req, res) => {
       select: FULL_SELECT,
     });
     if (!product) return res.status(404).json({ error: "Product not found" });
+    if (product.status !== "approved") return res.status(404).json({ error: "Product not found" });
 
     res.set("Cache-Control", "public, max-age=300");
     if (req.query.related === "true") {
       const related = await prisma.product.findMany({
-        where: { source: product.source, category: product.category, id: { not: product.id } },
+        where: { source: product.source, category: product.category, id: { not: product.id }, status: "approved" },
         orderBy: [{ rating: "desc" }, { reviewCount: "desc" }],
         take: 20,
         select: SLIM_SELECT,

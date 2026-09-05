@@ -199,7 +199,7 @@ router.get("/products", async (req, res) => {
     const products = await prisma.product.findMany({
       where: { sellerId: req.userId },
       orderBy: { name: "asc" },
-      select: { id: true, name: true, brand: true, category: true, subCategory: true, source: true, price: true, originalPrice: true, description: true, images: true, inStock: true, badge: true, rating: true, reviewCount: true, specifications: true, keyFeatures: true, colorOptions: true, sizeOptions: true },
+      select: { id: true, name: true, brand: true, category: true, subCategory: true, source: true, price: true, originalPrice: true, description: true, images: true, inStock: true, badge: true, rating: true, reviewCount: true, specifications: true, keyFeatures: true, colorOptions: true, sizeOptions: true, status: true, sellerPrice: true, rejectReason: true },
     });
     res.json(products);
   } catch (err) {
@@ -241,6 +241,9 @@ router.post("/products", async (req, res) => {
         inStock: inStock !== undefined ? inStock : true,
         badge: badge || null,
         sellerId: req.userId,
+        status: "pending",
+        sellerPrice: (price != null && price > 0) ? price : null,
+        rejectReason: null,
         specifications: Array.isArray(specifications) ? specifications : [],
         keyFeatures: Array.isArray(keyFeatures) ? keyFeatures : [],
         colorOptions: Array.isArray(colorOptions) ? colorOptions : [],
@@ -267,7 +270,6 @@ router.put("/products/:id", async (req, res) => {
     if (category !== undefined) data.category = category;
     if (subCategory !== undefined) data.subCategory = subCategory;
     if (source !== undefined) data.source = source;
-    if (price !== undefined) data.price = price;
     if (originalPrice !== undefined) data.originalPrice = originalPrice;
     if (description !== undefined) data.description = description;
     if (images !== undefined) data.images = images;
@@ -277,6 +279,25 @@ router.put("/products/:id", async (req, res) => {
     if (keyFeatures !== undefined) data.keyFeatures = keyFeatures;
     if (colorOptions !== undefined) data.colorOptions = colorOptions;
     if (sizeOptions !== undefined) data.sizeOptions = sizeOptions;
+
+    /* Once approved, the live sell price (price) is set by the owner — the
+       seller can no longer change it (or their cost) directly. They can still
+       manage images, stock, description, etc. */
+    if (existing.status === "approved") {
+      delete data.price;
+      delete data.originalPrice;
+    } else {
+      if (price !== undefined) data.price = price;
+      if (price !== undefined) data.sellerPrice = (price != null && price > 0) ? price : null;
+    }
+
+    /* Editing a rejected product re-submits it for approval. */
+    if (existing.status === "rejected") {
+      data.status = "pending";
+      data.rejectReason = null;
+      data.inStock = inStock !== undefined ? inStock : false;
+    }
+
     const product = await prisma.product.update({ where: { id: req.params.id }, data });
     res.json(product);
   } catch (err) {

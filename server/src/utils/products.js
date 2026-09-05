@@ -12,6 +12,7 @@ const SLIM_SELECT = {
   rating: true,
   reviewCount: true,
   source: true,
+  status: true,
   colorOptions: true,
   sizeOptions: true,
 };

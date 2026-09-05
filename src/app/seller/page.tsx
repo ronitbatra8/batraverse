@@ -94,6 +94,9 @@ interface Product {
   badge: string;
   rating: number;
   reviewCount: number;
+  status?: string;
+  sellerPrice?: number | null;
+  rejectReason?: string | null;
   specifications: { key: string; value: string }[];
   keyFeatures: string[];
   colorOptions: { name: string; hex: string; colors: string[]; images: string[]; specifications: { key: string; value: string }[]; keyFeatures: string[]; price?: number; originalPrice?: number }[];
@@ -493,13 +496,13 @@ export default function SellerDashboardPage() {
           method: "PUT",
           body: JSON.stringify(payload),
         });
-        toast("Product updated", "success");
+        toast(editingProduct.status === "approved" ? "Product updated" : "Changes saved — awaiting approval", "success");
       } else {
         await apiFetch("/seller/products", {
           method: "POST",
           body: JSON.stringify(payload),
         });
-        toast("Product added", "success");
+        toast("Product submitted for approval", "success");
       }
       goToTab("products");
       fetchDashboard();
@@ -784,6 +787,8 @@ export default function SellerDashboardPage() {
               onSave={handleProductSave}
               onBack={() => { goToTab("products"); setEditingProduct(null); setProductForm({ ...EMPTY_PRODUCT }); }}
               dbCategories={dbCategories}
+              lockedPrice={!!editingProduct && editingProduct.status === "approved"}
+              rejectReason={editingProduct?.rejectReason}
             />
           )}
           {tab === "orders" && <OrdersTab orders={orders} expandedOrder={expandedOrder} onToggle={setExpandedOrder} />}
@@ -1060,6 +1065,12 @@ function ProductsTab({
                   </div>
                 )}
                 <div className="absolute top-3 left-3 flex gap-2">
+                  {p.status !== "approved" && (
+                    <span className={cn("px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full border",
+                      p.status === "rejected" ? "bg-red-500/15 text-red-400 border-red-500/30" : "bg-amber-500/15 text-amber-400 border-amber-500/30")}>
+                      {p.status === "rejected" ? "Rejected" : "Pending"}
+                    </span>
+                  )}
                   {p.badge && (
                     <span className="px-2 py-0.5 bg-gold-500/90 text-dark-950 text-[10px] font-bold uppercase tracking-wider rounded-full">
                       {p.badge}
@@ -1438,6 +1449,8 @@ function AddProductTab({
   onSave,
   onBack,
   dbCategories,
+  lockedPrice,
+  rejectReason,
 }: {
   editing: boolean;
   form: ProductForm;
@@ -1446,6 +1459,8 @@ function AddProductTab({
   onSave: () => void;
   onBack: () => void;
   dbCategories: DbCategory[];
+  lockedPrice?: boolean;
+  rejectReason?: string | null;
 }) {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -1515,6 +1530,21 @@ function AddProductTab({
         <div className="h-4 w-px bg-dark-700/50 hidden sm:block" />
         <h2 className="text-base sm:text-lg font-semibold text-white">{editing ? "Edit Product" : "Add New Product"}</h2>
       </div>
+
+      {rejectReason ? (
+        <div className="mb-5 rounded-xl bg-red-500/10 border border-red-500/30 px-4 py-3 text-sm text-red-300">
+          <span className="font-semibold">Product was rejected.</span> Reason: {rejectReason || "—"}{" "}
+          <span className="text-red-400/70">Fix the details below and save to resubmit for approval.</span>
+        </div>
+      ) : !editing ? (
+        <div className="mb-5 rounded-xl bg-amber-500/10 border border-amber-500/30 px-4 py-3 text-sm text-amber-300">
+          New products go to the owner for approval. Once approved they appear on the storefront with the owner&apos;s sell price.
+        </div>
+      ) : lockedPrice ? (
+        <div className="mb-5 rounded-xl bg-sky-500/10 border border-sky-500/30 px-4 py-3 text-sm text-sky-300">
+          This product is live — the sell price is set by the owner. You can still update images, description, and stock.
+        </div>
+      ) : null}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
@@ -1987,16 +2017,19 @@ function AddProductTab({
               <div>
                 <label className="text-[10px] text-dark-500 uppercase tracking-wider font-semibold mb-1 block">Selling Price (?)</label>
                 <input type="number" value={form.price || ""} onChange={(e) => onChange({ ...form, price: Number(e.target.value) })}
-                  className="w-full bg-dark-800/60 border border-dark-700/50 rounded-xl px-4 py-3 text-white text-sm placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50"
+                  disabled={lockedPrice}
+                  className="w-full bg-dark-800/60 border border-dark-700/50 rounded-xl px-4 py-3 text-white text-sm placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
                   placeholder="0" min="0" />
               </div>
               <div>
                 <label className="text-[10px] text-dark-500 uppercase tracking-wider font-semibold mb-1 block">M.R.P (?)</label>
                 <input type="number" value={form.originalPrice || ""} onChange={(e) => onChange({ ...form, originalPrice: Number(e.target.value) })}
-                  className="w-full bg-dark-800/60 border border-dark-700/50 rounded-xl px-4 py-3 text-white text-sm placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50"
+                  disabled={lockedPrice}
+                  className="w-full bg-dark-800/60 border border-dark-700/50 rounded-xl px-4 py-3 text-white text-sm placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
                   placeholder="0" min="0" />
               </div>
               {hasColors && <p className="text-[9px] text-dark-600 italic">Fallback when a color has no price set</p>}
+              {lockedPrice && <p className="text-[10px] text-sky-400 italic">Price is locked — set by the owner once the product is live.</p>}
             </div>
           )}
 
@@ -2030,7 +2063,7 @@ function AddProductTab({
           disabled={saving || !form.name.trim() || (!hasColors && form.price <= 0) || !form.source || uploading}
           className="px-8 py-3 bg-gold-500 hover:bg-gold-400 disabled:opacity-50 text-dark-950 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2">
           {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-          {saving ? "Saving..." : editing ? "Update Product" : "Add Product"}
+          {saving ? "Saving..." : editing ? "Update Product" : "Submit for Approval"}
         </button>
       </div>
     </div>

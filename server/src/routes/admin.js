@@ -916,6 +916,71 @@ router.delete("/products/:id", async (req, res) => {
   }
 });
 
+/* ── Product Approvals ────────────────────────────────────────
+   Seller-added products sit in "pending" until the owner sets the live sell
+   price (price) and approves them. Approving edits the product in place; the
+   seller's original price is kept as sellerPrice so the margin is tracked. */
+router.get("/product-approvals", async (_req, res) => {
+  try {
+    const products = await prisma.product.findMany({
+      where: { status: "pending" },
+      orderBy: { createdAt: "desc" },
+      include: {
+        seller: { select: { id: true, name: true, email: true, shopName: true } },
+      },
+    });
+    res.json(products);
+  } catch (err) {
+    res.status(500).json({ error: safeErrorMessage(err) });
+  }
+});
+
+router.post("/product-approvals/:id/approve", async (req, res) => {
+  try {
+    const existing = await prisma.product.findUnique({ where: { id: req.params.id } });
+    if (!existing) return res.status(404).json({ error: "Product not found" });
+    if (existing.status !== "pending") return res.status(400).json({ error: "Product is not pending approval" });
+
+    const { price, originalPrice, name, description, images, inStock, badge } = req.body || {};
+    if (price === undefined || price === null || Number.isNaN(Number(price)) || Number(price) < 0) {
+      return res.status(400).json({ error: "A valid sell price is required" });
+    }
+    const data = {
+      price: Number(price),
+      status: "approved",
+      rejectReason: null,
+    };
+    if (originalPrice !== undefined && originalPrice !== null && Number(originalPrice) >= 0) data.originalPrice = Number(originalPrice);
+    if (name !== undefined && String(name).trim()) data.name = String(name).trim();
+    if (description !== undefined) data.description = description || null;
+    if (images !== undefined) data.images = Array.isArray(images) ? images : existing.images;
+    if (inStock !== undefined) data.inStock = Boolean(inStock);
+    if (badge !== undefined) data.badge = badge || null;
+
+    const product = await prisma.product.update({ where: { id: req.params.id }, data });
+    res.json(product);
+  } catch (err) {
+    res.status(500).json({ error: safeErrorMessage(err) });
+  }
+});
+
+router.post("/product-approvals/:id/reject", async (req, res) => {
+  try {
+    const existing = await prisma.product.findUnique({ where: { id: req.params.id } });
+    if (!existing) return res.status(404).json({ error: "Product not found" });
+    if (existing.status !== "pending") return res.status(400).json({ error: "Product is not pending approval" });
+
+    const { reason } = req.body || {};
+    const product = await prisma.product.update({
+      where: { id: req.params.id },
+      data: { status: "rejected", rejectReason: (reason && String(reason).trim()) ? String(reason).trim() : null, inStock: false },
+    });
+    res.json(product);
+  } catch (err) {
+    res.status(500).json({ error: safeErrorMessage(err) });
+  }
+});
+
 router.post("/products", async (req, res) => {
   try {
     const { name, brand, category, subCategory, source, price, originalPrice, description, badge, images, inStock, sellerId } = req.body;
@@ -1110,7 +1175,7 @@ router.get("/featured", async (req, res) => {
     const featured = await prisma.featuredProduct.findMany({ orderBy: { sortOrder: "asc" } });
     if (featured.length === 0) return res.json([]);
     const products = await prisma.product.findMany({
-      where: { id: { in: featured.map((f) => f.productId) } },
+      where: { id: { in: featured.map((f) => f.productId) }, status: "approved" },
       select: { id: true, name: true, brand: true, category: true, price: true, originalPrice: true, images: true, colorOptions: true, sizeOptions: true, source: true, inStock: true, rating: true, reviewCount: true },
     });
     const byId = new Map(products.map((p) => [p.id, toFeaturedCard(p)]));

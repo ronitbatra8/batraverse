@@ -169,6 +169,13 @@ model Product {
   price         Float
   originalPrice Float?
   description   String?
+
+  /* Approval workflow: sellers add products as "pending"; the owner sets the
+     live sell price (price) and approves. sellerPrice = what the seller gets,
+     rejectReason = why the owner sent it back. */
+  status       String   @default("approved")
+  sellerPrice  Float?
+  rejectReason String?
   images        Json     @default("[]")
   inStock       Boolean  @default(true)
   badge         String?
@@ -183,6 +190,7 @@ model Product {
   sellerId String?
   seller   User?    @relation(fields: [sellerId], references: [id])
   source   String?  @default("store")
+  createdAt DateTime @default(now())
 
   reviews   Review[]
   wishlists Wishlist[]

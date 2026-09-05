@@ -125,7 +125,7 @@ router.get("/products/:source", async (req, res) => {
     if (source !== "store" && source !== "mart") return res.status(400).json({ error: "source must be store or mart" });
     const full = req.query.mode === "full";
     const products = await prisma.product.findMany({
-      where: { source },
+      where: { source, status: "approved" },
       orderBy: { name: "asc" },
       select: full ? FULL_SELECT : SLIM_SELECT,
     });

@@ -61,7 +61,7 @@ app.get("/api/featured", async (req, res) => {
     const featured = await _prisma.featuredProduct.findMany({ orderBy: { sortOrder: "asc" } });
     if (featured.length === 0) return res.json([]);
     const products = await _prisma.product.findMany({
-      where: { id: { in: featured.map((f) => f.productId) } },
+      where: { id: { in: featured.map((f) => f.productId) }, status: "approved" },
       select: { id: true, name: true, brand: true, category: true, price: true, originalPrice: true, images: true, colorOptions: true, sizeOptions: true, source: true, inStock: true, rating: true, reviewCount: true },
     });
     const imageOf = (images, colorOptions) => {
