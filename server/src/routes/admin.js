@@ -460,6 +460,7 @@ router.get("/users/cards", async (req, res) => {
       select: {
         id: true, name: true, email: true, phone: true, role: true,
         cardNumber: true, cardLevel: true, cardExpiry: true, approved: true, createdAt: true,
+        walletBalance: true, peakWalletBalance: true,
       },
     });
     res.json(users);

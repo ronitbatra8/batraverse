@@ -157,6 +157,46 @@ router.post("/admin/reject/:topUpId", userAuth, async (req, res) => {
   }
 });
 
+router.post("/admin/credit", userAuth, async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({ where: { id: req.userId }, select: { role: true } });
+    if (!user || user.role !== "ADMIN") return res.status(403).json({ error: "Admin only" });
+
+    const { userId, amount } = req.body;
+    if (!userId || typeof userId !== "string") return res.status(400).json({ error: "userId is required" });
+    const num = Number(amount);
+    if (!Number.isFinite(num) || num <= 0) return res.status(400).json({ error: "Amount must be a positive number" });
+
+    const target = await prisma.user.findUnique({ where: { id: userId }, select: { walletBalance: true, peakWalletBalance: true } });
+    if (!target) return res.status(404).json({ error: "User not found" });
+
+    const newBalance = target.walletBalance + num;
+    const [topUp] = await prisma.$transaction([
+      prisma.walletTopUp.create({
+        data: {
+          userId,
+          amount: num,
+          transactionId: `ADMIN:${Date.now()}`,
+          status: "APPROVED",
+          adminNote: "Manual credit by owner",
+          processedAt: new Date(),
+        },
+      }),
+      prisma.user.update({
+        where: { id: userId },
+        data: {
+          walletBalance: { increment: num },
+          ...(newBalance > target.peakWalletBalance ? { peakWalletBalance: newBalance } : {}),
+        },
+      }),
+    ]);
+
+    res.json({ message: `₹${num} credited to wallet`, newBalance, topUp });
+  } catch (err) {
+    res.status(500).json({ error: safeErrorMessage(err) });
+  }
+});
+
 router.get("/admin/all", userAuth, async (req, res) => {
   try {
     const user = await prisma.user.findUnique({ where: { id: req.userId }, select: { role: true } });

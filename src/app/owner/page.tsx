@@ -21,13 +21,12 @@ import NewsletterTab from "../admin/components/NewsletterTab";
 import PrivateViewingTab from "../admin/components/PrivateViewingTab";
 import DeliveryExecTab from "../admin/components/DeliveryExecTab";
 import SellersTab from "../admin/components/SellersTab";
-import CardManagement from "../admin/components/CardManagement";
+import CardsWalletTab from "../admin/components/CardsWalletTab";
 import ViolationsTab from "../admin/components/ViolationsTab";
 import ProductsTab from "../admin/components/ProductsTab";
 import ProductCatalogTab from "../admin/components/ProductCatalogTab";
 import SellerRequestsTab from "../admin/components/SellerRequestsTab";
 import AdsTab from "../admin/components/AdsTab";
-import WalletTopUpsTab from "../admin/components/WalletTopUpsTab";
 import FeaturedTab from "../admin/components/FeaturedTab";
 import TestimonialsTab from "../admin/components/TestimonialsTab";
 import { useToast } from "@/components/Toast";
@@ -282,13 +281,12 @@ export default function AdminPage() {
           {tab === "privateviewing" && <PrivateViewingTab privateViewing={privateViewing} adminKey={adminKey} setPrivateViewing={setPrivateViewing} />}
           {tab === "delivery" && <DeliveryExecTab adminKey={adminKey} />}
           {tab === "sellers" && <SellersTab adminKey={adminKey} />}
-          {tab === "cards" && <CardManagement adminKey={adminKey} />}
+          {tab === "cards" && <CardsWalletTab adminKey={adminKey} />}
           {tab === "violations" && <ViolationsTab adminKey={adminKey} />}
           {tab === "categories" && <ProductsTab adminKey={adminKey} />}
           {tab === "productcatalog" && <ProductCatalogTab adminKey={adminKey} />}
           {tab === "sellerrequests" && <SellerRequestsTab adminKey={adminKey} />}
           {tab === "ads" && <AdsTab adminKey={adminKey} />}
-          {tab === "wallet" && <WalletTopUpsTab adminKey={adminKey} />}
           {tab === "featured" && <FeaturedTab adminKey={adminKey} />}
           {tab === "testimonials" && <TestimonialsTab adminKey={adminKey} />}
         </div>
