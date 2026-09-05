@@ -104,6 +104,7 @@ model User {
   products         Product[]
   cardUpgrades     CardUpgradeRequest[]
   walletTopUps     WalletTopUp[]
+  sellerPayouts    SellerPayout[]
   deliveryComplaints DeliveryComplaint[] @relation("ComplaintsAgainst")
   categoryRequests CategoryRequest[]
 
@@ -472,6 +473,32 @@ model DeliveryOTP {
   createdAt DateTime @default(now())
 
   @@index([orderId])
+}
+
+/* Auto-credited to the seller's wallet when an order item containing their
+   product is marked delivered (at their sellerPrice). Reversed if the item is
+   later returned/cancelled. Idempotent via the unique (orderId, itemIdx) key. */
+model SellerPayout {
+  id          String   @id @default(cuid())
+  orderId     String
+  orderRef    String?  // human-readable order code (Order.orderId) snapshot
+  itemIdx     Int
+  productId   String?
+  productName String?
+  quantity    Int      @default(1)
+  unitPrice   Float    @default(0) // payout per unit = product.sellerPrice (falls back to item price)
+  amount      Float    @default(0) // unitPrice * quantity
+  status      String   @default("paid") // "paid" | "reversed"
+  createdAt   DateTime @default(now())
+  paidAt      DateTime?
+  reversedAt  DateTime?
+
+  sellerId String
+  seller   User @relation(fields: [sellerId], references: [id])
+
+  @@unique([orderId, itemIdx])
+  @@index([sellerId])
+  @@index([status])
 }
 
 model Visit {

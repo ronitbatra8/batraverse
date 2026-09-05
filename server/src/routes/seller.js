@@ -188,7 +188,26 @@ router.get("/stats", async (req, res) => {
       select: { id: true, name: true, brand: true, price: true, images: true, reviewCount: true, rating: true },
     });
 
-    res.json({ totalProducts, totalOrders, totalRevenue, pendingOrders, topProducts });
+    const payoutAgg = await prisma.sellerPayout.aggregate({
+      where: { sellerId: req.userId, status: "paid" },
+      _sum: { amount: true },
+      _count: true,
+    });
+
+    res.json({ totalProducts, totalOrders, totalRevenue, pendingOrders, topProducts, payoutTotal: payoutAgg._sum.amount || 0, payoutsCount: payoutAgg._count });
+  } catch (err) {
+    res.status(500).json({ error: safeErrorMessage(err) });
+  }
+});
+
+router.get("/payouts", async (req, res) => {
+  try {
+    const payouts = await prisma.sellerPayout.findMany({
+      where: { sellerId: req.userId },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+    });
+    res.json(payouts);
   } catch (err) {
     res.status(500).json({ error: safeErrorMessage(err) });
   }

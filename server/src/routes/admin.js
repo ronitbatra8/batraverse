@@ -3,6 +3,7 @@ const jwt = require("jsonwebtoken");
 const prisma = require("../db");
 const { adminAuth } = require("../middleware/auth");
 const { safeErrorMessage, ORDER_STATUSES } = require("../utils/helpers");
+const { syncPayoutsForItemChange } = require("../utils/sellerPayout");
 const {
   sendOrderStatusEmail,
   sendDeliveryAssignedEmail,
@@ -158,6 +159,7 @@ router.put("/orders/:id/status", async (req, res) => {
       if (status === "cancelled") data.cancelledAt = new Date();
       if (status === "return_requested") data.returnRequestedAt = new Date();
       if (status === "returned") data.returnedAt = new Date();
+      await syncPayoutsForItemChange(existing, updatedItems);
       const order = await prisma.order.update({ where: { id: req.params.id }, data });
       const user = await prisma.user.findUnique({ where: { id: existing.userId }, select: { name: true, email: true } });
       sendOrderStatusEmail(user.email, user.name, existing.id, status).catch(() => {});
@@ -175,6 +177,8 @@ router.put("/orders/:id/status", async (req, res) => {
         return { ...it, status };
       });
     }
+
+    await syncPayoutsForItemChange(existing, data.items);
 
     const order = await prisma.order.update({ where: { id: req.params.id }, data });
 
@@ -227,6 +231,7 @@ router.put("/orders/:id/items/:itemIdx/status", async (req, res) => {
       if (allCancelled) data.cancelledAt = new Date();
     }
     if (status === "delivered") data.deliveredAt = new Date();
+    await syncPayoutsForItemChange(order, updatedItems);
     const updated = await prisma.order.update({ where: { id }, data });
 
     const user = await prisma.user.findUnique({ where: { id: order.userId }, select: { name: true, email: true } });
@@ -342,6 +347,7 @@ router.put("/orders/:id/return-approve", async (req, res) => {
             return it;
           })
         : order.items;
+      await syncPayoutsForItemChange(order, updatedItems);
       const updated = await prisma.order.update({
         where: { id: order.id },
         data: { items: updatedItems, status: "delivered", returnReason: null, returnRequestedAt: null },
@@ -358,6 +364,7 @@ router.put("/orders/:id/return-approve", async (req, res) => {
         })
       : order.items;
     const allReturned = updatedItems.every((it) => it.status === "returned" || it.status === "cancelled");
+    await syncPayoutsForItemChange(order, updatedItems);
     const updated = await prisma.order.update({
       where: { id: order.id },
       data: {
@@ -372,6 +379,33 @@ router.put("/orders/:id/return-approve", async (req, res) => {
     sendReturnApprovedEmail(user.email, user.name, order.id, true).catch(() => {});
 
     res.json(updated);
+  } catch (err) {
+    res.status(500).json({ error: safeErrorMessage(err) });
+  }
+});
+
+router.get("/payouts", async (req, res) => {
+  try {
+    const { page = "1", limit = "25" } = req.query;
+    const pageNum = Math.max(1, parseInt(page));
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit)));
+
+    const [payouts, total, paidAgg] = await prisma.$transaction([
+      prisma.sellerPayout.findMany({
+        orderBy: { createdAt: "desc" },
+        skip: (pageNum - 1) * limitNum,
+        take: limitNum,
+        include: { seller: { select: { id: true, name: true, email: true, shopName: true } } },
+      }),
+      prisma.sellerPayout.count(),
+      prisma.sellerPayout.aggregate({
+        where: { status: "paid" },
+        _sum: { amount: true },
+        _count: true,
+      }),
+    ]);
+
+    res.json({ payouts, total, paidTotal: paidAgg._sum.amount || 0, paidCount: paidAgg._count, page: pageNum, totalPages: Math.ceil(total / limitNum) });
   } catch (err) {
     res.status(500).json({ error: safeErrorMessage(err) });
   }
