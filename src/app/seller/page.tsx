@@ -33,6 +33,8 @@ import {
   ClipboardList,
   Megaphone,
   Menu,
+  LogOut,
+  ListChecks,
 } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthContext";
 import { useToast } from "@/components/Toast";
@@ -42,7 +44,7 @@ import { cn, formatPrice } from "@/lib/utils";
 import SiteLayout from "@/components/layout/SiteLayout";
 import ConfirmModal from "@/components/ConfirmModal";
 
-type Tab = "overview" | "products" | "orders" | "requests" | "profile" | "addproduct" | "analytics" | "adrequests";
+type Tab = "overview" | "products" | "orders" | "reqstatus" | "requests" | "profile" | "addproduct" | "analytics" | "adrequests";
 
 const STATUS_COLORS: Record<string, string> = {
   pending: "text-amber-400 bg-amber-500/10 border-amber-500/20",
@@ -211,6 +213,7 @@ const TABS: { key: Tab; label: string; icon: typeof Package }[] = [
   { key: "products", label: "Products", icon: Package },
   { key: "addproduct", label: "Add Product", icon: Plus },
   { key: "orders", label: "Orders", icon: ShoppingBag },
+  { key: "reqstatus", label: "Requests", icon: ListChecks },
   { key: "requests", label: "Category Requests", icon: ClipboardList },
   { key: "adrequests", label: "Ad Requests", icon: Megaphone },
   { key: "profile", label: "Profile", icon: Store },
@@ -218,10 +221,11 @@ const TABS: { key: Tab; label: string; icon: typeof Package }[] = [
 
 export default function SellerDashboardPage() {
   const router = useRouter();
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, logout, updateUser } = useAuth();
   const { toast } = useToast();
 
   const [tab, setTab] = useState<Tab>("overview");
+  const goToTab = (key: Tab) => { setTab(key); window.scrollTo(0, 0); };
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -231,6 +235,9 @@ export default function SellerDashboardPage() {
   const [orders, setOrders] = useState<Order[]>([]);
 
   const [profileSaving, setProfileSaving] = useState(false);
+  const [onboardLoading, setOnboardLoading] = useState(true);
+  const [onboardSubmitted, setOnboardSubmitted] = useState<boolean | null>(null);
+  const [onboardSaving, setOnboardSaving] = useState(false);
   const [shopName, setShopName] = useState("");
   const [shopDesc, setShopDesc] = useState("");
   const [pickupName, setPickupName] = useState("");
@@ -338,6 +345,67 @@ export default function SellerDashboardPage() {
     if (user && user.role === "SELLER" && user.approved !== false) fetchDashboard();
   }, [user, fetchDashboard]);
 
+  // Pre-load profile for a newly registered (unapproved) seller so the
+  // mandatory onboarding panel can pre-fill any partially saved values.
+  useEffect(() => {
+    if (authLoading || !user || user.role !== "SELLER" || user.approved !== false) return;
+    let mounted = true;
+    (async () => {
+      try {
+        const data = await apiFetch("/seller/onboarding");
+        if (!mounted) return;
+        setShopName(data.shopName || "");
+        setShopDesc(data.shopDescription || "");
+        setPickupName(data.pickupName || "");
+        setPickupPhone(data.pickupPhone || "");
+        setPickupAddress(data.pickupAddress || "");
+        setPickupCity(data.pickupCity || "");
+        setPickupState(data.pickupState || "");
+        setPickupPincode(data.pickupPincode || "");
+        setOnboardSubmitted(!!data.submittedForApproval);
+      } catch {
+        if (mounted) setOnboardSubmitted(false);
+      } finally {
+        if (mounted) setOnboardLoading(false);
+      }
+    })();
+    return () => { mounted = false; };
+  }, [authLoading, user]);
+
+  async function handleOnboardingSubmit() {
+    const required: [string, string][] = [
+      ["Shop Name", shopName],
+      ["Shop Description", shopDesc],
+      ["Contact Name", pickupName],
+      ["Phone", pickupPhone],
+      ["Pickup Address", pickupAddress],
+      ["City", pickupCity],
+      ["State", pickupState],
+      ["Pincode", pickupPincode],
+    ];
+    const missing = required.filter(([, v]) => !String(v ?? "").trim()).map(([label]) => label);
+    if (missing.length > 0) {
+      toast(`Complete all mandatory fields: ${missing.join(", ")}`, "error");
+      return;
+    }
+    setOnboardSaving(true);
+    try {
+      await apiFetch("/seller/complete-profile", {
+        method: "PUT",
+        body: JSON.stringify({ shopName, shopDescription: shopDesc, pickupName, pickupAddress, pickupCity, pickupState, pickupPincode, pickupPhone }),
+      });
+      await apiFetch("/seller/submit-approval", { method: "POST" });
+      setOnboardSubmitted(true);
+      updateUser({ approved: false, submittedForApproval: true });
+      toast("Profile submitted for approval", "success");
+    } catch (e) {
+      const msg = (e as { message?: string })?.message || "Failed to submit profile";
+      toast(msg, "error");
+    } finally {
+      setOnboardSaving(false);
+    }
+  }
+
   async function handleProfileSave() {
     setProfileSaving(true);
     try {
@@ -366,7 +434,7 @@ export default function SellerDashboardPage() {
   function openAddProduct() {
     setEditingProduct(null);
     setProductForm({ ...EMPTY_PRODUCT });
-    setTab("addproduct");
+    goToTab("addproduct");
   }
 
   function openEditProduct(p: Product) {
@@ -397,7 +465,7 @@ export default function SellerDashboardPage() {
       })) : [],
       sizeOptions: p.sizeOptions && typeof p.sizeOptions === "object" && !Array.isArray(p.sizeOptions) ? p.sizeOptions as Record<string, { name: string; price?: number; originalPrice?: number }[]> : {},
     });
-    setTab("addproduct");
+    goToTab("addproduct");
   }
 
   async function handleProductSave() {
@@ -433,7 +501,7 @@ export default function SellerDashboardPage() {
         });
         toast("Product added", "success");
       }
-      setTab("products");
+      goToTab("products");
       fetchDashboard();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to save product";
@@ -472,17 +540,99 @@ export default function SellerDashboardPage() {
   }
 
   if (!authLoading && user && user.role === "SELLER" && user.approved === false) {
+    if (onboardLoading || onboardSubmitted === null) {
+      return (
+        <SiteLayout>
+          <div className="min-h-screen flex items-center justify-center">
+            <Loader2 className="w-8 h-8 text-gold-400 animate-spin" />
+          </div>
+        </SiteLayout>
+      );
+    }
+
+    if (onboardSubmitted) {
+      return (
+        <SiteLayout>
+          <div className="min-h-screen flex items-center justify-center px-4">
+            <div className="max-w-md w-full text-center">
+              <div className="mx-auto w-16 h-16 rounded-2xl bg-gold-500/10 border border-gold-500/20 flex items-center justify-center mb-6">
+                <Store className="w-8 h-8 text-gold-400" />
+              </div>
+              <h1 className="text-2xl font-bold text-white mb-2">Seller account pending approval</h1>
+              <p className="text-dark-400 text-sm leading-relaxed">
+                Your profile has been submitted for review. Once the owner approves it, you will be able to manage your products and orders here.
+              </p>
+            </div>
+          </div>
+        </SiteLayout>
+      );
+    }
+
+    const inputCls = "w-full bg-dark-900/60 border border-dark-700/50 rounded-xl px-4 py-3 text-white text-sm placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50 transition-colors";
+    const labelCls = "block text-xs text-dark-500 uppercase tracking-wider font-semibold mb-1.5";
+    const missing = [shopName, shopDesc, pickupName, pickupPhone, pickupAddress, pickupCity, pickupState, pickupPincode].some((v) => !String(v ?? "").trim());
+
     return (
       <SiteLayout>
-        <div className="min-h-screen flex items-center justify-center px-4">
-          <div className="max-w-md w-full text-center">
-            <div className="mx-auto w-16 h-16 rounded-2xl bg-gold-500/10 border border-gold-500/20 flex items-center justify-center mb-6">
-              <Store className="w-8 h-8 text-gold-400" />
+        <div className="min-h-screen bg-dark-950 px-4 py-10">
+          <div className="max-w-2xl mx-auto">
+            <div className="flex items-center gap-4 mb-8">
+              <div className="w-14 h-14 rounded-2xl bg-gold-500/10 border border-gold-500/20 flex items-center justify-center shrink-0">
+                <Store className="w-7 h-7 text-gold-400" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-white">Complete your seller profile</h1>
+                <p className="text-dark-400 text-sm mt-0.5">All fields are mandatory. Once submitted, the owner will review and approve your account.</p>
+              </div>
             </div>
-            <h1 className="text-2xl font-bold text-white mb-2">Seller account pending approval</h1>
-            <p className="text-dark-400 text-sm leading-relaxed">
-              Your seller account is being reviewed. Once approved, you will be able to manage your products and orders here.
-            </p>
+
+            <div className="bg-dark-900/60 border border-dark-800/50 rounded-2xl p-6 space-y-4">
+              <div>
+                <label className={labelCls}>Shop Name *</label>
+                <input value={shopName} onChange={(e) => setShopName(e.target.value)} placeholder="e.g. Batra Creation" className={inputCls} />
+              </div>
+              <div>
+                <label className={labelCls}>Shop Description *</label>
+                <textarea value={shopDesc} onChange={(e) => setShopDesc(e.target.value)} placeholder="Tell customers what you sell..." rows={2} className={inputCls + " resize-none"} />
+              </div>
+
+              <div className="pt-2 border-t border-dark-800/50">
+                <p className="text-xs text-gold-400 uppercase tracking-[0.2em] font-semibold mb-4">Pickup Address (for order deliveries)</p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className={labelCls}>Contact Name *</label>
+                  <input value={pickupName} onChange={(e) => setPickupName(e.target.value)} placeholder="Full name" className={inputCls} />
+                </div>
+                <div>
+                  <label className={labelCls}>Phone *</label>
+                  <input value={pickupPhone} onChange={(e) => setPickupPhone(e.target.value)} placeholder="10-digit mobile number" className={inputCls} />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className={labelCls}>Address *</label>
+                  <input value={pickupAddress} onChange={(e) => setPickupAddress(e.target.value)} placeholder="Street, area, landmark" className={inputCls} />
+                </div>
+                <div>
+                  <label className={labelCls}>City *</label>
+                  <input value={pickupCity} onChange={(e) => setPickupCity(e.target.value)} placeholder="e.g. Delhi" className={inputCls} />
+                </div>
+                <div>
+                  <label className={labelCls}>State *</label>
+                  <input value={pickupState} onChange={(e) => setPickupState(e.target.value)} placeholder="e.g. Delhi" className={inputCls} />
+                </div>
+                <div>
+                  <label className={labelCls}>Pincode *</label>
+                  <input value={pickupPincode} onChange={(e) => setPickupPincode(e.target.value)} placeholder="6-digit pincode" className={inputCls} />
+                </div>
+              </div>
+
+              <button onClick={handleOnboardingSubmit} disabled={missing || onboardSaving}
+                className="w-full flex items-center justify-center gap-2 px-5 py-3 bg-gold-500 hover:bg-gold-400 disabled:opacity-50 text-dark-950 rounded-xl text-sm font-semibold transition-all">
+                {onboardSaving ? <Loader2 size={16} className="animate-spin" /> : null}
+                {onboardSaving ? "Submitting..." : "Submit for Approval"}
+              </button>
+            </div>
           </div>
         </div>
       </SiteLayout>
@@ -503,8 +653,43 @@ export default function SellerDashboardPage() {
 
   return (
     <SiteLayout>
-      <div className="min-h-screen bg-dark-950">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-8">
+      <div className="min-h-screen bg-dark-950 lg:flex">
+        {/* Desktop sidebar */}
+        <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-dark-800 bg-dark-900/95 lg:flex">
+          <div className="border-b border-dark-800 p-5">
+            <p className="text-xs text-gold-400 uppercase tracking-[0.2em] font-semibold">Seller Dashboard</p>
+            <p className="truncate text-lg font-bold text-white">{profile?.shopName || "My Shop"}</p>
+          </div>
+          <div className="flex-1 space-y-1 overflow-y-auto p-3">
+            {TABS.map((t) => (
+              <button
+                key={t.key}
+                onClick={() => goToTab(t.key)}
+                className={cn(
+                  "flex w-full items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200",
+                  tab === t.key
+                    ? "bg-gold-500/10 text-gold-400 border border-gold-500/20"
+                    : "text-dark-400 hover:text-dark-200 border border-transparent"
+                )}
+              >
+                <t.icon size={18} className="shrink-0" />
+                <span className="truncate">{t.label}</span>
+              </button>
+            ))}
+          </div>
+          <div className="border-t border-dark-800 p-3">
+            <button
+              onClick={() => { logout(); router.replace("/"); }}
+              className="flex w-full items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-red-400 transition-all duration-200 hover:bg-red-500/10"
+            >
+              <LogOut size={18} className="shrink-0" />
+              <span className="truncate">Sign Out</span>
+            </button>
+          </div>
+        </aside>
+
+        <div className="min-w-0 flex-1">
+          <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-8">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
             <div>
               <p className="text-xs text-gold-400 uppercase tracking-[0.2em] font-semibold mb-1">Seller Dashboard</p>
@@ -525,29 +710,7 @@ export default function SellerDashboardPage() {
             </div>
           </div>
 
-          <div className="flex items-start gap-6">
-            {/* Desktop sidebar */}
-            <aside className="hidden lg:block w-64 shrink-0">
-              <div className="sticky top-8 bg-dark-900/60 border border-dark-800/50 rounded-2xl p-3 space-y-1">
-                {TABS.map((t) => (
-                  <button
-                    key={t.key}
-                    onClick={() => setTab(t.key)}
-                    className={cn(
-                      "flex w-full items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200",
-                      tab === t.key
-                        ? "bg-gold-500/10 text-gold-400 border border-gold-500/20"
-                        : "text-dark-400 hover:text-dark-200 border border-transparent"
-                    )}
-                  >
-                    <t.icon size={18} className="shrink-0" />
-                    <span className="truncate">{t.label}</span>
-                  </button>
-                ))}
-              </div>
-            </aside>
-
-            {/* Mobile drawer + backdrop */}
+          {/* Mobile drawer + backdrop */}
             <div className={`fixed inset-0 z-40 lg:hidden ${sidebarOpen ? "pointer-events-auto" : "pointer-events-none"}`}>
               <div
                 onClick={() => setSidebarOpen(false)}
@@ -575,7 +738,7 @@ export default function SellerDashboardPage() {
                   {TABS.map((t) => (
                     <button
                       key={t.key}
-                      onClick={() => { setTab(t.key); setSidebarOpen(false); }}
+                      onClick={() => { goToTab(t.key); setSidebarOpen(false); }}
                       className={cn(
                         "flex w-full items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200",
                         tab === t.key
@@ -588,13 +751,19 @@ export default function SellerDashboardPage() {
                     </button>
                   ))}
                 </div>
+                <div className="border-t border-dark-800 pt-3">
+                  <button
+                    onClick={() => { setSidebarOpen(false); logout(); router.replace("/"); }}
+                    className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-red-400 transition-all duration-200 hover:bg-red-500/10"
+                  >
+                    <LogOut size={18} className="shrink-0" />
+                    <span className="truncate">Sign Out</span>
+                  </button>
+                </div>
               </aside>
             </div>
 
-            {/* Main content */}
-            <div className="min-w-0 flex-1">
-
-          {tab === "overview" && <OverviewTab stats={stats} orders={orders} onTab={setTab} />}
+            {tab === "overview" && <OverviewTab stats={stats} orders={orders} onTab={goToTab} />}
           {tab === "analytics" && <AnalyticsTab stats={stats} orders={orders} products={products} />}
           {tab === "products" && (
             <ProductsTab
@@ -613,14 +782,16 @@ export default function SellerDashboardPage() {
               onChange={setProductForm}
               saving={productSaving}
               onSave={handleProductSave}
-              onBack={() => { setTab("products"); setEditingProduct(null); setProductForm({ ...EMPTY_PRODUCT }); }}
+              onBack={() => { goToTab("products"); setEditingProduct(null); setProductForm({ ...EMPTY_PRODUCT }); }}
               dbCategories={dbCategories}
             />
           )}
           {tab === "orders" && <OrdersTab orders={orders} expandedOrder={expandedOrder} onToggle={setExpandedOrder} />}
+          {tab === "reqstatus" && (
+            <RequestsStatusTab category={catRequests} ads={adRequests} />
+          )}
           {tab === "requests" && (
             <CategoryRequestsTab
-              requests={catRequests}
               dbCategories={dbCategories}
               catReqType={catReqType}
               setCatReqType={setCatReqType}
@@ -660,6 +831,23 @@ export default function SellerDashboardPage() {
               }}
             />
           )}
+          {tab === "adrequests" && (
+            <AdRequestsTab
+              form={adReqForm}
+              onChange={setAdReqForm}
+              saving={adReqSaving}
+              onSubmit={async () => {
+                if (!adReqForm.img || !adReqForm.tagline || !adReqForm.line) { toast("Image, tagline, and description are required", "error"); return; }
+                setAdReqSaving(true);
+                try {
+                  await apiFetch("/seller/ad-requests", { method: "POST", body: JSON.stringify(adReqForm) });
+                  toast("Ad request submitted", "success");
+                  setAdReqForm({ img: "", tagline: "", line: "", href: "/store", page: "home", duration: 7 });
+                  fetchDashboard();
+                } catch { toast("Failed to submit request", "error"); } finally { setAdReqSaving(false); }
+              }}
+            />
+          )}
           {tab === "profile" && (
             <ProfileTab
               profile={profile}
@@ -683,28 +871,6 @@ export default function SellerDashboardPage() {
               onSave={handleProfileSave}
             />
           )}
-          {tab === "adrequests" && (
-            <AdRequestsTab
-              requests={adRequests}
-              form={adReqForm}
-              onChange={setAdReqForm}
-              saving={adReqSaving}
-              onSubmit={async () => {
-                if (!adReqForm.img || !adReqForm.tagline || !adReqForm.line) { toast("Image, tagline, and description are required", "error"); return; }
-                setAdReqSaving(true);
-                try {
-                  await apiFetch("/seller/ad-requests", { method: "POST", body: JSON.stringify(adReqForm) });
-                  toast("Ad request submitted", "success");
-                  setAdReqForm({ img: "", tagline: "", line: "", href: "/store", page: "home", duration: 7 });
-                  fetchDashboard();
-                } catch { toast("Failed to submit request", "error"); } finally { setAdReqSaving(false); }
-              }}
-              onDelete={async (id: string) => {
-                try { await apiFetch(`/seller/ad-requests/${id}`, { method: "DELETE" }); fetchDashboard(); } catch { toast("Failed to delete", "error"); }
-              }}
-            />
-          )}
-            </div>
           </div>
         </div>
       </div>
@@ -1871,20 +2037,113 @@ function AddProductTab({
   );
 }
 
-function AdRequestsTab({ requests, form, onChange, saving, onSubmit, onDelete }: {
-  requests: { id: string; sellerName: string; img: string; tagline: string; line: string; href: string; page: string; duration: number; status: string; note: string; createdAt: string }[];
+function RequestsStatusTab({ category, ads }: {
+  category: CategoryRequest[];
+  ads: { id: string; sellerName: string; img: string; tagline: string; line: string; href: string; page: string; duration: number; status: string; note: string; createdAt: string }[];
+}) {
+  const [filter, setFilter] = useState("all");
+
+  const items: { id: string; type: "category" | "ad"; title: string; sub: string; status: string; createdAt: string }[] = [
+    ...category.map((r) => ({
+      id: `cat-${r.id}`,
+      type: "category" as const,
+      title: r.categoryName + (r.subCategoryName ? ` / ${r.subCategoryName}` : ""),
+      sub: `${r.type === "new_category" ? "New Category" : "New Subcategory"} · ${r.source}`,
+      status: r.status,
+      createdAt: r.createdAt,
+    })),
+    ...ads.map((r) => ({
+      id: `ad-${r.id}`,
+      type: "ad" as const,
+      title: r.tagline,
+      sub: `Ad · ${r.page}`,
+      status: r.status,
+      createdAt: r.createdAt,
+    })),
+  ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  const counts = {
+    all: items.length,
+    pending: items.filter((i) => i.status === "pending").length,
+    approved: items.filter((i) => i.status === "approved" || i.status === "accepted").length,
+    denied: items.filter((i) => i.status === "denied" || i.status === "rejected").length,
+  };
+
+  const filtered = filter === "all" ? items : items.filter((i) => i.status === filter);
+
+  const STATUS: Record<string, string> = {
+    pending: "text-amber-400 bg-amber-500/10 border-amber-500/20",
+    approved: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
+    accepted: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
+    denied: "text-red-400 bg-red-500/10 border-red-500/20",
+    rejected: "text-red-400 bg-red-500/10 border-red-500/20",
+  };
+
+  const FILTERS: { key: "all" | "pending" | "approved" | "denied"; label: string }[] = [
+    { key: "all", label: "All" },
+    { key: "pending", label: "Pending" },
+    { key: "approved", label: "Approved" },
+    { key: "denied", label: "Denied" },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-lg font-bold text-white">Request Status</h2>
+        <div className="flex gap-2 overflow-x-auto">
+          {FILTERS.map((f) => (
+            <button key={f.key} onClick={() => setFilter(f.key)}
+              className={cn("px-3 py-1.5 rounded-lg text-xs font-medium border transition-all whitespace-nowrap",
+                filter === f.key ? "bg-gold-500/10 text-gold-400 border-gold-500/20" : "text-dark-400 border-dark-700/50 hover:text-dark-200")}>
+              {f.label} ({counts[f.key]})
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-3 gap-3">
+        {(["pending", "approved", "denied"] as const).map((s) => (
+          <div key={s} className="bg-dark-900/60 border border-dark-800/50 rounded-2xl p-4">
+            <p className="text-[10px] uppercase tracking-wider font-bold text-dark-500 mb-1">{s}</p>
+            <p className="text-2xl font-bold text-white">{counts[s]}</p>
+          </div>
+        ))}
+      </div>
+
+      {filtered.length === 0 ? (
+        <div className="text-center py-12 bg-dark-900/60 border border-dark-800/50 rounded-2xl">
+          <ListChecks className="w-10 h-10 text-dark-600 mx-auto mb-3" />
+          <p className="text-dark-400 text-sm">No {filter === "all" ? "" : filter} requests</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {filtered.map((it) => (
+            <div key={it.id} className="bg-dark-900/60 border border-dark-800/50 rounded-xl p-4 flex items-center gap-3">
+              <span className={cn("px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full border shrink-0",
+                it.type === "category" ? "text-sky-400 bg-sky-500/10 border-sky-500/20" : "text-violet-400 bg-violet-500/10 border-violet-500/20")}>
+                {it.type === "category" ? "Category" : "Ad"}
+              </span>
+              <span className={cn("px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full border", STATUS[it.status] || "")}>{it.status}</span>
+              <div className="min-w-0 flex-1">
+                <p className="text-white text-sm font-medium truncate">{it.title}</p>
+                <p className="text-dark-500 text-xs truncate">{it.sub}</p>
+              </div>
+              <span className="text-dark-600 text-[10px] shrink-0">{new Date(it.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AdRequestsTab({ form, onChange, saving, onSubmit }: {
   form: { img: string; tagline: string; line: string; href: string; page: string; duration: number };
   onChange: (f: typeof form) => void;
   saving: boolean;
   onSubmit: () => void;
-  onDelete: (id: string) => void;
 }) {
   const inputCls = "w-full px-3 py-2.5 rounded-xl bg-dark-900/60 border border-dark-700/50 text-sm text-white placeholder:text-dark-500 focus:outline-none focus:border-gold-500/40 transition-colors";
-  const STATUS_BADGES: Record<string, string> = {
-    pending: "text-amber-400 bg-amber-500/10 border-amber-500/20",
-    approved: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
-    rejected: "text-red-400 bg-red-500/10 border-red-500/20",
-  };
   return (
     <div className="space-y-6">
       <div className="bg-dark-900/60 border border-dark-800/50 rounded-2xl p-6">
@@ -1915,39 +2174,11 @@ function AdRequestsTab({ requests, form, onChange, saving, onSubmit, onDelete }:
           </div>
         </div>
       </div>
-      {requests.length > 0 && (
-        <div>
-          <h3 className="text-lg font-serif text-white mb-3">Your Requests</h3>
-          <div className="space-y-2">
-            {requests.map((r) => (
-              <div key={r.id} className="bg-dark-900/60 border border-dark-800/50 rounded-xl p-4 flex flex-col sm:flex-row items-stretch gap-4">
-                <div className="w-full sm:w-32 h-32 sm:h-20 rounded-xl overflow-hidden bg-dark-800/60 shrink-0 border border-dark-700/30">
-                  <img src={resolveImageUrl(r.img)} alt="" className="w-full h-full object-cover" />
-                </div>
-                <div className="flex-1 min-w-0 flex flex-col justify-center">
-                  <div className="flex items-center gap-2">
-                    <h4 className="text-sm font-semibold text-white truncate">{r.tagline}</h4>
-                    <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold border ${STATUS_BADGES[r.status] || "text-dark-500 bg-dark-800/60 border-dark-700/50"}`}>{r.status}</span>
-                    <span className="text-[10px] text-dark-500">{r.page}</span>
-                    <span className="text-[10px] text-dark-500">{r.duration}s</span>
-                  </div>
-                  <p className="text-xs text-dark-400 mt-1 truncate">{r.line}</p>
-                  {r.status === "rejected" && r.note && <p className="text-xs text-red-400 mt-1">Reason: {r.note}</p>}
-                </div>
-                <div className="flex items-center shrink-0" onClick={(e) => e.stopPropagation()}>
-                  {r.status === "pending" && <button onClick={() => onDelete(r.id)} className="p-1.5 rounded-lg text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/20 transition-all"><Trash2 size={14} /></button>}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
 
 function CategoryRequestsTab({
-  requests,
   dbCategories,
   catReqType,
   setCatReqType,
@@ -1962,7 +2193,6 @@ function CategoryRequestsTab({
   saving,
   onSubmit,
 }: {
-  requests: CategoryRequest[];
   dbCategories: DbCategory[];
   catReqType: string;
   setCatReqType: (v: "new_category" | "new_subcategory") => void;
@@ -1977,15 +2207,7 @@ function CategoryRequestsTab({
   saving: boolean;
   onSubmit: () => void;
 }) {
-  const [filter, setFilter] = useState("all");
-  const filtered = filter === "all" ? requests : requests.filter((r) => r.status === filter);
   const matchingCat = dbCategories.find((c) => c.slug === catReqCategory && c.source === catReqSource);
-
-  const STATUS_STYLES: Record<string, string> = {
-    pending: "text-amber-400 bg-amber-500/10 border-amber-500/20",
-    approved: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
-    denied: "text-red-400 bg-red-500/10 border-red-500/20",
-  };
 
   return (
     <div className="space-y-6">
@@ -2079,41 +2301,6 @@ function CategoryRequestsTab({
           {saving ? "Submitting..." : "Submit Request"}
         </button>
       </div>
-
-      <div className="flex gap-2">
-        {["pending", "approved", "denied", "all"].map((f) => (
-          <button key={f} onClick={() => setFilter(f)}
-            className={cn("px-3 py-1.5 rounded-lg text-xs font-medium border transition-all",
-              filter === f ? "bg-gold-500/10 text-gold-400 border-gold-500/20" : "text-dark-400 border-dark-700/50 hover:text-dark-200")}>
-            {f.charAt(0).toUpperCase() + f.slice(1)}
-          </button>
-        ))}
-      </div>
-
-      {filtered.length === 0 ? (
-        <div className="text-center py-12 bg-dark-900/60 border border-dark-800/50 rounded-2xl">
-          <ClipboardList className="w-10 h-10 text-dark-600 mx-auto mb-3" />
-          <p className="text-dark-400 text-sm">No {filter === "all" ? "" : filter} requests</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {filtered.map((req) => (
-            <div key={req.id} className="bg-dark-900/60 border border-dark-800/50 rounded-xl p-4">
-              <div className="flex items-center gap-3 mb-2">
-                <span className={cn("px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full border", STATUS_STYLES[req.status] || "")}>{req.status}</span>
-                <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full bg-dark-800 text-dark-300 border border-dark-700">{req.type === "new_category" ? "New Category" : "New Subcategory"}</span>
-                <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full bg-dark-800 text-dark-300 border border-dark-700">{req.source}</span>
-              </div>
-              <p className="text-white text-sm font-medium">
-                {req.categoryName}
-                {req.subCategoryName && <span className="text-dark-400"> / {req.subCategoryName}</span>}
-              </p>
-              {req.reason && <p className="text-dark-500 text-xs mt-1">Reason: {req.reason}</p>}
-              <p className="text-dark-600 text-[10px] mt-2">{new Date(req.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</p>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

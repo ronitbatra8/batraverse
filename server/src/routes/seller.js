@@ -9,6 +9,76 @@ const { sellerAuth, requireSeller } = require("../middleware/sellerAuth");
 const router = express.Router();
 
 router.use(sellerAuth);
+
+// ---- Seller onboarding (account created but not yet approved) ----
+// These run with a valid logged-in seller token but BEFORE the approved-only
+// gate below, so a freshly registered seller can complete their mandatory
+// profile and submit for owner review.
+
+const PROFILE_SELECT = { id: true, name: true, email: true, phone: true, role: true, approved: true, submittedForApproval: true, shopName: true, shopDescription: true, pickupName: true, pickupAddress: true, pickupCity: true, pickupState: true, pickupPincode: true, pickupPhone: true, cardNumber: true, cardLevel: true };
+
+function profileDataFromBody(body) {
+  const { shopName, shopDescription, pickupName, pickupAddress, pickupCity, pickupState, pickupPincode, pickupPhone } = body;
+  const data = {};
+  if (shopName !== undefined) data.shopName = String(shopName).trim();
+  if (shopDescription !== undefined) data.shopDescription = String(shopDescription).trim();
+  if (pickupName !== undefined) data.pickupName = String(pickupName).trim();
+  if (pickupAddress !== undefined) data.pickupAddress = String(pickupAddress).trim();
+  if (pickupCity !== undefined) data.pickupCity = String(pickupCity).trim();
+  if (pickupState !== undefined) data.pickupState = String(pickupState).trim();
+  if (pickupPincode !== undefined) data.pickupPincode = String(pickupPincode).trim();
+  if (pickupPhone !== undefined) data.pickupPhone = String(pickupPhone).trim();
+  return data;
+}
+
+router.get("/onboarding", async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({ where: { id: req.userId }, select: PROFILE_SELECT });
+    if (!user) return res.status(404).json({ error: "User not found" });
+    if (user.role !== "SELLER") return res.status(403).json({ error: "Seller access required" });
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ error: safeErrorMessage(err) });
+  }
+});
+
+router.put("/complete-profile", async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({ where: { id: req.userId }, select: { id: true, role: true, approved: true } });
+    if (!user) return res.status(404).json({ error: "User not found" });
+    if (user.role !== "SELLER") return res.status(403).json({ error: "Seller access required" });
+    if (user.approved) return res.status(400).json({ error: "Account already approved" });
+    const data = profileDataFromBody(req.body);
+    const updated = await prisma.user.update({ where: { id: req.userId }, data, select: PROFILE_SELECT });
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ error: safeErrorMessage(err) });
+  }
+});
+
+router.post("/submit-approval", async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({ where: { id: req.userId }, select: PROFILE_SELECT });
+    if (!user) return res.status(404).json({ error: "User not found" });
+    if (user.role !== "SELLER") return res.status(403).json({ error: "Seller access required" });
+    if (user.approved) return res.status(400).json({ error: "Account already approved" });
+    const missing = [];
+    if (!user.shopName) missing.push("Shop Name");
+    if (!user.shopDescription) missing.push("Shop Description");
+    if (!user.pickupName) missing.push("Pickup Contact Name");
+    if (!user.pickupPhone) missing.push("Pickup Phone");
+    if (!user.pickupAddress) missing.push("Pickup Address");
+    if (!user.pickupCity) missing.push("Pickup City");
+    if (!user.pickupState) missing.push("Pickup State");
+    if (!user.pickupPincode) missing.push("Pickup Pincode");
+    if (missing.length > 0) return res.status(400).json({ error: `Complete all mandatory fields: ${missing.join(", ")}` });
+    const updated = await prisma.user.update({ where: { id: req.userId }, data: { submittedForApproval: true }, select: PROFILE_SELECT });
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ error: safeErrorMessage(err) });
+  }
+});
+
 router.use(requireSeller);
 
 const uploadsDir = path.join(__dirname, "..", "..", "uploads", "products");

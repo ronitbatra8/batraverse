@@ -74,6 +74,7 @@ model User {
   passwordHash  String
   role          Role     @default(USER)
   approved      Boolean  @default(false)
+  submittedForApproval Boolean @default(false) // seller completed profile & asked for review
   shopName      String?
   shopDescription String?
   pickupName    String?   // pickup contact name for Delhivery forward shipments

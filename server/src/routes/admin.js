@@ -575,7 +575,7 @@ router.get("/sellers", async (req, res) => {
       where: { role: "SELLER" },
       orderBy: { createdAt: "desc" },
       select: {
-        id: true, name: true, email: true, phone: true, approved: true, createdAt: true,
+        id: true, name: true, email: true, phone: true, approved: true, submittedForApproval: true, createdAt: true,
         _count: { select: { products: true } },
       },
     });

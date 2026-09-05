@@ -79,6 +79,7 @@ function publicUser(user) {
     phone: user.phone,
     role: user.role,
     approved: user.approved,
+    submittedForApproval: !!user.submittedForApproval,
     cardNumber: user.cardNumber || null,
     cardLevel: user.cardLevel || null,
     cardExpiry: user.cardExpiry || null,

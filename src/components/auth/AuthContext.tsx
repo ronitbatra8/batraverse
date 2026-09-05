@@ -23,6 +23,7 @@ export interface User {
   phone: string;
   role?: string;
   approved?: boolean;
+  submittedForApproval?: boolean;
   cardNumber?: string | null;
   cardLevel?: string | null;
   cardExpiry?: string | null;

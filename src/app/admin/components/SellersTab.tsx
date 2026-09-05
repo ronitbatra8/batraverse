@@ -94,6 +94,11 @@ export default function SellersTab({ adminKey }: { adminKey: string }) {
                       <p className="text-white text-sm font-medium">{seller.name}</p>
                       <p className="text-dark-400 text-xs">{seller.email} {seller.phone ? `— ${seller.phone}` : ""}</p>
                       <p className="text-dark-500 text-[10px] mt-0.5">{seller._count?.products || 0} products</p>
+                      {!seller.approved && (
+                        <span className={`inline-block mt-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${seller.submittedForApproval ? "text-amber-400 bg-amber-500/10 border-amber-500/20" : "text-dark-500 bg-dark-800/60 border-dark-700/50"}`}>
+                          {seller.submittedForApproval ? "Awaiting review" : "Profile incomplete"}
+                        </span>
+                      )}
                     </div>
                     <button className="shrink-0 p-1.5 rounded-lg hover:bg-white/[0.05] transition-colors pointer-events-none">
                       {isExpanded ? <ChevronUp className="w-4 h-4 text-dark-500" /> : <ChevronDown className="w-4 h-4 text-dark-500" />}
