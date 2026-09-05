@@ -22,7 +22,6 @@ import {
 import { formatPrice } from "@/lib/utils";
 import { useToast } from "@/components/Toast";
 import { API, adminHeaders } from "./types";
-import WalletTopUpsTab from "./WalletTopUpsTab";
 
 const LEVELS = {
   none: {
@@ -237,7 +236,7 @@ export default function CardsWalletTab({ adminKey }: { adminKey: string }) {
           <CreditCard className="w-6 h-6 text-gold-400" />
           Cards &amp; Wallet
         </h2>
-        <p className="text-dark-400 text-sm mt-1">Manage member cards and wallet balances, approve top-ups, and credit wallets manually</p>
+        <p className="text-dark-400 text-sm mt-1">Manage member cards, wallet balances, and credit wallets manually</p>
       </div>
 
       <div>
@@ -501,10 +500,6 @@ export default function CardsWalletTab({ adminKey }: { adminKey: string }) {
             </button>
           </div>
         )}
-      </div>
-
-      <div className="border-t border-dark-800/50 pt-6">
-        <WalletTopUpsTab adminKey={adminKey} />
       </div>
     </div>
   );
