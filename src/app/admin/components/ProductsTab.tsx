@@ -88,6 +88,8 @@ export default function ProductsTab({ adminKey }: { adminKey: string }) {
   const [showInStock, setShowInStock] = useState(true);
   const [visibleCount, setVisibleCount] = useState(50);
 
+  useEffect(() => { setVisibleCount(50); }, [productFilter, showInStock, activeSub]);
+
   const [newCatName, setNewCatName] = useState("");
   const [newCatSource, setNewCatSource] = useState<"store" | "mart">("store");
   const [newSubCatName, setNewSubCatName] = useState("");
@@ -198,8 +200,6 @@ export default function ProductsTab({ adminKey }: { adminKey: string }) {
   });
 
   const visibleProducts = filteredProducts.slice(0, visibleCount);
-
-  useEffect(() => { setVisibleCount(50); }, [productFilter, showInStock, activeSub]);
 
   function renderCategoryList(cats: Category[]) {
     return (
