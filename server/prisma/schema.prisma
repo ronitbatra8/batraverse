@@ -475,9 +475,11 @@ model DeliveryOTP {
   @@index([orderId])
 }
 
-/* Auto-credited to the seller's wallet when an order item containing their
-   product is marked delivered (at their sellerPrice). Reversed if the item is
-   later returned/cancelled. Idempotent via the unique (orderId, itemIdx) key. */
+/* Settlement ledger for seller earnings. A pending record is created when an
+   order item containing the seller's product is marked delivered (at their
+   sellerPrice). Payments happen OUTSIDE the app (bank/UPI); the owner marks a
+   payout "paid" once real money has been sent. Returns/cancellations void a
+   still-pending payout. Idempotent via the unique (orderId, itemIdx) key. */
 model SellerPayout {
   id          String   @id @default(cuid())
   orderId     String
@@ -488,10 +490,10 @@ model SellerPayout {
   quantity    Int      @default(1)
   unitPrice   Float    @default(0) // payout per unit = product.sellerPrice (falls back to item price)
   amount      Float    @default(0) // unitPrice * quantity
-  status      String   @default("paid") // "paid" | "reversed"
+  status      String   @default("pending") // "pending" | "paid" | "voided"
   createdAt   DateTime @default(now())
   paidAt      DateTime?
-  reversedAt  DateTime?
+  voidedAt    DateTime?
 
   sellerId String
   seller   User @relation(fields: [sellerId], references: [id])

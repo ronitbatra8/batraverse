@@ -79,6 +79,7 @@ interface Stats {
   totalRevenue: number;
   pendingOrders: number;
   payoutTotal: number;
+  payoutPending: number;
   payoutsCount: number;
   topProducts: { name: string; brand: string; reviewCount: number; price: number }[];
 }
@@ -93,9 +94,10 @@ interface Payout {
   quantity: number;
   unitPrice: number;
   amount: number;
-  status: "paid" | "reversed";
+  status: "pending" | "paid" | "voided";
   createdAt: string;
-  reversedAt: string | null;
+  paidAt: string | null;
+  voidedAt: string | null;
 }
 
 interface Product {
@@ -256,7 +258,6 @@ export default function SellerDashboardPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [payouts, setPayouts] = useState<Payout[]>([]);
-  const [walletBalance, setWalletBalance] = useState(0);
 
   const [profileSaving, setProfileSaving] = useState(false);
   const [onboardLoading, setOnboardLoading] = useState(true);
@@ -318,7 +319,7 @@ export default function SellerDashboardPage() {
   const fetchDashboard = useCallback(async () => {
     setLoading(true);
     try {
-      const [p, s, pr, o, cats, cr, adr, pouts, wb] = await Promise.all([
+      const [p, s, pr, o, cats, cr, adr, pouts] = await Promise.all([
         apiFetch("/seller/profile"),
         apiFetch("/seller/stats"),
         apiFetch("/seller/products"),
@@ -327,7 +328,6 @@ export default function SellerDashboardPage() {
         apiFetch("/seller/category-requests"),
         apiFetch("/seller/ad-requests"),
         apiFetch("/seller/payouts"),
-        apiFetch("/wallet/balance"),
       ]);
       setProfile(p);
       setStats(s);
@@ -349,7 +349,6 @@ export default function SellerDashboardPage() {
       );
       setOrders(Array.isArray(o) ? o : []);
       setPayouts(Array.isArray(pouts) ? pouts : []);
-      setWalletBalance(typeof wb?.balance === "number" ? wb.balance : 0);
       setDbCategories(Array.isArray(cats?.store) && Array.isArray(cats?.mart) ? [...cats.store, ...cats.mart] : []);
       setCatRequests(Array.isArray(cr) ? cr : []);
       setAdRequests(Array.isArray(adr) ? adr : []);
@@ -791,7 +790,7 @@ export default function SellerDashboardPage() {
               </aside>
             </div>
 
-            {tab === "overview" && <OverviewTab stats={stats} orders={orders} payouts={payouts} walletBalance={walletBalance} onTab={goToTab} />}
+            {tab === "overview" && <OverviewTab stats={stats} orders={orders} payouts={payouts} onTab={goToTab} />}
           {tab === "analytics" && <AnalyticsTab stats={stats} orders={orders} products={products} />}
           {tab === "products" && (
             <ProductsTab
@@ -919,7 +918,7 @@ export default function SellerDashboardPage() {
   );
 }
 
-function OverviewTab({ stats, orders, payouts, walletBalance, onTab }: { stats: Stats | null; orders: Order[]; payouts: Payout[]; walletBalance: number; onTab: (t: Tab) => void }) {
+function OverviewTab({ stats, orders, payouts, onTab }: { stats: Stats | null; orders: Order[]; payouts: Payout[]; onTab: (t: Tab) => void }) {
   if (!stats) return null;
   const recentOrders = [...orders]
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
@@ -936,8 +935,8 @@ function OverviewTab({ stats, orders, payouts, walletBalance, onTab }: { stats: 
           { label: "Total Orders", value: stats.totalOrders, icon: ShoppingBag, color: "text-violet-400", bg: "from-violet-500/20 to-violet-500/10", border: "border-violet-500/30" },
           { label: "Revenue", value: formatPrice(stats.totalRevenue), icon: TrendingUp, color: "text-gold-400", bg: "from-gold-500/20 to-gold-500/10", border: "border-gold-500/30" },
           { label: "Pending Orders", value: stats.pendingOrders, icon: Clock, color: "text-amber-400", bg: "from-amber-500/20 to-amber-500/10", border: "border-amber-500/30" },
+          { label: "Owed to You", value: formatPrice(stats.payoutPending), icon: Coins, color: "text-teal-400", bg: "from-teal-500/20 to-teal-500/10", border: "border-teal-500/30" },
           { label: "Total Earned", value: formatPrice(stats.payoutTotal), icon: Wallet, color: "text-emerald-400", bg: "from-emerald-500/20 to-emerald-500/10", border: "border-emerald-500/30" },
-          { label: "Wallet Balance", value: formatPrice(walletBalance), icon: Coins, color: "text-teal-400", bg: "from-teal-500/20 to-teal-500/10", border: "border-teal-500/30" },
         ].map((s) => (
           <div key={s.label} className={`bg-gradient-to-br ${s.bg} border ${s.border} rounded-2xl p-5`}>
             <s.icon size={20} className={s.color} />
@@ -951,7 +950,7 @@ function OverviewTab({ stats, orders, payouts, walletBalance, onTab }: { stats: 
         <div className="bg-dark-900/60 border border-l-4 border-l-emerald-400/50 border-dark-800/50 rounded-2xl">
           <div className="px-6 py-4 border-b border-dark-800/50">
             <h3 className="text-sm font-display font-bold text-white">Recent Payouts</h3>
-            <p className="text-xs text-dark-500 mt-0.5">Credited to your wallet when an order is delivered</p>
+            <p className="text-xs text-dark-500 mt-0.5">Earnings settled to your bank by the owner when an order is delivered</p>
           </div>
           <div className="divide-y divide-dark-800/30">
             {recentPayouts.map((pay) => (
@@ -968,8 +967,13 @@ function OverviewTab({ stats, orders, payouts, walletBalance, onTab }: { stats: 
                   </div>
                 </div>
                 <div className="text-right shrink-0 ml-3">
-                  <p className="text-sm font-medium text-emerald-400">+{formatPrice(pay.amount)}</p>
-                  <span className={cn("text-xs px-2 py-0.5 rounded-full border", pay.status === "paid" ? "text-emerald-400 border-emerald-500/30 bg-emerald-500/10" : "text-rose-400 border-rose-500/30 bg-rose-500/10")}>
+                  <p className={cn("text-sm font-medium", pay.status === "paid" ? "text-emerald-400" : pay.status === "pending" ? "text-teal-400" : "text-dark-600")}>
+                    {pay.status === "paid" ? "+" : ""}{formatPrice(pay.amount)}
+                  </p>
+                  <span className={cn("text-xs px-2 py-0.5 rounded-full border",
+                    pay.status === "paid" ? "text-emerald-400 border-emerald-500/30 bg-emerald-500/10" :
+                    pay.status === "pending" ? "text-teal-400 border-teal-500/30 bg-teal-500/10" :
+                    "text-dark-500 border-dark-700 bg-dark-800")}>
                     {pay.status}
                   </span>
                 </div>

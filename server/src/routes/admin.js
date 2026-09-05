@@ -390,7 +390,7 @@ router.get("/payouts", async (req, res) => {
     const pageNum = Math.max(1, parseInt(page));
     const limitNum = Math.min(100, Math.max(1, parseInt(limit)));
 
-    const [payouts, total, paidAgg] = await prisma.$transaction([
+    const [payouts, total, byStatus] = await prisma.$transaction([
       prisma.sellerPayout.findMany({
         orderBy: { createdAt: "desc" },
         skip: (pageNum - 1) * limitNum,
@@ -398,14 +398,36 @@ router.get("/payouts", async (req, res) => {
         include: { seller: { select: { id: true, name: true, email: true, shopName: true } } },
       }),
       prisma.sellerPayout.count(),
-      prisma.sellerPayout.aggregate({
-        where: { status: "paid" },
-        _sum: { amount: true },
-        _count: true,
-      }),
+      prisma.sellerPayout.groupBy({ by: ["status"], _sum: { amount: true }, _count: true }),
     ]);
 
-    res.json({ payouts, total, paidTotal: paidAgg._sum.amount || 0, paidCount: paidAgg._count, page: pageNum, totalPages: Math.ceil(total / limitNum) });
+    const sumFor = (s) => (byStatus.find((g) => g.status === s)?._sum.amount) || 0;
+    res.json({
+      payouts,
+      total,
+      pendingTotal: sumFor("pending"),
+      paidTotal: sumFor("paid"),
+      voidedTotal: sumFor("voided"),
+      page: pageNum,
+      totalPages: Math.ceil(total / limitNum),
+    });
+  } catch (err) {
+    res.status(500).json({ error: safeErrorMessage(err) });
+  }
+});
+
+router.put("/payouts/:id/paid", async (req, res) => {
+  try {
+    const payout = await prisma.sellerPayout.findUnique({ where: { id: req.params.id } });
+    if (!payout) return res.status(404).json({ error: "Payout not found" });
+    if (payout.status !== "pending") {
+      return res.status(400).json({ error: `Payout is not pending (current: ${payout.status})` });
+    }
+    const updated = await prisma.sellerPayout.update({
+      where: { id: payout.id },
+      data: { status: "paid", paidAt: new Date() },
+    });
+    res.json({ message: "Payout marked as paid", payout: updated });
   } catch (err) {
     res.status(500).json({ error: safeErrorMessage(err) });
   }

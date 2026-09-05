@@ -188,13 +188,21 @@ router.get("/stats", async (req, res) => {
       select: { id: true, name: true, brand: true, price: true, images: true, reviewCount: true, rating: true },
     });
 
-    const payoutAgg = await prisma.sellerPayout.aggregate({
-      where: { sellerId: req.userId, status: "paid" },
-      _sum: { amount: true },
-      _count: true,
-    });
+    const [payoutAgg, pendingAgg] = await prisma.$transaction([
+      prisma.sellerPayout.aggregate({ where: { sellerId: req.userId, status: "paid" }, _sum: { amount: true }, _count: true }),
+      prisma.sellerPayout.aggregate({ where: { sellerId: req.userId, status: "pending" }, _sum: { amount: true }, _count: true }),
+    ]);
 
-    res.json({ totalProducts, totalOrders, totalRevenue, pendingOrders, topProducts, payoutTotal: payoutAgg._sum.amount || 0, payoutsCount: payoutAgg._count });
+    res.json({
+      totalProducts,
+      totalOrders,
+      totalRevenue,
+      pendingOrders,
+      topProducts,
+      payoutTotal: payoutAgg._sum.amount || 0,
+      payoutsCount: payoutAgg._count,
+      payoutPending: pendingAgg._sum.amount || 0,
+    });
   } catch (err) {
     res.status(500).json({ error: safeErrorMessage(err) });
   }

@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { cn, formatPrice } from "@/lib/utils";
-import { Coins, Loader2, RefreshCw, Search, Wallet, Undo2, CalendarDays } from "lucide-react";
+import { useToast } from "@/components/Toast";
+import { Coins, Loader2, RefreshCw, Search, Wallet, Undo2, CheckCircle2, CalendarDays, HandCoins } from "lucide-react";
 import { API, adminHeaders } from "./types";
 
 interface Payout {
@@ -14,18 +15,29 @@ interface Payout {
   quantity: number;
   unitPrice: number;
   amount: number;
-  status: "paid" | "reversed";
+  status: "pending" | "paid" | "voided";
   createdAt: string;
-  reversedAt: string | null;
+  paidAt: string | null;
+  voidedAt: string | null;
   seller: { id: string; name: string; email: string; shopName: string | null };
 }
 
+const STATUS_STYLE: Record<string, string> = {
+  pending: "bg-teal-500/15 text-teal-400 border-teal-500/30",
+  paid: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
+  voided: "bg-white/5 text-dark-500 border-dark-700",
+};
+
 export default function SellerPayoutsTab({ adminKey }: { adminKey: string }) {
+  const { toast } = useToast();
   const [payouts, setPayouts] = useState<Payout[]>([]);
+  const [pendingTotal, setPendingTotal] = useState(0);
   const [paidTotal, setPaidTotal] = useState(0);
+  const [voidedTotal, setVoidedTotal] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<"all" | "paid" | "reversed">("all");
+  const [filter, setFilter] = useState<"all" | "pending" | "paid" | "voided">("pending");
   const [search, setSearch] = useState("");
+  const [proceeding, setProceeding] = useState<string | null>(null);
 
   const fetchPayouts = useCallback(async () => {
     setLoading(true);
@@ -34,7 +46,9 @@ export default function SellerPayoutsTab({ adminKey }: { adminKey: string }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to load payouts");
       setPayouts(data?.payouts || []);
+      setPendingTotal(data?.pendingTotal || 0);
       setPaidTotal(data?.paidTotal || 0);
+      setVoidedTotal(data?.voidedTotal || 0);
     } catch {
       setPayouts([]);
     }
@@ -42,6 +56,23 @@ export default function SellerPayoutsTab({ adminKey }: { adminKey: string }) {
   }, [adminKey]);
 
   useEffect(() => { fetchPayouts(); }, [fetchPayouts]);
+
+  const handleMarkPaid = async (id: string) => {
+    setProceeding(id);
+    try {
+      const res = await fetch(`${API}/api/admin/payouts/${id}/paid`, {
+        method: "PUT",
+        headers: adminHeaders(adminKey),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to mark paid");
+      toast("Payout marked as paid", "success");
+      fetchPayouts();
+    } catch (e: unknown) {
+      toast(e instanceof Error ? e.message : "Failed to mark paid", "error");
+    }
+    setProceeding(null);
+  };
 
   const filtered = payouts.filter((p) => {
     if (filter !== "all" && p.status !== filter) return false;
@@ -56,42 +87,44 @@ export default function SellerPayoutsTab({ adminKey }: { adminKey: string }) {
     );
   });
 
-  const reversedTotal = payouts.filter((p) => p.status === "reversed").reduce((sum, p) => sum + p.amount, 0);
+  const pendingCount = payouts.filter((p) => p.status === "pending").length;
+  const paidCount = payouts.filter((p) => p.status === "paid").length;
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Coins className="w-5 h-5 text-gold-400" />
+          <HandCoins className="w-5 h-5 text-gold-400" />
           <h2 className="text-white text-lg font-semibold">Seller Payouts</h2>
         </div>
         <button onClick={fetchPayouts} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/10 text-xs text-dark-500 hover:text-white hover:border-white/20 transition-colors">
           <RefreshCw size={12} /> Refresh
         </button>
       </div>
+      <p className="text-xs text-dark-500">Settlements are paid by bank/UPI outside the app. Mark a payout paid once you have transferred the money to the seller.</p>
 
       {/* Summary */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="bg-gradient-to-br from-teal-500/20 to-teal-500/10 border border-teal-500/30 rounded-2xl p-5">
+          <Wallet className="w-5 h-5 text-teal-400" />
+          <p className="text-2xl font-display font-bold text-white mt-3">{formatPrice(pendingTotal)}</p>
+          <p className="text-xs text-dark-400 mt-1">{pendingCount} payout(s) owed to sellers</p>
+        </div>
         <div className="bg-gradient-to-br from-emerald-500/20 to-emerald-500/10 border border-emerald-500/30 rounded-2xl p-5">
-          <Wallet className="w-5 h-5 text-emerald-400" />
+          <CheckCircle2 className="w-5 h-5 text-emerald-400" />
           <p className="text-2xl font-display font-bold text-white mt-3">{formatPrice(paidTotal)}</p>
-          <p className="text-xs text-dark-400 mt-1">Total paid out to sellers (net of reversals)</p>
+          <p className="text-xs text-dark-400 mt-1">{paidCount} payout(s) paid out</p>
         </div>
-        <div className="bg-gradient-to-br from-sky-500/20 to-sky-500/10 border border-sky-500/30 rounded-2xl p-5">
-          <Coins className="w-5 h-5 text-sky-400" />
-          <p className="text-2xl font-display font-bold text-white mt-3">{payouts.filter((p) => p.status === "paid").length}</p>
-          <p className="text-xs text-dark-400 mt-1">Paid payouts</p>
-        </div>
-        <div className="bg-gradient-to-br from-rose-500/20 to-rose-500/10 border border-rose-500/30 rounded-2xl p-5">
-          <Undo2 className="w-5 h-5 text-rose-400" />
-          <p className="text-2xl font-display font-bold text-white mt-3">{formatPrice(reversedTotal)}</p>
-          <p className="text-xs text-dark-400 mt-1">Reversed (returns/cancellations)</p>
+        <div className="bg-gradient-to-br from-white/10 border border-dark-700 rounded-2xl p-5">
+          <Undo2 className="w-5 h-5 text-dark-400" />
+          <p className="text-2xl font-display font-bold text-white mt-3">{formatPrice(voidedTotal)}</p>
+          <p className="text-xs text-dark-400 mt-1">Voided (returns/cancellations)</p>
         </div>
       </div>
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-2">
-        {(["all", "paid", "reversed"] as const).map((f) => (
+        {(["all", "pending", "paid", "voided"] as const).map((f) => (
           <button key={f} onClick={() => setFilter(f)}
             className={`text-xs font-medium px-3 py-1.5 rounded-lg border transition-all ${
               filter === f ? "bg-gold-500/20 text-gold-400 border-gold-500/30" : "bg-dark-800 text-dark-500 border-dark-700 hover:text-white"
@@ -112,7 +145,7 @@ export default function SellerPayoutsTab({ adminKey }: { adminKey: string }) {
           <Loader2 className="w-6 h-6 text-gold-400 animate-spin" />
         </div>
       ) : filtered.length === 0 ? (
-        <p className="text-center text-dark-500 text-sm py-12">No payouts found. Payouts are created automatically when an item is marked delivered.</p>
+        <p className="text-center text-dark-500 text-sm py-12">No payouts found. A payout is created automatically when an order item is marked delivered.</p>
       ) : (
         <div className="space-y-2">
           {filtered.map((p) => (
@@ -121,8 +154,7 @@ export default function SellerPayoutsTab({ adminKey }: { adminKey: string }) {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-white font-semibold">{formatPrice(p.amount)}</span>
-                    <span className={cn("inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border",
-                      p.status === "paid" ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" : "bg-rose-500/15 text-rose-400 border-rose-500/30")}>
+                    <span className={cn("inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border", STATUS_STYLE[p.status])}>
                       {p.status}
                     </span>
                     {p.seller.shopName && <span className="text-[10px] text-dark-500">· {p.seller.shopName}</span>}
@@ -138,11 +170,18 @@ export default function SellerPayoutsTab({ adminKey }: { adminKey: string }) {
                   </div>
                   <div className="mt-1 flex items-center gap-3 text-[10px] text-dark-500">
                     <span className="flex items-center gap-1"><CalendarDays className="w-3 h-3" /> {new Date(p.createdAt).toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
-                    {p.reversedAt && (
-                      <span className="flex items-center gap-1 text-rose-400/80"><Undo2 className="w-3 h-3" /> Reversed {new Date(p.reversedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</span>
-                    )}
+                    {p.paidAt && <span className="flex items-center gap-1 text-emerald-400/80"><CheckCircle2 className="w-3 h-3" /> Paid {new Date(p.paidAt).toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}</span>}
+                    {p.voidedAt && <span className="flex items-center gap-1"><Undo2 className="w-3 h-3" /> Voided {new Date(p.voidedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</span>}
                   </div>
                 </div>
+                {p.status === "pending" && (
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button onClick={() => handleMarkPaid(p.id)} disabled={proceeding === p.id}
+                      className="flex items-center gap-1 px-3 py-1.5 bg-emerald-500/20 border border-emerald-500/30 rounded-lg text-xs text-emerald-300 font-medium hover:bg-emerald-500/30 transition-colors disabled:opacity-50">
+                      {proceeding === p.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />} Mark Paid
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           ))}

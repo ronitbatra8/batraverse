@@ -7,19 +7,21 @@ function normalizeItemProductId(raw) {
   return raw && raw.startsWith("db-") ? raw.replace(/^db-/, "") : raw;
 }
 
-/* Credits/reverses seller payouts for an order whose per-item statuses changed.
-   Compares the OLD items (order.items) with the new items and:
-     - credits the product's seller (at product.sellerPrice * quantity) when an
-       item becomes "delivered"
-     - reverses a previously-paid payout when an item becomes "returned"/"cancelled"
-   Idempotent: payouts are keyed by unique (orderId, itemIdx); a credit only moves
-   a reversed payout back to "paid" and a reversal only acts on a "paid" payout.
-   Items without a seller (store-owned products) are skipped. */
+/* Maintains the seller settlement ledger for an order whose per-item statuses
+   changed. Compares the OLD items (order.items) with the new items and:
+     - creates a PENDING payout (amount owed to the product's seller at
+       product.sellerPrice * quantity) when an item becomes "delivered"
+     - VOIDS a still-pending payout when an item becomes "returned"/"cancelled"
+   Payments happen outside the app (bank/UPI) — no wallet is touched. The owner
+   marks a pending payout paid via the admin endpoint. Idempotent: keyed by
+   unique (orderId, itemIdx); re-delivery moves a voided payout back to pending,
+   and voiding only acts on a pending payout. Items without a seller (store-owned
+   products) are skipped. */
 async function syncPayoutsForItemChange(order, newItems) {
   if (!order || !Array.isArray(order.items) || !Array.isArray(newItems)) return;
 
-  const credits = [];
-  const reversals = [];
+  const delivers = [];
+  const voids = [];
   order.items.forEach((oldItem, idx) => {
     const newItem = newItems[idx];
     if (!newItem) return;
@@ -27,21 +29,21 @@ async function syncPayoutsForItemChange(order, newItems) {
     const newStatus = newItem.status || "pending";
     if (oldStatus === newStatus) return;
     if (newStatus === "delivered") {
-      credits.push(idx);
+      delivers.push(idx);
     } else if (newStatus === "returned" || newStatus === "cancelled") {
-      reversals.push(idx);
+      voids.push(idx);
     }
   });
-  if (credits.length === 0 && reversals.length === 0) return;
+  if (delivers.length === 0 && voids.length === 0) return;
 
-  if (credits.length > 0) {
-    const ids = [...new Set(credits.map((idx) => normalizeItemProductId(newItems[idx].productId)).filter(Boolean))];
+  if (delivers.length > 0) {
+    const ids = [...new Set(delivers.map((idx) => normalizeItemProductId(newItems[idx].productId)).filter(Boolean))];
     const products = ids.length > 0
       ? await prisma.product.findMany({ where: { id: { in: ids } }, select: { id: true, sellerId: true, sellerPrice: true, name: true } })
       : [];
     const productById = new Map(products.map((p) => [p.id, p]));
 
-    for (const idx of credits) {
+    for (const idx of delivers) {
       const item = newItems[idx];
       const product = productById.get(normalizeItemProductId(item.productId));
       if (!product || !product.sellerId) continue;
@@ -52,73 +54,45 @@ async function syncPayoutsForItemChange(order, newItems) {
       const amount = Math.round(unitPrice * qty * 100) / 100;
       if (amount <= 0) continue;
 
-      await prisma.$transaction(async (tx) => {
-        const existing = await tx.sellerPayout.findUnique({
-          where: { orderId_itemIdx: { orderId: order.id, itemIdx: idx } },
+      const existing = await prisma.sellerPayout.findUnique({
+        where: { orderId_itemIdx: { orderId: order.id, itemIdx: idx } },
+      });
+      if (existing && existing.status === "pending") continue;
+      if (existing) {
+        await prisma.sellerPayout.update({
+          where: { id: existing.id },
+          data: { status: "pending", voidedAt: null },
         });
-        if (existing && existing.status === "paid") return;
-        const seller = await tx.user.findUnique({
-          where: { id: product.sellerId },
-          select: { walletBalance: true, peakWalletBalance: true },
-        });
-        if (!seller) return;
-        const newBalance = seller.walletBalance + amount;
-        await tx.user.update({
-          where: { id: product.sellerId },
+      } else {
+        await prisma.sellerPayout.create({
           data: {
-            walletBalance: { increment: amount },
-            ...(newBalance > (seller.peakWalletBalance || 0) ? { peakWalletBalance: newBalance } : {}),
+            sellerId: product.sellerId,
+            orderId: order.id,
+            orderRef: order.orderId || order.id,
+            itemIdx: idx,
+            productId: product.id,
+            productName: item.name || product.name || "Product",
+            quantity: qty,
+            unitPrice,
+            amount,
+            status: "pending",
           },
         });
-        if (existing) {
-          await tx.sellerPayout.update({
-            where: { id: existing.id },
-            data: { status: "paid", paidAt: new Date(), reversedAt: null },
-          });
-        } else {
-          await tx.sellerPayout.create({
-            data: {
-              sellerId: product.sellerId,
-              orderId: order.id,
-              orderRef: order.orderId || order.id,
-              itemIdx: idx,
-              productId: product.id,
-              productName: item.name || product.name || "Product",
-              quantity: qty,
-              unitPrice,
-              amount,
-              status: "paid",
-              paidAt: new Date(),
-            },
-          });
-        }
-      });
+      }
     }
   }
 
-  if (reversals.length > 0) {
-    for (const idx of reversals) {
-      await prisma.$transaction(async (tx) => {
-        const existing = await tx.sellerPayout.findUnique({
-          where: { orderId_itemIdx: { orderId: order.id, itemIdx: idx } },
-        });
-        if (!existing || existing.status !== "paid") return;
-        const seller = await tx.user.findUnique({
-          where: { id: existing.sellerId },
-          select: { walletBalance: true },
-        });
-        if (!seller) return;
-        const deduct = Math.min(seller.walletBalance, existing.amount);
-        if (deduct > 0) {
-          await tx.user.update({
-            where: { id: existing.sellerId },
-            data: { walletBalance: { decrement: deduct } },
-          });
-        }
-        await tx.sellerPayout.update({
-          where: { id: existing.id },
-          data: { status: "reversed", reversedAt: new Date() },
-        });
+  if (voids.length > 0) {
+    for (const idx of voids) {
+      const existing = await prisma.sellerPayout.findUnique({
+        where: { orderId_itemIdx: { orderId: order.id, itemIdx: idx } },
+      });
+      // Only void payouts nothing has been sent for yet; a paid payout stays
+      // recorded (return/refund happens between owner and seller directly).
+      if (!existing || existing.status !== "pending") continue;
+      await prisma.sellerPayout.update({
+        where: { id: existing.id },
+        data: { status: "voided", voidedAt: new Date() },
       });
     }
   }
