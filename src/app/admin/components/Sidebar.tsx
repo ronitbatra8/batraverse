@@ -40,7 +40,7 @@ export default function Sidebar({ tab, setTab, loading, onRefresh, onSignOut, ba
   return (
     <>
       {/* Top horizontal nav */}
-      <div className="fixed inset-x-0 top-24 z-30 bg-dark-900/85 backdrop-blur-xl border-b border-gold-500/10 shadow-[0_1px_0_0_rgba(0,0,0,0.2)]">
+      <div className="fixed inset-x-0 top-0 z-30 bg-dark-900/85 backdrop-blur-xl border-b border-gold-500/10 shadow-[0_1px_0_0_rgba(0,0,0,0.2)]">
         <div className="mx-auto flex max-w-[100rem] items-center gap-2 px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-2.5 shrink-0 py-3 pr-1">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-gold-400 to-gold-600 flex items-center justify-center shadow-[0_0_18px_rgba(212,175,55,0.22)]">
@@ -85,7 +85,7 @@ export default function Sidebar({ tab, setTab, loading, onRefresh, onSignOut, ba
       </div>
 
       {/* Left side nav */}
-      <aside className="fixed left-0 top-40 bottom-0 z-20 w-56 bg-dark-900/60 backdrop-blur-xl border-r border-gold-500/10 hidden lg:flex flex-col">
+      <aside className="fixed left-0 top-16 bottom-0 z-20 w-56 bg-dark-900/60 backdrop-blur-xl border-r border-gold-500/10 hidden lg:flex flex-col">
         <nav className="flex-1 flex flex-col gap-1 p-3 pt-4">
           {sideNavItems.map((item) => {
             const active = tab === item.key;

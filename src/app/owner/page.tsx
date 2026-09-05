@@ -270,7 +270,7 @@ export default function AdminPage() {
     <div className="min-h-screen bg-dark-950 page-transition overflow-x-hidden">
       <Sidebar tab={tab} setTab={setTab} loading={loading} onRefresh={loadAll} onSignOut={handleSignOut} badges={badges} />
 
-      <main className="pt-40 min-h-screen lg:pl-56">
+      <main className="pt-16 min-h-screen lg:pl-56">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-24 lg:pb-8">
           {tab === "overview" && <OverviewTab stats={stats} orders={orders} passwordResets={passwordResets} messages={messages} onNavigate={handleNavigateToTab} />}
           {tab === "orders" && <OrdersTab orders={orders} updatingId={updatingId} onStatusUpdate={updateStatus} onItemStatusUpdate={updateItemStatus} onAssign={assignOrder} onPaymentAction={paymentAction} onReturnApprove={returnApprove} focusOrderId={focusOrderId} onFocusHandled={() => setFocusOrderId(null)} adminKey={adminKey} onShipDelhivery={shipViaDelhivery} />}
