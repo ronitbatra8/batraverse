@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { ArrowRight } from "lucide-react";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import TrustMarquee from "@/components/TrustMarquee";
@@ -21,10 +21,18 @@ export default function Hero() {
   const { theme } = useTheme();
   const light = theme === "light";
 
+  /* Sync hero intro with the boot splash: on the first visit (boot plays) the
+     hero lines wait until the splash finishes, then animate in; on return visits
+     (boot skipped) they play almost immediately. */
+  const booted = useRef<boolean>(
+    typeof window === "undefined" ? true : !!sessionStorage.getItem("btv-loaded")
+  ).current;
+  const base = booted ? 0.05 : 3;
+
   const line = (delay: number) => ({
     initial: { opacity: 0, y: 40, filter: "blur(8px)" },
     animate: { opacity: 1, y: 0, filter: "blur(0px)" },
-    transition: { duration: 0.9, delay, ease: EASE },
+    transition: { duration: 0.9, delay: base + delay, ease: EASE },
   });
 
   return (
@@ -92,7 +100,7 @@ export default function Hero() {
                 )}
                 initial={{ scaleX: 0 }}
                 animate={{ scaleX: 1 }}
-                transition={{ duration: 0.8, delay: 0.1, ease: EASE }}
+                transition={{ duration: 0.8, delay: base + 0.1, ease: EASE }}
               />
               <p
                 className={cn(
@@ -185,7 +193,7 @@ export default function Hero() {
         className="absolute inset-x-0 bottom-0 z-10"
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8, delay: 1.2, ease: EASE }}
+        transition={{ duration: 0.8, delay: base + 0.9, ease: EASE }}
       >
         {/* Hairline */}
         <div className="relative mx-auto h-px w-full max-w-7xl px-6 sm:px-8">
@@ -203,23 +211,24 @@ export default function Hero() {
       </motion.div>
 
       {/* Floating lamp — hovers over the empty wall, casting a warm gold light */}
-      <Lamp active={true} />
+      <Lamp active={true} bootDelay={booted ? 0 : 2500} />
     </section>
   );
 }
 
 /* A pendant lamp that is not there at all on entry — it lowers from the
    ceiling on its cable, bounces twice, then the warm light glows up. */
-function Lamp({ active }: { active: boolean }) {
+function Lamp({ active, bootDelay = 0 }: { active: boolean; bootDelay?: number }) {
   const [mount, setMount] = useState(false);
   const [pulled, setPulled] = useState(false);
   const { theme, toggle } = useTheme();
 
   useEffect(() => {
     if (!active) return;
-    const t = setTimeout(() => setMount(true), 500);
+    /* drop after the boot when the splash played, or almost immediately otherwise */
+    const t = setTimeout(() => setMount(true), 500 + bootDelay);
     return () => clearTimeout(t);
-  }, [active]);
+  }, [active, bootDelay]);
 
   /* The light stays off until the lamp has landed and settled */
   const [lit, setLit] = useState(false);

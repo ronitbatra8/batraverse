@@ -8,6 +8,9 @@ import CustomCursor from "@/components/cursor/CustomCursor";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { ToastProvider } from "@/components/Toast";
 import { useAuth } from "@/components/auth/AuthContext";
+import { BootProvider } from "@/components/boot/BootProvider";
+import BootScreen from "@/components/boot/BootScreen";
+import ContentWrapper from "@/components/boot/ContentWrapper";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 
@@ -73,16 +76,21 @@ export default function SiteWrapper({
   return (
     <ThemeProvider>
       <ToastProvider>
-        <CustomCursor />
-        <Navbar />
-        <motion.div
-          className={`relative z-10 flex min-h-screen w-full flex-col${isDashboardRoute ? "" : " pt-16"}`}
-          initial={false}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.6, delay: 0.05, ease: EASE }}
-        >
-          {children}
-        </motion.div>
+        <BootProvider>
+          <BootScreen />
+          <ContentWrapper>
+            <CustomCursor />
+            <Navbar />
+            <motion.div
+              className={`relative z-10 flex min-h-screen w-full flex-col${isDashboardRoute ? "" : " pt-16"}`}
+              initial={false}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.6, delay: 0.05, ease: EASE }}
+            >
+              {children}
+            </motion.div>
+          </ContentWrapper>
+        </BootProvider>
       </ToastProvider>
     </ThemeProvider>
   );
