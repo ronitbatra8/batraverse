@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -177,16 +177,16 @@ model Product {
   status       String   @default("approved")
   sellerPrice  Float?
   rejectReason String?
-  images        Json     @default("[]")
+  images        String     @default("[]")
   inStock       Boolean  @default(true)
   badge         String?
   rating        Float    @default(0)
   reviewCount   Int      @default(0)
 
-  specifications Json     @default("[]")
-  keyFeatures    Json     @default("[]")
-  colorOptions   Json     @default("[]")
-  sizeOptions    Json     @default("{}")
+  specifications String   @default("[]")
+  keyFeatures    String   @default("[]")
+  colorOptions   String   @default("[]")
+  sizeOptions    String   @default("{}")
 
   sellerId String?
   seller   User?    @relation(fields: [sellerId], references: [id])

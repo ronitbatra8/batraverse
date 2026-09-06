@@ -3,7 +3,7 @@
 import { useLayoutEffect, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { AnimatePresence, motion, useAnimationControls, useMotionValueEvent, useScroll } from "framer-motion";
+import { AnimatePresence, motion, useMotionValueEvent, useScroll } from "framer-motion";
 import {
   Home,
   Phone,
@@ -13,7 +13,6 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Brand from "@/components/brand/Brand";
-import { useBoot, useBootPhase } from "@/components/boot/BootContext";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import { useAuth } from "@/components/auth/AuthContext";
 import { useCart } from "@/components/cart/CartContext";
@@ -62,8 +61,6 @@ const BOTTOM_TABS = [
 ] as const;
 
 export default function Navbar() {
-  const phase = useBootPhase();
-  const boot = useBoot();
   const pathname = usePathname();
   const router = useRouter();
   const { theme, toggle } = useTheme();
@@ -133,12 +130,6 @@ export default function Navbar() {
      light-mode styled. */
   const heroWhite = pathname === "/" && !scrolled && lightNav;
 
-  /* The single brand element. During the boot it drops from above the screen
-     to the centre (the BV card inside does its own quiet squash — the text
-     never squashes), then on morph it flies back home to the navbar — the
-     MAISON DARK flight. On refresh it just slides in from the top, no bounce. */
-  const brandRef = useRef<HTMLDivElement>(null);
-  const brandControls = useAnimationControls();
   const { scrollYProgress, scrollY } = useScroll();
 
   /* Derive scrolled from the raw scroll pixel position (not scrollYProgress —
@@ -258,83 +249,9 @@ export default function Navbar() {
     anim.playSegments([0, 30], true);
   };
 
-  /* Drop the brand in during the boot (e-commerce); slide it in on refresh. */
-  useLayoutEffect(() => {
-    if (boot === "play") {
-      if (phase !== "boot") return;
-      const el = brandRef.current;
-      if (!el) return;
-      const rect = el.getBoundingClientRect();
-      const scale = Math.min(
-        3.2,
-        (window.innerWidth * 0.8 - 48) / Math.max(rect.width, 1)
-      );
-      const cx = window.innerWidth / 2 - (rect.left + rect.width / 2);
-      const cy = window.innerHeight / 2 - (rect.top + rect.height / 2);
-      const vh = window.innerHeight;
-
-      /* Park the lockup above the viewport at boot size, fully visible, then
-         drop to the centre with a gentle vertical settle. The BV card inside
-         performs its own quiet squash (see Brand.tsx); the lockup itself only
-         translates and rotates so the text never bounces. */
-      brandControls.set({
-        x: cx,
-        y: -vh * 0.45,
-        scale,
-        scaleX: 1,
-        scaleY: 1,
-        rotate: -10,
-        opacity: 1,
-      });
-      brandControls.start({
-        y: cy,
-        rotate: 0,
-        transition: {
-          duration: 0.8,
-          delay: 0.15,
-          ease: EASE,
-        },
-      });
-    } else if (boot === "skip") {
-      /* Clean drop from the top — no bounce */
-      brandControls.set({
-        x: 0,
-        y: -22,
-        scale: 1,
-        scaleX: 1,
-        scaleY: 1,
-        rotate: 0,
-        opacity: 1,
-      });
-      brandControls.start({
-        y: 0,
-        transition: { duration: 0.6, ease: EASE },
-      });
-    }
-  }, [boot, phase, brandControls]);
-
-  /* Fly the brand home to the navbar on morph — the MAISON DARK flight */
-  useEffect(() => {
-    if (phase !== "morph") return;
-    brandControls.start({
-      x: 0,
-      y: 0,
-      scale: 1,
-      scaleX: 1,
-      scaleY: 1,
-      rotate: 0,
-      transition: { duration: 0.9, ease: EASE },
-    });
-  }, [phase, brandControls]);
-
   return (
     <>
-      <motion.header
-        className={cn(
-          "fixed inset-x-0 top-0 z-[56]",
-          phase === "boot" && "pointer-events-none"
-        )}
-      >
+      <motion.header className="fixed inset-x-0 top-0 z-[56]">
         <nav
           className={cn(
             "relative flex h-16 items-center justify-between px-5 transition-[margin,padding,border-radius,box-shadow,background-color] duration-500 sm:px-10",
@@ -345,34 +262,21 @@ export default function Navbar() {
               : "bg-transparent"
           )}
         >
-          {/* Brand — the single lockup that travels drop -> centre -> navbar */}
-          <motion.div
-            ref={brandRef}
-            data-nav-brand
-            animate={brandControls}
-            className={cn("flex items-center", sliderOpen && "max-lg:invisible")}
-            style={{ opacity: 0 }}
+          {/* Brand */}
+          <Link
+            href="/"
+            aria-label="Batraverse — home"
+            className="block"
+            onClick={(e) => {
+              e.preventDefault();
+              window.location.href = "/";
+            }}
           >
-            <Link
-              href="/"
-              aria-label="Batraverse — home"
-              className="block"
-              onClick={(e) => {
-                e.preventDefault();
-                window.location.href = "/";
-              }}
-            >
-              <Brand key={boot} boot={boot === "play"} light={lightNav} heroWhite={heroWhite} />
-            </Link>
-          </motion.div>
+            <Brand light={lightNav} heroWhite={heroWhite} />
+          </Link>
 
           {/* Centre links */}
-          <motion.ul
-            className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-9 lg:flex"
-            initial={boot !== "skip" ? { opacity: 0 } : false}
-            animate={{ opacity: phase !== "boot" ? 1 : 0 }}
-            transition={{ duration: 0.7, delay: phase !== "boot" ? 0.35 : 0 }}
-          >
+          <ul className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-9 lg:flex">
             {NAV_LINKS.map((l) => {
               const active =
                 l.href === "/"
@@ -396,17 +300,14 @@ export default function Navbar() {
                 </li>
               );
             })}
-          </motion.ul>
+          </ul>
 
           {/* Actions */}
-          <motion.div
+          <div
             className={cn(
               "flex items-center gap-2 sm:gap-4",
               sliderOpen && "pointer-events-none [&>*:not([data-menu-trigger])]:opacity-0"
             )}
-            initial={boot !== "skip" ? { opacity: 0 } : false}
-            animate={{ opacity: phase !== "boot" ? 1 : 0 }}
-            transition={{ duration: 0.7, delay: phase !== "boot" ? 0.45 : 0 }}
           >
             <IconBtn
               label="Search"
@@ -518,7 +419,7 @@ export default function Navbar() {
                 </span>
               </span>
             </button>
-          </motion.div>
+          </div>
 
           {/* Scroll progress */}
           <motion.div

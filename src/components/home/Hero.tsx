@@ -5,7 +5,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ArrowRight } from "lucide-react";
-import { useBootPhase } from "@/components/boot/BootContext";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import TrustMarquee from "@/components/TrustMarquee";
 
@@ -19,14 +18,12 @@ const HERO_IMG = "https://img.magnific.com/premium-photo/glamorous-monochrome-po
 const HERO_IMG_MOBILE = "https://images.pexels.com/photos/22742255/pexels-photo-22742255/free-photo-of-model-in-strapless-black-top.jpeg";
 
 export default function Hero() {
-  const phase = useBootPhase();
-  const started = phase !== "boot";
   const { theme } = useTheme();
   const light = theme === "light";
 
   const line = (delay: number) => ({
     initial: { opacity: 0, y: 40, filter: "blur(8px)" },
-    animate: started ? { opacity: 1, y: 0, filter: "blur(0px)" } : {},
+    animate: { opacity: 1, y: 0, filter: "blur(0px)" },
     transition: { duration: 0.9, delay, ease: EASE },
   });
 
@@ -36,7 +33,7 @@ export default function Hero() {
       <motion.div
         className="absolute inset-0"
         initial={{ scale: 1.05 }}
-        animate={started ? { scale: 1 } : {}}
+        animate={{ scale: 1 }}
         transition={{ duration: 2.2, ease: EASE }}
       >
         <Image
@@ -94,7 +91,7 @@ export default function Hero() {
                   light ? "bg-sapphire" : "bg-gold"
                 )}
                 initial={{ scaleX: 0 }}
-                animate={started ? { scaleX: 1 } : {}}
+                animate={{ scaleX: 1 }}
                 transition={{ duration: 0.8, delay: 0.1, ease: EASE }}
               />
               <p
@@ -187,7 +184,7 @@ export default function Hero() {
       <motion.div
         className="absolute inset-x-0 bottom-0 z-10"
         initial={{ opacity: 0, y: 16 }}
-        animate={started ? { opacity: 1, y: 0 } : {}}
+        animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8, delay: 1.2, ease: EASE }}
       >
         {/* Hairline */}
@@ -206,7 +203,7 @@ export default function Hero() {
       </motion.div>
 
       {/* Floating lamp — hovers over the empty wall, casting a warm gold light */}
-      <Lamp active={started} />
+      <Lamp active={true} />
     </section>
   );
 }

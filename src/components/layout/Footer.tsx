@@ -130,7 +130,7 @@ export default function Footer() {
           {/* Logo centered */}
           <div className="flex justify-center">
             <Link href="/" aria-label="Batraverse — home">
-              <Brand boot={false} light={light} size="lg" mobileWordmark />
+              <Brand light={light} size="lg" mobileWordmark />
             </Link>
           </div>
 
@@ -220,7 +220,7 @@ export default function Footer() {
             {/* Brand block */}
             <div className="sm:col-span-2 lg:col-span-1">
               <Link href="/" aria-label="Batraverse — home" className="inline-block">
-                <Brand boot={false} light={light} size="lg" />
+                <Brand light={light} size="lg" />
               </Link>
               <p
                 className={cn(
