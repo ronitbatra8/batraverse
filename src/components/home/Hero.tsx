@@ -1,7 +1,6 @@
 "use client";
 
 import { motion } from "framer-motion";
-import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef } from "react";
 import { ArrowRight } from "lucide-react";
@@ -12,10 +11,6 @@ import TrustMarquee from "@/components/TrustMarquee";
 import { cn } from "@/lib/utils";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
-
-/* Full-bleed hero backdrop — looping video on desktop, portrait crop on mobile;
-   the night overlays deepen it in dark mode, day keeps it original. */
-const HERO_IMG_MOBILE = "https://images.pexels.com/photos/22742255/pexels-photo-22742255/free-photo-of-model-in-strapless-black-top.jpeg";
 
 export default function Hero() {
   const { theme } = useTheme();
@@ -59,7 +54,7 @@ export default function Hero() {
         animate={{ scale: 1 }}
         transition={{ duration: 2.2, ease: EASE }}
       >
-        {/* Desktop — looping video backdrop */}
+        {/* Looping video backdrop — used at every size, from mobile to desktop */}
         <video
           ref={videoRef}
           src="/batraverse-hero.mp4"
@@ -67,15 +62,7 @@ export default function Hero() {
           loop
           playsInline
           preload="auto"
-          className="absolute inset-0 hidden h-full w-full object-cover sm:block"
-        />
-        <Image
-          src={HERO_IMG_MOBILE}
-          alt=""
-          fill
-          priority
-          sizes="100vw"
-          className="object-cover block sm:hidden"
+          className="absolute inset-0 h-full w-full object-cover"
         />
       </motion.div>
 
