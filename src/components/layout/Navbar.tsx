@@ -24,6 +24,17 @@ import menuStackIconData from "@/animations/menu-stack-icon.json";
 const EASE = [0.16, 1, 0.3, 1] as const;
 const RR_EASE = [0.19, 1, 0.22, 1] as const;
 
+/* Shared pill surface — one frosted-glass recipe for BOTH the floating top bar
+   and the floating mobile bottom bar, so they always look identical. */
+const pillFloating = (light: boolean) =>
+  light
+    ? "border-white/50 bg-white/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_20px_60px_-10px_rgba(0,0,0,0.45)]"
+    : "border-white/15 bg-black/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_20px_60px_-10px_rgba(0,0,0,0.6)]";
+const pillIdle = (light: boolean) =>
+  light
+    ? "border-white/50 bg-white/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_16px_50px_-12px_rgba(0,0,0,0.45)]"
+    : "border-white/20 bg-black/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_16px_50px_-12px_rgba(0,0,0,0.45)]";
+
 const MotionLink = motion.create(Link);
 
 type NavRow =
@@ -255,14 +266,8 @@ export default function Navbar() {
         {/* macOS-style floating pill — frosted glass, floats above the page */}
         <nav
           className={cn(
-            "relative mx-auto mt-3 flex h-14 w-[calc(100%-2rem)] max-w-[1400px] items-center justify-between rounded-2xl border px-4 transition-[background-color,border-color,box-shadow] duration-500 sm:h-16 sm:w-[calc(100%-4rem)] sm:px-6",
-            scrolled
-              ? lightNav
-                ? "border-white/70 bg-white/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_20px_60px_-10px_rgba(0,0,0,0.45)] backdrop-blur-2xl"
-                : "border-white/15 bg-black/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_20px_60px_-10px_rgba(0,0,0,0.6)] backdrop-blur-2xl"
-              : lightNav
-                ? "border-white/50 bg-white/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_16px_50px_-12px_rgba(0,0,0,0.45)] backdrop-blur-md"
-                : "border-white/20 bg-black/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_16px_50px_-12px_rgba(0,0,0,0.45)] backdrop-blur-md"
+            "relative mx-auto mt-3 flex h-14 w-[calc(100%-2rem)] max-w-[1400px] items-center justify-between rounded-2xl border px-4 backdrop-blur-2xl transition-[background-color,border-color,box-shadow] duration-500 sm:h-16 sm:w-[calc(100%-4rem)] sm:px-6",
+            scrolled ? pillFloating(lightNav) : pillIdle(lightNav)
           )}
         >
           {/* Brand */}
@@ -483,14 +488,12 @@ export default function Navbar() {
         )}
       </AnimatePresence>
 
-      {/* Mobile bottom tab bar — a mini floating glass pill, same look as the top bar */}
+      {/* Mobile bottom tab bar — a mini floating glass pill, exactly like the top bar */}
       <div
         className={cn(
-          "fixed inset-x-3 bottom-3 z-[50] rounded-full border backdrop-blur-2xl transition-transform duration-500 ease-[cubic-bezier(0.33,1,0.68,1)] lg:hidden",
+          "fixed inset-x-3 bottom-3 z-[50] rounded-2xl border backdrop-blur-2xl transition-[background-color,border-color,box-shadow] duration-500 ease-[cubic-bezier(0.33,1,0.68,1)] lg:hidden",
+          pillFloating(lightNav),
           sliderOpen && "hidden",
-          lightNav
-            ? "border-white/50 bg-white/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_20px_60px_-10px_rgba(0,0,0,0.45)]"
-            : "border-white/15 bg-black/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_20px_60px_-10px_rgba(0,0,0,0.6)]",
           tabHidden && "translate-y-[calc(100%+0.75rem)]"
         )}
       >
