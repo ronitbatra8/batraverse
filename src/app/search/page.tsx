@@ -180,6 +180,7 @@ function SearchContent() {
   const lastScrollY = useRef(0);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const heroRef = useRef<HTMLDivElement>(null);
+  const navAnchorRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const params = new URLSearchParams();
@@ -190,12 +191,13 @@ function SearchContent() {
   useEffect(() => {
     const onScroll = () => {
       const y = window.scrollY;
+      const diff = y - lastScrollY.current;
       setShowScrollTop(y > 400);
-      if (y > lastScrollY.current && y > 200) {
-        setHideTabs(true);
-      } else {
-        setHideTabs(false);
-      }
+      if (Math.abs(diff) < 10) return;
+      const anchor = navAnchorRef.current;
+      const stickY = anchor ? anchor.getBoundingClientRect().top + y : Infinity;
+      if (diff > 0 && y > stickY) setHideTabs(true);
+      else if (diff < 0) setHideTabs(false);
       lastScrollY.current = y;
     };
     window.addEventListener("scroll", onScroll, { passive: true });
@@ -289,6 +291,7 @@ function SearchContent() {
         </div>
 
         {/* Sticky floating search + tabs — whole block slides up on mobile scroll down */}
+        <div ref={navAnchorRef} aria-hidden />
         <div
           className={cn(
             "sticky top-[82px] z-30 transition-all duration-500 max-sm:top-[78px]",
