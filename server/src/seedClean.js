@@ -144,23 +144,19 @@ async function main() {
   console.log(`  Seeded ${storeCategories.length + martCategories.length} categories`);
 
   console.log("Seeding card upgrade pricing...");
-  const DURATIONS = ["ONE_MONTH", "THREE_MONTH", "SIX_MONTH"];
-  const BASE_PRICES = {
-    "none-bronze": 199, "none-silver": 499, "none-gold": 999, "none-platinum": 1999, "none-diamond": 3499, "none-black": 5999,
-    "bronze-silver": 299, "bronze-gold": 799, "bronze-platinum": 1799, "bronze-diamond": 3299, "bronze-black": 5799,
-    "silver-gold": 499, "silver-platinum": 1499, "silver-diamond": 2999, "silver-black": 5499,
-    "gold-platinum": 999, "gold-diamond": 2499, "gold-black": 4999,
-    "platinum-diamond": 1499, "platinum-black": 3999,
-    "diamond-black": 2499,
+  const LEVELS_ARR = ["none", "bronze", "silver", "gold", "platinum", "diamond", "black"];
+  const LEVEL_THRESHOLD = {
+    bronze: 100, silver: 500, gold: 1500, platinum: 5000, diamond: 15000, black: 30000,
   };
-  const DURATION_MULT = { ONE_MONTH: 1, THREE_MONTH: 2.5, SIX_MONTH: 5 };
-  for (const [pair, base] of Object.entries(BASE_PRICES)) {
-    const [from, to] = pair.split("-");
-    for (const dur of DURATIONS) {
+  const ORDER = Object.fromEntries(LEVELS_ARR.map((l, i) => [l, i]));
+  for (const fromLevel of LEVELS_ARR) {
+    for (const toLevel of LEVELS_ARR) {
+      if (ORDER[toLevel] <= ORDER[fromLevel]) continue;
+      const price = LEVEL_THRESHOLD[toLevel];
       await prisma.cardUpgradePricing.upsert({
-        where: { fromLevel_toLevel_duration: { fromLevel: from, toLevel: to, duration: dur } },
-        update: { price: Math.round(base * DURATION_MULT[dur]), active: true },
-        create: { fromLevel: from, toLevel: to, duration: dur, price: Math.round(base * DURATION_MULT[dur]), active: true },
+        where: { fromLevel_toLevel: { fromLevel, toLevel } },
+        update: { price, active: true },
+        create: { fromLevel, toLevel, price, active: true },
       });
     }
   }

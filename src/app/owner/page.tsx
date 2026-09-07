@@ -22,7 +22,6 @@ import PrivateViewingTab from "../admin/components/PrivateViewingTab";
 import DeliveryExecTab from "../admin/components/DeliveryExecTab";
 import SellersTab from "../admin/components/SellersTab";
 import CardsWalletTab from "../admin/components/CardsWalletTab";
-import WalletTopUpsTab from "../admin/components/WalletTopUpsTab";
 import ViolationsTab from "../admin/components/ViolationsTab";
 import ProductsTab from "../admin/components/ProductsTab";
 import ProductCatalogTab from "../admin/components/ProductCatalogTab";
@@ -289,7 +288,6 @@ export default function AdminPage() {
           {tab === "delivery" && <DeliveryExecTab adminKey={adminKey} />}
           {tab === "sellers" && <SellersTab adminKey={adminKey} />}
           {tab === "cards" && <CardsWalletTab adminKey={adminKey} />}
-          {tab === "walletrequests" && <WalletTopUpsTab adminKey={adminKey} />}
           {tab === "payouts" && <SellerPayoutsTab adminKey={adminKey} />}
           {tab === "violations" && <ViolationsTab adminKey={adminKey} />}
           {tab === "categories" && <ProductsTab adminKey={adminKey} />}

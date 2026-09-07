@@ -382,12 +382,6 @@ model Otp {
   createdAt DateTime @default(now())
 }
 
-enum UpgradeDuration {
-  ONE_MONTH
-  THREE_MONTH
-  SIX_MONTH
-}
-
 enum UpgradeRequestStatus {
   PENDING
   APPROVED
@@ -404,7 +398,8 @@ enum WalletTopUpStatus {
 model WalletTopUp {
   id            String            @id @default(cuid())
   amount        Float
-  transactionId String            // customer-provided UPI txn ID
+  paymentMethod String?           // COD, UPI_DELIVERY, UPI (null = legacy UPI-only)
+  transactionId String?           // customer-provided UPI txn ID (required only for UPI)
   upiId         String?           // customer's UPI ID they paid from
   status        WalletTopUpStatus @default(PENDING)
   adminNote     String?
@@ -422,26 +417,25 @@ model CardUpgradePricing {
   id        String          @id @default(cuid())
   fromLevel String          // "silver","gold","platinum","diamond","black"
   toLevel   String          // "gold","platinum","diamond","black"
-  duration  UpgradeDuration
   price     Float
   active    Boolean         @default(true)
   createdAt DateTime        @default(now())
 
-  @@unique([fromLevel, toLevel, duration])
+  @@unique([fromLevel, toLevel])
 }
 
 model CardUpgradeRequest {
-  id           String              @id @default(cuid())
-  fromLevel    String
-  toLevel      String
-  duration     UpgradeDuration
-  price        Float
-  paymentMethod String?            // COD, UPI_DELIVERY, CARD, UPI, NETBANKING, WALLET
+  id            String              @id @default(cuid())
+  fromLevel     String
+  toLevel       String
+  price         Float
+  paymentMethod String?            // COD, UPI_DELIVERY, UPI
   paymentStatus PaymentStatus @default(PENDING)
-  status       UpgradeRequestStatus @default(PENDING)
-  note         String?             // admin note
-  createdAt    DateTime            @default(now())
-  processedAt  DateTime?
+  transactionId String?            // customer-provided UPI txn ID for online UPI
+  status        UpgradeRequestStatus @default(PENDING)
+  note          String?             // admin note
+  createdAt     DateTime            @default(now())
+  processedAt   DateTime?
 
   userId String
   user   User   @relation(fields: [userId], references: [id])

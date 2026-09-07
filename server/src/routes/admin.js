@@ -2,6 +2,7 @@ const express = require("express");
 const jwt = require("jsonwebtoken");
 const prisma = require("../db");
 const { adminAuth } = require("../middleware/auth");
+const { getEffectiveCardLevel } = require("../utils/cardLevel");
 const { safeErrorMessage, ORDER_STATUSES } = require("../utils/helpers");
 const { syncPayoutsForItemChange } = require("../utils/sellerPayout");
 const {
@@ -519,7 +520,7 @@ router.get("/users/cards", async (req, res) => {
         walletBalance: true, peakWalletBalance: true,
       },
     });
-    res.json(users);
+    res.json(users.map((u) => ({ ...u, effectiveCardLevel: getEffectiveCardLevel(u) })));
   } catch (err) {
     res.status(500).json({ error: safeErrorMessage(err) });
   }
@@ -726,8 +727,6 @@ const LEVEL_PREFIX = {
   diamond: "DM", black: "BK", owner: "OW",
 };
 const VALID_CARD_LEVELS = ["none", "bronze", "owner", "silver", "gold", "platinum", "diamond", "black"];
-const UPGRADE_DURATIONS = ["ONE_MONTH", "THREE_MONTH", "SIX_MONTH"];
-const DURATION_DAYS = { ONE_MONTH: 30, THREE_MONTH: 90, SIX_MONTH: 180 };
 
 router.get("/card-upgrades", async (req, res) => {
   try {
@@ -761,40 +760,31 @@ router.post("/card-upgrades/:id/process", async (req, res) => {
     if (action === "reject") {
       const updated = await prisma.cardUpgradeRequest.update({
         where: { id: request.id },
-        data: { status: "REJECTED", processedAt: new Date(), note: note || null },
+        data: { status: "REJECTED", paymentStatus: "FAILED", processedAt: new Date(), note: note || null },
       });
       return res.json(updated);
     }
     const now = new Date();
-    const days = DURATION_DAYS[request.duration];
-    const baseDate = request.user.cardExpiry && request.user.cardExpiry > now ? request.user.cardExpiry : now;
-    const newExpiry = new Date(baseDate.getTime() + days * 24 * 60 * 60 * 1000);
+    const walletUser = await prisma.user.findUnique({
+      where: { id: request.userId },
+      select: { walletBalance: true, peakWalletBalance: true },
+    });
+    const newBalance = walletUser.walletBalance + request.price;
     const [updated] = await prisma.$transaction([
       prisma.cardUpgradeRequest.update({
         where: { id: request.id },
-        data: { status: "APPROVED", processedAt: now },
+        data: { status: "APPROVED", paymentStatus: "APPROVED", processedAt: now },
       }),
       prisma.user.update({
         where: { id: request.userId },
-        data: { cardLevel: request.toLevel, cardExpiry: newExpiry },
+        data: {
+          walletBalance: { increment: request.price },
+          ...(newBalance > walletUser.peakWalletBalance ? { peakWalletBalance: newBalance } : {}),
+        },
       }),
     ]);
 
-    // Update card number prefix to match new level (only for the exclusive
-    // BLACK / OWNER embossed cards — other levels keep their card number)
-    const newPrefix = LEVEL_PREFIX[request.toLevel] || "BV";
-    const user = request.user;
-    if (["black", "owner"].includes(request.toLevel) && user.cardNumber) {
-      const parts = user.cardNumber.split("-");
-      if (parts.length >= 2) {
-        const newCardNumber = `${newPrefix}-${parts.slice(1).join("-")}`;
-        const exists = await prisma.user.findFirst({ where: { cardNumber: newCardNumber, NOT: { id: user.id } } });
-        if (!exists) {
-          await prisma.user.update({ where: { id: user.id }, data: { cardNumber: newCardNumber } });
-        }
-      }
-    }
-    res.json({ ...updated, userCardLevel: request.toLevel, userCardExpiry: newExpiry });
+    res.json({ ...updated, userCardLevel: getEffectiveCardLevel({ ...request.user, peakWalletBalance: Math.max(walletUser.peakWalletBalance, newBalance), walletBalance: newBalance }) });
   } catch (err) {
     res.status(500).json({ error: safeErrorMessage(err) });
   }
@@ -841,7 +831,7 @@ router.put("/users/:id/card", async (req, res) => {
 router.get("/card-pricing", async (req, res) => {
   try {
     const pricing = await prisma.cardUpgradePricing.findMany({
-      orderBy: [{ fromLevel: "asc" }, { toLevel: "asc" }, { duration: "asc" }],
+      orderBy: [{ fromLevel: "asc" }, { toLevel: "asc" }],
     });
     res.json(pricing);
   } catch (err) {
@@ -851,19 +841,16 @@ router.get("/card-pricing", async (req, res) => {
 
 router.post("/card-pricing", async (req, res) => {
   try {
-    const { fromLevel, toLevel, duration, price, active } = req.body;
-    if (!fromLevel || !toLevel || !duration || price == null) {
-      return res.status(400).json({ error: "fromLevel, toLevel, duration, and price are required" });
+    const { fromLevel, toLevel, price, active } = req.body;
+    if (!fromLevel || !toLevel || price == null) {
+      return res.status(400).json({ error: "fromLevel, toLevel, and price are required" });
     }
     if (!VALID_CARD_LEVELS.includes(fromLevel) || !VALID_CARD_LEVELS.includes(toLevel)) {
       return res.status(400).json({ error: `Invalid level. Must be one of: ${VALID_CARD_LEVELS.join(", ")}` });
     }
-    if (!UPGRADE_DURATIONS.includes(duration)) {
-      return res.status(400).json({ error: `Invalid duration. Must be one of: ${UPGRADE_DURATIONS.join(", ")}` });
-    }
-    const data = { fromLevel, toLevel, duration, price, active: active !== undefined ? active : true };
+    const data = { fromLevel, toLevel, price, active: active !== undefined ? active : true };
     const pricing = await prisma.cardUpgradePricing.upsert({
-      where: { fromLevel_toLevel_duration: { fromLevel, toLevel, duration } },
+      where: { fromLevel_toLevel: { fromLevel, toLevel } },
       update: { price: data.price, active: data.active },
       create: data,
     });

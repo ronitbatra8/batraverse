@@ -41,27 +41,35 @@ router.get("/balance", userAuth, async (req, res) => {
 
 router.post("/topup", userAuth, async (req, res) => {
   try {
-    const { amount, transactionId, upiId } = req.body;
+    const { amount, paymentMethod, transactionId, upiId } = req.body;
 
     if (!amount || typeof amount !== "number" || amount < MIN_TOPUP) {
       return res.status(400).json({ error: `Minimum top-up is ₹${MIN_TOPUP}` });
     }
-    if (!transactionId || typeof transactionId !== "string" || transactionId.trim().length < 6) {
-      return res.status(400).json({ error: "Valid UPI transaction ID is required" });
+
+    const method = paymentMethod || "UPI";
+    if (!["COD", "UPI_DELIVERY", "UPI"].includes(method)) {
+      return res.status(400).json({ error: "Invalid payment method. Must be one of: COD, UPI_DELIVERY, UPI" });
+    }
+    if (method === "UPI" && (!transactionId || typeof transactionId !== "string" || transactionId.trim().length < 6)) {
+      return res.status(400).json({ error: "Valid UPI transaction ID is required for online UPI" });
     }
 
-    const existing = await prisma.walletTopUp.findFirst({
-      where: { userId: req.userId, transactionId: transactionId.trim() },
-    });
-    if (existing) {
-      return res.status(400).json({ error: "This transaction ID has already been submitted" });
+    if (transactionId && typeof transactionId === "string" && transactionId.trim()) {
+      const existing = await prisma.walletTopUp.findFirst({
+        where: { userId: req.userId, transactionId: transactionId.trim() },
+      });
+      if (existing) {
+        return res.status(400).json({ error: "This transaction ID has already been submitted" });
+      }
     }
 
     const topUp = await prisma.walletTopUp.create({
       data: {
         userId: req.userId,
         amount,
-        transactionId: transactionId.trim(),
+        paymentMethod: method,
+        transactionId: transactionId && typeof transactionId === "string" ? transactionId.trim() : null,
         upiId: upiId?.trim() || null,
       },
     });

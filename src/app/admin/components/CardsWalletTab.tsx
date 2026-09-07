@@ -22,6 +22,7 @@ import {
 import { formatPrice } from "@/lib/utils";
 import { useToast } from "@/components/Toast";
 import { API, adminHeaders } from "./types";
+import TopUpRequests from "./TopUpRequests";
 
 const LEVELS = {
   none: {
@@ -124,6 +125,7 @@ interface UserCard {
   role: string;
   cardNumber: string | null;
   cardLevel: string | null;
+  effectiveCardLevel?: string | null;
   approved: boolean;
   createdAt: string;
   walletBalance: number;
@@ -142,6 +144,7 @@ export default function CardsWalletTab({ adminKey }: { adminKey: string }) {
   const [creditAmounts, setCreditAmounts] = useState<Record<string, string>>({});
   const [creditingId, setCreditingId] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(50);
+  const [view, setView] = useState<"users" | "requests">("users");
 
   useEffect(() => { setVisibleCount(50); }, [userSearch, userFilter]);
 
@@ -172,7 +175,7 @@ export default function CardsWalletTab({ adminKey }: { adminKey: string }) {
         const err = await res.json();
         throw new Error(err.error || "Failed");
       }
-      setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, cardLevel: newLevel } : u)));
+      setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, cardLevel: newLevel, effectiveCardLevel: newLevel } : u)));
     } catch (e: unknown) {
       toast(e instanceof Error ? e.message : "Failed to update card level", "error");
     }
@@ -203,6 +206,11 @@ export default function CardsWalletTab({ adminKey }: { adminKey: string }) {
     setCreditingId(null);
   };
 
+  const levelOf = (u: UserCard) => {
+    const cl = u.effectiveCardLevel || u.cardLevel || "none";
+    return (cl in LEVELS ? cl : "none") as LevelKey;
+  };
+
   const filteredUsers = users.filter((u) => {
     const matchesSearch =
       u.name?.toLowerCase().includes(userSearch.toLowerCase()) ||
@@ -210,17 +218,17 @@ export default function CardsWalletTab({ adminKey }: { adminKey: string }) {
       u.cardNumber?.toLowerCase().includes(userSearch.toLowerCase());
     if (!matchesSearch) return false;
     if (userFilter === "all") return true;
-    if (userFilter === "upgraded") return !!u.cardLevel && u.cardLevel !== "none";
-    if (userFilter === "none") return !u.cardLevel || u.cardLevel === "none";
-    if (userFilter === "owner") return u.cardLevel === "owner";
+    if (userFilter === "upgraded") return levelOf(u) !== "none";
+    if (userFilter === "none") return levelOf(u) === "none";
+    if (userFilter === "owner") return levelOf(u) === "owner";
     return true;
   });
 
   const visibleUsers = filteredUsers.slice(0, visibleCount);
 
-  const countUpgraded = users.filter((u) => u.cardLevel && u.cardLevel !== "none").length;
-  const countNone = users.filter((u) => !u.cardLevel || u.cardLevel === "none").length;
-  const countFounder = users.filter((u) => u.cardLevel === "owner").length;
+  const countUpgraded = users.filter((u) => levelOf(u) !== "none").length;
+  const countNone = users.filter((u) => levelOf(u) === "none").length;
+  const countFounder = users.filter((u) => levelOf(u) === "owner").length;
 
   const categories = [
     { key: "all", label: "All Users", count: users.length, color: "text-white" },
@@ -236,9 +244,31 @@ export default function CardsWalletTab({ adminKey }: { adminKey: string }) {
           <CreditCard className="w-6 h-6 text-gold-400" />
           Cards &amp; Wallet
         </h2>
-        <p className="text-dark-400 text-sm mt-1">Manage member cards, wallet balances, and credit wallets manually</p>
+        <p className="text-dark-400 text-sm mt-1">Manage member cards, wallet balances, top-up &amp; upgrade requests, and credit wallets manually</p>
       </div>
 
+      <div className="flex items-center gap-2 border-b border-dark-800/50 pb-3">
+        <button
+          onClick={() => setView("users")}
+          className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+            view === "users" ? "bg-white/10 text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)]" : "text-dark-400 hover:text-white"
+          }`}
+        >
+          <Users className="w-4 h-4" /> All Users
+        </button>
+        <button
+          onClick={() => setView("requests")}
+          className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+            view === "requests" ? "bg-white/10 text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)]" : "text-dark-400 hover:text-white"
+          }`}
+        >
+          <Wallet className="w-4 h-4" /> Top-Up Requests
+        </button>
+      </div>
+
+      {view === "requests" ? (
+        <TopUpRequests adminKey={adminKey} />
+      ) : (
       <div>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
           <h3 className="text-sm font-semibold text-white flex items-center gap-2">
@@ -295,7 +325,7 @@ export default function CardsWalletTab({ adminKey }: { adminKey: string }) {
         ) : (
           <div className="space-y-3">
             {visibleUsers.map((u) => {
-              const level = (u.cardLevel && u.cardLevel in LEVELS ? u.cardLevel : "none") as LevelKey;
+              const level = levelOf(u);
               const meta = LEVELS[level];
               const LevelIcon = meta.icon;
               const isExpanded = expandedUser === u.id;
@@ -462,7 +492,7 @@ export default function CardsWalletTab({ adminKey }: { adminKey: string }) {
                               {(["none", "silver", "gold", "platinum", "diamond", "black", "owner"] as const).map((lvl) => {
                                 const lvlMeta = LEVELS[lvl];
                                 const LvlIcon = lvlMeta.icon;
-                                const isActive = (u.cardLevel || "none") === lvl;
+                                const isActive = level === lvl;
                                 return (
                                   <button
                                     key={lvl}
@@ -501,6 +531,7 @@ export default function CardsWalletTab({ adminKey }: { adminKey: string }) {
           </div>
         )}
       </div>
+      )}
     </div>
   );
 }

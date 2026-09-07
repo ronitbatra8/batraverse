@@ -4,20 +4,18 @@ import { Suspense, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth/AuthContext";
 import MemberCard from "@/components/auth/MemberCard";
+import CardUpgradeCheckout from "@/components/cards/CardUpgradeCheckout";
 import { Spinner, useLight } from "@/components/auth/auth-ui";
 import { apiFetch } from "@/lib/api";
-import { cn, errMessage, formatPrice } from "@/lib/utils";
-import { getLevelFromBalance, LEVELS, type LevelKey } from "@/lib/levels";
+import { cn, errMessage } from "@/lib/utils";
+import { getLevelFromBalance, LEVELS, LEVEL_BALANCE_THRESHOLD, LEVEL_ORDER, getLevelIndex, type LevelKey } from "@/lib/levels";
 import {
-  CreditCard,
   Loader2,
   Save,
   Lock,
   Shield,
   Wallet,
-  ArrowUpRight,
 } from "lucide-react";
-import Link from "next/link";
 
 function getNamePrefix(name: string): string {
   const parts = name.trim().split(/\s+/);
@@ -119,6 +117,14 @@ function CardsContent() {
 
   if (loading) return <Spinner />;
   if (!user) return null;
+
+  const balance = user.walletBalance ?? 0;
+  const peak = user.peakWalletBalance ?? 0;
+  const nextLevelIdx = getLevelIndex(effectiveLevel) + 1;
+  const nextLevel = LEVEL_ORDER[nextLevelIdx] as LevelKey | undefined;
+  const nextThreshold = nextLevel ? LEVEL_BALANCE_THRESHOLD[nextLevel] : undefined;
+  const gapToNext = nextThreshold ? Math.max(nextThreshold - balance, 0) : 0;
+  const progress = nextThreshold ? Math.max(0, Math.min(balance / nextThreshold, 1)) : 1;
 
   return (
     <div className="relative min-h-[calc(100vh-4rem)] overflow-hidden px-6 pb-16 pt-24 sm:px-10 sm:pt-28">
@@ -369,81 +375,57 @@ function CardsContent() {
               {pinErr && <p className="text-red-400 text-xs">{pinErr}</p>}
             </div>
 
-            {/* Wallet */}
-            <div className="space-y-4">
-              <h3 className={cn("text-xs font-semibold uppercase tracking-[0.3em]", light ? "text-sapphire" : "text-gold/80")}>
-                Wallet
-              </h3>
-              <div className={cn("rounded-2xl border p-5 flex items-center justify-between", light ? "border-black/10 bg-white" : "border-white/10 bg-white/[0.03]")}>
+            {/* Wallet Balance */}
+            <div className={cn(
+              "rounded-2xl border p-4 space-y-4",
+              light ? "bg-white border-sapphire/20" : "bg-dark-900/60 border-dark-800/50"
+            )}>
+              <div className="flex items-center justify-between">
+                <label className={cn("text-[10px] uppercase tracking-[0.3em] font-semibold", light ? "text-sapphire/60" : "text-white/50")}>
+                  Wallet Balance
+                </label>
+                <span className={cn("flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full", LEVELS[effectiveLevel]?.chip)}>
+                  <Wallet size={10} /> {LEVELS[effectiveLevel]?.name || effectiveLevel.toUpperCase()}
+                </span>
+              </div>
+
+              <div className="flex items-end justify-between gap-4">
                 <div>
-                  <p className={cn("text-2xl font-bold", light ? "text-dark-900" : "text-white")}>₹{(user?.walletBalance ?? 0).toFixed(0)}</p>
-                  <p className={cn("text-[10px] mt-0.5", light ? "text-onyx/40" : "text-dark-600")}>Current balance</p>
+                  <p className={cn("text-2xl font-bold", light ? "text-onyx" : "text-cream")}>
+                    ₹{balance.toLocaleString("en-IN")}
+                  </p>
+                  <p className={cn("mt-0.5 text-[10px]", light ? "text-onyx/40" : "text-dark-500")}>
+                    Peak balance ₹{peak.toLocaleString("en-IN")} lifetime
+                  </p>
                 </div>
-                <Link href="/wallet" className={cn("flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-[10px] font-bold uppercase tracking-[0.2em] transition-all",
-                  light ? "bg-sapphire text-white hover:bg-sapphire/90" : "bg-gold text-abyss hover:bg-gold/90")}>
-                  <Wallet size={14} /> Recharge
-                </Link>
+                {nextLevel ? (
+                  <p className={cn("text-right text-[11px] font-semibold leading-snug", light ? "text-sapphire" : "text-gold")}>
+                    ₹{gapToNext.toLocaleString("en-IN")} more<br />
+                    <span className={cn("text-[9px] font-bold uppercase tracking-wider", light ? "text-onyx/40" : "text-dark-500")}>
+                      to {LEVELS[nextLevel]?.name || nextLevel.toUpperCase()}
+                    </span>
+                  </p>
+                ) : (
+                  <p className={cn("text-right text-[11px] font-bold text-gold", light ? "text-sapphire" : "text-gold")}>
+                    Top tier reached!
+                  </p>
+                )}
+              </div>
+
+              <div className={cn("h-2.5 w-full overflow-hidden rounded-full", light ? "bg-dark-100" : "bg-white/10")}>
+                <div
+                  className={cn("h-full rounded-full transition-all", light ? "bg-sapphire" : "bg-gradient-to-r from-gold-400 to-gold-600")}
+                  style={{ width: `${progress * 100}%` }}
+                />
               </div>
             </div>
 
-            {/* Tier Benefits */}
+            {/* Card Upgrades & Top-Up */}
             <div className="space-y-4">
               <h3 className={cn("text-xs font-semibold uppercase tracking-[0.3em]", light ? "text-sapphire" : "text-gold/80")}>
-                Recharge & Level Up
+                Upgrade & Top-Up
               </h3>
-              <p className={cn("text-[10px] leading-relaxed", light ? "text-onyx/50" : "text-dark-500")}>
-                Recharge your wallet to unlock higher tiers. More balance = better perks.
-              </p>
-              <div className="space-y-2">
-                {([
-                  { level: "bronze", min: 100, discount: 0, freeDel: 1 },
-                  { level: "silver", min: 500, discount: 0, freeDel: 2 },
-                  { level: "gold", min: 1500, discount: 0, freeDel: 5 },
-                  { level: "platinum", min: 5000, discount: 5, freeDel: 7 },
-                  { level: "diamond", min: 15000, discount: 10, freeDel: 10 },
-                  { level: "black", min: 30000, discount: 15, freeDel: 15 },
-                  ] as const).map((tier) => {
-                  const meta = LEVELS[tier.level];
-                  const isCurrentOrAbove = effectiveLevel === "owner" || (user?.walletBalance ?? 0) >= tier.min;
-                  const LevelIcon = meta.icon;
-                  return (
-                    <Link key={tier.level} href={`/wallet?amount=${tier.min}`}
-                      className={cn("rounded-xl border p-4 flex items-center gap-4 transition-all cursor-pointer",
-                        isCurrentOrAbove
-                          ? (light ? "border-sapphire/30 bg-sapphire/5 hover:border-sapphire/50" : "border-gold/30 bg-gold/5 hover:border-gold/50")
-                          : (light ? "border-black/10 bg-white hover:border-sapphire/30" : "border-white/10 bg-white/[0.03] hover:border-gold/30")
-                      )}>
-                      <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center shrink-0", isCurrentOrAbove ? meta.chip : (light ? "bg-dark-100" : "bg-white/5"))}>
-                        {LevelIcon ? <LevelIcon size={16} className={isCurrentOrAbove ? "" : (light ? "text-dark-400" : "text-dark-500")} /> : <span className={cn("text-xs font-bold", isCurrentOrAbove ? meta.text : (light ? "text-dark-400" : "text-dark-500"))}>•</span>}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className={cn("text-[10px] font-bold uppercase tracking-[0.15em]", isCurrentOrAbove ? (light ? "text-sapphire" : "text-gold-light") : (light ? "text-dark-500" : "text-dark-500"))}>
-                            {meta.name || "Member"}
-                          </span>
-                          <span className={cn("text-[9px]", light ? "text-onyx/40" : "text-dark-600")}>₹{tier.min.toLocaleString("en-IN")}+</span>
-                        </div>
-                        <div className="flex items-center gap-3 mt-1">
-                          {tier.discount > 0 && (
-                            <span className={cn("text-[9px]", isCurrentOrAbove ? (light ? "text-emerald-600" : "text-emerald-400") : (light ? "text-onyx/40" : "text-dark-600"))}>
-                              {tier.discount}% off all orders
-                            </span>
-                          )}
-                          <span className={cn("text-[9px]", isCurrentOrAbove ? (light ? "text-sky-600" : "text-sky-400") : (light ? "text-onyx/40" : "text-dark-600"))}>
-                            {tier.freeDel} free {tier.freeDel === 1 ? "delivery" : "deliveries"}/mo
-                          </span>
-                        </div>
-                      </div>
-                      <div className="shrink-0 flex items-center gap-2">
-                        {isCurrentOrAbove && (
-                          <span className={cn("text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full", meta.chip)}>Active</span>
-                        )}
-                        <ArrowUpRight size={14} className={light ? "text-onyx/30" : "text-dark-600"} />
-                      </div>
-                    </Link>
-                  );
-                })}
-              </div>
+              <CardUpgradeCheckout currentLevel={effectiveLevel} walletBalance={user.walletBalance ?? 0} />
             </div>
 
           </div>

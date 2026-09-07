@@ -52,7 +52,7 @@ export default function SiteWrapper({
           <BootScreen />
           <ContentWrapper>
             <CustomCursor />
-            <Navbar />
+            {!isDashboardRoute && <Navbar />}
             <motion.div
               className={`relative z-10 flex min-h-screen w-full flex-col${!isDashboardRoute && pathname !== "/" ? " pt-20 sm:pt-[92px]" : ""}`}
               initial={false}
