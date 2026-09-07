@@ -505,7 +505,7 @@ export default function Navbar() {
                 key={t.href}
                 href={t.href}
                 className={cn(
-                  "relative flex flex-1 flex-col items-center gap-1 py-0.5 transition-colors duration-300",
+                  "relative flex h-full flex-1 flex-col items-center justify-center transition-colors duration-300",
                   active
                     ? lightNav
                       ? "text-sapphire"
@@ -516,12 +516,12 @@ export default function Navbar() {
                 )}
               >
                 <Icon size={20} strokeWidth={1.75} />
-                <span className="pl-[0.2em] text-[9px] font-semibold uppercase tracking-[0.2em]">
+                <span className="mt-1 pl-[0.2em] text-[9px] font-semibold uppercase tracking-[0.2em]">
                   {t.label}
                 </span>
                 <span
                   className={cn(
-                    "mt-0.5 block h-[2px] rounded-full transition-all duration-500",
+                    "absolute bottom-[6px] left-1/2 h-[2px] -translate-x-1/2 rounded-full transition-all duration-500",
                     lightNav ? "bg-sapphire" : "bg-gold-light",
                     active ? "w-8" : "w-0"
                   )}
