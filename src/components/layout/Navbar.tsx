@@ -130,7 +130,7 @@ export default function Navbar() {
      light-mode styled. */
   const heroWhite = pathname === "/" && !scrolled && lightNav;
 
-  const { scrollYProgress, scrollY } = useScroll();
+  const { scrollY } = useScroll();
 
   /* Derive scrolled from the raw scroll pixel position (not scrollYProgress —
      progress is a fraction of the whole page, so on very tall pages like the
@@ -252,14 +252,17 @@ export default function Navbar() {
   return (
     <>
       <motion.header className="fixed inset-x-0 top-0 z-[56]">
+        {/* macOS-style floating pill — frosted glass, floats above the page */}
         <nav
           className={cn(
-            "relative flex h-16 items-center justify-between px-5 transition-[margin,padding,border-radius,box-shadow,background-color] duration-500 sm:px-10",
+            "relative mx-auto mt-3 flex h-14 w-[calc(100%-2rem)] max-w-[1400px] items-center justify-between rounded-2xl border px-4 transition-[background-color,border-color,box-shadow] duration-500 sm:h-16 sm:w-[calc(100%-4rem)] sm:px-6",
             scrolled
               ? lightNav
-                ? "mt-3 border border-white/60 bg-white/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_12px_40px_rgba(0,0,0,0.10)] backdrop-blur-2xl"
-                : "mt-3 border border-gold/15 bg-onyx/70 shadow-[inset_0_1px_0_rgba(212,175,55,0.12),0_12px_40px_rgba(0,0,0,0.5)] backdrop-blur-2xl"
-              : "bg-transparent"
+                ? "border-white/70 bg-white/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_20px_60px_-10px_rgba(0,0,0,0.45)] backdrop-blur-2xl"
+                : "border-white/15 bg-black/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_20px_60px_-10px_rgba(0,0,0,0.6)] backdrop-blur-2xl"
+              : lightNav
+                ? "border-white/50 bg-white/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_16px_50px_-12px_rgba(0,0,0,0.45)] backdrop-blur-md"
+                : "border-white/20 bg-black/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_16px_50px_-12px_rgba(0,0,0,0.45)] backdrop-blur-md"
           )}
         >
           {/* Brand */}
@@ -420,18 +423,6 @@ export default function Navbar() {
               </span>
             </button>
           </div>
-
-          {/* Scroll progress */}
-          <motion.div
-            aria-hidden
-            className={cn(
-              "pointer-events-none absolute inset-x-0 bottom-0 h-[2px] origin-left rounded-full",
-              lightNav
-                ? "bg-gradient-to-r from-sapphire/30 via-sapphire to-sapphire-light"
-                : "bg-gradient-to-r from-gold/30 via-gold to-gold-light"
-            )}
-            style={{ scaleX: scrollYProgress }}
-          />
         </nav>
       </motion.header>
 

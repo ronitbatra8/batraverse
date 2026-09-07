@@ -54,7 +54,7 @@ export default function SiteWrapper({
             <CustomCursor />
             <Navbar />
             <motion.div
-              className={`relative z-10 flex min-h-screen w-full flex-col${isDashboardRoute ? "" : " pt-16"}`}
+              className={`relative z-10 flex min-h-screen w-full flex-col${isDashboardRoute ? "" : " pt-20"}`}
               initial={false}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.6, delay: 0.05, ease: EASE }}
