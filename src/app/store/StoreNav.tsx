@@ -94,13 +94,12 @@ export default function StoreNav({
       <div ref={navAnchorRef} aria-hidden />
       <div
       className={cn(
-        "sticky z-30 border-b backdrop-blur-xl transition-all duration-500 max-sm:duration-300",
+        "sticky top-[84px] z-30 border-b backdrop-blur-xl transition-all duration-500 max-sm:duration-300 sm:top-[92px]",
         light
           ? "border-dark-200/50 bg-white/70"
           : "border-white/10 bg-abyss/70",
-        navHidden && (hasSub ? "-translate-y-[calc(100%+84px)]" : "-translate-y-[calc(100%+5px)]")
+        navHidden && "max-sm:-translate-y-[calc(100%+84px)] sm:-translate-y-[calc(100%+92px)]"
       )}
-      style={{ top: "84px" }}
     >
       <div className="mx-auto flex w-full max-w-[100rem] items-center justify-between gap-3 px-5 sm:px-10">
         <div className="flex items-center gap-2.5 overflow-x-auto py-3 [&::-webkit-scrollbar]:hidden">

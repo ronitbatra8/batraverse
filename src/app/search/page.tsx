@@ -119,7 +119,7 @@ function dbToUnified(p: DbProduct, source: "store" | "mart"): UnifiedProduct {
   };
 }
 
-function SearchInput({ initialQuery, onDebounced, light }: { initialQuery: string; onDebounced: (q: string) => void; light: boolean }) {
+function SearchInput({ initialQuery, onDebounced, light, onFocusScroll }: { initialQuery: string; onDebounced: (q: string) => void; light: boolean; onFocusScroll: () => void }) {
   const [value, setValue] = useState(initialQuery);
   const searchParams = useSearchParams();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -141,11 +141,14 @@ function SearchInput({ initialQuery, onDebounced, light }: { initialQuery: strin
         type="text"
         value={value}
         onChange={(e) => setValue(e.target.value)}
+        onClick={onFocusScroll}
         placeholder="Search products..."
         aria-label="Search products"
         className={cn(
-          "w-full rounded-full border py-3.5 pl-11 pr-10 text-[13px] font-light tracking-wide backdrop-blur-xl transition-all duration-300 focus:outline-none",
-          light ? "border-dark-200/60 bg-white/50 text-dark-900 placeholder:text-dark-400 focus:border-sapphire/40" : "border-white/10 bg-white/10 text-cream placeholder:text-cream-dim/40 focus:border-gold/40"
+          "w-full rounded-2xl border py-0 pl-11 pr-10 text-[13px] font-light tracking-wide backdrop-blur-2xl transition-[background-color,border-color,box-shadow] duration-500 focus:outline-none h-[2.75rem] sm:h-14",
+          light
+            ? "border-white/50 bg-white/50 text-dark-900 placeholder:text-dark-400 shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_20px_60px_-10px_rgba(0,0,0,0.45)] focus:border-sapphire/40"
+            : "border-white/15 bg-black/50 text-cream placeholder:text-cream-dim/40 shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_20px_60px_-10px_rgba(0,0,0,0.6)] focus:border-gold/40"
         )}
       />
       {value && (
@@ -176,6 +179,7 @@ function SearchContent() {
   const [visibleCount, setVisibleCount] = useState(48);
   const lastScrollY = useRef(0);
   const sentinelRef = useRef<HTMLDivElement>(null);
+  const heroRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const params = new URLSearchParams();
@@ -270,7 +274,7 @@ function SearchContent() {
     <SiteLayout>
       <div className="min-h-screen pt-24 pb-20">
         {/* Hero */}
-        <div className={cn("border-b transition-colors duration-300", light ? "border-onyx/5 bg-white" : "border-white/5 bg-abyss")}>
+        <div ref={heroRef} className={cn("border-b transition-colors duration-300", light ? "border-onyx/5 bg-white" : "border-white/5 bg-abyss")}>
           <div className="mx-auto max-w-7xl px-5 sm:px-8">
             <div className="py-12 sm:py-16">
               <h1 className={cn("font-display text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl", light ? "text-onyx" : "text-cream")}>
@@ -287,15 +291,20 @@ function SearchContent() {
         {/* Sticky floating search + tabs — whole block slides up on mobile scroll down */}
         <div
           className={cn(
-            "sticky z-30 transition-all duration-500",
+            "sticky top-[82px] z-30 transition-all duration-500 max-sm:top-[78px]",
             hideTabs ? "max-sm:-translate-y-[calc(100%+84px)]" : "translate-y-0"
           )}
-          style={{ top: "84px" }}
         >
           {/* Search bar */}
-          <div className="relative z-10 mx-auto max-w-[100rem] px-5 sm:px-10">
-            <div className="flex items-center gap-3 pt-3 pb-2">
-              <SearchInput initialQuery={initialQuery} onDebounced={setDebouncedQuery} light={light} />
+          <div className="relative z-10 mx-auto w-[calc(100%-1.5rem)] max-w-[1400px] sm:w-[calc(100%-4rem)]">
+            <div className="flex items-center gap-3 py-2">
+              <SearchInput initialQuery={initialQuery} onDebounced={setDebouncedQuery} light={light} onFocusScroll={() => {
+                const hero = heroRef.current;
+                if (!hero) return;
+                const r = hero.getBoundingClientRect();
+                const pos = r.top + window.scrollY + r.height - 78;
+                window.scrollTo({ top: Math.max(pos, 0), behavior: "smooth" });
+              }} />
             </div>
           </div>
         </div>
