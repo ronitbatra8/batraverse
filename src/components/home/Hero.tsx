@@ -46,8 +46,8 @@ export default function Hero() {
   });
 
   return (
-    <section className="relative -mt-16 flex min-h-[96vh] sm:min-h-screen flex-1 items-center overflow-hidden">
-      {/* Backdrop */}
+    <section className="relative flex min-h-[96vh] sm:min-h-screen flex-1 items-center overflow-hidden">
+      {/* Backdrop — the looping video covers every device, edge to edge */}
       <motion.div
         className="absolute inset-0"
         initial={{ scale: 1.05 }}
@@ -91,8 +91,8 @@ export default function Hero() {
         <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/5" />
       </div>
 
-      {/* Copy block — centered */}
-      <div className="relative z-10 mx-auto flex w-full max-w-7xl flex-col items-center px-6 pb-24 pt-24 text-center sm:px-8 sm:pb-32 sm:pt-40">
+      {/* Copy block — left-aligned on mobile, centered on desktop */}
+      <div className="relative z-10 mx-auto flex w-full max-w-7xl flex-col items-start px-6 pb-12 pt-0 text-left mt-3 sm:items-center sm:px-8 sm:pb-32 sm:pt-40 sm:mt-0 sm:text-center">
         <div className="relative w-fit">
           <div className="relative">
             {/* Eyebrow */}
@@ -108,7 +108,7 @@ export default function Hero() {
               />
               <p
                 className={cn(
-                  "text-[10px] font-medium uppercase tracking-[0.4em]",
+                  "text-[9px] font-medium uppercase tracking-[0.28em] whitespace-nowrap sm:text-[10px] sm:tracking-[0.4em]",
                   light ? "text-sapphire" : "text-gold"
                 )}
               >
@@ -119,7 +119,7 @@ export default function Hero() {
             {/* Headline */}
             <motion.h1
               {...line(0.35)}
-              className="mt-5 font-display text-4xl font-semibold leading-[1.05] text-white sm:mt-6 sm:text-7xl"
+              className="mt-7 font-display text-[clamp(1.4rem,6.5vw,1.85rem)] font-semibold leading-[1.08] text-white sm:mt-6 sm:text-7xl"
             >
               Everything Extraordinary,
               <br />
@@ -136,7 +136,7 @@ export default function Hero() {
             <motion.p
               {...line(0.6)}
               className={cn(
-                "mt-5 max-w-xl text-sm font-light leading-relaxed sm:mt-7 sm:text-lg mx-auto",
+                "mt-8 max-w-xl text-[16px] font-light leading-relaxed sm:mt-7 sm:text-lg sm:mx-auto",
                 light ? "text-white/80" : "text-white/70"
               )}
             >
@@ -151,11 +151,11 @@ export default function Hero() {
             </motion.p>
 
             {/* CTAs */}
-            <motion.div {...line(0.85)} className="mt-7 flex flex-wrap items-center justify-center gap-4 sm:mt-10">
+            <motion.div {...line(0.85)} className="mt-10 flex flex-wrap items-center justify-start gap-4 sm:mt-10 sm:justify-center">
               <Link
                 href="/store"
                 className={cn(
-                  "group relative inline-flex items-center gap-2.5 overflow-hidden rounded-xl border px-6 py-3 sm:px-9 sm:py-4 text-[11px] font-semibold uppercase tracking-[0.28em] transition-all duration-300 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]",
+                  "group relative inline-flex w-[200px] items-center justify-center gap-2.5 overflow-hidden rounded-xl border px-6 py-3 text-[11px] font-semibold uppercase tracking-[0.28em] transition-all duration-300 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] sm:h-12 sm:w-auto sm:min-w-[190px] sm:px-9",
                   light
                     ? "border-sapphire-light/60 text-sapphire-light hover:text-white hover:shadow-[0_0_30px_-8px_rgba(96,165,250,0.6)]"
                     : "border-gold/50 text-gold-light hover:text-abyss hover:shadow-[0_0_30px_-8px_rgba(212,175,55,0.6)]"
@@ -180,7 +180,7 @@ export default function Hero() {
               <Link
                 href="/about"
                 className={cn(
-                  "group relative inline-flex items-center gap-2.5 overflow-hidden rounded-xl border px-6 py-3 sm:px-9 sm:py-4 text-[11px] font-medium uppercase tracking-[0.28em] text-white backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]",
+                  "group relative inline-flex w-[200px] items-center justify-center gap-2.5 overflow-hidden rounded-xl border px-6 py-3 text-[11px] font-semibold uppercase tracking-[0.28em] text-white backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] sm:h-12 sm:w-auto sm:min-w-[190px] sm:px-9",
                   light
                     ? "border-white/30 bg-white/[0.08] hover:border-white/50 hover:bg-white/[0.15] hover:shadow-[0_0_30px_-8px_rgba(255,255,255,0.4)]"
                     : "border-white/30 bg-white/[0.06] hover:border-gold/50 hover:bg-gold/10 hover:text-gold-light hover:shadow-[0_0_30px_-8px_rgba(212,175,55,0.5)]"

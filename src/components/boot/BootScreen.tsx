@@ -121,12 +121,11 @@ export default function BootScreen() {
                     x="60"
                     y="106"
                     textAnchor="middle"
-                    fontFamily="Playfair Display, serif"
                     fontSize="17"
                     fontWeight="700"
                     fill="url(#ldGold)"
                     opacity="0.9"
-                    style={{ letterSpacing: "4px" }}
+                    style={{ fontFamily: "var(--font-display)", letterSpacing: "4px" }}
                   >
                     BV
                   </text>
@@ -146,6 +145,11 @@ export default function BootScreen() {
             </div>
           </div>
         </div>
+
+        {/* Mobile-only note — desktop viewers skip it entirely */}
+        <p className="ld-note mt-8 px-6 text-center text-[10px] font-medium uppercase tracking-[0.4em] text-cream/70 md:hidden">
+          For the best visual experience, use a desktop
+        </p>
       </div>
     </div>
   );

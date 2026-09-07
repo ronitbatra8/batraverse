@@ -64,13 +64,13 @@ export default function TestimonialsShelf() {
     <section
       id="testimonials"
       className={cn(
-        "mx-auto w-full max-w-[100rem] px-5 sm:px-10 py-16 sm:py-24",
+        "mx-auto w-full max-w-[100rem] px-5 sm:px-10 pt-10 pb-16 sm:pt-16 sm:pb-24",
         light ? "bg-white" : "bg-abyss"
       )}
     >
       <div className="text-center mb-12">
         <p className={cn("text-[10px] font-semibold uppercase tracking-[0.35em]", light ? "text-sapphire" : "text-gold-400")}>Word on the Street</p>
-        <h2 className={cn("mt-3 text-3xl sm:text-4xl font-display font-bold", light ? "text-dark-900" : "text-cream")}>What Customers Say</h2>
+        <h2 className={cn("mt-3 whitespace-nowrap text-[clamp(1rem,6vw,1.35rem)] font-display font-bold sm:text-4xl", light ? "text-dark-900" : "text-cream")}>What Customers Say</h2>
       </div>
 
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">

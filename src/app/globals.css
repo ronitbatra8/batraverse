@@ -385,6 +385,16 @@ html.light {
   filter: drop-shadow(0 0 10px rgba(212, 175, 55, 0.5));
 }
 
+/* Mobile-only boot note — fades up after the wordmark lands */
+.ld-note {
+  opacity: 0;
+  animation: ldNote 1s ease 1.6s both;
+}
+@keyframes ldNote {
+  0% { opacity: 0; transform: translateY(8px); filter: blur(3px); }
+  100% { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+
 /* Shopping carrier bag hangs on the final E's bottom bar (like a nail),
    gathering its handles at the hook point (top-center), then swings like a pendulum */
 .ld-bag {

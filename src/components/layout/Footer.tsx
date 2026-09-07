@@ -127,7 +127,7 @@ export default function Footer() {
       {/* MOBILE: New simplified layout (below sm) */}
       <div className="sm:hidden">
         <div className="mx-auto max-w-7xl px-6 py-10">
-          {/* Logo centered */}
+          {/* Logo centered — identical look to navbar/desktop footer */}
           <div className="flex justify-center">
             <Link href="/" aria-label="Batraverse — home">
               <Brand light={light} size="lg" mobileWordmark />

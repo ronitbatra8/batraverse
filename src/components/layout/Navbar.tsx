@@ -30,10 +30,6 @@ const pillFloating = (light: boolean) =>
   light
     ? "border-white/50 bg-white/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_20px_60px_-10px_rgba(0,0,0,0.45)]"
     : "border-white/15 bg-black/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_20px_60px_-10px_rgba(0,0,0,0.6)]";
-const pillIdle = (light: boolean) =>
-  light
-    ? "border-white/50 bg-white/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_16px_50px_-12px_rgba(0,0,0,0.45)]"
-    : "border-white/20 bg-black/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_16px_50px_-12px_rgba(0,0,0,0.45)]";
 
 const MotionLink = motion.create(Link);
 
@@ -266,8 +262,8 @@ export default function Navbar() {
         {/* macOS-style floating pill — frosted glass, floats above the page */}
         <nav
           className={cn(
-            "relative mx-auto mt-3 flex h-14 w-[calc(100%-2rem)] max-w-[1400px] items-center justify-between rounded-2xl border px-4 backdrop-blur-2xl transition-[background-color,border-color,box-shadow] duration-500 sm:h-16 sm:w-[calc(100%-4rem)] sm:px-6",
-            scrolled ? pillFloating(lightNav) : pillIdle(lightNav)
+            "relative mx-auto mt-3 flex h-16 w-[calc(100%-1.5rem)] max-w-[1400px] items-center justify-between rounded-2xl border px-4 backdrop-blur-2xl transition-[background-color,border-color,box-shadow] duration-500 sm:h-[4.5rem] sm:w-[calc(100%-4rem)] sm:px-6",
+            cn(pillFloating(lightNav))
           )}
         >
           {/* Brand */}
@@ -491,13 +487,13 @@ export default function Navbar() {
       {/* Mobile bottom tab bar — a mini floating glass pill, exactly like the top bar */}
       <div
         className={cn(
-          "fixed inset-x-3 bottom-3 z-[50] rounded-2xl border backdrop-blur-2xl transition-[background-color,border-color,box-shadow] duration-500 ease-[cubic-bezier(0.33,1,0.68,1)] lg:hidden",
+          "fixed inset-x-3 bottom-3 z-[50] h-16 rounded-2xl border backdrop-blur-2xl transition-[translate,transform,background-color,border-color,box-shadow] duration-500 ease-[cubic-bezier(0.33,1,0.68,1)] lg:hidden sm:h-[4.5rem]",
           pillFloating(lightNav),
           sliderOpen && "hidden",
           tabHidden && "translate-y-[calc(100%+0.75rem)]"
         )}
       >
-        <nav className="flex items-center justify-evenly px-4 py-3 sm:py-4">
+        <nav className="flex h-full items-center justify-evenly px-4">
           {BOTTOM_TABS.map((t) => {
             const Icon = t.icon;
             const active =
@@ -519,15 +515,15 @@ export default function Navbar() {
                       : "text-cream-dim/60 hover:text-cream"
                 )}
               >
-                <Icon size={17} strokeWidth={1.5} />
+                <Icon size={20} strokeWidth={1.75} />
                 <span className="text-[9px] font-semibold uppercase tracking-[0.2em]">
                   {t.label}
                 </span>
                 <span
                   className={cn(
-                    "absolute -top-1 left-1/2 h-[2px] -translate-x-1/2 rounded-full transition-all duration-500",
+                    "mt-0.5 block h-[2px] rounded-full transition-all duration-500",
                     lightNav ? "bg-sapphire" : "bg-gold-light",
-                    active ? "w-full" : "w-0"
+                    active ? "w-8" : "w-0"
                   )}
                 />
               </Link>

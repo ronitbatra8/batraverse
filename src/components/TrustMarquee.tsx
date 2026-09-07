@@ -8,10 +8,10 @@ import { cn } from "@/lib/utils";
    by diamonds. Light mode = the exact MAISON DARK glass (white frosted strip,
    dark text); dark mode = a deep onyx frosted strip with cream/gold accents. */
 const PROMISES = [
-  "White-Glove Delivery",
   "Authenticity Guaranteed",
-  "Private Returns Concierge",
-  "Hand-Curated Edit",
+  "12-Hour Returns",
+  "Trusted Delivery Partner",
+  "Free Delivery Above 400",
 ];
 
 function TrustMarquee() {

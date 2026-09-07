@@ -19,9 +19,9 @@ export default function Brand({
   mobileWordmark?: boolean;
 }) {
   const lg = size === "lg";
-  const cardSize = lg ? "h-10 w-10 sm:h-11 sm:w-11" : "h-9 w-9 sm:h-10 sm:w-10";
+  const cardSize = lg ? "h-11 w-11" : "h-9 w-9 sm:h-10 sm:w-10";
   const markSize = lg ? "text-base" : "text-sm";
-  const wordSize = lg ? "text-lg sm:text-xl" : "text-base sm:text-lg";
+  const wordSize = lg ? "text-xl" : "text-base sm:text-lg";
 
   return (
     <motion.div
@@ -90,10 +90,16 @@ export default function Brand({
         </motion.span>
 
         {/* Shopping bag — the exact boot bag, hanging on the final E's bottom bar
-            like the boot splash (same artwork, same anchor, scaled down) */}
-        <div className="pointer-events-none absolute" style={{ right: "-4px", top: "60%" }}>
+            like the boot splash (same artwork, same anchor, scaled down). Hidden
+            on the mobile footer (`mobileWordmark`) per user request — card + wordmark
+            only there. */}
+        {!mobileWordmark && (
+          <div
+            className="pointer-events-none absolute"
+            style={{ right: "-4px", top: "60%" }}
+          >
           <svg
-            className="w-[30px] h-[21px] sm:w-[38px] sm:h-[26px] md:w-[44px] md:h-[30px]"
+            className={lg ? "w-[64px] h-[44px]" : "w-[56px] h-[38px]"}
             viewBox="0 0 120 170"
             fill="none"
             preserveAspectRatio="none"
@@ -114,12 +120,9 @@ export default function Brand({
                 <stop offset="55%" stopColor="#d4af37" />
                 <stop offset="100%" stopColor="#a88424" />
               </linearGradient>
-              <filter id="nvShadow" x="-20%" y="-10%" width="140%" height="135%">
-                <feDropShadow dx="0" dy="4" stdDeviation="5" floodColor="#000" floodOpacity="0.55" />
-              </filter>
             </defs>
 
-            <g filter="url(#nvShadow)">
+            <g>
               {/* Open dark interior (mouth of the bag) */}
               <path d="M24,20 C24,15 96,15 96,20 L94,32 C94,38 26,38 26,32 Z" fill="#121110" />
 
@@ -150,17 +153,16 @@ export default function Brand({
               {/* Paper sheen near the top */}
               <path d="M30,44 C52,49 68,49 90,44" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" opacity="0.05" />
 
-              {/* Gold BV monogram */}
+              {/* Gold BV monogram — matches boot bag: no counter-scale, same relative size */}
               <text
                 x="60"
                 y="106"
                 textAnchor="middle"
-                fontFamily="Playfair Display, serif"
-                fontSize="22"
+                fontSize={lg ? 13 : 11}
                 fontWeight="700"
                 fill="url(#nvGold)"
                 opacity="0.9"
-                style={{ letterSpacing: "4px" }}
+                style={{ fontFamily: "var(--font-display)", letterSpacing: "4px" }}
               >
                 BV
               </text>
@@ -177,7 +179,8 @@ export default function Brand({
               <path d="M76,38 C74,19 69,6 62,3" stroke="#f7e3a8" strokeWidth="1.4" strokeLinecap="round" fill="none" opacity="0.7" />
             </g>
           </svg>
-        </div>
+          </div>
+        )}
       </span>
     </motion.div>
   );
