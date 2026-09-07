@@ -200,7 +200,7 @@ export default function Newsletter() {
         {/* Left panel — image */}
         <div className="relative min-h-[440px] overflow-hidden sm:min-h-[540px]">
           <img
-            src="https://www.designlimitededition.com/wp-content/uploads/2021/06/LX-20-1.jpg"
+            src="https://www.ikea.com/ext/ingkadam/m/6fb0dd2800fbb31b/original/PH204215.jpg"
             alt="The atelier at dusk"
             loading="lazy"
             decoding="async"
