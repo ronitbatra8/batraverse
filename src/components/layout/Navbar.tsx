@@ -516,7 +516,7 @@ export default function Navbar() {
                 )}
               >
                 <Icon size={20} strokeWidth={1.75} />
-                <span className="text-[9px] font-semibold uppercase tracking-[0.2em]">
+                <span className="pl-[0.2em] text-[9px] font-semibold uppercase tracking-[0.2em]">
                   {t.label}
                 </span>
                 <span
