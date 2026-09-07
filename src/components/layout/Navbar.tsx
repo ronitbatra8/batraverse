@@ -483,18 +483,18 @@ export default function Navbar() {
         )}
       </AnimatePresence>
 
-      {/* Mobile bottom tab bar */}
+      {/* Mobile bottom tab bar — a mini floating glass pill, same look as the top bar */}
       <div
         className={cn(
-          "fixed inset-x-0 bottom-0 z-50 rounded-none border-t border-x-0 border-b-0 backdrop-blur-2xl transition-transform duration-500 ease-[cubic-bezier(0.33,1,0.68,1)] lg:hidden",
+          "fixed inset-x-3 bottom-3 z-[50] rounded-full border backdrop-blur-2xl transition-transform duration-500 ease-[cubic-bezier(0.33,1,0.68,1)] lg:hidden",
           sliderOpen && "hidden",
           lightNav
-            ? "border-white/60 bg-white/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_-12px_40px_rgba(0,0,0,0.10)]"
-            : "border-gold/15 bg-onyx/70 shadow-[inset_0_1px_0_rgba(212,175,55,0.12),0_-12px_40px_rgba(0,0,0,0.5)]",
-          tabHidden && "translate-y-full"
+            ? "border-white/50 bg-white/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_20px_60px_-10px_rgba(0,0,0,0.45)]"
+            : "border-white/15 bg-black/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_20px_60px_-10px_rgba(0,0,0,0.6)]",
+          tabHidden && "translate-y-[calc(100%+0.75rem)]"
         )}
       >
-        <nav className="flex items-center justify-evenly px-4 py-4">
+        <nav className="flex items-center justify-evenly px-4 py-3 sm:py-4">
           {BOTTOM_TABS.map((t) => {
             const Icon = t.icon;
             const active =
