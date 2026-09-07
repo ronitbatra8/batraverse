@@ -521,7 +521,7 @@ export default function Navbar() {
                 </span>
                 <span
                   className={cn(
-                    "absolute bottom-[6px] left-1/2 h-[2px] -translate-x-1/2 rounded-full transition-all duration-500",
+                    "absolute left-1/2 top-[15px] h-[2px] -translate-x-1/2 rounded-full transition-all duration-500",
                     lightNav ? "bg-sapphire" : "bg-gold-light",
                     active ? "w-8" : "w-0"
                   )}
