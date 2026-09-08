@@ -261,7 +261,7 @@ function CardsContent() {
   const canFullCustom = peak >= 50000 || effectiveLevel === "owner";
 
   return (
-    <div className="relative min-h-[calc(100vh-4rem)] overflow-hidden px-6 pb-16 pt-24 sm:px-10 sm:pt-28">
+    <div className={cn("relative min-h-[calc(100vh-4rem)] overflow-hidden pb-16 pt-12 sm:pt-16", cardSubView === "history" ? "px-0 sm:px-10" : "px-6 sm:px-10")}>
       <div
         aria-hidden
         className="pointer-events-none absolute left-1/2 top-0 h-[40rem] w-[70rem] -translate-x-1/2 -translate-y-1/3 rounded-full blur-3xl"
@@ -272,7 +272,7 @@ function CardsContent() {
         }}
       />
 
-      <div className="relative z-10 mx-auto w-full max-w-5xl">
+      <div className={cn("relative z-10 mx-auto w-full", cardSubView === "history" ? "max-w-full sm:max-w-5xl" : "max-w-5xl")}>
         <div className="mb-6 flex items-center gap-2 border-b pb-3" style={{ borderColor: light ? "rgba(30,58,138,0.15)" : "rgba(255,255,255,0.08)" }}>
           <button
             type="button"
@@ -351,12 +351,12 @@ function CardsContent() {
                           value={balancePin}
                           onChange={(e) => setBalancePin(e.target.value.replace(/\D/g, "").slice(0, 6))}
                           placeholder="Card PIN"
-                          className={cn("w-32 rounded-xl border px-3 h-12 text-xs focus:outline-none text-center tracking-[0.5em]",
+                          className={cn("w-32 rounded-xl border px-3 h-10 text-[11px] focus:outline-none text-center tracking-[0.4em]",
                             light ? "bg-white border-sapphire/20 text-onyx" : "bg-dark-800/60 border-dark-700/50 text-white"
                           )}
                         />
                         <button type="submit" disabled={balancePinLoading || balancePin.length !== 6}
-                          className={cn("flex-1 h-12 inline-flex items-center justify-center gap-1.5 px-4 rounded-xl text-xs font-semibold transition-all disabled:opacity-50",
+                          className={cn("flex-1 h-10 inline-flex items-center justify-center gap-1.5 px-4 rounded-xl text-[11px] font-semibold transition-all disabled:opacity-50",
                             light ? "bg-sapphire text-white hover:bg-sapphire/90" : "bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-dark-950"
                           )}
                         >
@@ -576,11 +576,18 @@ function CardsContent() {
               light ? "bg-white border-sapphire/20" : "bg-dark-900/60 border-dark-800/50"
             )}>
               <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <Shield size={14} className={light ? "text-sapphire" : "text-gold"} />
                   <label className={cn("text-[10px] uppercase tracking-[0.3em] font-semibold", light ? "text-sapphire/60" : "text-white/50")}>
-                    Card Login PIN {hasPin ? "(Set)" : "(Not set)"}
+                    {hasPin ? "Change Card PIN" : "Set Card PIN"}
                   </label>
+                  <span className={cn("px-1.5 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider border",
+                    hasPin
+                      ? light ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600" : "border-emerald-400/40 bg-emerald-400/10 text-emerald-300"
+                      : light ? "border-amber-500/30 bg-amber-500/10 text-amber-600" : "border-amber-400/40 bg-amber-500/10 text-amber-400"
+                  )}>
+                    {hasPin ? "PIN set" : "Set required"}
+                  </span>
                 </div>
                 {hasPin && !pinForgot && (
                   <button type="button" onClick={() => { setPinForgot(true); setPinOtpSent(false); setPinOtp(""); setPinResetToken(""); setPinOtpMsg(""); setPinOtpErr(""); }}
@@ -591,8 +598,10 @@ function CardsContent() {
                 )}
               </div>
               <p className={cn("text-[10px]", light ? "text-onyx/40" : "text-dark-500")}>
-                Set a separate 6-digit numeric PIN to log in with your card number. You can also use your account password.
-              </p>
+                  {hasPin
+                    ? "Your 6-digit PIN is used to log in with your card number and to verify wallet payments. Enter your current PIN to change it, or use Forgot PIN? below."
+                    : "Your 6-digit PIN is used to log in with your card number and to verify wallet payments. You can also use your account password."}
+                </p>
 
               {pinMsg && (
                 <div className={cn("flex items-start gap-2 rounded-xl border px-3 py-2.5 text-xs", light ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-600" : "bg-emerald-500/10 border-emerald-500/30 text-emerald-400")}>
@@ -627,12 +636,12 @@ function CardsContent() {
                             value={pinOtp}
                             onChange={(e) => setPinOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
                             placeholder="Enter 6-digit OTP"
-                            className={cn("w-full rounded-xl border px-3 h-12 text-xs focus:outline-none text-center tracking-[0.5em]",
+                            className={cn("w-full rounded-xl border px-3 h-10 text-[11px] focus:outline-none text-center tracking-[0.4em]",
                               light ? "bg-white border-sapphire/20 text-onyx" : "bg-dark-800/60 border-dark-700/50 text-white"
                             )}
                           />
                           <button type="button" onClick={handleVerifyPinOtp} disabled={pinOtpLoading || pinOtp.length !== 6}
-                            className={cn("w-full flex items-center justify-center gap-1.5 px-4 h-11 rounded-xl text-xs font-semibold transition-all disabled:opacity-50",
+                            className={cn("w-full flex items-center justify-center gap-1.5 px-4 h-10 rounded-xl text-[11px] font-semibold transition-all disabled:opacity-50",
                               light ? "bg-sapphire text-white hover:bg-sapphire/90" : "bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-dark-950"
                             )}
                           >
@@ -658,7 +667,7 @@ function CardsContent() {
                         value={cardPin}
                         onChange={(e) => setCardPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
                         placeholder="New PIN (6 digits)"
-                        className={cn("w-full rounded-xl border px-3 h-12 text-xs focus:outline-none text-center tracking-[0.5em]",
+                        className={cn("w-full rounded-xl border px-3 h-10 text-[11px] focus:outline-none text-center tracking-[0.4em]",
                           light ? "bg-white border-sapphire/20 text-onyx" : "bg-dark-800/60 border-dark-700/50 text-white"
                         )}
                       />
@@ -670,12 +679,12 @@ function CardsContent() {
                         value={cardPinConfirm}
                         onChange={(e) => setCardPinConfirm(e.target.value.replace(/\D/g, "").slice(0, 6))}
                         placeholder="Confirm PIN (6 digits)"
-                        className={cn("w-full rounded-xl border px-3 h-12 text-xs focus:outline-none text-center tracking-[0.5em]",
+                        className={cn("w-full rounded-xl border px-3 h-10 text-[11px] focus:outline-none text-center tracking-[0.4em]",
                           light ? "bg-white border-sapphire/20 text-onyx" : "bg-dark-800/60 border-dark-700/50 text-white"
                         )}
                       />
                       <button type="submit" disabled={pinSaving}
-                        className={cn("w-full flex items-center justify-center gap-1.5 px-4 h-12 rounded-xl text-xs font-semibold transition-all disabled:opacity-50",
+                        className={cn("w-full flex items-center justify-center gap-1.5 px-4 h-10 rounded-xl text-[11px] font-semibold transition-all disabled:opacity-50",
                           light ? "bg-sapphire text-white hover:bg-sapphire/90" : "bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-dark-950"
                         )}
                       >
@@ -698,7 +707,7 @@ function CardsContent() {
                       value={cardPinCurrent}
                       onChange={(e) => setCardPinCurrent(e.target.value.replace(/\D/g, "").slice(0, 6))}
                       placeholder="Current PIN (6 digits)"
-                      className={cn("w-full rounded-xl border px-3 h-12 text-xs focus:outline-none text-center tracking-[0.5em]",
+                      className={cn("w-full rounded-xl border px-3 h-10 text-[11px] focus:outline-none text-center tracking-[0.4em]",
                         light ? "bg-white border-sapphire/20 text-onyx" : "bg-dark-800/60 border-dark-700/50 text-white"
                       )}
                     />
@@ -711,7 +720,7 @@ function CardsContent() {
                     value={cardPin}
                     onChange={(e) => setCardPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
                     placeholder="New PIN (6 digits)"
-                    className={cn("w-full rounded-xl border px-3 h-12 text-xs focus:outline-none text-center tracking-[0.5em]",
+                    className={cn("w-full rounded-xl border px-3 h-10 text-[11px] focus:outline-none text-center tracking-[0.4em]",
                       light ? "bg-white border-sapphire/20 text-onyx" : "bg-dark-800/60 border-dark-700/50 text-white"
                     )}
                   />
@@ -723,7 +732,7 @@ function CardsContent() {
                     value={cardPinConfirm}
                     onChange={(e) => setCardPinConfirm(e.target.value.replace(/\D/g, "").slice(0, 6))}
                     placeholder="Confirm PIN (6 digits)"
-                    className={cn("w-full rounded-xl border px-3 h-12 text-xs focus:outline-none text-center tracking-[0.5em]",
+                    className={cn("w-full rounded-xl border px-3 h-10 text-[11px] focus:outline-none text-center tracking-[0.4em]",
                       light ? "bg-white border-sapphire/20 text-onyx" : "bg-dark-800/60 border-dark-700/50 text-white"
                     )}
                   />
@@ -732,12 +741,12 @@ function CardsContent() {
                     value={cardPinPassword}
                     onChange={(e) => setCardPinPassword(e.target.value)}
                     placeholder="Current account password"
-                    className={cn("w-full rounded-xl border px-3 h-12 text-xs focus:outline-none",
+                    className={cn("w-full rounded-xl border px-3 h-10 text-[11px] focus:outline-none",
                       light ? "bg-white border-sapphire/20 text-onyx" : "bg-dark-800/60 border-dark-700/50 text-white"
                     )}
                   />
                   <button type="submit" disabled={pinSaving}
-                    className={cn("w-full flex items-center justify-center gap-1.5 px-4 h-12 rounded-xl text-xs font-semibold transition-all disabled:opacity-50",
+                    className={cn("w-full flex items-center justify-center gap-1.5 px-4 h-10 rounded-xl text-[11px] font-semibold transition-all disabled:opacity-50",
                       light ? "bg-sapphire text-white hover:bg-sapphire/90" : "bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-dark-950"
                     )}
                   >
@@ -749,7 +758,7 @@ function CardsContent() {
             </div>
 
             {/* Card Upgrades & Top-Up */}
-            <div className="space-y-4">
+            <div className="space-y-4 mt-2">
               <h3 className={cn("text-xs font-semibold uppercase tracking-[0.3em]", light ? "text-sapphire" : "text-gold/80")}>
                 Upgrade & Top-Up
               </h3>

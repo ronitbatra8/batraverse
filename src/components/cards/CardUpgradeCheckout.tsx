@@ -165,14 +165,14 @@ export default function CardUpgradeCheckout({ currentLevel, walletBalance = 0 }:
 
   return (
     <div className={cn(
-      "rounded-2xl border p-4 space-y-4",
+      "rounded-2xl border p-4 space-y-6",
       light ? "bg-white border-sapphire/20" : "bg-dark-900/60 border-dark-800/50"
     )}>
-      <label className={cn("text-[10px] uppercase tracking-[0.3em] font-semibold", light ? "text-sapphire/60" : "text-white/50")}>
+      <label className={cn("block text-[10px] uppercase tracking-[0.3em] font-semibold", light ? "text-sapphire/60" : "text-white/50")}>
         Wallet Top-Up & Upgrades
       </label>
 
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-3 mt-2">
         <button
           type="button"
           onClick={() => switchMode("upgrade")}
