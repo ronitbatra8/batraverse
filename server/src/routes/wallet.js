@@ -93,6 +93,68 @@ router.get("/my-topups", userAuth, async (req, res) => {
   }
 });
 
+router.get("/my-history", userAuth, async (req, res) => {
+  try {
+    const [topUps, upgrades] = await Promise.all([
+      prisma.walletTopUp.findMany({
+        where: { userId: req.userId },
+        orderBy: { createdAt: "desc" },
+        take: 100,
+      }),
+      prisma.cardUpgradeRequest.findMany({
+        where: { userId: req.userId },
+        orderBy: { createdAt: "desc" },
+        take: 100,
+      }),
+    ]);
+
+    const entries = [
+      ...topUps.map((t) => {
+        const isManual = (t.transactionId || "").startsWith("ADMIN:");
+        if (isManual) {
+          return {
+            id: t.id,
+            kind: t.amount < 0 ? "manual_debit" : "manual_credit",
+            amount: t.amount,
+            status: t.status,
+            paymentMethod: t.paymentMethod || null,
+            transactionId: t.transactionId || null,
+            note: t.adminNote || null,
+            createdAt: t.createdAt,
+          };
+        }
+        return {
+          id: t.id,
+          kind: "topup",
+          amount: t.amount,
+          status: t.status,
+          paymentMethod: t.paymentMethod || null,
+          transactionId: t.transactionId || null,
+          note: t.adminNote || null,
+          createdAt: t.createdAt,
+        };
+      }),
+      ...upgrades.map((u) => ({
+        id: u.id,
+        kind: "upgrade",
+        amount: u.price,
+        status: u.status,
+        paymentMethod: u.paymentMethod || null,
+        transactionId: u.transactionId || null,
+        levelFrom: u.fromLevel,
+        levelTo: u.toLevel,
+        note: u.note || null,
+        createdAt: u.createdAt,
+      })),
+    ];
+
+    entries.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    res.json(entries);
+  } catch (err) {
+    res.status(500).json({ error: safeErrorMessage(err) });
+  }
+});
+
 router.get("/admin/pending", userAuth, async (req, res) => {
   try {
     const user = await prisma.user.findUnique({ where: { id: req.userId }, select: { role: true } });
@@ -180,6 +242,7 @@ router.post("/admin/credit", userAuth, async (req, res) => {
     if (!target) return res.status(404).json({ error: "User not found" });
 
     const newBalance = target.walletBalance + num;
+    const newPeak = Math.max(target.peakWalletBalance, newBalance);
     const [topUp] = await prisma.$transaction([
       prisma.walletTopUp.create({
         data: {
@@ -200,7 +263,116 @@ router.post("/admin/credit", userAuth, async (req, res) => {
       }),
     ]);
 
-    res.json({ message: `₹${num} credited to wallet`, newBalance, topUp });
+    res.json({ message: `₹${num} credited to wallet`, newBalance, peakWalletBalance: newPeak, topUp });
+  } catch (err) {
+    res.status(500).json({ error: safeErrorMessage(err) });
+  }
+});
+
+router.post("/admin/debit", userAuth, async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({ where: { id: req.userId }, select: { role: true } });
+    if (!user || user.role !== "ADMIN") return res.status(403).json({ error: "Admin only" });
+
+    const { userId, amount } = req.body;
+    if (!userId || typeof userId !== "string") return res.status(400).json({ error: "userId is required" });
+    const num = Number(amount);
+    if (!Number.isFinite(num) || num <= 0) return res.status(400).json({ error: "Amount must be a positive number" });
+
+    const target = await prisma.user.findUnique({ where: { id: userId }, select: { walletBalance: true, peakWalletBalance: true } });
+    if (!target) return res.status(404).json({ error: "User not found" });
+    if (target.walletBalance < num) return res.status(400).json({ error: "Amount exceeds current balance" });
+
+    const newBalance = target.walletBalance - num;
+    const [topUp] = await prisma.$transaction([
+      prisma.walletTopUp.create({
+        data: {
+          userId,
+          amount: -num,
+          transactionId: `ADMIN:${Date.now()}`,
+          status: "APPROVED",
+          adminNote: "Manual debit by owner",
+          processedAt: new Date(),
+        },
+      }),
+      prisma.user.update({
+        where: { id: userId },
+        data: { walletBalance: { decrement: num } },
+      }),
+    ]);
+
+    res.json({ message: `₹${num} debited from wallet`, newBalance, topUp });
+  } catch (err) {
+    res.status(500).json({ error: safeErrorMessage(err) });
+  }
+});
+
+router.get("/admin/history", userAuth, async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({ where: { id: req.userId }, select: { role: true } });
+    if (!user || user.role !== "ADMIN") return res.status(403).json({ error: "Admin only" });
+
+    const [topUps, upgrades] = await Promise.all([
+      prisma.walletTopUp.findMany({
+        orderBy: { createdAt: "desc" },
+        take: 200,
+        include: { user: { select: { id: true, name: true, email: true } } },
+      }),
+      prisma.cardUpgradeRequest.findMany({
+        where: { status: "APPROVED" },
+        orderBy: { createdAt: "desc" },
+        take: 200,
+        include: { user: { select: { id: true, name: true, email: true } } },
+      }),
+    ]);
+
+    const entries = [
+      ...topUps.map((t) => {
+        const isManual = (t.transactionId || "").startsWith("ADMIN:");
+        if (isManual) {
+          return {
+            id: t.id,
+            kind: t.amount < 0 ? "manual_debit" : "manual_credit",
+            amount: t.amount,
+            status: t.status,
+            transactionId: t.transactionId || null,
+            note: t.adminNote || null,
+            createdAt: t.createdAt,
+            userId: t.userId,
+            user: t.user,
+          };
+        }
+        return {
+          id: t.id,
+          kind: "topup",
+          amount: t.amount,
+          status: t.status,
+          paymentMethod: t.paymentMethod || null,
+          transactionId: t.transactionId || null,
+          note: t.adminNote || null,
+          createdAt: t.createdAt,
+          userId: t.userId,
+          user: t.user,
+        };
+      }),
+      ...upgrades.map((u) => ({
+        id: u.id,
+        kind: "upgrade",
+        amount: u.price,
+        status: "APPROVED",
+        paymentMethod: u.paymentMethod || null,
+        transactionId: u.transactionId || null,
+        levelFrom: u.fromLevel,
+        levelTo: u.toLevel,
+        note: u.note || null,
+        createdAt: u.createdAt,
+        userId: u.userId,
+        user: u.user,
+      })),
+    ];
+
+    entries.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    res.json(entries);
   } catch (err) {
     res.status(500).json({ error: safeErrorMessage(err) });
   }

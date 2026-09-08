@@ -85,6 +85,7 @@ export default function AdminPage() {
 
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [focusOrderId, setFocusOrderId] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -122,6 +123,11 @@ export default function AdminPage() {
     } catch { setAuthError("Cannot connect to server"); }
     setLoading(false);
   }, [adminKey]);
+
+  const handleRefresh = useCallback(() => {
+    setRefreshKey((k) => k + 1);
+    loadAll();
+  }, [loadAll]);
 
   const updateStatus = useCallback(async (orderId: string, status: string) => {
     setUpdatingId(orderId);
@@ -273,10 +279,10 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-dark-950 page-transition overflow-x-hidden">
-      <Sidebar tab={tab} setTab={setTab} loading={loading} onRefresh={loadAll} onSignOut={handleSignOut} badges={badges} />
+      <Sidebar tab={tab} setTab={setTab} loading={loading} onRefresh={handleRefresh} onSignOut={handleSignOut} badges={badges} />
 
       <main className="pt-16 min-h-screen lg:pl-56">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-24 lg:pb-8">
+        <div key={refreshKey} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-24 lg:pb-8">
           {tab === "overview" && <OverviewTab stats={stats} orders={orders} passwordResets={passwordResets} messages={messages} onNavigate={handleNavigateToTab} />}
           {tab === "orders" && <OrdersTab orders={orders} updatingId={updatingId} onStatusUpdate={updateStatus} onItemStatusUpdate={updateItemStatus} onAssign={assignOrder} onPaymentAction={paymentAction} onReturnApprove={returnApprove} focusOrderId={focusOrderId} onFocusHandled={() => setFocusOrderId(null)} adminKey={adminKey} onShipDelhivery={shipViaDelhivery} />}
           {tab === "users" && <UsersTab users={users} adminKey={adminKey} onNavigate={handleNavigateToTab} />}

@@ -94,6 +94,24 @@ async function sendResetPasswordEmail(to, code, name) {
   });
 }
 
+async function sendCardPinResetEmail(to, code, name) {
+  await sendMail({
+    to,
+    subject: "Reset your BATRAVERSE card PIN",
+    codeForConsole: code,
+    html: `
+      <div style="margin:0 auto;max-width:480px;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:#111;">
+        <p style="font-size:18px;font-weight:bold;margin:0 0 16px;">BATRAVERSE</p>
+        <p style="margin:0 0 8px;">Hello ${escapeHtml(name || "there")},</p>
+        <p style="margin:0 0 8px;">We received a request to reset the PIN for your card. Use the following code to set a new card PIN:</p>
+        ${CODE_BLOCK(code)}
+        <p style="color:#555;font-size:12px;margin:12px 0 0;">This code expires in 5 minutes. If you did not request a card PIN reset, you can ignore this email and your PIN will stay the same.</p>
+        <p style="color:#555;font-size:12px;margin:16px 0 0;">BATRAVERSE — luxury, curated.</p>
+      </div>
+    `,
+  });
+}
+
 async function sendPasswordChangedEmail(to, name, method, ipAddress) {
   await sendMail({
     to,
@@ -312,6 +330,7 @@ module.exports = {
   escapeHtml,
   sendOTPEmail,
   sendResetPasswordEmail,
+  sendCardPinResetEmail,
   sendPasswordChangedEmail,
   sendOrderStatusEmail,
   sendOrderConfirmationEmail,

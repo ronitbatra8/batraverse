@@ -1,9 +1,11 @@
 /* Card level helpers shared across routes.
 
-   Rule: an explicitly assigned card level (by the owner or a paid upgrade) is
-   authoritative. Otherwise the level is derived from the peak lifetime wallet
-   balance. "none" is stored as null, so a stored non-null cardLevel always
-   means a real assigned level. */
+   Rule: the owner's card is permanently OWNER — there is exactly one owner
+   (role ADMIN) and it can never be downgraded by money or by admin action.
+   Everyone else is purely money-driven: the level is the tier of the higher
+   of the peak lifetime wallet balance and the current wallet balance. A credit
+   that crosses a threshold auto-advances the level; spending does not drop it
+   because the lifetime peak holds the level. "none" is stored as null. */
 
 const LEVEL_ORDER = ["none", "bronze", "silver", "gold", "platinum", "diamond", "black", "owner"];
 
@@ -28,14 +30,10 @@ function levelFromBalance(balance) {
 
 function getEffectiveCardLevel(user) {
   if (!user) return "none";
-  const cl = user.cardLevel;
-  if (cl && VALID_LEVELS.has(cl) && cl !== "none") return cl;
-  const bal = typeof user.peakWalletBalance === "number"
-    ? user.peakWalletBalance
-    : typeof user.walletBalance === "number"
-      ? user.walletBalance
-      : 0;
-  return levelFromBalance(bal);
+  if (user.role === "ADMIN" || user.cardLevel === "owner") return "owner";
+  const peak = typeof user.peakWalletBalance === "number" ? user.peakWalletBalance : 0;
+  const bal = typeof user.walletBalance === "number" ? user.walletBalance : 0;
+  return levelFromBalance(Math.max(peak, bal));
 }
 
 module.exports = { getEffectiveCardLevel, levelFromBalance, LEVEL_ORDER, VALID_LEVELS };

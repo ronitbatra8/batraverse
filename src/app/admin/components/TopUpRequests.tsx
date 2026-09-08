@@ -94,7 +94,9 @@ export default function TopUpRequests({ adminKey }: { adminKey: string }) {
           return d;
         }),
       ]);
-      const topUps: TopUpRecord[] = Array.isArray(topUpsData?.topUps) ? topUpsData.topUps : [];
+      const topUps: TopUpRecord[] = Array.isArray(topUpsData?.topUps)
+        ? topUpsData.topUps.filter((t: TopUpRecord) => !(t.transactionId || "").startsWith("ADMIN:"))
+        : [];
       const upgrades: UpgradeRecord[] = Array.isArray(upgradesData) ? upgradesData : [];
       const merged: MergedRow[] = [
         ...topUps.map((t) => ({

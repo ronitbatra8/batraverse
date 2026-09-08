@@ -6,15 +6,21 @@ import { useAuth } from "@/components/auth/AuthContext";
 import MemberCard from "@/components/auth/MemberCard";
 import CardUpgradeCheckout from "@/components/cards/CardUpgradeCheckout";
 import { Spinner, useLight } from "@/components/auth/auth-ui";
+import UserWalletHistory from "@/components/cards/UserWalletHistory";
 import { apiFetch } from "@/lib/api";
 import { cn, errMessage } from "@/lib/utils";
-import { getLevelFromBalance, LEVELS, LEVEL_BALANCE_THRESHOLD, LEVEL_ORDER, getLevelIndex, type LevelKey } from "@/lib/levels";
+import { getEffectiveLevel, LEVELS, type LevelKey } from "@/lib/levels";
 import {
   Loader2,
   Save,
   Lock,
   Shield,
   Wallet,
+  History,
+  CreditCard,
+  CheckCircle2,
+  KeyRound,
+  Mail,
 } from "lucide-react";
 
 function getNamePrefix(name: string): string {
@@ -29,10 +35,11 @@ function CardsContent() {
   const { user, loading, refreshUser } = useAuth();
   const light = useLight();
 
-  const effectiveLevel: LevelKey = (() => {
-    if (user?.cardLevel && user.cardLevel in LEVELS) return user.cardLevel as LevelKey;
-    return getLevelFromBalance(user?.peakWalletBalance ?? user?.walletBalance ?? 0);
-  })();
+  const effectiveLevel: LevelKey = getEffectiveLevel({
+    cardLevel: user?.cardLevel,
+    peakWalletBalance: user?.peakWalletBalance,
+    walletBalance: user?.walletBalance,
+  });
 
   const [customCardText, setCustomCardText] = useState("");
   const [customPrefix, setCustomPrefix] = useState("");
@@ -44,10 +51,27 @@ function CardsContent() {
 
   const [cardPin, setCardPin] = useState("");
   const [cardPinConfirm, setCardPinConfirm] = useState("");
+  const [cardPinCurrent, setCardPinCurrent] = useState("");
   const [cardPinPassword, setCardPinPassword] = useState("");
   const [pinSaving, setPinSaving] = useState(false);
   const [pinMsg, setPinMsg] = useState("");
   const [pinErr, setPinErr] = useState("");
+
+  const [pinForgot, setPinForgot] = useState(false);
+  const [pinOtp, setPinOtp] = useState("");
+  const [pinOtpSent, setPinOtpSent] = useState(false);
+  const [pinResetToken, setPinResetToken] = useState("");
+  const [pinOtpMsg, setPinOtpMsg] = useState("");
+  const [pinOtpErr, setPinOtpErr] = useState("");
+  const [pinOtpLoading, setPinOtpLoading] = useState(false);
+
+  const [balanceRevealed, setBalanceRevealed] = useState(false);
+  const [displayBalance, setDisplayBalance] = useState(0);
+  const [cardSubView, setCardSubView] = useState<"overview" | "history">("overview");
+  const [balancePinOpen, setBalancePinOpen] = useState(false);
+  const [balancePin, setBalancePin] = useState("");
+  const [balancePinErr, setBalancePinErr] = useState("");
+  const [balancePinLoading, setBalancePinLoading] = useState(false);
 
   useEffect(() => {
     if (loading) return;
@@ -90,24 +114,138 @@ function CardsContent() {
     }
   };
 
-  const handleSetCardPin = async (e: React.FormEvent) => {
+  const hasPin = !!user?.hasCardPin;
+
+  const handleRevealBalance = () => {
+    if (balanceRevealed) return;
+    if (!hasPin) return revealBalance();
+    setBalancePinErr("");
+    setBalancePin("");
+    setBalancePinOpen(true);
+  };
+
+  const revealBalance = () => {
+    setBalanceRevealed(true);
+    setBalancePinOpen(false);
+    const target = user?.walletBalance ?? 0;
+    const duration = 1200;
+    const start = performance.now();
+    const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+    const step = (now: number) => {
+      const t = Math.min((now - start) / duration, 1);
+      setDisplayBalance(Math.round(target * easeOutCubic(t)));
+      if (t < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  };
+
+  const handleBalancePinSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBalancePinErr("");
+    if (!/^\d{6}$/.test(balancePin)) { setBalancePinErr("Enter your 6-digit card PIN"); return; }
+    setBalancePinLoading(true);
+    try {
+      await apiFetch("/auth/me/card-pin/verify", {
+        method: "POST",
+        body: JSON.stringify({ pin: balancePin }),
+      });
+      setBalancePin("");
+      revealBalance();
+    } catch (err) {
+      setBalancePinErr(errMessage(err));
+    } finally {
+      setBalancePinLoading(false);
+    }
+  };
+
+  const handlePinSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setPinMsg("");
     setPinErr("");
-    if (cardPin.length < 4) { setPinErr("PIN must be at least 4 characters"); return; }
+    if (!/^\d{6}$/.test(cardPin)) { setPinErr("Card PIN must be exactly 6 digits"); return; }
     if (cardPin !== cardPinConfirm) { setPinErr("PINs do not match"); return; }
-    if (!cardPinPassword) { setPinErr("Enter your current password"); return; }
+    if (!cardPinPassword) { setPinErr("Enter your current account password"); return; }
+    if (hasPin && !/^\d{6}$/.test(cardPinCurrent)) { setPinErr("Enter your current card PIN (6 digits)"); return; }
     setPinSaving(true);
     try {
+      const body = { pin: cardPin, currentPassword: cardPinPassword, currentPin: hasPin ? cardPinCurrent : undefined };
       await apiFetch("/auth/me/card-pin", {
         method: "PUT",
-        body: JSON.stringify({ pin: cardPin, currentPassword: cardPinPassword }),
+        body: JSON.stringify(body),
       });
-      setPinMsg("Card PIN set successfully!");
+      setPinMsg(hasPin ? "Card PIN changed successfully!" : "Card PIN set successfully!");
       setCardPin("");
       setCardPinConfirm("");
+      setCardPinCurrent("");
       setCardPinPassword("");
-      setTimeout(() => setPinMsg(""), 2500);
+      await refreshUser();
+      setTimeout(() => setPinMsg(""), 3500);
+    } catch (err) {
+      setPinErr(errMessage(err));
+    } finally {
+      setPinSaving(false);
+    }
+  };
+
+  const handleSendPinOtp = async () => {
+    setPinOtpLoading(true);
+    setPinOtpMsg("");
+    setPinOtpErr("");
+    try {
+      const data = await apiFetch("/auth/me/card-pin/send-otp", { method: "POST" });
+      setPinOtpSent(true);
+      setPinOtpMsg(data.message || "OTP sent to your registered email");
+    } catch (err) {
+      setPinOtpErr(errMessage(err));
+    } finally {
+      setPinOtpLoading(false);
+    }
+  };
+
+  const handleVerifyPinOtp = async () => {
+    setPinOtpMsg("");
+    setPinOtpErr("");
+    if (!/^\d{6}$/.test(pinOtp)) { setPinOtpErr("Enter the 6-digit OTP"); return; }
+    setPinOtpLoading(true);
+    try {
+      const data = await apiFetch("/auth/me/card-pin/verify-otp", {
+        method: "POST",
+        body: JSON.stringify({ code: pinOtp }),
+      });
+      setPinResetToken(data.resetToken);
+      setPinOtpMsg("OTP verified. Set your new 6-digit card PIN below.");
+    } catch (err) {
+      setPinOtpErr(errMessage(err));
+    } finally {
+      setPinOtpLoading(false);
+    }
+  };
+
+  const handlePinReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPinMsg("");
+    setPinErr("");
+    setPinOtpMsg("");
+    setPinOtpErr("");
+    if (!/^\d{6}$/.test(cardPin)) { setPinErr("Card PIN must be exactly 6 digits"); return; }
+    if (cardPin !== cardPinConfirm) { setPinErr("PINs do not match"); return; }
+    setPinSaving(true);
+    try {
+      await apiFetch("/auth/me/card-pin/reset", {
+        method: "POST",
+        body: JSON.stringify({ resetToken: pinResetToken, pin: cardPin }),
+      });
+      setPinMsg("Card PIN reset successfully!");
+      setCardPin("");
+      setCardPinConfirm("");
+      setCardPinCurrent("");
+      setCardPinPassword("");
+      setPinOtp("");
+      setPinOtpSent(false);
+      setPinResetToken("");
+      setPinForgot(false);
+      await refreshUser();
+      setTimeout(() => setPinMsg(""), 3500);
     } catch (err) {
       setPinErr(errMessage(err));
     } finally {
@@ -118,13 +256,9 @@ function CardsContent() {
   if (loading) return <Spinner />;
   if (!user) return null;
 
-  const balance = user.walletBalance ?? 0;
   const peak = user.peakWalletBalance ?? 0;
-  const nextLevelIdx = getLevelIndex(effectiveLevel) + 1;
-  const nextLevel = LEVEL_ORDER[nextLevelIdx] as LevelKey | undefined;
-  const nextThreshold = nextLevel ? LEVEL_BALANCE_THRESHOLD[nextLevel] : undefined;
-  const gapToNext = nextThreshold ? Math.max(nextThreshold - balance, 0) : 0;
-  const progress = nextThreshold ? Math.max(0, Math.min(balance / nextThreshold, 1)) : 1;
+  const canHalfCustom = effectiveLevel === "black" || effectiveLevel === "owner";
+  const canFullCustom = peak >= 50000 || effectiveLevel === "owner";
 
   return (
     <div className="relative min-h-[calc(100vh-4rem)] overflow-hidden px-6 pb-16 pt-24 sm:px-10 sm:pt-28">
@@ -139,17 +273,123 @@ function CardsContent() {
       />
 
       <div className="relative z-10 mx-auto w-full max-w-5xl">
+        <div className="mb-6 flex items-center gap-2 border-b pb-3" style={{ borderColor: light ? "rgba(30,58,138,0.15)" : "rgba(255,255,255,0.08)" }}>
+          <button
+            type="button"
+            onClick={() => setCardSubView("overview")}
+            className={cn(
+              "inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all",
+              cardSubView === "overview"
+                ? light ? "bg-sapphire/10 text-sapphire" : "bg-gold/10 text-gold"
+                : light ? "text-onyx/40 hover:text-onyx" : "text-dark-400 hover:text-white"
+            )}
+          >
+            <CreditCard className="w-4 h-4" /> Overview
+          </button>
+          <button
+            type="button"
+            onClick={() => setCardSubView("history")}
+            className={cn(
+              "inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all",
+              cardSubView === "history"
+                ? light ? "bg-sapphire/10 text-sapphire" : "bg-gold/10 text-gold"
+                : light ? "text-onyx/40 hover:text-onyx" : "text-dark-400 hover:text-white"
+            )}
+          >
+            <History className="w-4 h-4" /> History
+          </button>
+        </div>
+
+        {cardSubView === "history" ? (
+          <UserWalletHistory />
+        ) : (
           <div className="space-y-6">
-          <div className="mx-auto max-w-sm">
-            <div className="-mx-6 px-[3px] sm:mx-0 sm:px-0">
+          <div className="grid gap-6 lg:grid-cols-12 lg:items-stretch">
+            <div className="lg:h-full lg:col-span-5">
+              <div className="-mx-6 px-[3px] sm:mx-0 sm:px-0 lg:h-full">
                 <MemberCard
-              walletBalance={user.walletBalance ?? 0}
-              peakWalletBalance={user.peakWalletBalance ?? 0}
-              name={user.name}
-              cardNumber={user.cardNumber}
-              cardLevel={user.cardLevel}
-              cardExpiry={user.cardExpiry}
-            />
+                  className="h-full w-full"
+                  walletBalance={user.walletBalance ?? 0}
+                  peakWalletBalance={user.peakWalletBalance ?? 0}
+                  name={user.name}
+                  cardNumber={user.cardNumber}
+                  cardLevel={user.cardLevel}
+                  cardExpiry={user.cardExpiry}
+                />
+              </div>
+            </div>
+
+            {/* Wallet Balance */}
+            <div className={cn(
+              "rounded-2xl border p-4 lg:p-6 space-y-4 flex flex-col lg:col-span-7",
+              light ? "bg-white border-sapphire/20" : "bg-dark-900/60 border-dark-800/50"
+            )}>
+              <div className="flex items-center justify-between">
+                <label className={cn("text-[10px] uppercase tracking-[0.3em] font-semibold", light ? "text-sapphire/60" : "text-white/50")}>
+                  Wallet Balance
+                </label>
+                <span className={cn("flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full", LEVELS[effectiveLevel]?.chip)}>
+                  <Wallet size={10} /> {LEVELS[effectiveLevel]?.name || effectiveLevel.toUpperCase()}
+                </span>
+              </div>
+
+              <div className="flex items-end justify-between gap-4">
+                <div className="min-w-0 flex-1">
+                  {balanceRevealed ? (
+                    <p className={cn("text-2xl font-bold tabular-nums", light ? "text-onyx" : "text-cream")}>
+                      ₹{displayBalance.toLocaleString("en-IN")}
+                    </p>
+                  ) : balancePinOpen ? (
+                    <form onSubmit={handleBalancePinSubmit} className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="password"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          maxLength={6}
+                          autoFocus
+                          value={balancePin}
+                          onChange={(e) => setBalancePin(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                          placeholder="Card PIN"
+                          className={cn("w-32 rounded-xl border px-3 h-12 text-xs focus:outline-none text-center tracking-[0.5em]",
+                            light ? "bg-white border-sapphire/20 text-onyx" : "bg-dark-800/60 border-dark-700/50 text-white"
+                          )}
+                        />
+                        <button type="submit" disabled={balancePinLoading || balancePin.length !== 6}
+                          className={cn("flex-1 h-12 inline-flex items-center justify-center gap-1.5 px-4 rounded-xl text-xs font-semibold transition-all disabled:opacity-50",
+                            light ? "bg-sapphire text-white hover:bg-sapphire/90" : "bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-dark-950"
+                          )}
+                        >
+                          {balancePinLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Lock className="w-3.5 h-3.5" />}
+                          {balancePinLoading ? "Checking..." : "Confirm"}
+                        </button>
+                      </div>
+                      {balancePinErr && <p className="text-red-400 text-[10px]">{balancePinErr}</p>}
+                      <p className={cn("text-[10px] flex items-center gap-1.5", light ? "text-onyx/40" : "text-dark-500")}>
+                        <Lock size={10} className="shrink-0" />
+                        Enter your 6-digit card PIN to check balance.
+                        <button type="button" onClick={() => setBalancePinOpen(false)} className={cn("underline", light ? "text-sapphire" : "text-gold")}>Cancel</button>
+                      </p>
+                    </form>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleRevealBalance}
+                      className={cn(
+                        "inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition-all",
+                        light
+                          ? "bg-sapphire/10 text-sapphire hover:bg-sapphire/20 border border-sapphire/20"
+                          : "bg-gold/10 text-gold hover:bg-gold/20 border border-gold/25"
+                      )}
+                    >
+                      <Wallet size={14} /> Check Balance
+                    </button>
+                  )}
+                  <p className={cn("mt-1.5 text-[10px]", light ? "text-onyx/40" : "text-dark-500")}>
+                    Peak balance ₹{peak.toLocaleString("en-IN")} lifetime
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -187,36 +427,45 @@ function CardsContent() {
                 Customize Card Number
               </label>
 
-              {(user.cardLevel === "black" || user.cardLevel === "owner") && (
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => { setCardMode("half"); setCustomPrefix(""); setCustomNumber(""); }}
-                    className={cn(
-                      "flex-1 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider border transition-all",
-                      cardMode === "half"
-                        ? light ? "bg-sapphire/15 border-sapphire/30 text-sapphire" : "bg-gold/15 border-gold/30 text-gold"
-                        : light ? "border-onyx/10 text-onyx/30" : "border-dark-700/50 text-dark-500"
-                    )}
-                  >
-                    Half Custom (Free)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCardMode("full")}
-                    className={cn(
-                      "flex-1 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider border transition-all",
-                      cardMode === "full"
-                        ? light ? "bg-sapphire/15 border-sapphire/30 text-sapphire" : "bg-gold/15 border-gold/30 text-gold"
-                        : light ? "border-onyx/10 text-onyx/30" : "border-dark-700/50 text-dark-500"
-                    )}
-                  >
-                    Full Custom (Paid)
-                  </button>
+              {(canHalfCustom || canFullCustom) && (
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => { setCardMode("half"); setCustomPrefix(""); setCustomNumber(""); }}
+                      disabled={!canHalfCustom}
+                      className={cn(
+                        "flex-1 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider border transition-all disabled:opacity-40 disabled:cursor-not-allowed",
+                        cardMode === "half"
+                          ? light ? "bg-sapphire/15 border-sapphire/30 text-sapphire" : "bg-gold/15 border-gold/30 text-gold"
+                          : light ? "border-onyx/10 text-onyx/30" : "border-dark-700/50 text-dark-500"
+                      )}
+                    >
+                      Half Custom (Free)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setCardMode("full"); setCustomPrefix(""); setCustomNumber(""); }}
+                      disabled={!canFullCustom}
+                      className={cn(
+                        "flex-1 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider border transition-all disabled:opacity-40 disabled:cursor-not-allowed",
+                        cardMode === "full"
+                          ? light ? "bg-sapphire/15 border-sapphire/30 text-sapphire" : "bg-gold/15 border-gold/30 text-gold"
+                          : light ? "border-onyx/10 text-onyx/30" : "border-dark-700/50 text-dark-500"
+                      )}
+                    >
+                      Full Custom (Paid)
+                    </button>
+                  </div>
+                  {canHalfCustom && !canFullCustom && (
+                    <p className={cn("text-[10px]", light ? "text-onyx/40" : "text-dark-500")}>
+                      Full Custom unlocks at ₹50,000 lifetime balance (you stay Black)
+                    </p>
+                  )}
                 </div>
               )}
 
-              {cardMode === "full" && (user.cardLevel === "black" || user.cardLevel === "owner") ? (
+              {canFullCustom && cardMode === "full" ? (
                 <form onSubmit={handleSaveCardNumber} className="space-y-3">
                   <div className={cn("flex items-center rounded-xl border text-sm font-mono overflow-hidden",
                     light ? "bg-white border-sapphire/20" : "bg-dark-800/60 border-dark-700/50"
@@ -227,7 +476,7 @@ function CardsContent() {
                       onChange={(e) => setCustomPrefix(e.target.value.replace(/[^A-Za-z]/g, "").slice(0, 6))}
                       placeholder="PRE"
                       maxLength={6}
-                      className={cn("w-20 px-3 py-2 text-sm font-mono font-bold focus:outline-none bg-transparent text-center",
+                      className={cn("w-20 px-3 h-10 text-sm font-mono font-bold focus:outline-none bg-transparent text-center",
                         light ? "text-sapphire placeholder:text-sapphire/30" : "text-gold placeholder:text-gold/30"
                       )}
                     />
@@ -240,7 +489,7 @@ function CardsContent() {
                       onChange={(e) => setCustomCardText(e.target.value.replace(/[^A-Za-z]/g, "").slice(0, 10))}
                       placeholder="TEXT"
                       maxLength={10}
-                      className={cn("flex-1 px-3 py-2 text-sm font-mono focus:outline-none bg-transparent",
+                      className={cn("flex-1 px-3 h-10 text-sm font-mono focus:outline-none bg-transparent",
                         light ? "text-onyx placeholder:text-onyx/30" : "text-white placeholder:text-dark-500"
                       )}
                     />
@@ -253,7 +502,7 @@ function CardsContent() {
                       onChange={(e) => setCustomNumber(e.target.value.replace(/[^0-9]/g, "").slice(0, 6))}
                       placeholder="000000"
                       maxLength={6}
-                      className={cn("w-20 px-3 py-2 text-sm font-mono focus:outline-none bg-transparent text-center",
+                      className={cn("w-20 px-3 h-10 text-sm font-mono focus:outline-none bg-transparent text-center",
                         light ? "text-onyx placeholder:text-onyx/30" : "text-white placeholder:text-dark-500"
                       )}
                     />
@@ -269,12 +518,12 @@ function CardsContent() {
                     {cardNumberSaving ? "Saving..." : "Generate"}
                   </button>
                 </form>
-              ) : user.cardLevel === "black" || user.cardLevel === "owner" ? (
+              ) : canHalfCustom ? (
                 <form onSubmit={handleSaveCardNumber} className="space-y-3">
                   <div className={cn("flex items-center rounded-xl border text-sm font-mono overflow-hidden",
                     light ? "bg-white border-sapphire/20" : "bg-dark-800/60 border-dark-700/50"
                   )}>
-                    <span className={cn("px-3 py-2 border-r text-xs font-bold shrink-0",
+                    <span className={cn("px-3 h-10 flex items-center border-r text-xs font-bold shrink-0",
                       light ? "bg-gold/10 border-sapphire/20 text-gold" : "bg-gold/10 border-gold/20 text-gold"
                     )}>{getNamePrefix(user.name || "")}-</span>
                     <input
@@ -283,11 +532,11 @@ function CardsContent() {
                       onChange={(e) => setCustomCardText(e.target.value.replace(/[^A-Za-z]/g, "").slice(0, 10))}
                       placeholder="TEXT"
                       maxLength={10}
-                      className={cn("flex-1 px-3 py-2 text-sm font-mono focus:outline-none bg-transparent",
+                      className={cn("flex-1 px-3 h-10 text-sm font-mono focus:outline-none bg-transparent",
                         light ? "text-onyx placeholder:text-onyx/30" : "text-white placeholder:text-dark-500"
                       )}
                     />
-                    <span className={cn("px-3 py-2 border-l text-xs font-bold shrink-0",
+                    <span className={cn("px-3 h-10 flex items-center border-l text-xs font-bold shrink-0",
                       light ? "bg-sapphire/5 border-sapphire/20 text-sapphire/40" : "bg-dark-900/50 border-dark-700/50 text-dark-500"
                     )}>-XXXX</span>
                   </div>
@@ -307,7 +556,7 @@ function CardsContent() {
                   <div className={cn("flex items-center rounded-xl border text-sm font-mono overflow-hidden opacity-70",
                     light ? "bg-white border-sapphire/20" : "bg-dark-800/60 border-dark-700/50"
                   )}>
-                    <span className={cn("px-3 py-2 border-r text-xs font-bold shrink-0",
+                    <span className={cn("px-3 h-10 flex items-center border-r text-xs font-bold shrink-0",
                       light ? "bg-sapphire/10 border-sapphire/20 text-sapphire" : "bg-gold/10 border-gold/20 text-gold"
                     )}>{getNamePrefix(user.name || "")}-XXXX-XXXX</span>
                   </div>
@@ -326,98 +575,177 @@ function CardsContent() {
               "rounded-2xl border p-4 space-y-3",
               light ? "bg-white border-sapphire/20" : "bg-dark-900/60 border-dark-800/50"
             )}>
-              <div className="flex items-center gap-2">
-                <Shield size={14} className={light ? "text-sapphire" : "text-gold"} />
-                <label className={cn("text-[10px] uppercase tracking-[0.3em] font-semibold", light ? "text-sapphire/60" : "text-white/50")}>
-                  Card Login PIN {user.hasCardPin ? "(Set)" : "(Not set)"}
-                </label>
-              </div>
-              <p className={cn("text-[10px]", light ? "text-onyx/40" : "text-dark-500")}>
-                Set a separate PIN to log in with your card number. You can also use your account password.
-              </p>
-              <form onSubmit={handleSetCardPin} className="space-y-2">
-                <input
-                  type="password"
-                  value={cardPin}
-                  onChange={(e) => setCardPin(e.target.value)}
-                  placeholder="New PIN (4+ characters)"
-                  className={cn("w-full rounded-xl border px-3 py-2 text-xs focus:outline-none",
-                    light ? "bg-white border-sapphire/20 text-onyx" : "bg-dark-800/60 border-dark-700/50 text-white"
-                  )}
-                />
-                <input
-                  type="password"
-                  value={cardPinConfirm}
-                  onChange={(e) => setCardPinConfirm(e.target.value)}
-                  placeholder="Confirm PIN"
-                  className={cn("w-full rounded-xl border px-3 py-2 text-xs focus:outline-none",
-                    light ? "bg-white border-sapphire/20 text-onyx" : "bg-dark-800/60 border-dark-700/50 text-white"
-                  )}
-                />
-                <input
-                  type="password"
-                  value={cardPinPassword}
-                  onChange={(e) => setCardPinPassword(e.target.value)}
-                  placeholder="Current account password"
-                  className={cn("w-full rounded-xl border px-3 py-2 text-xs focus:outline-none",
-                    light ? "bg-white border-sapphire/20 text-onyx" : "bg-dark-800/60 border-dark-700/50 text-white"
-                  )}
-                />
-                <button type="submit" disabled={pinSaving}
-                  className={cn("w-full flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold transition-all disabled:opacity-50",
-                    light ? "bg-sapphire text-white hover:bg-sapphire/90" : "bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-dark-950"
-                  )}>
-                  {pinSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Lock className="w-3.5 h-3.5" />}
-                  {pinSaving ? "Setting..." : "Set Card PIN"}
-                </button>
-              </form>
-              {pinMsg && <p className="text-emerald-400 text-xs">{pinMsg}</p>}
-              {pinErr && <p className="text-red-400 text-xs">{pinErr}</p>}
-            </div>
-
-            {/* Wallet Balance */}
-            <div className={cn(
-              "rounded-2xl border p-4 space-y-4",
-              light ? "bg-white border-sapphire/20" : "bg-dark-900/60 border-dark-800/50"
-            )}>
-              <div className="flex items-center justify-between">
-                <label className={cn("text-[10px] uppercase tracking-[0.3em] font-semibold", light ? "text-sapphire/60" : "text-white/50")}>
-                  Wallet Balance
-                </label>
-                <span className={cn("flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full", LEVELS[effectiveLevel]?.chip)}>
-                  <Wallet size={10} /> {LEVELS[effectiveLevel]?.name || effectiveLevel.toUpperCase()}
-                </span>
-              </div>
-
-              <div className="flex items-end justify-between gap-4">
-                <div>
-                  <p className={cn("text-2xl font-bold", light ? "text-onyx" : "text-cream")}>
-                    ₹{balance.toLocaleString("en-IN")}
-                  </p>
-                  <p className={cn("mt-0.5 text-[10px]", light ? "text-onyx/40" : "text-dark-500")}>
-                    Peak balance ₹{peak.toLocaleString("en-IN")} lifetime
-                  </p>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <Shield size={14} className={light ? "text-sapphire" : "text-gold"} />
+                  <label className={cn("text-[10px] uppercase tracking-[0.3em] font-semibold", light ? "text-sapphire/60" : "text-white/50")}>
+                    Card Login PIN {hasPin ? "(Set)" : "(Not set)"}
+                  </label>
                 </div>
-                {nextLevel ? (
-                  <p className={cn("text-right text-[11px] font-semibold leading-snug", light ? "text-sapphire" : "text-gold")}>
-                    ₹{gapToNext.toLocaleString("en-IN")} more<br />
-                    <span className={cn("text-[9px] font-bold uppercase tracking-wider", light ? "text-onyx/40" : "text-dark-500")}>
-                      to {LEVELS[nextLevel]?.name || nextLevel.toUpperCase()}
-                    </span>
-                  </p>
-                ) : (
-                  <p className={cn("text-right text-[11px] font-bold text-gold", light ? "text-sapphire" : "text-gold")}>
-                    Top tier reached!
-                  </p>
+                {hasPin && !pinForgot && (
+                  <button type="button" onClick={() => { setPinForgot(true); setPinOtpSent(false); setPinOtp(""); setPinResetToken(""); setPinOtpMsg(""); setPinOtpErr(""); }}
+                    className={cn("text-[10px] font-semibold underline underline-offset-2", light ? "text-sapphire hover:text-sapphire/70" : "text-gold hover:text-gold/70")}
+                  >
+                    Forgot PIN?
+                  </button>
                 )}
               </div>
+              <p className={cn("text-[10px]", light ? "text-onyx/40" : "text-dark-500")}>
+                Set a separate 6-digit numeric PIN to log in with your card number. You can also use your account password.
+              </p>
 
-              <div className={cn("h-2.5 w-full overflow-hidden rounded-full", light ? "bg-dark-100" : "bg-white/10")}>
-                <div
-                  className={cn("h-full rounded-full transition-all", light ? "bg-sapphire" : "bg-gradient-to-r from-gold-400 to-gold-600")}
-                  style={{ width: `${progress * 100}%` }}
-                />
-              </div>
+              {pinMsg && (
+                <div className={cn("flex items-start gap-2 rounded-xl border px-3 py-2.5 text-xs", light ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-600" : "bg-emerald-500/10 border-emerald-500/30 text-emerald-400")}>
+                  <CheckCircle2 size={14} className="shrink-0 mt-0.5" />
+                  <span>{pinMsg}</span>
+                </div>
+              )}
+              {pinErr && <p className="text-red-400 text-xs">{pinErr}</p>}
+
+              {pinForgot && (
+                <div className={cn("rounded-xl border p-3 space-y-2", light ? "bg-amber-500/5 border-amber-500/20" : "bg-amber-500/5 border-amber-500/20")}>
+                  <div className="flex items-center gap-2">
+                    <KeyRound size={13} className={light ? "text-sapphire" : "text-gold"} />
+                    <p className={cn("text-[10px] font-bold uppercase tracking-wider", light ? "text-onyx/50" : "text-white/50")}>Forgot card PIN</p>
+                  </div>
+                  <p className={cn("text-[10px]", light ? "text-onyx/40" : "text-dark-500")}>
+                    An OTP will be sent to your registered email to verify your identity — same as the forgot password process.
+                  </p>
+
+                  {pinOtpMsg && <p className="text-emerald-400 text-xs">{pinOtpMsg}</p>}
+                  {pinOtpErr && <p className="text-red-400 text-xs">{pinOtpErr}</p>}
+
+                  {!pinResetToken ? (
+                    <>
+                      {pinOtpSent && (
+                        <div className="space-y-2">
+                          <input
+                            type="password"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            maxLength={6}
+                            value={pinOtp}
+                            onChange={(e) => setPinOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                            placeholder="Enter 6-digit OTP"
+                            className={cn("w-full rounded-xl border px-3 h-12 text-xs focus:outline-none text-center tracking-[0.5em]",
+                              light ? "bg-white border-sapphire/20 text-onyx" : "bg-dark-800/60 border-dark-700/50 text-white"
+                            )}
+                          />
+                          <button type="button" onClick={handleVerifyPinOtp} disabled={pinOtpLoading || pinOtp.length !== 6}
+                            className={cn("w-full flex items-center justify-center gap-1.5 px-4 h-11 rounded-xl text-xs font-semibold transition-all disabled:opacity-50",
+                              light ? "bg-sapphire text-white hover:bg-sapphire/90" : "bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-dark-950"
+                            )}
+                          >
+                            {pinOtpLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <KeyRound className="w-3.5 h-3.5" />}
+                            {pinOtpLoading ? "Verifying..." : "Verify OTP"}
+                          </button>
+                        </div>
+                      )}
+                      <button type="button" onClick={handleSendPinOtp} disabled={pinOtpLoading}
+                        className={cn("inline-flex items-center gap-1.5 text-[10px] font-semibold", light ? "text-sapphire hover:text-sapphire/70" : "text-gold hover:text-gold/70", pinOtpLoading && "opacity-50")}
+                      >
+                        {pinOtpLoading && !pinOtpSent ? <Loader2 className="w-3 h-3 animate-spin" /> : <Mail size={12} />}
+                        {pinOtpSent ? "Resend OTP" : "Send OTP to my email"}
+                      </button>
+                    </>
+                  ) : (
+                    <form onSubmit={handlePinReset} className="space-y-2">
+                      <input
+                        type="password"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        maxLength={6}
+                        value={cardPin}
+                        onChange={(e) => setCardPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                        placeholder="New PIN (6 digits)"
+                        className={cn("w-full rounded-xl border px-3 h-12 text-xs focus:outline-none text-center tracking-[0.5em]",
+                          light ? "bg-white border-sapphire/20 text-onyx" : "bg-dark-800/60 border-dark-700/50 text-white"
+                        )}
+                      />
+                      <input
+                        type="password"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        maxLength={6}
+                        value={cardPinConfirm}
+                        onChange={(e) => setCardPinConfirm(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                        placeholder="Confirm PIN (6 digits)"
+                        className={cn("w-full rounded-xl border px-3 h-12 text-xs focus:outline-none text-center tracking-[0.5em]",
+                          light ? "bg-white border-sapphire/20 text-onyx" : "bg-dark-800/60 border-dark-700/50 text-white"
+                        )}
+                      />
+                      <button type="submit" disabled={pinSaving}
+                        className={cn("w-full flex items-center justify-center gap-1.5 px-4 h-12 rounded-xl text-xs font-semibold transition-all disabled:opacity-50",
+                          light ? "bg-sapphire text-white hover:bg-sapphire/90" : "bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-dark-950"
+                        )}
+                      >
+                        {pinSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Lock className="w-3.5 h-3.5" />}
+                        {pinSaving ? "Resetting..." : "Reset Card PIN"}
+                      </button>
+                    </form>
+                  )}
+                </div>
+              )}
+
+              {!pinForgot && (
+                <form onSubmit={handlePinSubmit} className="space-y-2">
+                  {hasPin && (
+                    <input
+                      type="password"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={6}
+                      value={cardPinCurrent}
+                      onChange={(e) => setCardPinCurrent(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                      placeholder="Current PIN (6 digits)"
+                      className={cn("w-full rounded-xl border px-3 h-12 text-xs focus:outline-none text-center tracking-[0.5em]",
+                        light ? "bg-white border-sapphire/20 text-onyx" : "bg-dark-800/60 border-dark-700/50 text-white"
+                      )}
+                    />
+                  )}
+                  <input
+                    type="password"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={6}
+                    value={cardPin}
+                    onChange={(e) => setCardPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    placeholder="New PIN (6 digits)"
+                    className={cn("w-full rounded-xl border px-3 h-12 text-xs focus:outline-none text-center tracking-[0.5em]",
+                      light ? "bg-white border-sapphire/20 text-onyx" : "bg-dark-800/60 border-dark-700/50 text-white"
+                    )}
+                  />
+                  <input
+                    type="password"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={6}
+                    value={cardPinConfirm}
+                    onChange={(e) => setCardPinConfirm(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    placeholder="Confirm PIN (6 digits)"
+                    className={cn("w-full rounded-xl border px-3 h-12 text-xs focus:outline-none text-center tracking-[0.5em]",
+                      light ? "bg-white border-sapphire/20 text-onyx" : "bg-dark-800/60 border-dark-700/50 text-white"
+                    )}
+                  />
+                  <input
+                    type="password"
+                    value={cardPinPassword}
+                    onChange={(e) => setCardPinPassword(e.target.value)}
+                    placeholder="Current account password"
+                    className={cn("w-full rounded-xl border px-3 h-12 text-xs focus:outline-none",
+                      light ? "bg-white border-sapphire/20 text-onyx" : "bg-dark-800/60 border-dark-700/50 text-white"
+                    )}
+                  />
+                  <button type="submit" disabled={pinSaving}
+                    className={cn("w-full flex items-center justify-center gap-1.5 px-4 h-12 rounded-xl text-xs font-semibold transition-all disabled:opacity-50",
+                      light ? "bg-sapphire text-white hover:bg-sapphire/90" : "bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-dark-950"
+                    )}
+                  >
+                    {pinSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Lock className="w-3.5 h-3.5" />}
+                    {pinSaving ? (hasPin ? "Changing..." : "Setting...") : hasPin ? "Change Card PIN" : "Set Card PIN"}
+                  </button>
+                </form>
+              )}
             </div>
 
             {/* Card Upgrades & Top-Up */}
@@ -429,9 +757,10 @@ function CardsContent() {
             </div>
 
           </div>
+          </div>
+          )}
         </div>
       </div>
-    </div>
   );
 }
 

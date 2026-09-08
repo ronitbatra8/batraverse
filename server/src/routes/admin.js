@@ -2,7 +2,7 @@ const express = require("express");
 const jwt = require("jsonwebtoken");
 const prisma = require("../db");
 const { adminAuth } = require("../middleware/auth");
-const { getEffectiveCardLevel } = require("../utils/cardLevel");
+const { getEffectiveCardLevel, levelFromBalance } = require("../utils/cardLevel");
 const { safeErrorMessage, ORDER_STATUSES } = require("../utils/helpers");
 const { syncPayoutsForItemChange } = require("../utils/sellerPayout");
 const {
@@ -722,11 +722,7 @@ router.post("/impersonate/:id", async (req, res) => {
   }
 });
 
-const LEVEL_PREFIX = {
-  none: "BV", bronze: "BZ", silver: "SV", gold: "GL", platinum: "PL",
-  diamond: "DM", black: "BK", owner: "OW",
-};
-const VALID_CARD_LEVELS = ["none", "bronze", "owner", "silver", "gold", "platinum", "diamond", "black"];
+const VALID_CARD_LEVELS = ["none", "bronze", "silver", "gold", "platinum", "diamond", "black"];
 
 router.get("/card-upgrades", async (req, res) => {
   try {
@@ -798,29 +794,93 @@ router.put("/users/:id/card", async (req, res) => {
     }
     const user = await prisma.user.findUnique({ where: { id: req.params.id } });
     if (!user) return res.status(404).json({ error: "User not found" });
-    const newLevel = cardLevel === "none" ? null : cardLevel;
-    const data = { cardLevel: newLevel };
-    if (cardExpiry) data.cardExpiry = new Date(cardExpiry);
-    /* The card number only regenerates when the level becomes BLACK (or OWNER),
-       which gets an exclusive embossed number. Other level changes keep the
-       existing card number. */
-    if (["black", "owner"].includes(cardLevel) && user.cardNumber && newLevel !== user.cardLevel) {
-      const newPrefix = LEVEL_PREFIX[cardLevel] || "BV";
-      const oldPrefix = LEVEL_PREFIX[user.cardLevel || "none"] || "BV";
-      let suffix = user.cardNumber.replace(/^[A-Z]+-/, "");
-      if (oldPrefix !== "BV" && suffix.startsWith(oldPrefix + "-")) {
-        suffix = suffix.replace(/^[A-Z]+-/, "");
-      }
-      if (!suffix || suffix.length < 5) {
-        const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-        suffix = Array.from({ length: 8 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
-      }
-      data.cardNumber = `${newPrefix}-${suffix}`;
+    if (user.role === "ADMIN") {
+      return res.status(400).json({ error: "The owner card is permanently OWNER and cannot be changed." });
     }
+
+    /* A manual level set is money-driven: you cannot set a level lower than
+       what the current balance already earns, nor higher than what the peak
+       balance earns. Setting a level rewrites the peak to that tier's
+       threshold so future credits auto-advance the level again. */
+    const PEAK_THRESHOLDS = { none: 0, bronze: 100, silver: 500, gold: 1500, platinum: 5000, diamond: 15000, black: 30000 };
+    const CARD_ORDER = ["none", "bronze", "silver", "gold", "platinum", "diamond", "black"];
+    const balance = user.walletBalance ?? 0;
+    const peak = user.peakWalletBalance ?? 0;
+    const minIdx = CARD_ORDER.indexOf(levelFromBalance(balance));
+    const maxIdx = CARD_ORDER.indexOf(levelFromBalance(Math.max(peak, balance)));
+    const targetIdx = CARD_ORDER.indexOf(cardLevel);
+    if (targetIdx < minIdx) {
+      return res.status(400).json({
+        error: `Cannot set ${cardLevel.toUpperCase()} — current wallet balance (₹${balance}) already requires ${levelFromBalance(balance).toUpperCase()} or higher.`,
+      });
+    }
+    if (targetIdx > maxIdx) {
+      return res.status(400).json({
+        error: `Cannot set ${cardLevel.toUpperCase()} — the level your money supports is ${levelFromBalance(Math.max(peak, balance)).toUpperCase()}.`,
+      });
+    }
+
+    const newPeak = Math.max(PEAK_THRESHOLDS[cardLevel] ?? 0, balance);
+    const data = { cardLevel: null, peakWalletBalance: newPeak };
+    if (cardExpiry) data.cardExpiry = new Date(cardExpiry);
+
     const updated = await prisma.user.update({
       where: { id: req.params.id },
       data,
-      select: { id: true, name: true, email: true, cardLevel: true, cardNumber: true, cardExpiry: true },
+      select: { id: true, name: true, email: true, cardLevel: true, cardNumber: true, cardExpiry: true, peakWalletBalance: true },
+    });
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ error: safeErrorMessage(err) });
+  }
+});
+
+router.put("/users/:id/card-number", async (req, res) => {
+  try {
+    const { mode, customPrefix, customText, customNumber } = req.body;
+    const user = await prisma.user.findUnique({ where: { id: req.params.id } });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const rand = (s, n) => Array.from({ length: n }, () => s[Math.floor(Math.random() * s.length)]).join("");
+
+    let cardNumber;
+    if (mode === "full") {
+      const p = String(customPrefix || "").trim().toUpperCase().replace(/[^A-Z]/g, "").slice(0, 6);
+      const t = String(customText || "").trim().toUpperCase().replace(/[^A-Z]/g, "").slice(0, 10);
+      const n = String(customNumber || "").replace(/[^0-9]/g, "").slice(0, 6);
+      if (!p || p.length < 1) return res.status(400).json({ error: "Prefix must be 1-6 characters (alphabet only)" });
+      if (!t || t.length < 1) return res.status(400).json({ error: "Text must be 1-10 characters (alphabet only)" });
+      const numPart = n.length > 0 ? n : rand("0123456789", 4);
+      cardNumber = `${p}-${t}-${numPart}`;
+    } else if (mode === "random") {
+      const parts = (user.name || "").trim().split(/\s+/);
+      let namePrefix;
+      if (parts.length >= 2) {
+        namePrefix = (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+      } else if (parts.length === 1 && parts[0].length >= 2) {
+        namePrefix = parts[0].slice(0, 2).toUpperCase();
+      } else {
+        namePrefix = "BV";
+      }
+      if (!/^[A-Z]{2}$/.test(namePrefix)) namePrefix = "BV";
+      const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+      for (let i = 0; i < 25; i++) {
+        const attempt = `${namePrefix}-${rand(chars, 4)}-${rand("0123456789", 4)}`;
+        const exists = await prisma.user.findUnique({ where: { cardNumber: attempt } });
+        if (!exists) { cardNumber = attempt; break; }
+      }
+      if (!cardNumber) cardNumber = `${namePrefix}-${rand(chars, 4)}-${rand("0123456789", 4)}`;
+    } else {
+      return res.status(400).json({ error: "Invalid mode" });
+    }
+
+    const existing = await prisma.user.findFirst({ where: { cardNumber, NOT: { id: req.params.id } } });
+    if (existing) return res.status(400).json({ error: "Card number already in use by another user" });
+
+    const updated = await prisma.user.update({
+      where: { id: req.params.id },
+      data: { cardNumber },
+      select: { id: true, cardNumber: true },
     });
     res.json(updated);
   } catch (err) {

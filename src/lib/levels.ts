@@ -132,16 +132,16 @@ export function getLevelFromBalance(balance: number): LevelKey {
   return "none";
 }
 
-/* An explicitly assigned card level is authoritative; otherwise the level is
-   derived from the peak lifetime wallet balance. Mirrors the server rule. */
+/* The level is purely money-driven: it is the tier of the higher of the peak
+   lifetime balance and the current balance. Mirrors the server rule. The one
+   exception is the owner's card, which is permanently OWNER. */
 export function getEffectiveLevel(opts: {
   cardLevel?: string | null;
   peakWalletBalance?: number;
   walletBalance?: number;
 }): LevelKey {
-  const cl = opts?.cardLevel;
-  if (cl && cl in LEVELS) return cl as LevelKey;
-  return getLevelFromBalance(opts?.peakWalletBalance ?? opts?.walletBalance ?? 0);
+  if (opts?.cardLevel === "owner") return "owner";
+  return getLevelFromBalance(Math.max(opts?.peakWalletBalance ?? 0, opts?.walletBalance ?? 0));
 }
 
 export function getBalanceForNextLevel(currentLevel: LevelKey): number | null {

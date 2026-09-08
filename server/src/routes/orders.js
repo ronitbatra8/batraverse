@@ -1,4 +1,5 @@
 const express = require("express");
+const bcrypt = require("bcryptjs");
 const prisma = require("../db");
 const { userAuth } = require("../middleware/userAuth");
 const { safeErrorMessage } = require("../utils/helpers");
@@ -63,7 +64,7 @@ router.get("/my", userAuth, async (req, res) => {
 
 router.post("/", userAuth, async (req, res) => {
   try {
-    const { items, shipping, paymentMethod, source, deliveryMode, transactionId, deliveryAmount, expressAmount } = req.body;
+    const { items, shipping, paymentMethod, source, deliveryMode, transactionId, deliveryAmount, expressAmount, cardPin } = req.body;
 
     if (!items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ error: "At least one item is required" });
@@ -97,7 +98,7 @@ router.post("/", userAuth, async (req, res) => {
     const subtotal = orderItems.reduce((sum, it) => sum + it.price * it.quantity, 0);
 
     // Card-level discount
-    const user = await prisma.user.findUnique({ where: { id: req.userId }, select: { cardLevel: true, freeDeliveryUsed: true, freeDeliveryMonth: true, walletBalance: true, peakWalletBalance: true } });
+    const user = await prisma.user.findUnique({ where: { id: req.userId }, select: { cardLevel: true, freeDeliveryUsed: true, freeDeliveryMonth: true, walletBalance: true, peakWalletBalance: true, cardPinHash: true } });
     const effectiveLevel = getEffectiveCardLevel(user);
     const discountPct = LEVEL_DISCOUNT[effectiveLevel] || 0;
     const discountAmount = discountPct > 0 ? Math.round(subtotal * discountPct / 100 * 100) / 100 : 0;
@@ -124,6 +125,16 @@ router.post("/", userAuth, async (req, res) => {
     let initialStatus = isAutoApprove ? "confirmed" : "pending";
 
     if (isWalletPay) {
+      if (!/^\d{6}$/.test(String(cardPin || ""))) {
+        return res.status(400).json({ error: "Card PIN is required to pay via card wallet" });
+      }
+      if (!user.cardPinHash) {
+        return res.status(400).json({ error: "No card PIN set on this account. Set a 6-digit card PIN on your Card page first." });
+      }
+      const pinMatches = await bcrypt.compare(String(cardPin), user.cardPinHash);
+      if (!pinMatches) {
+        return res.status(401).json({ error: "Incorrect card PIN" });
+      }
       if ((user.walletBalance || 0) < totalAmount) {
         return res.status(400).json({ error: `Insufficient wallet balance. You have ₹${(user.walletBalance || 0).toFixed(2)} but need ₹${totalAmount.toFixed(2)}. Please recharge your wallet.` });
       }

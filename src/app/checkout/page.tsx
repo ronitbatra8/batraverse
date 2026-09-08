@@ -35,6 +35,7 @@ import { getDiscountPercent, getFreeDeliveries, getEffectiveLevel } from "@/lib/
 import { apiFetch } from "@/lib/api";
 import SiteLayout from "@/components/layout/SiteLayout";
 import UpiPaymentModal from "@/components/UpiPaymentModal";
+import WalletPinModal from "@/components/WalletPinModal";
 import { resolveImageUrl } from "@/lib/imageUrl";
 
 type Step = "shipping" | "payment" | "confirm";
@@ -73,6 +74,7 @@ export default function CheckoutPage() {
   const [error, setError] = useState("");
   const [upiModal, setUpiModal] = useState(false);
   const [upiAmount, setUpiAmount] = useState(0);
+  const [walletPinModal, setWalletPinModal] = useState(false);
   const [pendingOrderData, setPendingOrderData] = useState<any>(null);
   const [locating, setLocating] = useState(false);
   const [locationError, setLocationError] = useState("");
@@ -259,6 +261,12 @@ export default function CheckoutPage() {
         return;
       }
 
+      if (payMethod === "wallet_balance") {
+        setPendingOrderData({ orderRequests, total });
+        setWalletPinModal(true);
+        return;
+      }
+
       const results = await Promise.all(orderRequests.map((r) => apiFetch("/orders", { method: "POST", body: JSON.stringify(r) })));
       const createdOrderId = results.map((r: { orderId?: string; id: string }) => r.orderId || r.id).join(", ");
 
@@ -280,7 +288,7 @@ export default function CheckoutPage() {
     }
   };
 
-  if (items.length === 0 && !placed && !upiModal) {
+  if (items.length === 0 && !placed && !upiModal && !walletPinModal) {
     return (
       <SiteLayout>
         <div className="flex min-h-screen items-center justify-center">
@@ -554,7 +562,7 @@ export default function CheckoutPage() {
                     { key: "cod" as PaymentMethod, icon: <Banknote size={20} />, label: "Cash on Delivery", desc: "Pay when you receive" },
                     { key: "upi_delivery" as PaymentMethod, icon: <Smartphone size={20} />, label: "UPI on Delivery", desc: "Scan & pay at delivery" },
                     { key: "upi" as PaymentMethod, icon: <CircleDollarSign size={20} />, label: "Online UPI", desc: "QR / Transaction ID" },
-                    { key: "wallet_balance" as PaymentMethod, icon: <Wallet size={20} />, label: "Pay via Wallet", desc: `Balance: ₹${(user?.walletBalance ?? 0).toFixed(0)}` },
+                    { key: "wallet_balance" as PaymentMethod, icon: <Wallet size={20} />, label: "Pay via Wallet", desc: "Pay from your card wallet" },
                   ].map((m) => (
                     <button type="button" key={m.key} onClick={() => setPayMethod(m.key)}
                       className={cn("group relative flex flex-col items-center gap-3 rounded-2xl border-2 p-5 sm:p-6 transition-all duration-300 text-center",
@@ -609,7 +617,7 @@ export default function CheckoutPage() {
                       <Wallet size={14} />
                       <span className="font-semibold">Wallet Payment</span>
                     </div>
-                    <p>₹{(subtotal + deliveryCharge + expressFee - discountAmount).toFixed(2)} will be deducted from your wallet balance of ₹{(user?.walletBalance ?? 0).toFixed(2)}.</p>
+                    <p>₹{(subtotal + deliveryCharge + expressFee - discountAmount).toFixed(2)} will be deducted from your card wallet at the time of placing the order.</p>
                     {(user?.walletBalance ?? 0) < (subtotal + deliveryCharge + expressFee - discountAmount) && (
                       <p className="mt-2 text-red-500 font-semibold">Insufficient wallet balance. Please recharge your wallet first.</p>
                     )}
@@ -910,6 +918,13 @@ src={resolveImageUrl(item.colorImage) || ""}
         amount={upiAmount}
         pendingOrderData={pendingOrderData!}
         onSuccess={(createdIds: string) => { setOrderId(createdIds); setUpiModal(false); clear(); setPlaced(true); }}
+      />
+      <WalletPinModal
+        open={walletPinModal}
+        onClose={() => setWalletPinModal(false)}
+        amount={total}
+        pendingOrderData={pendingOrderData!}
+        onSuccess={(createdIds: string) => { setOrderId(createdIds); setWalletPinModal(false); clear(); setPlaced(true); }}
       />
     </SiteLayout>
   );

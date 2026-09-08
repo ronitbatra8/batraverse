@@ -1,6 +1,6 @@
 "use client";
 
-import { LEVELS, getLevelFromBalance, LEVEL_ORDER, getBalanceForNextLevel, type LevelKey } from "@/lib/levels";
+import { LEVELS, getLevelFromBalance, type LevelKey } from "@/lib/levels";
 import { cn } from "@/lib/utils";
 
 export default function MemberCard({
@@ -24,10 +24,6 @@ export default function MemberCard({
     cardLevel && cardLevel in LEVELS ? (cardLevel as LevelKey) : getLevelFromBalance(peakWalletBalance ?? walletBalance);
   const meta = LEVELS[effectiveLevel];
   const LevelIcon = meta.icon;
-  const idx = LEVEL_ORDER.indexOf(effectiveLevel as (typeof LEVEL_ORDER)[number]);
-  const nextLevel = idx >= 0 && idx < LEVEL_ORDER.length - 1 ? LEVEL_ORDER[idx + 1] : null;
-  const nextThreshold = nextLevel ? getBalanceForNextLevel(effectiveLevel) : null;
-  const remaining = nextThreshold ? Math.max(0, nextThreshold - (peakWalletBalance ?? walletBalance)) : 0;
 
   const isExpiring = cardExpiry && new Date(cardExpiry) > new Date();
   const expiryDate = cardExpiry ? new Date(cardExpiry) : null;
@@ -99,13 +95,6 @@ export default function MemberCard({
             </p>
           </div>
           <div className="text-right text-[10px] leading-relaxed text-white/60 shrink-0">
-            {nextLevel && remaining > 0 && (
-              <>
-                ₹{remaining.toLocaleString("en-IN")} more
-                <br />
-                to {LEVELS[nextLevel].name}
-              </>
-            )}
             {effectiveLevel === "black" && (
               <>
                 Highest

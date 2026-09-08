@@ -18,11 +18,17 @@ import {
   Gem,
   Star,
   Plus,
+  Minus,
+  ListOrdered,
+  RefreshCw,
+  Save,
 } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
+import { getEffectiveLevel } from "@/lib/levels";
 import { useToast } from "@/components/Toast";
 import { API, adminHeaders } from "./types";
 import TopUpRequests from "./TopUpRequests";
+import WalletHistory from "./WalletHistory";
 
 const LEVELS = {
   none: {
@@ -142,9 +148,14 @@ export default function CardsWalletTab({ adminKey }: { adminKey: string }) {
   const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
   const [userFilter, setUserFilter] = useState<string>("all");
   const [creditAmounts, setCreditAmounts] = useState<Record<string, string>>({});
+  const [debitAmounts, setDebitAmounts] = useState<Record<string, string>>({});
   const [creditingId, setCreditingId] = useState<string | null>(null);
+  const [debitingId, setDebitingId] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(50);
-  const [view, setView] = useState<"users" | "requests">("users");
+  const [view, setView] = useState<"users" | "requests" | "history">("users");
+  const [cardNumberForm, setCardNumberForm] = useState<Record<string, { prefix: string; text: string; num: string }>>({});
+  const [cardNumberBusy, setCardNumberBusy] = useState<string | null>(null);
+  const [cardNumberError, setCardNumberError] = useState<Record<string, string>>({});
 
   useEffect(() => { setVisibleCount(50); }, [userSearch, userFilter]);
 
@@ -175,11 +186,64 @@ export default function CardsWalletTab({ adminKey }: { adminKey: string }) {
         const err = await res.json();
         throw new Error(err.error || "Failed");
       }
-      setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, cardLevel: newLevel, effectiveCardLevel: newLevel } : u)));
+      const data = await res.json();
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.id === userId
+            ? {
+                ...u,
+                cardLevel: newLevel,
+                ...(typeof data.peakWalletBalance === "number"
+                  ? {
+                      peakWalletBalance: data.peakWalletBalance,
+                      effectiveCardLevel: getEffectiveLevel({ cardLevel: null, peakWalletBalance: data.peakWalletBalance, walletBalance: u.walletBalance ?? 0 }),
+                    }
+                  : {}),
+              }
+            : u
+        )
+      );
+      toast(`Level set to ${newLevel.toUpperCase()}. Peak reset to ${formatPrice(data.peakWalletBalance ?? 0)}`, "success");
     } catch (e: unknown) {
       toast(e instanceof Error ? e.message : "Failed to update card level", "error");
     }
     setUpdatingUserId(null);
+  };
+
+  const handleAdminCardNumber = async (userId: string, mode: "full" | "random") => {
+    setCardNumberBusy(userId);
+    setCardNumberError((prev) => ({ ...prev, [userId]: "" }));
+    const form = cardNumberForm[userId] || { prefix: "", text: "", num: "" };
+    try {
+      const res = await fetch(`${API}/api/admin/users/${userId}/card-number`, {
+        method: "PUT",
+        headers: adminHeaders(adminKey),
+        body: JSON.stringify({ mode, customPrefix: form.prefix, customText: form.text, customNumber: form.num }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to update card number");
+      }
+      const data = await res.json();
+      setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, cardNumber: data.cardNumber } : u)));
+      if (mode === "random") setCardNumberForm((prev) => ({ ...prev, [userId]: { prefix: "", text: "", num: "" } }));
+      toast(`Card number updated to ${data.cardNumber}`, "success");
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Failed to update card number";
+      toast(message, "error");
+      setCardNumberError((prev) => ({ ...prev, [userId]: message }));
+    }
+    setCardNumberBusy(null);
+  };
+
+  const setCardFormField = (userId: string, field: "prefix" | "text" | "num", value: string) => {
+    setCardNumberForm((prev) => {
+      const cur = prev[userId] || { prefix: "", text: "", num: "" };
+      let v = value;
+      if (field === "prefix" || field === "text") v = value.replace(/[^A-Za-z]/g, "").toUpperCase();
+      if (field === "num") v = value.replace(/\D/g, "");
+      return { ...prev, [userId]: { ...cur, [field]: v } };
+    });
   };
 
   const handleCredit = async (userId: string, amountStr: string) => {
@@ -199,11 +263,51 @@ export default function CardsWalletTab({ adminKey }: { adminKey: string }) {
       if (!res.ok) throw new Error(data.error || "Failed to credit wallet");
       toast(data.message || "Wallet credited", "success");
       setCreditAmounts((prev) => ({ ...prev, [userId]: "" }));
-      setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, walletBalance: data.newBalance } : u)));
+      const newPeak = typeof data.peakWalletBalance === "number" ? data.peakWalletBalance : undefined;
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.id === userId
+            ? {
+                ...u,
+                walletBalance: data.newBalance,
+                ...(newPeak !== undefined
+                  ? {
+                      peakWalletBalance: newPeak,
+                      effectiveCardLevel: getEffectiveLevel({ cardLevel: u.cardLevel, peakWalletBalance: newPeak, walletBalance: data.newBalance }),
+                    }
+                  : {}),
+              }
+            : u
+        )
+      );
     } catch (e: unknown) {
       toast(e instanceof Error ? e.message : "Failed to credit wallet", "error");
     }
     setCreditingId(null);
+  };
+
+  const handleDebit = async (userId: string, amountStr: string) => {
+    const amount = parseFloat(amountStr);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      toast("Enter a valid positive amount", "error");
+      return;
+    }
+    setDebitingId(userId);
+    try {
+      const res = await fetch(`${API}/api/wallet/admin/debit`, {
+        method: "POST",
+        headers: adminHeaders(adminKey),
+        body: JSON.stringify({ userId, amount }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to debit wallet");
+      toast(data.message || "Wallet debited", "success");
+      setDebitAmounts((prev) => ({ ...prev, [userId]: "" }));
+      setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, walletBalance: data.newBalance } : u)));
+    } catch (e: unknown) {
+      toast(e instanceof Error ? e.message : "Failed to debit wallet", "error");
+    }
+    setDebitingId(null);
   };
 
   const levelOf = (u: UserCard) => {
@@ -234,7 +338,7 @@ export default function CardsWalletTab({ adminKey }: { adminKey: string }) {
     { key: "all", label: "All Users", count: users.length, color: "text-white" },
     { key: "upgraded", label: "Upgraded", count: countUpgraded, color: "text-gold-400" },
     { key: "none", label: "No Card", count: countNone, color: "text-dark-400" },
-    { key: "owner", label: "Founder", count: countFounder, color: "text-rose-300" },
+    { key: "owner", label: "Owner", count: countFounder, color: "text-rose-300" },
   ];
 
   return (
@@ -264,10 +368,20 @@ export default function CardsWalletTab({ adminKey }: { adminKey: string }) {
         >
           <Wallet className="w-4 h-4" /> Top-Up Requests
         </button>
+        <button
+          onClick={() => setView("history")}
+          className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+            view === "history" ? "bg-white/10 text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)]" : "text-dark-400 hover:text-white"
+          }`}
+        >
+          <ListOrdered className="w-4 h-4" /> History
+        </button>
       </div>
 
       {view === "requests" ? (
         <TopUpRequests adminKey={adminKey} />
+      ) : view === "history" ? (
+        <WalletHistory />
       ) : (
       <div>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
@@ -329,7 +443,6 @@ export default function CardsWalletTab({ adminKey }: { adminKey: string }) {
               const meta = LEVELS[level];
               const LevelIcon = meta.icon;
               const isExpanded = expandedUser === u.id;
-              const amount = creditAmounts[u.id] || "";
 
               return (
                 <div
@@ -448,29 +561,56 @@ export default function CardsWalletTab({ adminKey }: { adminKey: string }) {
 
                         <div className="bg-gradient-to-br from-gold-500/10 to-gold-500/5 border border-gold-500/20 rounded-xl p-4 space-y-3">
                           <h4 className="text-xs text-gold-400 uppercase tracking-wider font-semibold flex items-center gap-2">
-                            <Plus className="w-3.5 h-3.5" /> Credit Wallet Manually
+                            <Wallet className="w-3.5 h-3.5" /> Manage Balance
                           </h4>
-                          <div className="flex flex-col gap-2">
-                            <input
-                              type="number"
-                              min="1"
-                              value={amount}
-                              onChange={(e) => setCreditAmounts((prev) => ({ ...prev, [u.id]: e.target.value }))}
-                              placeholder="Amount in ₹"
-                              className="w-full px-3 py-2.5 bg-dark-800/60 border border-dark-700/50 rounded-xl text-white text-sm placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50"
-                            />
-                            <button
-                              onClick={() => handleCredit(u.id, amount)}
-                              disabled={creditingId === u.id || !amount.trim()}
-                              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white transition-all disabled:opacity-50"
-                            >
-                              {creditingId === u.id ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                              ) : (
-                                <Plus className="w-4 h-4" />
-                              )}
-                              {creditingId === u.id ? "Crediting..." : "Add Money"}
-                            </button>
+
+                          <div className="space-y-2">
+                            <p className="text-[10px] text-dark-400 flex items-center gap-1.5">
+                              <Plus className="w-3 h-3 text-emerald-400" /> Credit wallet manually
+                            </p>
+                            <div className="flex gap-2">
+                              <input
+                                type="number"
+                                min="1"
+                                value={creditAmounts[u.id] || ""}
+                                onChange={(e) => setCreditAmounts((prev) => ({ ...prev, [u.id]: e.target.value }))}
+                                placeholder="Amount in ₹"
+                                className="w-full px-3 py-2.5 bg-dark-800/60 border border-dark-700/50 rounded-xl text-white text-sm placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50"
+                              />
+                              <button
+                                onClick={() => handleCredit(u.id, creditAmounts[u.id] || "")}
+                                disabled={creditingId === u.id || !(creditAmounts[u.id] || "").trim()}
+                                className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl font-semibold text-sm bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white transition-all disabled:opacity-50"
+                              >
+                                {creditingId === u.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                                {creditingId === u.id ? "Adding..." : "Add"}
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="space-y-2 pt-2 border-t border-gold-500/10">
+                            <p className="text-[10px] text-dark-400 flex items-center gap-1.5">
+                              <Minus className="w-3 h-3 text-red-400" /> Remove money from wallet
+                            </p>
+                            <div className="flex gap-2">
+                              <input
+                                type="number"
+                                min="1"
+                                value={debitAmounts[u.id] || ""}
+                                onChange={(e) => setDebitAmounts((prev) => ({ ...prev, [u.id]: e.target.value }))}
+                                placeholder="Amount in ₹"
+                                className="w-full px-3 py-2.5 bg-dark-800/60 border border-dark-700/50 rounded-xl text-white text-sm placeholder:text-dark-500 focus:outline-none focus:border-red-500/50"
+                              />
+                              <button
+                                onClick={() => handleDebit(u.id, debitAmounts[u.id] || "")}
+                                disabled={debitingId === u.id || !(debitAmounts[u.id] || "").trim()}
+                                className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl font-semibold text-sm bg-gradient-to-r from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white transition-all disabled:opacity-50"
+                              >
+                                {debitingId === u.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Minus className="w-4 h-4" />}
+                                {debitingId === u.id ? "Removing..." : "Remove"}
+                              </button>
+                            </div>
+                            <p className="text-[9px] text-dark-500">Cannot remove more than the current balance</p>
                           </div>
                         </div>
                       </div>
@@ -489,7 +629,7 @@ export default function CardsWalletTab({ adminKey }: { adminKey: string }) {
                             <p className="text-[10px] text-dark-500">Owner card level cannot be changed here</p>
                           ) : (
                             <div className="flex flex-wrap gap-2">
-                              {(["none", "silver", "gold", "platinum", "diamond", "black", "owner"] as const).map((lvl) => {
+                              {(["none", "bronze", "silver", "gold", "platinum", "diamond", "black"] as const).map((lvl) => {
                                 const lvlMeta = LEVELS[lvl];
                                 const LvlIcon = lvlMeta.icon;
                                 const isActive = level === lvl;
@@ -511,6 +651,62 @@ export default function CardsWalletTab({ adminKey }: { adminKey: string }) {
                               })}
                             </div>
                           )}
+                        </div>
+                      </div>
+
+                      <div className="bg-gradient-to-br from-violet-500/10 to-violet-500/5 border border-violet-500/20 rounded-xl p-4 space-y-3">
+                        <h4 className="text-xs text-violet-400 uppercase tracking-wider font-semibold flex items-center gap-2">
+                          <CreditCard className="w-3.5 h-3.5" /> Card Number
+                        </h4>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[10px] text-dark-500">Current</span>
+                          <span className="text-sm text-white font-mono truncate">{u.cardNumber || "—"}</span>
+                        </div>
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              value={(cardNumberForm[u.id] || {}).prefix || ""}
+                              onChange={(e) => setCardFormField(u.id, "prefix", e.target.value)}
+                              placeholder="PREFIX"
+                              maxLength={6}
+                              className="w-24 px-2 py-2 bg-dark-800/60 border border-dark-700/50 rounded-lg text-white text-xs font-mono placeholder:text-dark-600 focus:outline-none focus:border-violet-500/50 text-center"
+                            />
+                            <span className="text-dark-600">-</span>
+                            <input
+                              value={(cardNumberForm[u.id] || {}).text || ""}
+                              onChange={(e) => setCardFormField(u.id, "text", e.target.value)}
+                              placeholder="TEXT"
+                              maxLength={10}
+                              className="flex-1 px-2 py-2 bg-dark-800/60 border border-dark-700/50 rounded-lg text-white text-xs font-mono placeholder:text-dark-600 focus:outline-none focus:border-violet-500/50 text-center"
+                            />
+                            <span className="text-dark-600">-</span>
+                            <input
+                              value={(cardNumberForm[u.id] || {}).num || ""}
+                              onChange={(e) => setCardFormField(u.id, "num", e.target.value)}
+                              placeholder="0000"
+                              maxLength={6}
+                              className="w-24 px-2 py-2 bg-dark-800/60 border border-dark-700/50 rounded-lg text-white text-xs font-mono placeholder:text-dark-600 focus:outline-none focus:border-violet-500/50 text-center"
+                            />
+                          </div>
+                          {cardNumberError[u.id] && <p className="text-red-400 text-[10px]">{cardNumberError[u.id]}</p>}
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleAdminCardNumber(u.id, "full")}
+                              disabled={cardNumberBusy === u.id}
+                              className="flex items-center justify-center gap-1.5 flex-1 px-3 py-2 rounded-lg font-semibold text-xs bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-400 hover:to-purple-500 text-white transition-all disabled:opacity-50"
+                            >
+                              {cardNumberBusy === u.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                              {cardNumberBusy === u.id ? "Saving..." : "Custom"}
+                            </button>
+                            <button
+                              onClick={() => handleAdminCardNumber(u.id, "random")}
+                              disabled={cardNumberBusy === u.id}
+                              className="flex items-center justify-center gap-1.5 flex-1 px-3 py-2 rounded-lg font-semibold text-xs border border-violet-500/40 bg-violet-500/10 text-violet-300 hover:bg-violet-500/20 transition-all disabled:opacity-50"
+                            >
+                              {cardNumberBusy === u.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                              {cardNumberBusy === u.id ? "Generating..." : "Random"}
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>

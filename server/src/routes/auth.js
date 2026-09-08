@@ -5,7 +5,7 @@ const prisma = require("../db");
 const { userAuth } = require("../middleware/userAuth");
 const { safeErrorMessage, validateEmail, normalizePhone, isEmail, isPhone } = require("../utils/helpers");
 const { getEffectiveCardLevel } = require("../utils/cardLevel");
-const { generateOTP, sendResetPasswordEmail, sendPasswordChangedEmail, sendOTPEmail } = require("../utils/email");
+const { generateOTP, sendResetPasswordEmail, sendCardPinResetEmail, sendPasswordChangedEmail, sendOTPEmail } = require("../utils/email");
 
 const router = express.Router();
 
@@ -296,10 +296,13 @@ router.put("/me/card-number", userAuth, async (req, res) => {
     const rand = (s, n) => Array.from({ length: n }, () => s[Math.floor(Math.random() * s.length)]).join("");
     const level = getEffectiveCardLevel(user);
     const prefix = LEVEL_PREFIX_MAP[level] || "BV";
+    const peak = user.peakWalletBalance ?? 0;
+    const canFullCustom = level === "owner" || peak >= 50000;
+    const canHalfCustom = level === "black" || level === "owner";
 
     let cardNumber;
 
-    if (mode === "full" && (user.cardLevel === "owner" || user.cardLevel === "black")) {
+    if (mode === "full" && canFullCustom) {
       const p = String(customPrefix || "").trim().toUpperCase().replace(/[^A-Z]/g, "").slice(0, 6);
       const t = String(customText || "").trim().toUpperCase().replace(/[^A-Z]/g, "").slice(0, 10);
       const n = String(customNumber || "").replace(/[^0-9]/g, "").slice(0, 6);
@@ -308,7 +311,7 @@ router.put("/me/card-number", userAuth, async (req, res) => {
       const numPart = n.length > 0 ? n : rand(nums, 4);
       cardNumber = `${p}-${t}-${numPart}`;
 
-    } else if (mode === "half" && (user.cardLevel === "black" || user.cardLevel === "owner")) {
+    } else if (mode === "half" && canHalfCustom) {
       const t = String(customText || "").trim().toUpperCase().replace(/[^A-Z]/g, "").slice(0, 10);
       if (!t || t.length < 1) return res.status(400).json({ error: "Text must be 1-10 characters (alphabet only)" });
       const nameParts = (user.name || "").trim().split(/\s+/);
@@ -339,22 +342,114 @@ router.put("/me/card-number", userAuth, async (req, res) => {
 
 router.put("/me/card-pin", userAuth, async (req, res) => {
   try {
-    const { pin, currentPassword } = req.body;
-    if (!pin || String(pin).length < 4) {
-      return res.status(400).json({ error: "PIN must be at least 4 characters" });
+    const { pin, currentPin, currentPassword } = req.body;
+    if (!/^\d{6}$/.test(String(pin))) {
+      return res.status(400).json({ error: "Card PIN must be exactly 6 digits" });
     }
     if (!currentPassword) {
-      return res.status(400).json({ error: "Current password is required to set card PIN" });
+      return res.status(400).json({ error: "Current password is required to set the card PIN" });
     }
     const user = await prisma.user.findUnique({ where: { id: req.userId } });
     if (!user) return res.status(404).json({ error: "User not found" });
+    if (user.cardPinHash && !/^\d{6}$/.test(String(currentPin))) {
+      return res.status(400).json({ error: "Enter your current 6-digit card PIN" });
+    }
+    if (user.cardPinHash) {
+      const pinMatches = await bcrypt.compare(String(currentPin), user.cardPinHash);
+      if (!pinMatches) return res.status(400).json({ error: "Current card PIN is incorrect" });
+    }
     const valid = await bcrypt.compare(String(currentPassword), user.passwordHash);
     if (!valid) {
       return res.status(401).json({ error: "Incorrect current password" });
     }
     const pinHash = await bcrypt.hash(String(pin), 10);
     await prisma.user.update({ where: { id: req.userId }, data: { cardPinHash: pinHash } });
-    res.json({ message: "Card PIN set successfully" });
+    res.json({ message: user.cardPinHash ? "Card PIN changed successfully" : "Card PIN set successfully" });
+  } catch (err) {
+    res.status(500).json({ error: safeErrorMessage(err) });
+  }
+});
+
+router.post("/me/card-pin/send-otp", userAuth, async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({ where: { id: req.userId } });
+    if (!user) return res.status(404).json({ error: "User not found" });
+    const code = generateOTP();
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+    await prisma.otp.upsert({
+      where: { email: user.email },
+      update: { code, name: user.name, password: "CARD_PIN_RESET", expiresAt, createdAt: new Date() },
+      create: { email: user.email, code, name: user.name, password: "CARD_PIN_RESET", expiresAt },
+    });
+    await sendCardPinResetEmail(user.email, code, user.name);
+    const maskedEmail = user.email.replace(/(.{2})(.*)(@.*)/, "$1***$3");
+    res.json({ message: `OTP sent to ${maskedEmail}`, maskedEmail });
+  } catch (err) {
+    res.status(500).json({ error: safeErrorMessage(err) });
+  }
+});
+
+router.post("/me/card-pin/verify-otp", userAuth, async (req, res) => {
+  try {
+    const { code } = req.body;
+    if (!code) return res.status(400).json({ error: "Enter the OTP sent to your email" });
+    const user = await prisma.user.findUnique({ where: { id: req.userId } });
+    if (!user) return res.status(404).json({ error: "User not found" });
+    const record = await prisma.otp.findUnique({ where: { email: user.email } });
+    if (!record || record.password !== "CARD_PIN_RESET") {
+      return res.status(400).json({ error: "No card PIN reset request found. Please request a new OTP." });
+    }
+    if (new Date() > record.expiresAt) {
+      await prisma.otp.delete({ where: { email: user.email } });
+      return res.status(400).json({ error: "OTP has expired. Please request a new one." });
+    }
+    if (record.code !== String(code).trim()) {
+      return res.status(400).json({ error: "Incorrect OTP. Please try again." });
+    }
+    const resetToken = jwt.sign({ userId: user.id, purpose: "cardpinreset" }, process.env.JWT_SECRET, { expiresIn: "15m" });
+    await prisma.otp.delete({ where: { email: user.email } });
+    res.json({ resetToken, message: "OTP verified successfully" });
+  } catch (err) {
+    res.status(500).json({ error: safeErrorMessage(err) });
+  }
+});
+
+router.post("/me/card-pin/reset", userAuth, async (req, res) => {
+  try {
+    const { resetToken, pin } = req.body;
+    if (!resetToken) return res.status(400).json({ error: "Reset token is required" });
+    if (!/^\d{6}$/.test(String(pin))) {
+      return res.status(400).json({ error: "Card PIN must be exactly 6 digits" });
+    }
+    let decoded;
+    try {
+      decoded = jwt.verify(resetToken, process.env.JWT_SECRET);
+    } catch {
+      return res.status(400).json({ error: "Invalid or expired reset token. Please start over." });
+    }
+    if (decoded.purpose !== "cardpinreset" || decoded.userId !== req.userId) {
+      return res.status(400).json({ error: "Invalid reset token" });
+    }
+    const pinHash = await bcrypt.hash(String(pin), 10);
+    await prisma.user.update({ where: { id: req.userId }, data: { cardPinHash: pinHash } });
+    res.json({ message: "Card PIN reset successfully" });
+  } catch (err) {
+    res.status(500).json({ error: safeErrorMessage(err) });
+  }
+});
+
+router.post("/me/card-pin/verify", userAuth, async (req, res) => {
+  try {
+    const { pin } = req.body;
+    if (!/^\d{6}$/.test(String(pin))) {
+      return res.status(400).json({ error: "Card PIN must be exactly 6 digits" });
+    }
+    const user = await prisma.user.findUnique({ where: { id: req.userId } });
+    if (!user) return res.status(404).json({ error: "User not found" });
+    if (!user.cardPinHash) return res.status(400).json({ error: "No card PIN set on this account" });
+    const matches = await bcrypt.compare(String(pin), user.cardPinHash);
+    if (!matches) return res.status(401).json({ error: "Incorrect card PIN" });
+    res.json({ valid: true, message: "Card PIN verified" });
   } catch (err) {
     res.status(500).json({ error: safeErrorMessage(err) });
   }
