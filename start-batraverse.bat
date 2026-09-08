@@ -19,7 +19,7 @@ echo   BATRAVERSE ^- Testing environment daily start
 echo ==========================================================
 
 echo.
-echo [1/4] Pushing latest code to GitHub (Vercel auto-deploys)...
+echo [1/5] Pushing latest code to GitHub (Vercel auto-deploys)...
 git add -A
 git diff --cached --quiet
 if errorlevel 1 git commit -m "auto: sync latest changes"
@@ -32,13 +32,15 @@ powershell -NoProfile -Command "Get-CimInstance Win32_Process | Where-Object { $
 powershell -NoProfile -Command "$i=0; while((Get-NetTCPConnection -LocalPort 5000 -State Listen -ErrorAction SilentlyContinue) -and $i -lt 20){ Start-Sleep -Milliseconds 500; $i++ }; exit 0"
 
 echo.
-echo [3/4] Starting tunnel and backend...
+echo [3/5] Starting tunnel, backend, and frontend...
 start "Ngrok Tunnel" /min cmd /c ""%NGRK%" http 5000 --url=%STATIC_URL%"
 start "Backend :5000" /min powershell -NoProfile -ExecutionPolicy Bypass -Command "Set-Location '%REPO%\server'; node src/index.js"
+start "Frontend :3000" /min cmd /c "cd /d "%REPO%" && npm run dev"
 
 echo.
-echo [4/4] Waiting for backend and tunnel to come up...
-powershell -NoProfile -Command "$ok=$false; for($i=0;$i -lt 60;$i++){ try { $r=Invoke-WebRequest -Uri 'http://localhost:5000/api/health' -UseBasicParsing -TimeoutSec 2; if($r.StatusCode -eq 200){$ok=$true;break} } catch {}; Start-Sleep -Seconds 1 }; if($ok){ Write-Output 'backend:  OK   (http://localhost:5000)' } else { Write-Output 'backend:  FAILED - check the Backend window' }"
+echo [4/5] Waiting for backend, frontend, and tunnel to come up...
+powershell -NoProfile -Command "$ok=$false; for($i=0;$i -lt 90;$i++){ try { $r=Invoke-WebRequest -Uri 'http://localhost:5000/api/health' -UseBasicParsing -TimeoutSec 2; if($r.StatusCode -eq 200){$ok=$true;break} } catch {}; Start-Sleep -Seconds 1 }; if($ok){ Write-Output 'backend:  OK   (http://localhost:5000)' } else { Write-Output 'backend:  FAILED - check the Backend window' }"
+powershell -NoProfile -Command "$ok=$false; for($i=0;$i -lt 120;$i++){ try { $r=Invoke-WebRequest -Uri 'http://localhost:3000' -UseBasicParsing -TimeoutSec 2; if($r.StatusCode -eq 200){$ok=$true;break} } catch {}; Start-Sleep -Seconds 1 }; if($ok){ Write-Output 'frontend: OK   (http://localhost:3000)' } else { Write-Output 'frontend: STILL COMPILING - first visit may take a while' }"
 powershell -NoProfile -Command "try { $t=Invoke-RestMethod -Uri 'http://127.0.0.1:4040/api/tunnels' -TimeoutSec 5; $u=$t.tunnels[0].public_url; if($u -eq '%TUNNEL_URL%'){ Write-Output ('tunnel:   OK   (' + $u + ')') } else { Write-Output ('tunnel:   URL IS ' + $u + ' - if different from expected, update Vercel env NEXT_PUBLIC_API_URL and redeploy!') } } catch { Write-Output 'tunnel:   NOT UP - ngrok window may need attention' }"
 
 echo.
@@ -46,7 +48,8 @@ echo ==========================================================
 echo   Site:     https://batraverse.vercel.app
 echo   API base: %TUNNEL_URL%/api
 echo   Backend:  http://localhost:5000  (see 'Backend' window)
+echo   Frontend: http://localhost:3000  (see 'Frontend' window - dev server)
 echo   Tunnel:   %TUNNEL_URL%
-echo   You can close this window - backend and tunnel keep running.
+echo   You can close this window - backend, frontend, and tunnel keep running.
 echo ==========================================================
 pause
