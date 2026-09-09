@@ -41,6 +41,7 @@ app.get("/api/health", (req, res) => res.json({ status: "ok" }));
 
 // Public spotlight ads endpoint
 const { PrismaClient } = require("@prisma/client");
+const { PUBLIC_WHERE } = require("./utils/products");
 const _prisma = new PrismaClient();
 app.get("/api/spotlight-ads", async (req, res) => {
   try {
@@ -61,7 +62,7 @@ app.get("/api/featured", async (req, res) => {
     const featured = await _prisma.featuredProduct.findMany({ orderBy: { sortOrder: "asc" } });
     if (featured.length === 0) return res.json([]);
     const products = await _prisma.product.findMany({
-      where: { id: { in: featured.map((f) => f.productId) }, status: "approved" },
+      where: { ...PUBLIC_WHERE, id: { in: featured.map((f) => f.productId) } },
       select: { id: true, name: true, brand: true, category: true, price: true, originalPrice: true, images: true, colorOptions: true, sizeOptions: true, source: true, inStock: true, rating: true, reviewCount: true },
     });
     const imageOf = (images, colorOptions) => {

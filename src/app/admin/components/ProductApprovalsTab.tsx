@@ -14,6 +14,8 @@ interface PendingProduct {
   category: string | null;
   subCategory: string | null;
   source: string | null;
+  status: string;
+  rejectReason: string | null;
   price: number;
   originalPrice: number | null;
   description: string | null;
@@ -26,6 +28,8 @@ interface PendingProduct {
   badge: string | null;
   sellerPrice: number | null;
   createdAt: string;
+  approvalType?: string;
+  baseProduct?: { id: string; name: string } | null;
   seller: { id: string; name: string; email: string; shopName: string | null };
 }
 
@@ -74,6 +78,20 @@ function imageOf(p: PendingProduct): string {
     if (cImgs[0]) return String(cImgs[0]);
   }
   return "";
+}
+
+function effectivePriceOf(p: PendingProduct): number {
+  let price = p.price || 0;
+  if (price <= 0 && p.sizeOptions && typeof p.sizeOptions === "object") {
+    const first = Object.values(p.sizeOptions)[0] || [];
+    if (Array.isArray(first) && first[0] && first[0].price != null && first[0].price > 0) price = first[0].price;
+  }
+  if (price <= 0 && Array.isArray(p.colorOptions)) {
+    for (const c of p.colorOptions) {
+      if (c && c.price != null && c.price > 0) { price = c.price; break; }
+    }
+  }
+  return price;
 }
 
 function parseApprovalSpecs(raw: unknown): { key: string; value: string }[] {
@@ -398,10 +416,17 @@ function ApprovalEditor({ p, e, setEdit, dbCategories }: ApprovalEditorProps) {
                       onChange={(ev) => {
                         const oldName = color.name;
                         const newName = ev.target.value;
+                        const oldKey = oldName || `Color ${i + 1}`;
+                        const newKey = newName || `Color ${i + 1}`;
                         const sizeOptions = { ...e.sizeOptions };
-                        if (oldName && sizeOptions[oldName]) { sizeOptions[newName] = sizeOptions[oldName]; delete sizeOptions[oldName]; }
+                        if (oldKey !== newKey && Array.isArray(sizeOptions[oldKey]) && sizeOptions[oldKey].length > 0) {
+                          sizeOptions[newKey] = Array.isArray(sizeOptions[newKey]) ? [...sizeOptions[newKey], ...sizeOptions[oldKey]] : sizeOptions[oldKey];
+                          delete sizeOptions[oldKey];
+                        } else if (oldKey !== newKey) {
+                          delete sizeOptions[oldKey];
+                        }
                         updateColor(i, { name: newName });
-                        if (oldName !== newName) setEdit(id, { sizeOptions });
+                        if (oldKey !== newKey) setEdit(id, { sizeOptions });
                       }}
                       className="flex-1 min-w-0 bg-dark-800/60 border border-dark-700/50 rounded-xl px-3 py-2.5 text-white text-sm placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50"
                       placeholder="Color name (e.g. Midnight Black)" />
@@ -560,6 +585,22 @@ export default function ProductApprovalsTab({ adminKey, onCount }: { adminKey: s
   const [processing, setProcessing] = useState<string | null>(null);
   const [edits, setEdits] = useState<Record<string, EditState>>({});
   const [dbCategories, setDbCategories] = useState<DbCategory[]>([]);
+  const [statusFilter, setStatusFilter] = useState<"pending" | "all" | "approved">("pending");
+  const [typeFilter, setTypeFilter] = useState<"all" | "add" | "update">("all");
+  const [visibleCount, setVisibleCount] = useState(50);
+  const visibleProducts = products.slice(0, visibleCount);
+
+  const TYPE_TABS: { key: typeof typeFilter; label: string }[] = [
+    { key: "all", label: "All" },
+    { key: "add", label: "Add" },
+    { key: "update", label: "Update" },
+  ];
+
+  const STATUS_TABS: { key: typeof statusFilter; label: string }[] = [
+    { key: "all", label: "All" },
+    { key: "pending", label: "Pending" },
+    { key: "approved", label: "Approved" },
+  ];
 
   useEffect(() => {
     fetch(`${API}/api/categories/all`, { headers: adminHeaders(adminKey) })
@@ -571,7 +612,7 @@ export default function ProductApprovalsTab({ adminKey, onCount }: { adminKey: s
   const fetchProducts = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API}/api/admin/product-approvals`, { headers: adminHeaders(adminKey) });
+      const res = await fetch(`${API}/api/admin/product-approvals?status=${statusFilter}&type=${typeFilter}`, { headers: adminHeaders(adminKey) });
       const data = await res.json();
       const list = Array.isArray(data) ? data : [];
       setProducts(list);
@@ -580,13 +621,13 @@ export default function ProductApprovalsTab({ adminKey, onCount }: { adminKey: s
         for (const p of list) next[p.id] = prev[p.id] || initialEdit(p);
         return next;
       });
-      onCount?.(list.length);
+      if (statusFilter === "pending") onCount?.(list.length);
     } catch {
       console.error("Failed to load product approvals");
     } finally {
       setLoading(false);
     }
-  }, [adminKey, onCount]);
+  }, [adminKey, onCount, statusFilter, typeFilter]);
 
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { fetchProducts(); }, [fetchProducts]);
@@ -682,6 +723,12 @@ export default function ProductApprovalsTab({ adminKey, onCount }: { adminKey: s
 
   if (loading) return <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 text-gold-400 animate-spin" /></div>;
 
+  const statusChip = (status: string) => {
+    if (status === "pending") return <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30">Pending</span>;
+    if (status === "approved") return <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">Approved</span>;
+    return <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full bg-red-500/15 text-red-400 border border-red-500/30">Rejected</span>;
+  };
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
@@ -696,19 +743,102 @@ export default function ProductApprovalsTab({ adminKey, onCount }: { adminKey: s
         </button>
       </div>
 
+      {/* Type filter: add vs update requests */}
+      <div className="flex flex-wrap gap-1 p-1 bg-dark-900/60 border border-dark-800/50 rounded-xl w-fit">
+        {TYPE_TABS.map((t) => (
+          <button
+            key={t.key}
+            onClick={() => { setTypeFilter(t.key); setVisibleCount(50); }}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              typeFilter === t.key
+                ? "bg-gold-500/15 text-gold-400 border border-gold-500/20"
+                : "text-dark-400 hover:text-white border border-transparent"
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Sub-nav status filter */}
+      <div className="flex flex-wrap gap-1 p-1 bg-dark-900/60 border border-dark-800/50 rounded-xl w-fit">
+        {STATUS_TABS.map((t) => (
+          <button
+            key={t.key}
+            onClick={() => { setStatusFilter(t.key); setVisibleCount(50); }}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              statusFilter === t.key
+                ? "bg-gold-500/15 text-gold-400 border border-gold-500/20"
+                : "text-dark-400 hover:text-white border border-transparent"
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
       {products.length === 0 ? (
         <div className="text-center py-16 bg-dark-900/60 border border-dark-800/50 rounded-2xl">
           <PackageCheck className="w-12 h-12 text-dark-600 mx-auto mb-3" />
-          <p className="text-dark-400 text-sm">No products awaiting approval</p>
+          <p className="text-dark-400 text-sm">No products {statusFilter === "pending" ? "awaiting approval" : statusFilter}</p>
         </div>
       ) : (
         <div className="space-y-3">
-          {products.map((p) => {
+          {visibleProducts.map((p) => {
             const e = edits[p.id] || initialEdit(p);
             const price = Number(e.price) || 0;
             const cost = p.sellerPrice != null && p.sellerPrice > 0 ? p.sellerPrice : 0;
             const margin = cost > 0 && price >= 0 ? price - cost : null;
             const isExpanded = e.expanded;
+            const readOnly = p.status !== "pending";
+
+            if (readOnly) {
+              return (
+                <div key={p.id} className="bg-dark-900/60 border border-dark-800/50 rounded-2xl overflow-x-clip">
+                  <div className="flex items-center gap-3 sm:gap-4 px-4 sm:px-6 py-3.5">
+                    <div className="w-12 h-12 rounded-xl bg-dark-800 flex items-center justify-center overflow-hidden shrink-0">
+                      {imageOf(p) ? (
+                        <img src={resolveImageUrl(imageOf(p))} alt={p.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <ImageIcon size={18} className="text-dark-600" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center flex-wrap gap-x-2 gap-y-1">
+                        {statusChip(p.status || "pending")}
+                        {p.approvalType === "update" && (
+                          <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full bg-sky-500/15 text-sky-400 border border-sky-500/30">Update</span>
+                        )}
+                        <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full bg-dark-800 text-dark-300 border border-dark-700">
+                          {p.source === "mart" ? "Mart" : "Store"}
+                        </span>
+                      </div>
+                      <h3 className="text-sm font-semibold text-white truncate mt-1">{p.name}</h3>
+                      <p className="text-xs text-dark-500 truncate">
+                          {p.brand || "Unknown brand"}
+                          {p.category ? ` / ${p.category}` : ""}
+                          {p.subCategory ? ` / ${p.subCategory}` : ""}
+                        </p>
+                        {p.approvalType === "update" && p.baseProduct && (
+                          <p className="text-[10px] text-sky-400/80 mt-0.5 truncate">Updated: {p.baseProduct.name}</p>
+                        )}
+                      </div>
+                    <div className="shrink-0 text-right text-xs">
+                      <div className="text-dark-500 mb-1 flex items-center gap-1.5 justify-end">
+                        <User size={11} />
+                        <span className="truncate max-w-[140px]">{p.seller?.name || "Unknown"}</span>
+                      </div>
+                      {p.status === "approved" ? (
+                        <span className="text-emerald-400 font-semibold">{formatPrice(effectivePriceOf(p))}</span>
+                      ) : p.status === "rejected" && p.rejectReason ? (
+                        <span className="text-red-400/90">{p.rejectReason}</span>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+
             return (
               <div key={p.id} className="bg-dark-900/60 border border-dark-800/50 rounded-2xl overflow-x-clip">
                 <div
@@ -727,6 +857,9 @@ export default function ProductApprovalsTab({ adminKey, onCount }: { adminKey: s
                       <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30">
                         Pending
                       </span>
+                      {p.approvalType === "update" && (
+                        <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full bg-sky-500/15 text-sky-400 border border-sky-500/30">Update</span>
+                      )}
                       {e.badge && (
                         <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full bg-gold-500/15 text-gold-400 border border-gold-500/30">
                           {e.badge}
@@ -742,6 +875,9 @@ export default function ProductApprovalsTab({ adminKey, onCount }: { adminKey: s
                       {e.category ? ` / ${e.category}` : ""}
                       {e.subCategory ? ` / ${e.subCategory}` : ""}
                     </p>
+                    {p.approvalType === "update" && p.baseProduct && (
+                      <p className="text-[10px] text-sky-400/80 mt-0.5 truncate">Updating: {p.baseProduct.name}</p>
+                    )}
                   </div>
                   {isExpanded ? <ChevronUp className="w-4 h-4 text-dark-400 shrink-0" /> : <ChevronDown className="w-4 h-4 text-dark-400 shrink-0" />}
                 </div>
@@ -796,7 +932,7 @@ export default function ProductApprovalsTab({ adminKey, onCount }: { adminKey: s
                         className="flex items-center gap-1.5 px-5 py-2.5 bg-emerald-500/15 border border-emerald-500/40 text-emerald-400 rounded-xl text-sm font-semibold hover:bg-emerald-500/25 transition-all disabled:opacity-50"
                       >
                         {processing === p.id ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-                        Approve &amp; Go Live
+                        {p.approvalType === "update" ? "Approve Update" : "Approve &amp; Go Live"}
                       </button>
                       <button
                         onClick={() => handleReject(p)}
@@ -812,6 +948,15 @@ export default function ProductApprovalsTab({ adminKey, onCount }: { adminKey: s
               </div>
             );
           })}
+
+          {products.length > visibleProducts.length && (
+            <button
+              onClick={() => setVisibleCount((v) => v + 50)}
+              className="w-full py-3 rounded-xl border border-dark-700/50 bg-dark-900/40 text-sm text-dark-300 hover:text-white hover:border-gold-500/30 transition-all"
+            >
+              Show more ({products.length - visibleProducts.length} more)
+            </button>
+          )}
         </div>
       )}
     </div>

@@ -18,6 +18,7 @@ import {
   Clock,
   Hash,
   Truck,
+  Wallet,
 } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
 import { resolveImageUrl } from "@/lib/imageUrl";
@@ -273,6 +274,7 @@ export default function OrdersTab({
             const isExpanded = expandedOrder === order.id;
             const sc = statusColors[order.status as keyof typeof statusColors] || "";
             const storeItemCount = (order.items || []).filter((it: any) => it.source !== "mart").length;
+            const splitItems = (order.items || []).filter((it: any) => it.sellerPrice != null && it.sellerPrice > 0);
 
             return (
               <div
@@ -398,8 +400,12 @@ export default function OrdersTab({
                           </p>
                         </div>
                       </div>
+                    </div>
 
-                      <div className="bg-gradient-to-br from-purple-500/10 to-purple-500/5 border border-purple-500/20 rounded-xl p-4 space-y-3">
+                    {/* Delivery system — delivery info + delhivery side by side */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      <div className={onShipDelhivery ? "" : "lg:col-span-2"}>
+                      <div className="bg-gradient-to-br from-purple-500/10 to-purple-500/5 border border-purple-500/20 rounded-xl p-4 space-y-3 h-full">
                         <h4 className="text-xs text-purple-400 uppercase tracking-wider font-semibold flex items-center gap-2">
                           <Package className="w-3.5 h-3.5" /> Delivery Info
                         </h4>
@@ -497,11 +503,11 @@ export default function OrdersTab({
                           )}
                         </div>
                       </div>
-                    </div>
+                      </div>
 
-                      {/* Delhivery shipping */}
                       {onShipDelhivery && (
-                      <div className="bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 border border-emerald-500/20 rounded-xl p-4 space-y-3">
+                      <div>
+                      <div className="bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 border border-emerald-500/20 rounded-xl p-4 space-y-3 h-full">
                         <h4 className="text-xs text-emerald-400 uppercase tracking-wider font-semibold flex items-center gap-2">
                           <Truck className="w-3.5 h-3.5" /> Delhivery Courier
                         </h4>
@@ -540,7 +546,9 @@ export default function OrdersTab({
                           </div>
                         )}
                       </div>
+                      </div>
                       )}
+                    </div>
 
                       {/* Return approval */}
                       {order.status === "return_requested" && (
@@ -662,38 +670,41 @@ export default function OrdersTab({
                       )}
                     </div>
 
-                    {/* Order Status — controls everything */}
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                      {order.paymentStatus !== "PENDING" ? (
-                      <div className="space-y-2">
-                        <h4 className="text-xs text-gold-400 uppercase tracking-wider font-semibold">
-                          Order Status
+                    {/* Money split + payment summary — side by side */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      {splitItems.length > 0 && (
+                      <div>
+                      <div className="bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 border border-emerald-500/20 rounded-xl p-4 space-y-3 h-full">
+                        <h4 className="text-xs text-emerald-400 uppercase tracking-wider font-semibold flex items-center gap-2">
+                          <Wallet className="w-3.5 h-3.5" /> Money Split
                         </h4>
-                        <div className="flex flex-wrap gap-2">
-                          {statuses.map((status) => (
-                            <button
-                              key={status}
-                              disabled={updatingId === order.id || order.status === status}
-                              onClick={() => handleStatusChange(order.id, status)}
-                              className={`text-xs font-medium px-3 py-1.5 rounded-lg border transition-all disabled:opacity-50 ${
-                                order.status === status
-                                  ? `${statusColors[status as keyof typeof statusColors]} ring-1 ring-gold-500/20`
-                                  : "bg-dark-800 text-dark-500 border-dark-700 hover:text-white"
-                              }`}
-                            >
-                              {status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, " ")}
-                            </button>
-                          ))}
+                        <div className="space-y-2">
+                          {splitItems.map((item: any, idx: number) => {
+                            const qty = item.quantity || 1;
+                            const customer = (item.price || 0) * qty;
+                            const seller = item.sellerPrice * qty;
+                            const diff = customer - seller;
+                            return (
+                              <div key={idx} className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm px-3 py-2 rounded-lg bg-dark-900/30">
+                                <span className="text-dark-400">Customer paid <span className="text-white font-semibold">{formatPrice(customer)}</span></span>
+                                <span className="text-emerald-400/90">Seller price <span className="text-emerald-300 font-semibold">{formatPrice(seller)}</span></span>
+                                <span className={`${diff >= 0 ? "text-amber-400/80" : "text-red-400/90"}`}>
+                                  Difference <span className={`font-semibold ${diff >= 0 ? "text-amber-300" : "text-red-300"}`}>{diff >= 0 ? "+" : "-"}{formatPrice(Math.abs(diff))}</span>
+                                </span>
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
-                      ) : (
-                      <div className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 border border-amber-500/20 rounded-xl">
-                        <Clock className="w-4 h-4 text-amber-400" />
-                        <span className="text-xs text-amber-400 font-medium">Approve payment to update status</span>
                       </div>
                       )}
 
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-3 bg-dark-800/30 rounded-xl px-4 py-2">
+                      <div className={splitItems.length > 0 ? "" : "lg:col-span-2"}>
+                      <div className="bg-dark-800/30 border border-dark-700/50 rounded-xl p-4 h-full">
+                        <h4 className="text-xs text-gold-400 uppercase tracking-wider font-semibold mb-3 flex items-center gap-2">
+                          <CreditCard className="w-3.5 h-3.5" /> Payment &amp; Summary
+                        </h4>
+                        <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3">
                         <div className="flex items-center gap-3">
                           <CreditCard className="w-4 h-4 text-gold-400" />
                           <div>
@@ -766,7 +777,42 @@ export default function OrdersTab({
                         {order.paymentStatus === "PENDING" && order.status !== "cancelled" && !onPaymentAction && !["COD", "UPI_DELIVERY"].includes(order.paymentMethod) && (
                           <span className="flex items-center gap-1.5 text-[10px] text-amber-400 font-medium uppercase"><Clock className="w-3 h-3" /> Payment approval required</span>
                         )}
+                        </div>
                       </div>
+                      </div>
+                    </div>
+
+                    {/* Order Status — controls everything */}
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                      {order.paymentStatus !== "PENDING" ? (
+                      <div className="space-y-2">
+                        <h4 className="text-xs text-gold-400 uppercase tracking-wider font-semibold">
+                          Order Status
+                        </h4>
+                        <div className="flex flex-wrap gap-2">
+                          {statuses.map((status) => (
+                            <button
+                              key={status}
+                              disabled={updatingId === order.id || order.status === status}
+                              onClick={() => handleStatusChange(order.id, status)}
+                              className={`text-xs font-medium px-3 py-1.5 rounded-lg border transition-all disabled:opacity-50 ${
+                                order.status === status
+                                  ? `${statusColors[status as keyof typeof statusColors]} ring-1 ring-gold-500/20`
+                                  : "bg-dark-800 text-dark-500 border-dark-700 hover:text-white"
+                              }`}
+                            >
+                              {status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, " ")}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      ) : (
+                      <div className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+                        <Clock className="w-4 h-4 text-amber-400" />
+                        <span className="text-xs text-amber-400 font-medium">Approve payment to update status</span>
+                      </div>
+                      )}
+
                     </div>
                   </div>
                 )}

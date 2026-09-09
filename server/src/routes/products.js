@@ -1,7 +1,7 @@
 const express = require("express");
 const prisma = require("../db");
 const { safeErrorMessage } = require("../utils/helpers");
-const { SLIM_SELECT, FULL_SELECT, slimProduct } = require("../utils/products");
+const { SLIM_SELECT, FULL_SELECT, slimProduct, PUBLIC_WHERE } = require("../utils/products");
 
 const router = express.Router();
 
@@ -16,11 +16,13 @@ router.get("/:id", async (req, res) => {
     });
     if (!product) return res.status(404).json({ error: "Product not found" });
     if (product.status !== "approved") return res.status(404).json({ error: "Product not found" });
+    if (product.baseProductId) return res.status(404).json({ error: "Product not found" });
+    if (product.seller?.rejectedAt) return res.status(404).json({ error: "Product not found" });
 
     res.set("Cache-Control", "public, max-age=300");
     if (req.query.related === "true") {
       const related = await prisma.product.findMany({
-        where: { source: product.source, category: product.category, id: { not: product.id }, status: "approved" },
+        where: { ...PUBLIC_WHERE, source: product.source, category: product.category, id: { not: product.id } },
         orderBy: [{ rating: "desc" }, { reviewCount: "desc" }],
         take: 20,
         select: SLIM_SELECT,

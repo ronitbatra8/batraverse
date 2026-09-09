@@ -75,6 +75,7 @@ model User {
   role          Role     @default(USER)
   approved      Boolean  @default(false)
   submittedForApproval Boolean @default(false) // seller completed profile & asked for review
+  rejectedAt    DateTime? // set when the owner rejects a seller; cleared on re-submit
   shopName      String?
   shopDescription String?
   pickupName    String?   // pickup contact name for Delhivery forward shipments
@@ -178,6 +179,8 @@ model Product {
      (survives owner edits on approval) and used for payouts:
      { price?, colors?: { [color]: number }, sizes?: { [color]: { [size]: number } } } */
   status       String   @default("approved")
+  approvalType String   @default("add") // "add" (new submission) or "update" (edit of a live product)
+  baseProductId String? // set on update-request drafts; null for real/live products
   sellerPrice  Float?
   sellerPricing Json    @default("{}")
   rejectReason String?
@@ -197,12 +200,16 @@ model Product {
   source   String?  @default("store")
   createdAt DateTime @default(now())
 
+  baseProduct Product?  @relation("ProductUpdates", fields: [baseProductId], references: [id])
+  updates     Product[] @relation("ProductUpdates")
+
   reviews   Review[]
   wishlists Wishlist[]
 
   @@index([category])
   @@index([subCategory])
   @@index([sellerId])
+  @@index([baseProductId])
 }
 
 model Category {

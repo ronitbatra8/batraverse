@@ -1,8 +1,7 @@
-﻿/* eslint-disable @typescript-eslint/no-explicit-any */
-"use client";
+﻿"use client";
 
 import { useState, useEffect } from "react";
-import { Megaphone, Plus, Pencil, Trash2, ExternalLink, ArrowUpDown, ChevronUp, X, Check, Clock } from "lucide-react";
+import { Megaphone, Plus, Pencil, Trash2, ExternalLink, ArrowUpDown, ChevronUp, X } from "lucide-react";
 import { adminHeaders } from "./types";
 import { resolveImageUrl } from "@/lib/imageUrl";
 import { API_URL } from "@/lib/api";
@@ -22,34 +21,17 @@ interface SpotlightAd {
   createdAt: string;
 }
 
-interface AdRequest {
-  id: string;
-  sellerId: string;
-  sellerName: string;
-  img: string;
-  tagline: string;
-  line: string;
-  href: string;
-  page: string;
-  duration: number;
-  status: string;
-  note: string;
-  createdAt: string;
-}
-
-type PageKey = "home" | "store" | "mart" | "requests";
+type PageKey = "home" | "store" | "mart";
 const PAGE_TABS: { key: PageKey; label: string }[] = [
   { key: "home", label: "Home" },
   { key: "store", label: "Store" },
   { key: "mart", label: "Mart" },
-  { key: "requests", label: "Requests" },
 ];
 
 const EMPTY_FORM = { img: "", tagline: "", line: "", href: "/store", page: "home", duration: 7, active: true, sortOrder: 0 };
 
 export default function AdsTab({ adminKey }: { adminKey: string }) {
   const [ads, setAds] = useState<SpotlightAd[]>([]);
-  const [adRequests, setAdRequests] = useState<AdRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
@@ -57,7 +39,7 @@ export default function AdsTab({ adminKey }: { adminKey: string }) {
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<PageKey>("home");
 
-  const { confirm, prompt, ConfirmDialog, PromptDialog } = useConfirm();
+  const { confirm, ConfirmDialog } = useConfirm();
   const { toast } = useToast();
 
   const loadAds = async () => {
@@ -74,26 +56,9 @@ export default function AdsTab({ adminKey }: { adminKey: string }) {
     setLoading(false);
   };
 
-  const loadRequests = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch(`${API_URL}/admin/ad-requests`, {
-        headers: adminHeaders(adminKey),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setAdRequests(data);
-      }
-    } catch {}
-    setLoading(false);
-  };
-
   useEffect(() => {
-    if (activeTab === "requests") {
-      loadRequests();
-    } else {
-      loadAds();
-    }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadAds();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [adminKey, activeTab]);
 
@@ -197,32 +162,6 @@ export default function AdsTab({ adminKey }: { adminKey: string }) {
     } catch {}
   };
 
-  const handleApprove = async (id: string) => {
-    try {
-      const res = await fetch(`${API_URL}/admin/ad-requests/${id}/approve`, {
-        method: "PUT",
-        headers: adminHeaders(adminKey),
-      });
-      if (res.ok) {
-        setAdRequests((prev) => prev.map((r) => r.id === id ? { ...r, status: "approved" } : r));
-      }
-    } catch {}
-  };
-
-  const handleReject = async (id: string) => {
-    const note = await prompt("Rejection reason (optional):", { inputLabel: "Reason", inputPlaceholder: "Optional rejection reason..." });
-    try {
-      const res = await fetch(`${API_URL}/admin/ad-requests/${id}/reject`, {
-        method: "PUT",
-        headers: adminHeaders(adminKey),
-        body: JSON.stringify({ note: note || "" }),
-      });
-      if (res.ok) {
-        setAdRequests((prev) => prev.map((r) => r.id === id ? { ...r, status: "rejected", note: note || "" } : r));
-      }
-    } catch {}
-  };
-
   const inputCls = "w-full px-3 py-2.5 rounded-xl bg-dark-900/60 border border-dark-700/50 text-sm text-white placeholder:text-dark-500 focus:outline-none focus:border-gold-500/40 transition-colors";
 
   const renderForm = (mode: "add" | "edit") => (
@@ -279,18 +218,14 @@ export default function AdsTab({ adminKey }: { adminKey: string }) {
     </div>
   );
 
-  const pendingCount = adRequests.filter((r) => r.status === "pending").length;
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-serif text-white">Brand Spotlight Ads</h2>
-        {activeTab !== "requests" && (
-          <button onClick={openAdd} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gold-500/10 text-gold-400 border border-gold-500/20 text-sm font-medium hover:bg-gold-500/20 transition-all">
-            <Plus size={16} />
-            Add Ad
-          </button>
-        )}
+        <button onClick={openAdd} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gold-500/10 text-gold-400 border border-gold-500/20 text-sm font-medium hover:bg-gold-500/20 transition-all">
+          <Plus size={16} />
+          Add Ad
+        </button>
       </div>
 
       {/* Page sub-tabs */}
@@ -306,9 +241,6 @@ export default function AdsTab({ adminKey }: { adminKey: string }) {
             }`}
           >
             {tab.label}
-            {tab.key === "requests" && pendingCount > 0 && (
-              <span className="ml-1.5 inline-flex items-center justify-center h-5 w-5 rounded-full bg-amber-500/20 text-amber-400 text-[10px] font-bold">{pendingCount}</span>
-            )}
           </button>
         ))}
       </div>
@@ -318,54 +250,6 @@ export default function AdsTab({ adminKey }: { adminKey: string }) {
           <div className="w-8 h-8 border-2 border-gold-400 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
           <p className="text-dark-400 text-sm">Loading...</p>
         </div>
-      ) : activeTab === "requests" ? (
-        adRequests.length === 0 ? (
-          <div className="text-center py-16 bg-dark-900/60 border border-dark-800/50 rounded-2xl">
-            <Clock className="w-12 h-12 text-dark-600 mx-auto mb-3" />
-            <p className="text-dark-400 text-sm">No ad requests yet</p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {adRequests.map((r) => (
-              <div key={r.id} className="bg-dark-900/60 border border-dark-800/50 rounded-xl overflow-hidden hover:border-dark-700/50 transition-colors">
-                <div className="flex items-stretch gap-4 p-4">
-                  <div className="w-40 h-24 rounded-xl overflow-hidden bg-dark-800/60 shrink-0 border border-dark-700/30">
-                    <img src={resolveImageUrl(r.img)} alt={r.tagline} className="w-full h-full object-cover" />
-                  </div>
-                  <div className="flex-1 min-w-0 flex flex-col justify-center">
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-sm font-semibold text-white truncate">{r.tagline}</h3>
-                      <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
-                        r.status === "pending" ? "text-amber-400 bg-amber-500/10 border-amber-500/20" :
-                        r.status === "approved" ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20" :
-                        "text-red-400 bg-red-500/10 border-red-500/20"
-                      }`}>{r.status}</span>
-                      <span className="text-[10px] text-dark-500 font-medium">{r.page}</span>
-                      <span className="text-[10px] text-dark-500 font-medium">{r.duration}s</span>
-                      {r.sellerName && <span className="text-[10px] text-dark-500">by {r.sellerName}</span>}
-                    </div>
-                    <p className="text-xs text-dark-400 mt-1 truncate">{r.line}</p>
-                    <div className="flex items-center gap-1 mt-1">
-                      <ExternalLink size={10} className="text-dark-500" />
-                      <span className="text-[10px] text-dark-500">{r.href}</span>
-                    </div>
-                    {r.status === "rejected" && r.note && <p className="text-xs text-red-400 mt-1">Reason: {r.note}</p>}
-                  </div>
-                  {r.status === "pending" && (
-                    <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
-                      <button onClick={() => handleApprove(r.id)} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-emerald-400 border border-emerald-500/20 bg-emerald-500/10 hover:bg-emerald-500/20 transition-all">
-                        <Check size={12} /> Approve
-                      </button>
-                      <button onClick={() => handleReject(r.id)} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-red-400 border border-red-500/20 bg-red-500/10 hover:bg-red-500/20 transition-all">
-                        <X size={12} /> Reject
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        )
       ) : ads.length === 0 && !isAdding ? (
         <div className="text-center py-16 bg-dark-900/60 border border-dark-800/50 rounded-2xl">
           <Megaphone className="w-12 h-12 text-dark-600 mx-auto mb-3" />
@@ -431,7 +315,6 @@ export default function AdsTab({ adminKey }: { adminKey: string }) {
         </div>
       )}
       {ConfirmDialog}
-      {PromptDialog}
     </div>
   );
 }

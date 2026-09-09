@@ -11,7 +11,7 @@ import { trackRecentlyViewed } from "@/lib/recentlyViewed";
 import { getMartProduct } from "../products";
 import SiteLayout from "@/components/layout/SiteLayout";
 import ProductDetailSkeleton from "@/components/ui/ProductDetailSkeleton";
-import { getFullProduct, getSlimProduct, warmProduct } from "@/lib/productCache";
+import { getFullProduct, getSlimProduct, warmProduct, invalidateProduct } from "@/lib/productCache";
 import { resolveImageUrl } from "@/lib/imageUrl";
 import type { MartProduct } from "../products";
 
@@ -68,22 +68,30 @@ export default function MartProductPage() {
     setDbMissing(false);
 
     const cachedFull = getFullProduct(rawId);
+    const slim = getSlimProduct<MartProduct>(id);
     if (cachedFull?.product) {
       setDbProduct(mapDbToMart(cachedFull.product));
       setDbAllProducts((cachedFull.related || []).map(mapDbToMart));
-      return;
+    } else if (slim) {
+      setDbProduct(slim);
     }
-    const slim = getSlimProduct<MartProduct>(id);
-    if (slim) setDbProduct(slim);
 
     try {
       const res = await fetch(`${API_BASE}/api/products/${rawId}?related=true`, {
         headers: { "ngrok-skip-browser-warning": "true" },
+        cache: "no-cache",
       });
-      if (!res.ok) return;
+      if (!res.ok) {
+        invalidateProduct(id);
+        setDbMissing(true);
+        setDbProduct(null);
+        return;
+      }
       const data = await res.json();
       if (!data || !data.product) {
+        invalidateProduct(id);
         setDbMissing(true);
+        setDbProduct(null);
         return;
       }
 
@@ -243,14 +251,14 @@ export default function MartProductPage() {
             <div className={cn("rounded-2xl border p-4", light ? "border-dark-200/60 bg-white" : "border-white/5 bg-graphite")}>
               <div className="flex items-center gap-3">
                 <div className={cn("flex h-10 w-10 items-center justify-center rounded-full text-[10px] font-bold uppercase tracking-wider", light ? "bg-sapphire/10 text-sapphire" : "bg-gold/10 text-gold")}>
-                  {product.seller ? (product.seller.shopName || product.seller.name).charAt(0).toUpperCase() : "BV"}
+                  {product.seller?.shopName ? product.seller.shopName.charAt(0).toUpperCase() : "BV"}
                 </div>
                 <div className="flex-1">
                   <p className={cn("text-xs font-semibold", light ? "text-dark-900" : "text-cream")}>
                     {product.seller?.shopName || product.seller?.name || "BATRAVERSE Mart"}
                   </p>
                   <p className={cn("text-[10px]", light ? "text-dark-400" : "text-cream-dim/50")}>
-                    {product.seller ? (product.seller.email || "Seller") : `Quick Commerce · ${product.brand}`}
+                    {product.seller?.shopName ? product.seller.shopName : product.seller ? "Seller" : `Quick Commerce · ${product.brand}`}
                   </p>
                 </div>
                 <span className={cn("rounded-full px-2.5 py-1 text-[8px] font-bold uppercase tracking-wider", light ? "bg-emerald-100 text-emerald-700" : "bg-emerald-500/10 text-emerald-400")}>

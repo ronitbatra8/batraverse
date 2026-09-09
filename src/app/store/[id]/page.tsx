@@ -14,7 +14,7 @@ import { apiFetch } from "@/lib/api";
 import { resolveImageUrl } from "@/lib/imageUrl";
 import SiteLayout from "@/components/layout/SiteLayout";
 import ProductDetailSkeleton from "@/components/ui/ProductDetailSkeleton";
-import { getFullProduct, getSlimProduct, warmProduct } from "@/lib/productCache";
+import { getFullProduct, getSlimProduct, warmProduct, invalidateProduct } from "@/lib/productCache";
 import type { Product } from "../products";
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api").replace("/api", "");
@@ -101,22 +101,30 @@ export default function ProductPage() {
     setDbMissing(false);
 
     const cachedFull = getFullProduct(rawId);
+    const slim = getSlimProduct<Product>(id);
     if (cachedFull?.product) {
       setDbProduct(mapDbToProduct(cachedFull.product));
       setDbAllProducts((cachedFull.related || []).map(mapDbToProduct));
-      return;
+    } else if (slim) {
+      setDbProduct(slim);
     }
-    const slim = getSlimProduct<Product>(id);
-    if (slim) setDbProduct(slim);
 
     try {
       const res = await fetch(`${API_BASE}/api/products/${rawId}?related=true`, {
         headers: { "ngrok-skip-browser-warning": "true" },
+        cache: "no-cache",
       });
-      if (!res.ok) return;
+      if (!res.ok) {
+        invalidateProduct(id);
+        setDbMissing(true);
+        setDbProduct(null);
+        return;
+      }
       const data = await res.json();
       if (!data || !data.product) {
+        invalidateProduct(id);
         setDbMissing(true);
+        setDbProduct(null);
         return;
       }
 
@@ -409,14 +417,14 @@ export default function ProductPage() {
             <div className={cn("rounded-2xl border p-4", light ? "border-dark-200/60 bg-white" : "border-white/5 bg-graphite")}>
               <div className="flex items-center gap-3">
                 <div className={cn("flex h-10 w-10 items-center justify-center rounded-full text-[10px] font-bold uppercase tracking-wider", light ? "bg-sapphire/10 text-sapphire" : "bg-gold/10 text-gold")}>
-                  {product.seller ? (product.seller.shopName || product.seller.name).charAt(0).toUpperCase() : "BV"}
+                  {product.seller?.shopName ? product.seller.shopName.charAt(0).toUpperCase() : "BV"}
                 </div>
                 <div className="flex-1">
                   <p className={cn("text-xs font-semibold", light ? "text-dark-900" : "text-cream")}>
                     {product.seller?.shopName || product.seller?.name || "BATRAVERSE Store"}
                   </p>
                   <p className={cn("text-[10px]", light ? "text-dark-400" : "text-cream-dim/50")}>
-                    {product.seller ? (product.seller.email || "Seller") : "Premium Lifestyle & Design"}
+                    {product.seller?.shopName ? product.seller.shopName : product.seller ? "Seller" : "Premium Lifestyle & Design"}
                   </p>
                 </div>
                 <span className={cn("rounded-full px-2.5 py-1 text-[8px] font-bold uppercase tracking-wider", light ? "bg-sapphire/10 text-sapphire" : "bg-gold/10 text-gold")}>

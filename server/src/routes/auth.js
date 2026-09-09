@@ -81,6 +81,7 @@ function publicUser(user) {
     role: user.role,
     approved: user.approved,
     submittedForApproval: !!user.submittedForApproval,
+    rejectedAt: user.rejectedAt || null,
     cardNumber: user.cardNumber || null,
     cardLevel: user.cardLevel || null,
     cardExpiry: user.cardExpiry || null,

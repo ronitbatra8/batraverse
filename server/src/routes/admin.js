@@ -5,6 +5,7 @@ const { adminAuth } = require("../middleware/auth");
 const { getEffectiveCardLevel, levelFromBalance } = require("../utils/cardLevel");
 const { safeErrorMessage, ORDER_STATUSES } = require("../utils/helpers");
 const { syncPayoutsForItemChange } = require("../utils/sellerPayout");
+const { effectiveSellerPrice } = require("../utils/products");
 const {
   sendOrderStatusEmail,
   sendDeliveryAssignedEmail,
@@ -64,6 +65,31 @@ async function resolveOrderItemImages(orders) {
   return orders;
 }
 
+/* Attaches the seller-entered price (per purchased color/size, from the
+   product's sellerPricing snapshot or legacy sellerPrice) to each order item
+   so dashboards can show the seller/customer split for delivered goods. */
+async function resolveOrderItemSellerPrices(orders) {
+  const items = [];
+  (Array.isArray(orders) ? orders : []).forEach((o) => {
+    if (Array.isArray(o.items)) items.push(...o.items);
+  });
+  const ids = [...new Set(items.map((it) => it && normalizeItemProductId(it.productId)).filter(Boolean))];
+  if (ids.length === 0) return orders;
+  const products = await prisma.product.findMany({
+    where: { id: { in: ids } },
+    select: { id: true, sellerPrice: true, sellerPricing: true },
+  });
+  const productById = new Map(products.map((p) => [p.id, p]));
+  (Array.isArray(orders) ? orders : []).forEach((o) => {
+    if (!Array.isArray(o.items)) return;
+    for (const it of o.items) {
+      const p = productById.get(normalizeItemProductId(it.productId));
+      it.sellerPrice = p ? (effectiveSellerPrice(p, it) || null) : null;
+    }
+  });
+  return orders;
+}
+
 router.get("/orders", async (req, res) => {
   try {
     const orders = await prisma.order.findMany({
@@ -75,6 +101,7 @@ router.get("/orders", async (req, res) => {
     });
     const parsed = orders.map((o) => ({ ...o, securityPhotos: o.securityPhotos ? JSON.parse(o.securityPhotos) : null }));
     await resolveOrderItemImages(parsed);
+    await resolveOrderItemSellerPrices(parsed);
     res.json(parsed);
   } catch (err) {
     res.status(500).json({ error: safeErrorMessage(err) });
@@ -162,6 +189,7 @@ router.put("/orders/:id/status", async (req, res) => {
       if (status === "returned") data.returnedAt = new Date();
       await syncPayoutsForItemChange(existing, updatedItems);
       const order = await prisma.order.update({ where: { id: req.params.id }, data });
+      await resolveOrderItemSellerPrices([order]);
       const user = await prisma.user.findUnique({ where: { id: existing.userId }, select: { name: true, email: true } });
       sendOrderStatusEmail(user.email, user.name, existing.id, status).catch(() => {});
       return res.json(order);
@@ -182,6 +210,7 @@ router.put("/orders/:id/status", async (req, res) => {
     await syncPayoutsForItemChange(existing, data.items);
 
     const order = await prisma.order.update({ where: { id: req.params.id }, data });
+    await resolveOrderItemSellerPrices([order]);
 
     const user = await prisma.user.findUnique({ where: { id: existing.userId }, select: { name: true, email: true } });
     sendOrderStatusEmail(user.email, user.name, existing.id, status).catch(() => {});
@@ -234,6 +263,7 @@ router.put("/orders/:id/items/:itemIdx/status", async (req, res) => {
     if (status === "delivered") data.deliveredAt = new Date();
     await syncPayoutsForItemChange(order, updatedItems);
     const updated = await prisma.order.update({ where: { id }, data });
+    await resolveOrderItemSellerPrices([updated]);
 
     const user = await prisma.user.findUnique({ where: { id: order.userId }, select: { name: true, email: true } });
     sendOrderStatusEmail(user.email, user.name, id, status).catch(() => {});
@@ -402,9 +432,26 @@ router.get("/payouts", async (req, res) => {
       prisma.sellerPayout.groupBy({ by: ["status"], _sum: { amount: true }, _count: true }),
     ]);
 
+    // Enrich with the customer-charged price per item so the owner can see the
+    // split (what the seller gets vs what the customer was charged).
+    const orderIds = [...new Set(payouts.map((p) => p.orderId))];
+    const orders = orderIds.length > 0
+      ? await prisma.order.findMany({ where: { id: { in: orderIds } }, select: { id: true, items: true } })
+      : [];
+    const orderById = new Map(orders.map((o) => [o.id, o]));
+
+    const enriched = payouts.map((p) => {
+      const order = orderById.get(p.orderId);
+      const item = order && Array.isArray(order.items) ? order.items[p.itemIdx] : null;
+      return {
+        ...p,
+        chargedPrice: item ? Number(item.price) || 0 : null,
+      };
+    });
+
     const sumFor = (s) => (byStatus.find((g) => g.status === s)?._sum.amount) || 0;
     res.json({
-      payouts,
+      payouts: enriched,
       total,
       pendingTotal: sumFor("pending"),
       paidTotal: sumFor("paid"),
@@ -633,7 +680,7 @@ router.get("/sellers", async (req, res) => {
       where: { role: "SELLER" },
       orderBy: { createdAt: "desc" },
       select: {
-        id: true, name: true, email: true, phone: true, approved: true, submittedForApproval: true, createdAt: true,
+        id: true, name: true, email: true, phone: true, approved: true, submittedForApproval: true, rejectedAt: true, createdAt: true,
         _count: { select: { products: true } },
       },
     });
@@ -650,7 +697,10 @@ router.put("/users/:id/approve", async (req, res) => {
     const user = await prisma.user.findUnique({ where: { id: req.params.id } });
     if (!user) return res.status(404).json({ error: "User not found" });
     if (user.role === "ADMIN") return res.status(400).json({ error: "Cannot approve/reject admin" });
-    await prisma.user.update({ where: { id: req.params.id }, data: { approved } });
+    await prisma.user.update({
+      where: { id: req.params.id },
+      data: { approved, rejectedAt: approved ? null : new Date() },
+    });
     res.json({ message: approved ? "User approved" : "User rejected" });
   } catch (err) {
     res.status(500).json({ error: safeErrorMessage(err) });
@@ -1023,13 +1073,20 @@ router.delete("/products/:id", async (req, res) => {
    Seller-added products sit in "pending" until the owner sets the live sell
    price (price) and approves them. Approving edits the product in place; the
    seller's original price is kept as sellerPrice so the margin is tracked. */
-router.get("/product-approvals", async (_req, res) => {
+router.get("/product-approvals", async (req, res) => {
   try {
+    const { status, type } = req.query;
+    const where = { sellerId: { not: null } };
+    if (type === "update") where.approvalType = "update";
+    else if (type === "add") where.approvalType = "add";
+    if (status === "pending") where.status = "pending";
+    else if (status === "approved") where.status = "approved";
     const products = await prisma.product.findMany({
-      where: { status: "pending" },
+      where,
       orderBy: { createdAt: "desc" },
       include: {
         seller: { select: { id: true, name: true, email: true, shopName: true } },
+        baseProduct: { select: { id: true, name: true } },
       },
     });
     res.json(products);
@@ -1069,6 +1126,22 @@ router.post("/product-approvals/:id/approve", async (req, res) => {
     if (sellerPrice !== undefined) data.sellerPrice = sellerPrice === null ? null : Number(sellerPrice);
 
     const product = await prisma.product.update({ where: { id: req.params.id }, data });
+
+    /* UPDATE requests (seller-edited live product): the approved details replace
+       the LIVE base product. The seller's entered prices travel from the draft
+       (sellerPricing snapshot) so payouts still follow what the seller filled in;
+       drafts themselves are never shown publicly. */
+    if (existing.baseProductId) {
+      const base = await prisma.product.findUnique({ where: { id: existing.baseProductId } });
+      if (!base) return res.status(404).json({ error: "Original product not found" });
+      const baseData = {
+        ...data,
+        sellerPrice: existing.sellerPrice,
+        sellerPricing: existing.sellerPricing,
+      };
+      const updatedBase = await prisma.product.update({ where: { id: base.id }, data: baseData });
+      return res.json({ product: updatedBase, updated: true });
+    }
     res.json(product);
   } catch (err) {
     res.status(500).json({ error: safeErrorMessage(err) });

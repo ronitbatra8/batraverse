@@ -5,7 +5,7 @@ const fs = require("fs");
 const prisma = require("../db");
 const { safeErrorMessage } = require("../utils/helpers");
 const { sellerAuth, requireSeller } = require("../middleware/sellerAuth");
-const { buildSellerPricing } = require("../utils/products");
+const { buildSellerPricing, effectiveSellerPrice } = require("../utils/products");
 
 const router = express.Router();
 
@@ -16,7 +16,7 @@ router.use(sellerAuth);
 // gate below, so a freshly registered seller can complete their mandatory
 // profile and submit for owner review.
 
-const PROFILE_SELECT = { id: true, name: true, email: true, phone: true, role: true, approved: true, submittedForApproval: true, shopName: true, shopDescription: true, pickupName: true, pickupAddress: true, pickupCity: true, pickupState: true, pickupPincode: true, pickupPhone: true, cardNumber: true, cardLevel: true };
+const PROFILE_SELECT = { id: true, name: true, email: true, phone: true, role: true, approved: true, submittedForApproval: true, rejectedAt: true, shopName: true, shopDescription: true, pickupName: true, pickupAddress: true, pickupCity: true, pickupState: true, pickupPincode: true, pickupPhone: true, cardNumber: true, cardLevel: true };
 
 function profileDataFromBody(body) {
   const { shopName, shopDescription, pickupName, pickupAddress, pickupCity, pickupState, pickupPincode, pickupPhone } = body;
@@ -73,7 +73,7 @@ router.post("/submit-approval", async (req, res) => {
     if (!user.pickupState) missing.push("Pickup State");
     if (!user.pickupPincode) missing.push("Pickup Pincode");
     if (missing.length > 0) return res.status(400).json({ error: `Complete all mandatory fields: ${missing.join(", ")}` });
-    const updated = await prisma.user.update({ where: { id: req.userId }, data: { submittedForApproval: true }, select: PROFILE_SELECT });
+    const updated = await prisma.user.update({ where: { id: req.userId }, data: { submittedForApproval: true, rejectedAt: null }, select: PROFILE_SELECT });
     res.json(updated);
   } catch (err) {
     res.status(500).json({ error: safeErrorMessage(err) });
@@ -158,32 +158,34 @@ router.put("/profile", async (req, res) => {
 router.get("/stats", async (req, res) => {
   try {
     const sellerProducts = await prisma.product.findMany({
-      where: { sellerId: req.userId },
+      where: { sellerId: req.userId, baseProductId: null },
       select: { id: true, reviewCount: true },
     });
     const productIds = sellerProducts.map((p) => p.id);
     const totalProducts = sellerProducts.length;
 
     let totalOrders = 0;
-    let totalRevenue = 0;
     let pendingOrders = 0;
 
     if (productIds.length > 0) {
       const allOrders = await prisma.order.findMany({
-        select: { id: true, status: true, totalAmount: true, items: true },
+        select: { id: true, status: true, items: true },
       });
       for (const order of allOrders) {
         if (!Array.isArray(order.items)) continue;
-        const hasSellerItem = order.items.some((item) => item.productId && productIds.includes(item.productId));
+        const hasSellerItem = order.items.some((item) => {
+          if (!item.productId) return false;
+          const pid = item.productId.startsWith("db-") ? item.productId.slice(3) : item.productId;
+          return productIds.includes(pid);
+        });
         if (!hasSellerItem) continue;
         totalOrders++;
-        if (order.status !== "cancelled") totalRevenue += order.totalAmount;
         if (order.status === "pending" || order.status === "confirmed") pendingOrders++;
       }
     }
 
     const topProducts = await prisma.product.findMany({
-      where: { sellerId: req.userId },
+      where: { sellerId: req.userId, baseProductId: null },
       orderBy: { reviewCount: "desc" },
       take: 5,
       select: { id: true, name: true, brand: true, price: true, images: true, reviewCount: true, rating: true },
@@ -197,7 +199,6 @@ router.get("/stats", async (req, res) => {
     res.json({
       totalProducts,
       totalOrders,
-      totalRevenue,
       pendingOrders,
       topProducts,
       payoutTotal: payoutAgg._sum.amount || 0,
@@ -243,7 +244,7 @@ router.get("/payouts", async (req, res) => {
 router.get("/products", async (req, res) => {
   try {
     const products = await prisma.product.findMany({
-      where: { sellerId: req.userId },
+      where: { sellerId: req.userId, baseProductId: null },
       orderBy: { name: "asc" },
       select: { id: true, name: true, brand: true, category: true, subCategory: true, source: true, price: true, originalPrice: true, description: true, images: true, inStock: true, badge: true, rating: true, reviewCount: true, specifications: true, keyFeatures: true, colorOptions: true, sizeOptions: true, status: true, sellerPrice: true, rejectReason: true },
     });
@@ -314,6 +315,54 @@ router.put("/products/:id", async (req, res) => {
     if (existing.sellerId !== req.userId) return res.status(403).json({ error: "Not authorized to edit this product" });
 
     const { name, brand, category, subCategory, source, price, originalPrice, description, images, inStock, badge, specifications, keyFeatures, colorOptions, sizeOptions } = req.body;
+
+    /* Editing a LIVE (approved) product creates an UPDATE REQUEST — a pending
+       draft copy that goes through owner approval exactly like a new product.
+       The live product keeps showing the currently approved details until the
+       owner approves the update and replaces them. */
+    if (existing.status === "approved") {
+      if (name !== undefined && !String(name).trim()) return res.status(400).json({ error: "Product name is required" });
+      if (images !== undefined) {
+        const hasImages = Array.isArray(images) && images.length > 0;
+        const hasColorImages = Array.isArray(colorOptions) && colorOptions.some((c) => Array.isArray(c.images) && c.images.length > 0);
+        if (!hasImages && !hasColorImages) return res.status(400).json({ error: "At least one product image is required" });
+      }
+      const colors = colorOptions !== undefined ? colorOptions : existing.colorOptions;
+      const sizes = sizeOptions !== undefined ? sizeOptions : existing.sizeOptions;
+      const draftPrice = price !== undefined ? (price != null ? Number(price) : null) : existing.price;
+      const sellerPrice = draftPrice != null && draftPrice > 0 ? draftPrice : null;
+      const draftData = {
+        name: name !== undefined ? name : existing.name,
+        brand: brand !== undefined ? brand : existing.brand,
+        category: category !== undefined ? category : existing.category,
+        subCategory: subCategory !== undefined ? subCategory : existing.subCategory,
+        source: source !== undefined ? source : existing.source || "store",
+        price: draftPrice != null && draftPrice > 0 ? draftPrice : existing.price,
+        originalPrice: originalPrice !== undefined ? originalPrice : existing.originalPrice,
+        description: description !== undefined ? description : existing.description,
+        images: images !== undefined ? images : existing.images,
+        inStock: inStock !== undefined ? Boolean(inStock) : existing.inStock,
+        badge: badge !== undefined ? badge : existing.badge,
+        specifications: specifications !== undefined ? specifications : existing.specifications,
+        keyFeatures: keyFeatures !== undefined ? keyFeatures : existing.keyFeatures,
+        colorOptions: colors,
+        sizeOptions: sizes,
+        status: "pending",
+        rejectReason: null,
+        sellerPrice,
+        sellerPricing: buildSellerPricing(draftPrice != null ? draftPrice : existing.price, colors, sizes),
+      };
+      const existingDraft = await prisma.product.findFirst({ where: { sellerId: req.userId, baseProductId: existing.id, status: "pending" } });
+      if (existingDraft) {
+        const product = await prisma.product.update({ where: { id: existingDraft.id }, data: draftData });
+        return res.json({ ...product, alreadyInReview: true });
+      }
+      const product = await prisma.product.create({
+        data: { ...draftData, sellerId: req.userId, approvalType: "update", baseProductId: existing.id },
+      });
+      return res.status(201).json({ ...product, submittedForReview: true });
+    }
+
     const data = {};
     if (name !== undefined && !String(name).trim()) return res.status(400).json({ error: "Product name is required" });
     if (images !== undefined) {
@@ -336,21 +385,13 @@ router.put("/products/:id", async (req, res) => {
     if (colorOptions !== undefined) data.colorOptions = colorOptions;
     if (sizeOptions !== undefined) data.sizeOptions = sizeOptions;
 
-    /* Once approved, the live sell price (price) is set by the owner — the
-       seller can no longer change it (or their cost) directly. They can still
-       manage images, stock, description, etc. */
-    if (existing.status === "approved") {
-      delete data.price;
-      delete data.originalPrice;
-    } else {
-      if (price !== undefined) data.price = price;
-      if (price !== undefined) data.sellerPrice = (price != null && price > 0) ? price : null;
-      data.sellerPricing = buildSellerPricing(
-        price !== undefined ? price : existing.price,
-        colorOptions !== undefined ? colorOptions : existing.colorOptions,
-        sizeOptions !== undefined ? sizeOptions : existing.sizeOptions
-      );
-    }
+    if (price !== undefined) data.price = price;
+    if (price !== undefined) data.sellerPrice = (price != null && price > 0) ? price : null;
+    data.sellerPricing = buildSellerPricing(
+      price !== undefined ? price : existing.price,
+      colorOptions !== undefined ? colorOptions : existing.colorOptions,
+      sizeOptions !== undefined ? sizeOptions : existing.sizeOptions
+    );
 
     /* Editing a rejected product re-submits it for approval. */
     if (existing.status === "rejected") {
@@ -397,9 +438,10 @@ router.get("/orders", async (req, res) => {
   try {
     const sellerProducts = await prisma.product.findMany({
       where: { sellerId: req.userId },
-      select: { id: true },
+      select: { id: true, sellerPrice: true, sellerPricing: true },
     });
-    const productIds = sellerProducts.map((p) => p.id);
+    const productById = new Map(sellerProducts.map((p) => [p.id, p]));
+    const productIds = [...productById.keys()];
 
     if (productIds.length === 0) return res.json([]);
 
@@ -415,11 +457,15 @@ router.get("/orders", async (req, res) => {
     const sellerOrders = [];
     for (const order of allOrders) {
       if (!Array.isArray(order.items)) continue;
-      const sellerItems = order.items.filter((item) => {
-        if (!item.productId) return false;
+      const sellerItems = [];
+      for (const item of order.items) {
+        if (!item.productId) continue;
         const pid = item.productId.startsWith("db-") ? item.productId.slice(3) : item.productId;
-        return productIds.includes(pid);
-      });
+        const product = productById.get(pid);
+        if (!product) continue;
+        const sellerUnit = effectiveSellerPrice(product, item);
+        sellerItems.push({ ...item, sellerPrice: sellerUnit != null && sellerUnit > 0 ? sellerUnit : null });
+      }
       if (sellerItems.length === 0) continue;
       sellerOrders.push({
         id: order.id,

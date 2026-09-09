@@ -35,3 +35,13 @@ export function warmProduct(id: string): void {
       /* ignore */
     });
 }
+
+/* Drop every cached copy (slim + full) of a product so the backend's live
+   availability (e.g. a now-rejected seller) is respected on the next visit. */
+export function invalidateProduct(id: string): void {
+  const rawId = id.replace(/^db-/, "");
+  SLIM.delete(id);
+  SLIM.delete(rawId);
+  FULL.delete(rawId);
+  WARMED.delete(rawId);
+}

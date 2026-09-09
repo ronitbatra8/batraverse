@@ -20,14 +20,11 @@ import AnalyticsTab from "../admin/components/AnalyticsTab";
 import NewsletterTab from "../admin/components/NewsletterTab";
 import PrivateViewingTab from "../admin/components/PrivateViewingTab";
 import DeliveryExecTab from "../admin/components/DeliveryExecTab";
-import SellersTab from "../admin/components/SellersTab";
 import CardsWalletTab from "../admin/components/CardsWalletTab";
 import ViolationsTab from "../admin/components/ViolationsTab";
 import ProductsTab from "../admin/components/ProductsTab";
 import ProductCatalogTab from "../admin/components/ProductCatalogTab";
-import ProductApprovalsTab from "../admin/components/ProductApprovalsTab";
-import SellerPayoutsTab from "../admin/components/SellerPayoutsTab";
-import SellerRequestsTab from "../admin/components/SellerRequestsTab";
+import SellerSystemTab from "../admin/components/SellerSystemTab";
 import AdsTab from "../admin/components/AdsTab";
 import FeaturedTab from "../admin/components/FeaturedTab";
 import TestimonialsTab from "../admin/components/TestimonialsTab";
@@ -223,7 +220,7 @@ export default function AdminPage() {
     security: passwordResets.length,
     newsletter: newsletter?.active || 0,
     privateviewing: privateViewing?.unread || 0,
-    productapprovals: productApprovalCount,
+    sellersystem: productApprovalCount,
   } as Partial<Record<Tab, number>>), [orders, users, messages, passwordResets, newsletter, privateViewing, productApprovalCount]);
 
   /* Require an actual signed-in ADMIN (owner) account. Anyone who is not
@@ -292,14 +289,11 @@ export default function AdminPage() {
           {tab === "newsletter" && <NewsletterTab newsletter={newsletter} adminKey={adminKey} setNewsletter={setNewsletter} />}
           {tab === "privateviewing" && <PrivateViewingTab privateViewing={privateViewing} adminKey={adminKey} setPrivateViewing={setPrivateViewing} />}
           {tab === "delivery" && <DeliveryExecTab adminKey={adminKey} />}
-          {tab === "sellers" && <SellersTab adminKey={adminKey} />}
+          {tab === "sellersystem" && <SellerSystemTab adminKey={adminKey} onCount={setProductApprovalCount} />}
           {tab === "cards" && <CardsWalletTab adminKey={adminKey} />}
-          {tab === "payouts" && <SellerPayoutsTab adminKey={adminKey} />}
           {tab === "violations" && <ViolationsTab adminKey={adminKey} />}
           {tab === "categories" && <ProductsTab adminKey={adminKey} />}
           {tab === "productcatalog" && <ProductCatalogTab adminKey={adminKey} />}
-          {tab === "productapprovals" && <ProductApprovalsTab adminKey={adminKey} onCount={setProductApprovalCount} />}
-          {tab === "sellerrequests" && <SellerRequestsTab adminKey={adminKey} />}
           {tab === "ads" && <AdsTab adminKey={adminKey} />}
           {tab === "featured" && <FeaturedTab adminKey={adminKey} />}
           {tab === "testimonials" && <TestimonialsTab adminKey={adminKey} />}

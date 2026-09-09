@@ -24,6 +24,7 @@ export interface User {
   role?: string;
   approved?: boolean;
   submittedForApproval?: boolean;
+  rejectedAt?: string | null;
   cardNumber?: string | null;
   cardLevel?: string | null;
   cardExpiry?: string | null;

@@ -2,7 +2,7 @@ const express = require("express");
 const prisma = require("../db");
 const { safeErrorMessage } = require("../utils/helpers");
 const { adminAuth } = require("../middleware/auth");
-const { SLIM_SELECT, FULL_SELECT, slimProduct } = require("../utils/products");
+const { SLIM_SELECT, FULL_SELECT, slimProduct, PUBLIC_WHERE } = require("../utils/products");
 
 const router = express.Router();
 
@@ -125,7 +125,7 @@ router.get("/products/:source", async (req, res) => {
     if (source !== "store" && source !== "mart") return res.status(400).json({ error: "source must be store or mart" });
     const full = req.query.mode === "full";
     const products = await prisma.product.findMany({
-      where: { source, status: "approved" },
+      where: { ...PUBLIC_WHERE, source },
       orderBy: { name: "asc" },
       select: full ? FULL_SELECT : SLIM_SELECT,
     });

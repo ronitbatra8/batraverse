@@ -1,3 +1,14 @@
+/* Public visibility filter: products of a rejected seller (rejectedAt set) are
+   temporarily hidden — their own catalog products (sellerId null) stay live.
+   Reapproving the seller clears rejectedAt and brings them back unchanged.
+   Only real products (baseProductId null) are ever public — update-request
+   drafts never surface on the storefront. */
+const PUBLIC_WHERE = {
+  status: "approved",
+  baseProductId: null,
+  OR: [{ sellerId: null }, { seller: { rejectedAt: null } }],
+};
+
 const SLIM_SELECT = {
   id: true,
   name: true,
@@ -17,12 +28,16 @@ const SLIM_SELECT = {
   sizeOptions: true,
 };
 
+/* Public detail select: only the seller's shopName is exposed to customers.
+   Personal/seller fields (id, name, email) stay between owner and seller. */
 const FULL_SELECT = {
   ...SLIM_SELECT,
   description: true,
   specifications: true,
   keyFeatures: true,
-  seller: { select: { id: true, name: true, shopName: true, email: true } },
+  baseProductId: true,
+  approvalType: true,
+  seller: { select: { shopName: true, rejectedAt: true } },
 };
 
 /* Compact per-variant data for list/grid views: keep the swatch/price bits the
@@ -113,4 +128,4 @@ function effectiveSellerPrice(product, item) {
   return null;
 }
 
-module.exports = { SLIM_SELECT, FULL_SELECT, slimProduct, buildSellerPricing, effectiveSellerPrice };
+module.exports = { SLIM_SELECT, FULL_SELECT, slimProduct, buildSellerPricing, effectiveSellerPrice, PUBLIC_WHERE };
