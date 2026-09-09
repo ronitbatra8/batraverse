@@ -1,6 +1,6 @@
 const express = require("express");
 const prisma = require("../db");
-const { userAuth } = require("../middleware/userAuth");
+const { userAuth, customerOnly } = require("../middleware/userAuth");
 const { safeErrorMessage } = require("../utils/helpers");
 const { getEffectiveCardLevel } = require("../utils/cardLevel");
 
@@ -25,7 +25,7 @@ function levelFromBalance(balance) {
   return "none";
 }
 
-router.get("/balance", userAuth, async (req, res) => {
+router.get("/balance", userAuth, customerOnly, async (req, res) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.userId },
@@ -39,7 +39,7 @@ router.get("/balance", userAuth, async (req, res) => {
   }
 });
 
-router.post("/topup", userAuth, async (req, res) => {
+router.post("/topup", userAuth, customerOnly, async (req, res) => {
   try {
     const { amount, paymentMethod, transactionId, upiId } = req.body;
 
@@ -80,7 +80,7 @@ router.post("/topup", userAuth, async (req, res) => {
   }
 });
 
-router.get("/my-topups", userAuth, async (req, res) => {
+router.get("/my-topups", userAuth, customerOnly, async (req, res) => {
   try {
     const topUps = await prisma.walletTopUp.findMany({
       where: { userId: req.userId },
@@ -93,7 +93,7 @@ router.get("/my-topups", userAuth, async (req, res) => {
   }
 });
 
-router.get("/my-history", userAuth, async (req, res) => {
+router.get("/my-history", userAuth, customerOnly, async (req, res) => {
   try {
     const [topUps, upgrades] = await Promise.all([
       prisma.walletTopUp.findMany({

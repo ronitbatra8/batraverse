@@ -1,7 +1,7 @@
 const express = require("express");
 const bcrypt = require("bcryptjs");
 const prisma = require("../db");
-const { userAuth } = require("../middleware/userAuth");
+const { userAuth, customerOnly } = require("../middleware/userAuth");
 const { safeErrorMessage } = require("../utils/helpers");
 const { getEffectiveCardLevel } = require("../utils/cardLevel");
 const {
@@ -62,7 +62,7 @@ router.get("/my", userAuth, async (req, res) => {
   }
 });
 
-router.post("/", userAuth, async (req, res) => {
+router.post("/", userAuth, customerOnly, async (req, res) => {
   try {
     const { items, shipping, paymentMethod, source, deliveryMode, transactionId, deliveryAmount, expressAmount, cardPin } = req.body;
 
@@ -190,7 +190,7 @@ router.post("/", userAuth, async (req, res) => {
   }
 });
 
-router.put("/:id/cancel", userAuth, async (req, res) => {
+router.put("/:id/cancel", userAuth, customerOnly, async (req, res) => {
   try {
     const order = await prisma.order.findUnique({ where: { id: req.params.id } });
     if (!order) return res.status(404).json({ error: "Order not found" });
@@ -217,7 +217,7 @@ router.put("/:id/cancel", userAuth, async (req, res) => {
   }
 });
 
-router.put("/:id/items/:itemIdx/cancel", userAuth, async (req, res) => {
+router.put("/:id/items/:itemIdx/cancel", userAuth, customerOnly, async (req, res) => {
   try {
     const { id, itemIdx } = req.params;
     const idx = parseInt(itemIdx, 10);
@@ -256,7 +256,7 @@ router.put("/:id/items/:itemIdx/cancel", userAuth, async (req, res) => {
   }
 });
 
-router.post("/:id/return-request", userAuth, async (req, res) => {
+router.post("/:id/return-request", userAuth, customerOnly, async (req, res) => {
   try {
     const { reason } = req.body;
     const order = await prisma.order.findUnique({ where: { id: req.params.id } });

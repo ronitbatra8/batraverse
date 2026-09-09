@@ -24,6 +24,8 @@ interface SellerProduct {
   reviewCount: number;
   sellerId: string | null;
   seller: { id: string; name: string; email: string } | null;
+  specifications?: { key: string; value: string }[] | null;
+  keyFeatures?: string[] | null;
   colorOptions: { name: string; hex: string; images?: string | string[]; price?: number; originalPrice?: number }[] | null;
   sizeOptions: Record<string, { name: string; price?: number; originalPrice?: number }[]> | null;
 }
@@ -433,9 +435,12 @@ export default function ProductCatalogTab({ adminKey }: { adminKey: string }) {
                       <p className="text-[10px] text-dark-500 uppercase tracking-wider">Details</p>
                       <div className="space-y-1">
                         <p className="text-[11px]"><span className="text-dark-500">ID:</span> <span className="text-dark-300 font-mono">{p.id}</span></p>
+                        <p className="text-[11px]"><span className="text-dark-500">Name:</span> <span className="text-dark-300">{p.name || "—"}</span></p>
+                        <p className="text-[11px]"><span className="text-dark-500">Brand:</span> <span className="text-dark-300">{p.brand || "—"}</span></p>
                         <p className="text-[11px]"><span className="text-dark-500">Category:</span> <span className="text-dark-300">{p.category || "—"}</span></p>
                         <p className="text-[11px]"><span className="text-dark-500">Subcategory:</span> <span className="text-dark-300">{p.subCategory || "—"}</span></p>
                         <p className="text-[11px]"><span className="text-dark-500">Source:</span> <span className="text-dark-300">{p.source || "store"}</span></p>
+                        <p className="text-[11px]"><span className="text-dark-500">Badge:</span> <span className="text-dark-300">{p.badge || "—"}</span></p>
                         <p className="text-[11px]"><span className="text-dark-500">Seller ID:</span> <span className="text-dark-300 font-mono">{p.sellerId || "—"}</span></p>
                       </div>
                     </div>
@@ -464,6 +469,78 @@ export default function ProductCatalogTab({ adminKey }: { adminKey: string }) {
                       )}
                     </div>
                   </div>
+
+                  {/* Specifications */}
+                  {p.specifications && p.specifications.length > 0 && (
+                    <div className="mt-4">
+                      <p className="text-[10px] text-dark-500 uppercase tracking-wider mb-2">Specifications</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                        {p.specifications.map((s, i) => (
+                          <div key={i} className="flex items-start gap-2 rounded-lg bg-dark-800/40 border border-dark-700/40 px-3 py-2">
+                            <span className="text-[10px] text-gold-400 uppercase tracking-wider font-semibold shrink-0">{s.key}</span>
+                            <span className="text-[11px] text-dark-200">{s.value}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Key Features */}
+                  {p.keyFeatures && p.keyFeatures.length > 0 && (
+                    <div className="mt-4">
+                      <p className="text-[10px] text-dark-500 uppercase tracking-wider mb-2">Key Features</p>
+                      <ul className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                        {p.keyFeatures.map((f, i) => (
+                          <li key={i} className="flex items-start gap-2 text-[11px] text-dark-300">
+                            <span className="text-gold-400 mt-0.5">•</span>
+                            <span>{f}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Color options */}
+                  {p.colorOptions && p.colorOptions.length > 0 && (
+                    <div className="mt-4">
+                      <p className="text-[10px] text-dark-500 uppercase tracking-wider mb-2">Colors ({p.colorOptions.length})</p>
+                      <div className="flex flex-wrap gap-2">
+                        {p.colorOptions.map((c, i) => (
+                          <div key={i} className="flex items-center gap-2 rounded-lg bg-dark-800/40 border border-dark-700/40 px-3 py-1.5">
+                            <span className="w-4 h-4 rounded-full border border-dark-600" style={{ background: c.hex || "#888" }} />
+                            <span className="text-[11px] text-dark-200">{c.name}</span>
+                            {c.price != null && c.price > 0 && <span className="text-[10px] text-gold-400">{formatPrice(c.price)}</span>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Size options */}
+                  {p.sizeOptions && typeof p.sizeOptions === "object" && Object.keys(p.sizeOptions).length > 0 && (
+                    <div className="mt-4">
+                      <p className="text-[10px] text-dark-500 uppercase tracking-wider mb-2">Sizes</p>
+                      <div className="space-y-2">
+                        {Object.entries(p.sizeOptions).map(([colorName, sizes]) => {
+                          const list = Array.isArray(sizes) ? sizes : [];
+                          if (list.length === 0) return null;
+                          return (
+                            <div key={colorName} className="flex flex-wrap items-center gap-2">
+                              <span className="text-[10px] text-dark-500 uppercase tracking-wider w-24 shrink-0 truncate">{colorName}</span>
+                              <div className="flex flex-wrap gap-1.5">
+                                {list.map((s, i) => (
+                                  <div key={i} className="flex items-center gap-1 rounded-lg bg-dark-800/40 border border-dark-700/40 px-2.5 py-1">
+                                    <span className="text-[11px] text-dark-200">{s.name}</span>
+                                    {s.price != null && s.price > 0 && <span className="text-[10px] text-gold-400">{formatPrice(s.price)}</span>}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

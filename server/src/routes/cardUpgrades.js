@@ -1,6 +1,6 @@
 const express = require("express");
 const prisma = require("../db");
-const { userAuth } = require("../middleware/userAuth");
+const { userAuth, customerOnly } = require("../middleware/userAuth");
 const { safeErrorMessage } = require("../utils/helpers");
 const { getEffectiveCardLevel } = require("../utils/cardLevel");
 
@@ -25,7 +25,7 @@ router.get("/pricing", async (req, res) => {
   }
 });
 
-router.post("/request", userAuth, async (req, res) => {
+router.post("/request", userAuth, customerOnly, async (req, res) => {
   try {
     const { toLevel, paymentMethod, transactionId } = req.body;
 
@@ -78,7 +78,7 @@ router.post("/request", userAuth, async (req, res) => {
   }
 });
 
-router.get("/my-requests", userAuth, async (req, res) => {
+router.get("/my-requests", userAuth, customerOnly, async (req, res) => {
   try {
     const requests = await prisma.cardUpgradeRequest.findMany({
       where: { userId: req.userId },

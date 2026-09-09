@@ -5,6 +5,7 @@ const fs = require("fs");
 const prisma = require("../db");
 const { safeErrorMessage } = require("../utils/helpers");
 const { sellerAuth, requireSeller } = require("../middleware/sellerAuth");
+const { buildSellerPricing } = require("../utils/products");
 
 const router = express.Router();
 
@@ -215,7 +216,25 @@ router.get("/payouts", async (req, res) => {
       orderBy: { createdAt: "desc" },
       take: 100,
     });
-    res.json(payouts);
+
+    // Enrich with the customer-charged price per item so the seller can see the
+    // split (their sellerPrice vs the live sell price the customer paid).
+    const orderIds = [...new Set(payouts.map((p) => p.orderId))];
+    const orders = orderIds.length > 0
+      ? await prisma.order.findMany({ where: { id: { in: orderIds } }, select: { id: true, items: true } })
+      : [];
+    const orderById = new Map(orders.map((o) => [o.id, o]));
+
+    const result = payouts.map((p) => {
+      const order = orderById.get(p.orderId);
+      const item = order && Array.isArray(order.items) ? order.items[p.itemIdx] : null;
+      return {
+        ...p,
+        chargedPrice: item ? Number(item.price) || 0 : null,
+      };
+    });
+
+    res.json(result);
   } catch (err) {
     res.status(500).json({ error: safeErrorMessage(err) });
   }
@@ -241,6 +260,9 @@ router.post("/products", async (req, res) => {
     const hasColors = Array.isArray(colorOptions) && colorOptions.length > 0;
     if (!hasColors && (price == null || price < 0)) return res.status(400).json({ error: "Valid price is required" });
     if (!source || !["store", "mart"].includes(source)) return res.status(400).json({ error: "Source must be 'store' or 'mart'" });
+    const hasImages = Array.isArray(images) && images.length > 0;
+    const hasColorImages = hasColors && colorOptions.some((c) => Array.isArray(c.images) && c.images.length > 0);
+    if (!hasImages && !hasColorImages) return res.status(400).json({ error: "At least one product image is required" });
 
     if (category) {
       const cat = await prisma.category.findFirst({ where: { slug: category, source, active: true } });
@@ -270,6 +292,7 @@ router.post("/products", async (req, res) => {
         sellerId: req.userId,
         status: "pending",
         sellerPrice: (price != null && price > 0) ? price : null,
+        sellerPricing: buildSellerPricing(price, colorOptions, sizeOptions),
         rejectReason: null,
         specifications: Array.isArray(specifications) ? specifications : [],
         keyFeatures: Array.isArray(keyFeatures) ? keyFeatures : [],
@@ -292,6 +315,12 @@ router.put("/products/:id", async (req, res) => {
 
     const { name, brand, category, subCategory, source, price, originalPrice, description, images, inStock, badge, specifications, keyFeatures, colorOptions, sizeOptions } = req.body;
     const data = {};
+    if (name !== undefined && !String(name).trim()) return res.status(400).json({ error: "Product name is required" });
+    if (images !== undefined) {
+      const hasImages = Array.isArray(images) && images.length > 0;
+      const hasColorImages = Array.isArray(colorOptions) && colorOptions.some((c) => Array.isArray(c.images) && c.images.length > 0);
+      if (!hasImages && !hasColorImages) return res.status(400).json({ error: "At least one product image is required" });
+    }
     if (name !== undefined) data.name = name;
     if (brand !== undefined) data.brand = brand;
     if (category !== undefined) data.category = category;
@@ -316,6 +345,11 @@ router.put("/products/:id", async (req, res) => {
     } else {
       if (price !== undefined) data.price = price;
       if (price !== undefined) data.sellerPrice = (price != null && price > 0) ? price : null;
+      data.sellerPricing = buildSellerPricing(
+        price !== undefined ? price : existing.price,
+        colorOptions !== undefined ? colorOptions : existing.colorOptions,
+        sizeOptions !== undefined ? sizeOptions : existing.sizeOptions
+      );
     }
 
     /* Editing a rejected product re-submits it for approval. */

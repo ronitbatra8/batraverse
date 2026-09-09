@@ -1,17 +1,45 @@
 "use client";
 
-import { useEffect } from "react";
-import { usePathname } from "next/navigation";
+import { useEffect, useRef, ReactNode } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import Navbar from "@/components/layout/Navbar";
 import CustomCursor from "@/components/cursor/CustomCursor";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { ToastProvider } from "@/components/Toast";
-import { BootProvider } from "@/components/boot/BootProvider";
+import { BootProvider, useBootDone } from "@/components/boot/BootProvider";
 import BootScreen from "@/components/boot/BootScreen";
 import ContentWrapper from "@/components/boot/ContentWrapper";
+import { useAuth } from "@/components/auth/AuthContext";
+import { Spinner } from "@/components/auth/auth-ui";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
+
+function SellerGuard({ children }: { children: ReactNode }) {
+  const bootDone = useBootDone();
+  const { user, loading: authLoading } = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
+  const isSellerRoute = pathname.startsWith("/seller");
+  const sellerLocked = !authLoading && user?.role === "SELLER" && !isSellerRoute;
+  const redirected = useRef(false);
+
+  useEffect(() => {
+    if (redirected.current || !sellerLocked || !bootDone) return;
+    redirected.current = true;
+    router.replace("/seller");
+  }, [sellerLocked, bootDone, router]);
+
+  if (sellerLocked) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <Spinner />
+      </div>
+    );
+  }
+
+  return <>{children}</>;
+}
 
 export default function SiteWrapper({
   children,
@@ -20,15 +48,10 @@ export default function SiteWrapper({
 }) {
   const pathname = usePathname();
 
-  /* The seller and owner dashboards replace the global top nav with their own
-     chrome, so hide the top Navbar (and its offset) on those routes. */
   const isSellerRoute = pathname.startsWith("/seller");
   const isOwnerRoute = pathname.startsWith("/owner");
   const isDashboardRoute = isSellerRoute || isOwnerRoute;
 
-  /* Always start every page at the top — on refresh/reload and on every
-     visit/navigation, for every page (main and nested alike). Products open
-     in a new tab, so the page you leave never changes its scroll position. */
   useEffect(() => {
     if ("scrollRestoration" in history) history.scrollRestoration = "manual";
   }, []);
@@ -59,7 +82,7 @@ export default function SiteWrapper({
               animate={{ opacity: 1 }}
               transition={{ duration: 0.6, delay: 0.05, ease: EASE }}
             >
-              {children}
+              <SellerGuard>{children}</SellerGuard>
             </motion.div>
           </ContentWrapper>
         </BootProvider>

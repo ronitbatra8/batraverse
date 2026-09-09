@@ -1,4 +1,5 @@
 const prisma = require("../db");
+const { effectiveSellerPrice } = require("./products");
 
 /* Order items may carry a "db-" product-id prefix from the storefront. Normalize
    before matching against real product ids (mirrors admin.js). */
@@ -39,7 +40,7 @@ async function syncPayoutsForItemChange(order, newItems) {
   if (delivers.length > 0) {
     const ids = [...new Set(delivers.map((idx) => normalizeItemProductId(newItems[idx].productId)).filter(Boolean))];
     const products = ids.length > 0
-      ? await prisma.product.findMany({ where: { id: { in: ids } }, select: { id: true, sellerId: true, sellerPrice: true, name: true } })
+      ? await prisma.product.findMany({ where: { id: { in: ids } }, select: { id: true, sellerId: true, sellerPrice: true, sellerPricing: true, name: true } })
       : [];
     const productById = new Map(products.map((p) => [p.id, p]));
 
@@ -48,8 +49,9 @@ async function syncPayoutsForItemChange(order, newItems) {
       const product = productById.get(normalizeItemProductId(item.productId));
       if (!product || !product.sellerId) continue;
       const qty = item.quantity || 1;
-      const unitPrice = product.sellerPrice != null && product.sellerPrice > 0
-        ? product.sellerPrice
+      const sellerUnit = effectiveSellerPrice(product, item);
+      const unitPrice = sellerUnit != null && sellerUnit > 0
+        ? sellerUnit
         : Number(item.price) || 0;
       const amount = Math.round(unitPrice * qty * 100) / 100;
       if (amount <= 0) continue;

@@ -1044,7 +1044,7 @@ router.post("/product-approvals/:id/approve", async (req, res) => {
     if (!existing) return res.status(404).json({ error: "Product not found" });
     if (existing.status !== "pending") return res.status(400).json({ error: "Product is not pending approval" });
 
-    const { price, originalPrice, name, description, images, inStock, badge } = req.body || {};
+    const { price, originalPrice, name, description, images, inStock, badge, brand, category, subCategory, specifications, keyFeatures, colorOptions, sizeOptions, sellerPrice } = req.body || {};
     if (price === undefined || price === null || Number.isNaN(Number(price)) || Number(price) < 0) {
       return res.status(400).json({ error: "A valid sell price is required" });
     }
@@ -1059,6 +1059,14 @@ router.post("/product-approvals/:id/approve", async (req, res) => {
     if (images !== undefined) data.images = Array.isArray(images) ? images : existing.images;
     if (inStock !== undefined) data.inStock = Boolean(inStock);
     if (badge !== undefined) data.badge = badge || null;
+    if (brand !== undefined) data.brand = brand || null;
+    if (category !== undefined) data.category = category || null;
+    if (subCategory !== undefined) data.subCategory = subCategory || null;
+    if (specifications !== undefined) data.specifications = Array.isArray(specifications) ? specifications : [];
+    if (keyFeatures !== undefined) data.keyFeatures = Array.isArray(keyFeatures) ? keyFeatures : [];
+    if (colorOptions !== undefined) data.colorOptions = Array.isArray(colorOptions) ? colorOptions : [];
+    if (sizeOptions !== undefined) data.sizeOptions = (sizeOptions && typeof sizeOptions === "object" && !Array.isArray(sizeOptions)) ? sizeOptions : {};
+    if (sellerPrice !== undefined) data.sellerPrice = sellerPrice === null ? null : Number(sellerPrice);
 
     const product = await prisma.product.update({ where: { id: req.params.id }, data });
     res.json(product);

@@ -1,4 +1,5 @@
 const jwt = require("jsonwebtoken");
+const prisma = require("../db");
 
 function userAuth(req, res, next) {
   const authHeader = req.headers.authorization || "";
@@ -17,4 +18,22 @@ function userAuth(req, res, next) {
   }
 }
 
-module.exports = { userAuth };
+/* Staff accounts (SELLER) must not use customer wallet/card/member flows — they
+   are dashboard-only. Run AFTER userAuth so req.userId is set. */
+async function customerOnly(req, res, next) {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.userId },
+      select: { role: true },
+    });
+    if (!user) return res.status(404).json({ error: "User not found" });
+    if (user.role === "SELLER") {
+      return res.status(403).json({ error: "Seller accounts only have dashboard access" });
+    }
+    next();
+  } catch {
+    res.status(500).json({ error: "Server error" });
+  }
+}
+
+module.exports = { userAuth, customerOnly };

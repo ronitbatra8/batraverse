@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
   Loader2,
@@ -35,8 +35,8 @@ import {
   Menu,
   LogOut,
   ListChecks,
-  Wallet,
   Coins,
+  Ban,
 } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthContext";
 import { useToast } from "@/components/Toast";
@@ -46,7 +46,7 @@ import { cn, formatPrice } from "@/lib/utils";
 import SiteLayout from "@/components/layout/SiteLayout";
 import ConfirmModal from "@/components/ConfirmModal";
 
-type Tab = "overview" | "products" | "orders" | "reqstatus" | "requests" | "profile" | "addproduct" | "analytics" | "adrequests";
+type Tab = "overview" | "products" | "orders" | "reqstatus" | "requests" | "profile" | "addproduct" | "analytics" | "adrequests" | "payouts";
 
 const STATUS_COLORS: Record<string, string> = {
   pending: "text-amber-400 bg-amber-500/10 border-amber-500/20",
@@ -94,6 +94,7 @@ interface Payout {
   quantity: number;
   unitPrice: number;
   amount: number;
+  chargedPrice: number | null;
   status: "pending" | "paid" | "voided";
   createdAt: string;
   paidAt: string | null;
@@ -237,6 +238,7 @@ const TABS: { key: Tab; label: string; icon: typeof Package }[] = [
   { key: "products", label: "Products", icon: Package },
   { key: "addproduct", label: "Add Product", icon: Plus },
   { key: "orders", label: "Orders", icon: ShoppingBag },
+  { key: "payouts", label: "Payouts", icon: Coins },
   { key: "reqstatus", label: "Requests", icon: ListChecks },
   { key: "requests", label: "Category Requests", icon: ClipboardList },
   { key: "adrequests", label: "Ad Requests", icon: Megaphone },
@@ -509,6 +511,10 @@ export default function SellerDashboardPage() {
       toast("Please choose Store or Mart", "error");
       return;
     }
+    if (productForm.images.length === 0 && !productForm.colorOptions.some((c) => (c.images || []).length > 0)) {
+      toast("At least one product image is required", "error");
+      return;
+    }
     setProductSaving(true);
     try {
       const payload = {
@@ -680,7 +686,7 @@ export default function SellerDashboardPage() {
 
   return (
     <SiteLayout>
-      <div className="min-h-screen bg-dark-950 lg:flex">
+      <div className="min-h-screen overflow-x-clip bg-dark-950 lg:flex">
         {/* Desktop sidebar */}
         <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-dark-800 bg-dark-900/95 lg:flex">
           <div className="border-b border-dark-800 p-5">
@@ -717,22 +723,22 @@ export default function SellerDashboardPage() {
 
         <div className="min-w-0 flex-1">
           <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-8">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-            <div>
-              <p className="text-xs text-gold-400 uppercase tracking-[0.2em] font-semibold mb-1">Seller Dashboard</p>
-              <h1 className="text-2xl font-bold text-white">{profile?.shopName || "My Shop"}</h1>
-            </div>
-            <div className="flex items-center gap-2">
+          <div className="mb-6 text-center">
+            <p className="text-xs text-gold-400 uppercase tracking-[0.2em] font-semibold mb-1">Seller Dashboard</p>
+          </div>
+          <div className="sticky top-3 z-30 mb-6 lg:hidden">
+            <div className="flex w-full max-w-full items-center justify-between gap-2 overflow-hidden rounded-2xl border border-white/15 bg-black/50 px-1.5 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_20px_60px_-10px_rgba(0,0,0,0.6)] backdrop-blur-2xl">
               <button
                 onClick={() => setSidebarOpen(true)}
-                className="lg:hidden p-2.5 rounded-xl bg-dark-900/60 border border-dark-800/50 text-dark-200 hover:text-white transition-colors"
+                className="flex shrink-0 items-center gap-2 rounded-xl p-2.5 text-dark-200 transition-colors hover:bg-white/5 hover:text-white"
                 aria-label="Open menu"
               >
                 <Menu size={18} />
+                <span className="text-sm font-medium">Menu</span>
               </button>
-              <div className="flex items-center gap-2 text-dark-400 text-sm">
-                <Store size={16} className="text-gold-400" />
-                <span>{profile?.name}</span>
+              <div className="flex min-w-0 items-center gap-2 text-dark-400 text-sm">
+                <Store size={16} className="shrink-0 text-gold-400" />
+                <span className="truncate">{profile?.name}</span>
               </div>
             </div>
           </div>
@@ -741,36 +747,37 @@ export default function SellerDashboardPage() {
             <div className={`fixed inset-0 z-40 lg:hidden ${sidebarOpen ? "pointer-events-auto" : "pointer-events-none"}`}>
               <div
                 onClick={() => setSidebarOpen(false)}
-                className={`absolute inset-0 bg-black/60 transition-opacity duration-300 ${sidebarOpen ? "opacity-100" : "opacity-0"}`}
+                className={`absolute inset-0 bg-black/25 transition-opacity duration-300 ${sidebarOpen ? "opacity-100" : "opacity-0"}`}
               />
               <aside
-                className={`absolute left-0 top-0 flex h-full w-72 flex-col border-r border-dark-800 bg-dark-900 p-4 transition-transform duration-300 ${
+                className={`absolute left-0 top-0 flex h-full w-72 flex-col border-r border-gold/15 bg-onyx/55 p-6 shadow-[inset_0_1px_0_rgba(212,175,55,0.12),24px_0_60px_rgba(0,0,0,0.4)] backdrop-blur-2xl transition-transform duration-300 ${
                   sidebarOpen ? "translate-x-0" : "-translate-x-full"
                 }`}
               >
-                <div className="mb-4 flex items-center justify-between gap-3">
+                <div className="mb-6 flex items-center justify-between gap-3 py-3">
                   <div className="min-w-0">
                     <p className="text-xs text-gold-400 uppercase tracking-[0.2em] font-semibold">Seller Dashboard</p>
-                    <p className="truncate text-base font-bold text-white">{profile?.shopName || "My Shop"}</p>
+                    <p className="truncate text-base font-bold text-white pt-1">{profile?.shopName || "My Shop"}</p>
                   </div>
                   <button
                     onClick={() => setSidebarOpen(false)}
-                    className="rounded-lg p-2 text-dark-400 transition-colors hover:bg-dark-800 hover:text-white"
+                    className="flex items-center gap-2 rounded-xl p-2 text-dark-400 transition-colors hover:bg-white/5 hover:text-white"
                     aria-label="Close menu"
                   >
                     <X size={18} />
+                    <span className="text-sm font-medium">Close</span>
                   </button>
                 </div>
-                <div className="flex-1 space-y-1 overflow-y-auto">
+                <div className="flex-1 space-y-1 overflow-y-auto overscroll-contain">
                   {TABS.map((t) => (
                     <button
                       key={t.key}
                       onClick={() => { goToTab(t.key); setSidebarOpen(false); }}
                       className={cn(
-                        "flex w-full items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200",
+                        "flex w-full items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors duration-300",
                         tab === t.key
-                          ? "bg-gold-500/10 text-gold-400 border border-gold-500/20"
-                          : "text-dark-400 hover:text-dark-200 border border-transparent"
+                          ? "bg-gold/10 text-gold-light border border-gold/20"
+                          : "text-cream-dim/60 hover:bg-white/5 hover:text-cream border border-transparent"
                       )}
                     >
                       <t.icon size={18} className="shrink-0" />
@@ -778,10 +785,10 @@ export default function SellerDashboardPage() {
                     </button>
                   ))}
                 </div>
-                <div className="border-t border-dark-800 pt-3">
+                <div className="border-t border-gold/15 pt-3">
                   <button
                     onClick={() => { setSidebarOpen(false); logout(); router.replace("/"); }}
-                    className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-red-400 transition-all duration-200 hover:bg-red-500/10"
+                    className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-rose-400 transition-colors duration-300 hover:bg-white/5"
                   >
                     <LogOut size={18} className="shrink-0" />
                     <span className="truncate">Sign Out</span>
@@ -816,6 +823,7 @@ export default function SellerDashboardPage() {
             />
           )}
           {tab === "orders" && <OrdersTab orders={orders} expandedOrder={expandedOrder} onToggle={setExpandedOrder} />}
+          {tab === "payouts" && <PayoutsTab payouts={payouts} stats={stats} />}
           {tab === "reqstatus" && (
             <RequestsStatusTab category={catRequests} ads={adRequests} />
           )}
@@ -929,14 +937,12 @@ function OverviewTab({ stats, orders, payouts, onTab }: { stats: Stats | null; o
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
           { label: "Total Products", value: stats.totalProducts, icon: Package, color: "text-sky-400", bg: "from-sky-500/20 to-sky-500/10", border: "border-sky-500/30" },
           { label: "Total Orders", value: stats.totalOrders, icon: ShoppingBag, color: "text-violet-400", bg: "from-violet-500/20 to-violet-500/10", border: "border-violet-500/30" },
           { label: "Revenue", value: formatPrice(stats.totalRevenue), icon: TrendingUp, color: "text-gold-400", bg: "from-gold-500/20 to-gold-500/10", border: "border-gold-500/30" },
           { label: "Pending Orders", value: stats.pendingOrders, icon: Clock, color: "text-amber-400", bg: "from-amber-500/20 to-amber-500/10", border: "border-amber-500/30" },
-          { label: "Owed to You", value: formatPrice(stats.payoutPending), icon: Coins, color: "text-teal-400", bg: "from-teal-500/20 to-teal-500/10", border: "border-teal-500/30" },
-          { label: "Total Earned", value: formatPrice(stats.payoutTotal), icon: Wallet, color: "text-emerald-400", bg: "from-emerald-500/20 to-emerald-500/10", border: "border-emerald-500/30" },
         ].map((s) => (
           <div key={s.label} className={`bg-gradient-to-br ${s.bg} border ${s.border} rounded-2xl p-5`}>
             <s.icon size={20} className={s.color} />
@@ -1062,6 +1068,128 @@ function OverviewTab({ stats, orders, payouts, onTab }: { stats: Stats | null; o
             </div>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function PayoutsTab({ payouts, stats }: { payouts: Payout[]; stats: Stats | null }) {
+  const [filter, setFilter] = useState<"all" | "pending" | "paid" | "voided">("all");
+
+  const totals = useMemo(() => {
+    let pending = 0, paid = 0, voided = 0;
+    for (const p of payouts) {
+      if (p.status === "pending") pending += p.amount;
+      else if (p.status === "paid") paid += p.amount;
+      else voided += p.amount;
+    }
+    return { pending, paid, voided };
+  }, [payouts]);
+
+  const filtered = payouts.filter((p) => filter === "all" || p.status === filter);
+
+  const filterTabs: { key: typeof filter; label: string; count: number }[] = [
+    { key: "all", label: "All", count: payouts.length },
+    { key: "pending", label: "Pending", count: payouts.filter((p) => p.status === "pending").length },
+    { key: "paid", label: "Paid", count: payouts.filter((p) => p.status === "paid").length },
+    { key: "voided", label: "Voided", count: payouts.filter((p) => p.status === "voided").length },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-lg font-display font-bold text-white">Payouts</h2>
+        <p className="text-xs text-dark-500 mt-0.5">
+          Earnings owed at the price you set. Batraverse keeps the difference between your price and the live sell price.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {[
+          { label: "Pending", value: totals.pending, icon: Clock, color: "text-teal-400", bg: "from-teal-500/20 to-teal-500/10", border: "border-teal-500/30" },
+          { label: "Paid to You", value: totals.paid, icon: Coins, color: "text-emerald-400", bg: "from-emerald-500/20 to-emerald-500/10", border: "border-emerald-500/30" },
+          { label: "Voided", value: totals.voided, icon: Ban, color: "text-dark-400", bg: "from-dark-800 to-dark-900", border: "border-dark-700/50" },
+        ].map((s) => (
+          <div key={s.label} className={`bg-gradient-to-br ${s.bg} border ${s.border} rounded-2xl p-5`}>
+            <s.icon size={20} className={s.color} />
+            <p className="text-2xl font-display font-bold text-white mt-3">{formatPrice(s.value)}</p>
+            <p className="text-xs text-dark-400 mt-1">{s.label}</p>
+          </div>
+        ))}
+      </div>
+
+      {stats && (
+        <div className="rounded-xl bg-dark-800/40 border border-dark-700/40 px-4 py-3 text-xs text-dark-400 flex flex-wrap gap-x-6 gap-y-1.5">
+          <span>Lifetime earned: <span className="text-white font-medium">{formatPrice(stats.payoutTotal)}</span></span>
+          <span>Pending total: <span className="text-teal-400 font-medium">{formatPrice(stats.payoutPending)}</span></span>
+        </div>
+      )}
+
+      <div className="bg-dark-900/60 border border-dark-800/50 rounded-2xl">
+        <div className="px-4 sm:px-6 py-3 border-b border-dark-800/50 flex items-center gap-1.5 overflow-x-auto">
+          {filterTabs.map((f) => (
+            <button key={f.key} onClick={() => setFilter(f.key)}
+              className={cn(
+                "shrink-0 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all border",
+                filter === f.key
+                  ? "bg-gold-500/10 text-gold-400 border-gold-500/20"
+                  : "text-dark-400 hover:text-white hover:bg-dark-800/40 border-transparent"
+              )}>
+              {f.label} · {f.count}
+            </button>
+          ))}
+        </div>
+
+        {filtered.length === 0 ? (
+          <div className="py-16 text-center">
+            <Coins size={32} className="text-dark-700 mx-auto mb-3" />
+            <p className="text-dark-500 text-sm">No {filter === "all" ? "" : filter + " "}payouts yet</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-dark-800/30">
+            {filtered.map((pay) => {
+              const batraverseCut =
+                pay.chargedPrice != null && pay.chargedPrice >= 0 && pay.unitPrice > 0
+                  ? Math.max(0, pay.chargedPrice - pay.unitPrice)
+                  : null;
+              return (
+                <div key={pay.id} className="px-4 sm:px-6 py-4 flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
+                      <Coins size={16} className="text-emerald-400" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-white truncate">{pay.productName || "Product"}</p>
+                      <p className="text-xs text-dark-500">
+                        Order {pay.orderRef || "#" + pay.orderId.slice(0, 8)} · {pay.quantity} × {formatPrice(pay.unitPrice)}
+                      </p>
+                      {pay.chargedPrice != null && pay.chargedPrice >= 0 && (
+                        <p className="text-[11px] text-dark-600 mt-0.5">
+                          Charged to customer: {formatPrice(pay.chargedPrice)}
+                          {batraverseCut != null && batraverseCut > 0 && (
+                            <> · Batraverse keeps {formatPrice(batraverseCut)}</>
+                          )}
+                        </p>
+                      )}
+                      <p className="text-[10px] text-dark-600 mt-0.5">
+                        {new Date(pay.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-sm font-semibold text-white">{formatPrice(pay.amount)}</p>
+                    <span className={cn("inline-block text-[10px] px-2 py-0.5 rounded-full border mt-1 uppercase tracking-wide",
+                      pay.status === "paid" ? "text-emerald-400 border-emerald-500/30 bg-emerald-500/10" :
+                      pay.status === "pending" ? "text-teal-400 border-teal-500/30 bg-teal-500/10" :
+                      "text-dark-500 border-dark-700 bg-dark-800")}>
+                      {pay.status}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1507,6 +1635,80 @@ function ProfileTab({
   );
 }
 
+function SelectList({
+  value,
+  onChange,
+  placeholder,
+  options,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+  options: { value: string; label: string }[];
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onDocClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [open]);
+
+  const selected = options.find((o) => o.value === value);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className={cn(
+          "w-full flex items-center justify-between bg-dark-800/60 border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-gold-500/50 cursor-pointer transition-colors",
+          open ? "border-gold-500/50" : "border-dark-700/50",
+          selected ? "text-white" : "text-dark-500"
+        )}
+      >
+        <span className="truncate">{selected ? selected.label : placeholder}</span>
+        <ChevronDown size={16} className={cn("shrink-0 text-dark-400 transition-transform", open && "rotate-180")} />
+      </button>
+      {open && (
+        <div className="absolute z-20 mt-2 w-full max-h-64 overflow-y-auto rounded-xl border border-dark-700/50 bg-dark-900 shadow-xl shadow-black/40 p-1">
+          {value && (
+            <button
+              type="button"
+              onClick={() => { onChange(""); setOpen(false); }}
+              className="w-full text-left px-3 py-2.5 rounded-lg text-sm text-dark-500 hover:bg-dark-800/60 hover:text-dark-200"
+            >
+              {placeholder}
+            </button>
+          )}
+          {options.map((o) => (
+            <button
+              key={o.value}
+              type="button"
+              onClick={() => { onChange(o.value); setOpen(false); }}
+              className={cn(
+                "w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors",
+                o.value === value
+                  ? "bg-gold-500/10 text-gold-400"
+                  : "text-dark-200 hover:bg-dark-800/60 hover:text-white"
+              )}
+            >
+              <span className="truncate">{o.label}</span>
+            </button>
+          ))}
+          {options.length === 0 && (
+            <div className="px-3 py-2.5 text-sm text-dark-500">No categories available</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AddProductTab({
   editing,
   form,
@@ -1604,7 +1806,7 @@ function AddProductTab({
         </div>
       ) : !editing ? (
         <div className="mb-5 rounded-xl bg-amber-500/10 border border-amber-500/30 px-4 py-3 text-sm text-amber-300">
-          New products go to the owner for approval. Once approved they appear on the storefront with the owner&apos;s sell price.
+          Your product will be shown on the storefront within 24 hours.
         </div>
       ) : lockedPrice ? (
         <div className="mb-5 rounded-xl bg-sky-500/10 border border-sky-500/30 px-4 py-3 text-sm text-sky-300">
@@ -1649,20 +1851,22 @@ function AddProductTab({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="text-xs text-dark-500 uppercase tracking-wider font-semibold mb-1.5 block">Category</label>
-                <select value={form.category} onChange={(e) => onChange({ ...form, category: e.target.value, subCategory: "" })}
-                  className="w-full bg-dark-800/60 border border-dark-700/50 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-gold-500/50 appearance-none cursor-pointer">
-                  <option value="">Select category</option>
-                  {categories.map((c) => (<option key={c.id} value={c.slug}>{c.name}</option>))}
-                </select>
+                <SelectList
+                  value={form.category}
+                  onChange={(v) => onChange({ ...form, category: v, subCategory: "" })}
+                  placeholder="Select category"
+                  options={categories.map((c) => ({ value: c.slug, label: c.name }))}
+                />
               </div>
               {form.category && subcategories.length > 0 && (
                 <div>
                   <label className="text-xs text-dark-500 uppercase tracking-wider font-semibold mb-1.5 block">Subcategory</label>
-                  <select value={form.subCategory} onChange={(e) => onChange({ ...form, subCategory: e.target.value })}
-                    className="w-full bg-dark-800/60 border border-dark-700/50 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-gold-500/50 appearance-none cursor-pointer">
-                    <option value="">None</option>
-                    {subcategories.map((s) => (<option key={s.id} value={s.slug}>{s.name}</option>))}
-                  </select>
+                  <SelectList
+                    value={form.subCategory}
+                    onChange={(v) => onChange({ ...form, subCategory: v })}
+                    placeholder="None"
+                    options={subcategories.map((s) => ({ value: s.slug, label: s.name }))}
+                  />
                 </div>
               )}
             </div>

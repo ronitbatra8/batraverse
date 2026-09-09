@@ -2,7 +2,7 @@ const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const prisma = require("../db");
-const { userAuth } = require("../middleware/userAuth");
+const { userAuth, customerOnly } = require("../middleware/userAuth");
 const { safeErrorMessage, validateEmail, normalizePhone, isEmail, isPhone } = require("../utils/helpers");
 const { getEffectiveCardLevel } = require("../utils/cardLevel");
 const { generateOTP, sendResetPasswordEmail, sendCardPinResetEmail, sendPasswordChangedEmail, sendOTPEmail } = require("../utils/email");
@@ -287,7 +287,7 @@ const LEVEL_PREFIX_MAP = {
   owner: "OW",
 };
 
-router.put("/me/card-number", userAuth, async (req, res) => {
+router.put("/me/card-number", userAuth, customerOnly, async (req, res) => {
   try {
     const { mode, customText, customPrefix, customNumber } = req.body;
     const user = await prisma.user.findUnique({ where: { id: req.userId } });
@@ -340,7 +340,7 @@ router.put("/me/card-number", userAuth, async (req, res) => {
   }
 });
 
-router.put("/me/card-pin", userAuth, async (req, res) => {
+router.put("/me/card-pin", userAuth, customerOnly, async (req, res) => {
   try {
     const { pin, currentPin, currentPassword } = req.body;
     if (!/^\d{6}$/.test(String(pin))) {
@@ -370,7 +370,7 @@ router.put("/me/card-pin", userAuth, async (req, res) => {
   }
 });
 
-router.post("/me/card-pin/send-otp", userAuth, async (req, res) => {
+router.post("/me/card-pin/send-otp", userAuth, customerOnly, async (req, res) => {
   try {
     const user = await prisma.user.findUnique({ where: { id: req.userId } });
     if (!user) return res.status(404).json({ error: "User not found" });
@@ -389,7 +389,7 @@ router.post("/me/card-pin/send-otp", userAuth, async (req, res) => {
   }
 });
 
-router.post("/me/card-pin/verify-otp", userAuth, async (req, res) => {
+router.post("/me/card-pin/verify-otp", userAuth, customerOnly, async (req, res) => {
   try {
     const { code } = req.body;
     if (!code) return res.status(400).json({ error: "Enter the OTP sent to your email" });
@@ -414,7 +414,7 @@ router.post("/me/card-pin/verify-otp", userAuth, async (req, res) => {
   }
 });
 
-router.post("/me/card-pin/reset", userAuth, async (req, res) => {
+router.post("/me/card-pin/reset", userAuth, customerOnly, async (req, res) => {
   try {
     const { resetToken, pin } = req.body;
     if (!resetToken) return res.status(400).json({ error: "Reset token is required" });
@@ -438,7 +438,7 @@ router.post("/me/card-pin/reset", userAuth, async (req, res) => {
   }
 });
 
-router.post("/me/card-pin/verify", userAuth, async (req, res) => {
+router.post("/me/card-pin/verify", userAuth, customerOnly, async (req, res) => {
   try {
     const { pin } = req.body;
     if (!/^\d{6}$/.test(String(pin))) {
@@ -455,7 +455,7 @@ router.post("/me/card-pin/verify", userAuth, async (req, res) => {
   }
 });
 
-router.delete("/me/card-pin", userAuth, async (req, res) => {
+router.delete("/me/card-pin", userAuth, customerOnly, async (req, res) => {
   try {
     const { currentPassword } = req.body;
     if (!currentPassword) {

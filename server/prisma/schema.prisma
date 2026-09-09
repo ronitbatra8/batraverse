@@ -173,9 +173,13 @@ model Product {
 
   /* Approval workflow: sellers add products as "pending"; the owner sets the
      live sell price (price) and approves. sellerPrice = what the seller gets,
-     rejectReason = why the owner sent it back. */
+     rejectReason = why the owner sent it back. For variant products, the
+     seller-entered prices per color/size are snapshotted into sellerPricing
+     (survives owner edits on approval) and used for payouts:
+     { price?, colors?: { [color]: number }, sizes?: { [color]: { [size]: number } } } */
   status       String   @default("approved")
   sellerPrice  Float?
+  sellerPricing Json    @default("{}")
   rejectReason String?
   images        Json     @default("[]")
   inStock       Boolean  @default(true)

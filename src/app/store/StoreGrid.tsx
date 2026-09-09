@@ -81,9 +81,8 @@ function dbToStoreProduct(p: DbProduct): Product {
   }
 
   // Use first color's images if product-level images are empty
-  const effectiveImages = (p.images.length === 0 && firstColor?.images && firstColor.images.length > 0)
-    ? firstColor.images
-    : p.images;
+  const colorImages = rawColors.flatMap((c: { images?: string[] }) => (Array.isArray(c.images) ? c.images : []));
+  const effectiveImages = p.images.length > 0 ? p.images : colorImages;
 
   return {
     id: `db-${p.id}`,
