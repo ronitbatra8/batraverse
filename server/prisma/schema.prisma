@@ -23,6 +23,8 @@ enum OrderStatus {
   delivered
   cancelled
   return_requested
+  return_approved
+  return_rejected
   returned
 }
 
@@ -183,6 +185,12 @@ model Product {
   baseProductId String? // set on update-request drafts; null for real/live products
   sellerPrice  Float?
   sellerPricing Json    @default("{}")
+  /* Seller copy: the FULL detail set the seller last entered (name, brand,
+     category, subCategory, source, price, originalPrice, description, images,
+     inStock, badge, specifications, keyFeatures, colorOptions, sizeOptions).
+     Parallel to the live/owner-approved fields above — owner approval edits
+     the live fields, never this snapshot. Same pattern as sellerPricing/payouts. */
+  sellerDetails Json     @default("{}")
   rejectReason String?
   images        Json     @default("[]")
   inStock       Boolean  @default(true)
@@ -496,6 +504,7 @@ model SellerPayout {
   unitPrice   Float    @default(0) // payout per unit = product.sellerPrice (falls back to item price)
   amount      Float    @default(0) // unitPrice * quantity
   status      String   @default("pending") // "pending" | "paid" | "voided"
+  deductions  Json?    // [{ amount, label, createdAt }] — ad fees etc. taken out of this payout
   createdAt   DateTime @default(now())
   paidAt      DateTime?
   voidedAt    DateTime?
@@ -553,6 +562,10 @@ model AdRequest {
   duration  Int      @default(7)
   status    String   @default("pending")
   note      String   @default("")
+  cost      Float    @default(100) // flat fee charged for the ad (₹100 for 7 days)
+  deducted  Boolean  @default(false)
+  deductedAt DateTime?
+  payoutId  String?  // SellerPayout the fee was deducted from
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

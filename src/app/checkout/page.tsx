@@ -30,7 +30,7 @@ import {
 import { cn, formatPrice } from "@/lib/utils";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import { useCart } from "@/components/cart/CartContext";
-import { useAuth } from "@/components/auth/AuthContext";
+import { useAuth, type SavedAddress } from "@/components/auth/AuthContext";
 import { getDiscountPercent, getFreeDeliveries, getEffectiveLevel } from "@/lib/levels";
 import { apiFetch } from "@/lib/api";
 import SiteLayout from "@/components/layout/SiteLayout";
@@ -64,7 +64,7 @@ export default function CheckoutPage() {
   const light = theme === "light";
   const router = useRouter();
   const { items, subtotal, clear, deliveryMode, setDeliveryMode } = useCart();
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
   const [step, setStep] = useState<Step>("shipping");
@@ -82,13 +82,34 @@ export default function CheckoutPage() {
   const [ship, setShip] = useState<ShippingForm>(EMPTY_SHIP);
   const [payMethod, setPayMethod] = useState<PaymentMethod | "">("");
 
+  const savedAddresses: SavedAddress[] = (user?.savedAddresses as SavedAddress[]) || [];
+
+  const applyAddress = (addr: SavedAddress | null | undefined) => {
+    setShip((p) => ({
+      ...p,
+      alternatePhone: addr?.alternatePhone || p.alternatePhone,
+      address: addr?.address || p.address,
+      apartment: addr?.apartment || p.apartment,
+      city: addr?.city || p.city,
+      state: addr?.state || p.state,
+      pincode: addr?.pincode || p.pincode,
+      country: "India",
+    }));
+  };
+
+  useEffect(() => {
+    if (placed) {
+      const t = window.setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 80);
+      return () => window.clearTimeout(t);
+    }
+  }, [placed]);
+
   useEffect(() => {
     if (!user) return;
     const nameParts = (user.name || "").split(" ");
     const firstName = nameParts[0] || "";
     const lastName = nameParts.slice(1).join(" ") || "";
-    const saved = user.savedAddresses;
-    const defaultAddr = saved && saved.length > 0 ? saved[0] : null;
+    const defaultAddr = user.savedAddresses && user.savedAddresses.length > 0 ? user.savedAddresses[0] : null;
     setShip({
       firstName,
       lastName,
@@ -103,6 +124,33 @@ export default function CheckoutPage() {
       country: "India",
     });
   }, [user]);
+
+  // Save/add the address used for this order so it prefills next checkout.
+  const saveShipAddress = async () => {
+    if (!ship.address || !ship.city) return;
+    try {
+      const existing = savedAddresses.find(
+        (a) => a.address === ship.address && a.city === ship.city && (!ship.pincode || a.pincode === ship.pincode)
+      );
+      if (existing) {
+        if (!existing.isDefault) await apiFetch(`/addresses/${existing.id}/default`, { method: "PUT" });
+      } else {
+        await apiFetch("/addresses", {
+          method: "POST",
+          body: JSON.stringify({
+            address: ship.address,
+            apartment: ship.apartment,
+            city: ship.city,
+            state: ship.state,
+            pincode: ship.pincode,
+            alternatePhone: ship.alternatePhone || undefined,
+            isDefault: true,
+          }),
+        });
+      }
+      try { await refreshUser(); } catch {}
+    } catch {}
+  };
 
   const hasMartItems = items.some((it) => it.source === "mart");
   const hasStoreItems = items.some((it) => it.source === "store");
@@ -215,6 +263,7 @@ export default function CheckoutPage() {
         colorHex: i.colorHex,
         size: i.size || null,
         source: i.source || "store",
+        image: i.colorImage || null,
       }));
 
       const shippingData = {
@@ -274,13 +323,8 @@ export default function CheckoutPage() {
       setPlaced(true);
       clear();
 
-      // Save address for future orders
-      if (ship.address && ship.city) {
-        apiFetch("/addresses", {
-          method: "POST",
-          body: JSON.stringify({ address: ship.address, apartment: ship.apartment, city: ship.city, state: ship.state, pincode: ship.pincode, alternatePhone: ship.alternatePhone || undefined }),
-        }).catch(() => {});
-      }
+      // Save the address used for future orders
+      saveShipAddress();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to place order");
     } finally {
@@ -326,7 +370,7 @@ export default function CheckoutPage() {
               <Link href="/store" className={cn("rounded-xl px-8 py-3.5 text-[11px] font-bold uppercase tracking-[0.25em] transition-all duration-300", light ? "bg-sapphire text-white hover:bg-sapphire-light hover:shadow-[0_0_30px_rgba(30,58,138,0.3)]" : "bg-gold text-abyss hover:bg-gold-light hover:shadow-[0_0_30px_rgba(212,175,55,0.3)]")}>
                 Continue Shopping
               </Link>
-              <Link href="/account" className={cn("rounded-xl border px-8 py-3.5 text-[11px] font-bold uppercase tracking-[0.25em] transition-all duration-300", light ? "border-dark-200 text-dark-500 hover:border-sapphire hover:text-sapphire" : "border-white/10 text-cream-dim hover:border-gold hover:text-gold-light")}>
+              <Link href="/orders" className={cn("rounded-xl border px-8 py-3.5 text-[11px] font-bold uppercase tracking-[0.25em] transition-all duration-300", light ? "border-dark-200 text-dark-500 hover:border-sapphire hover:text-sapphire" : "border-white/10 text-cream-dim hover:border-gold hover:text-gold-light")}>
                 View Orders
               </Link>
             </div>
@@ -464,6 +508,47 @@ export default function CheckoutPage() {
                   <p className="mb-4 flex items-center gap-1.5 text-[11px] text-amber-500">
                     <Navigation size={11} /> {locationError}
                   </p>
+                )}
+                {savedAddresses.length > 0 && (
+                  <div className="mb-6">
+                    <p className={cn("mb-2 text-[10px] font-semibold uppercase tracking-[0.2em]", light ? "text-dark-400" : "text-cream-dim/50")}>
+                      Saved Addresses
+                    </p>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {savedAddresses.map((a) => {
+                        const active = ship.address === a.address && ship.city === a.city;
+                        return (
+                          <button
+                            type="button"
+                            key={a.id}
+                            onClick={() => applyAddress(a)}
+                            className={cn(
+                              "rounded-xl border px-3.5 py-3 text-left transition-all duration-300",
+                              active
+                                ? light ? "border-sapphire bg-sapphire/5 shadow-[0_0_16px_rgba(30,58,138,0.08)]" : "border-gold bg-gold/5 shadow-[0_0_16px_rgba(212,175,55,0.08)]"
+                                : light ? "border-dark-200/60 bg-dark-50/30 hover:border-dark-300" : "border-white/10 bg-graphite hover:border-white/20"
+                            )}
+                          >
+                            <span className="flex items-start justify-between gap-2">
+                              <span className={cn("line-clamp-1 text-xs font-medium", active ? (light ? "text-dark-900" : "text-cream") : (light ? "text-dark-700" : "text-cream-dim/80"))}>
+                                {a.address}
+                              </span>
+                              {a.isDefault && (
+                                <span className={cn("shrink-0 rounded-full border px-1.5 py-0.5 text-[8px] font-bold tracking-wider", light ? "border-sapphire/25 bg-sapphire/10 text-sapphire" : "border-gold/25 bg-gold/10 text-gold")}>
+                                  DEFAULT
+                                </span>
+                              )}
+                            </span>
+                            <span className={cn("mt-0.5 block text-[10px]", light ? "text-dark-400" : "text-cream-dim/40")}>
+                              {a.city}
+                              {a.state ? `, ${a.state}` : ""}
+                              {a.pincode ? ` — ${a.pincode}` : ""}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 )}
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
@@ -917,14 +1002,14 @@ src={resolveImageUrl(item.colorImage) || ""}
         onClose={() => setUpiModal(false)}
         amount={upiAmount}
         pendingOrderData={pendingOrderData!}
-        onSuccess={(createdIds: string) => { setOrderId(createdIds); setUpiModal(false); clear(); setPlaced(true); }}
+        onSuccess={(createdIds: string) => { setOrderId(createdIds); setUpiModal(false); clear(); setPlaced(true); saveShipAddress(); }}
       />
       <WalletPinModal
         open={walletPinModal}
         onClose={() => setWalletPinModal(false)}
         amount={total}
         pendingOrderData={pendingOrderData!}
-        onSuccess={(createdIds: string) => { setOrderId(createdIds); setWalletPinModal(false); clear(); setPlaced(true); }}
+        onSuccess={(createdIds: string) => { setOrderId(createdIds); setWalletPinModal(false); clear(); setPlaced(true); saveShipAddress(); }}
       />
     </SiteLayout>
   );

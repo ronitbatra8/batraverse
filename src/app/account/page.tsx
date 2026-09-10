@@ -6,12 +6,15 @@ import Link from "next/link";
 import {
   ArrowRight,
   CreditCard,
+  Home,
+  Building2,
   LayoutDashboard,
   Loader2,
   Mail,
   MapPin,
   MessageSquare,
   Package,
+  Pencil,
   Phone,
   Plus,
   Save,
@@ -49,7 +52,8 @@ function AccountContent() {
   const [addresses, setAddresses] = useState<SavedAddress[]>([]);
   const [addressLoading, setAddressLoading] = useState(false);
   const [showAddressForm, setShowAddressForm] = useState(false);
-  const [addr, setAddr] = useState({ address: "", city: "", state: "", pincode: "" });
+  const [editingAddr, setEditingAddr] = useState<SavedAddress | null>(null);
+  const [addr, setAddr] = useState({ address: "", apartment: "", city: "", state: "", pincode: "", alternatePhone: "" });
   const [addrErr, setAddrErr] = useState("");
   const [addrBusy, setAddrBusy] = useState(false);
 
@@ -99,7 +103,13 @@ function AccountContent() {
     }
   };
 
-  const handleAddAddress = async (e: React.FormEvent) => {
+  const resetAddressForm = () => {
+    setShowAddressForm(false);
+    setEditingAddr(null);
+    setAddr({ address: "", apartment: "", city: "", state: "", pincode: "", alternatePhone: "" });
+  };
+
+  const handleSaveAddress = async (e: React.FormEvent) => {
     e.preventDefault();
     setAddrErr("");
     if (!addr.address.trim()) {
@@ -112,19 +122,46 @@ function AccountContent() {
     }
     setAddrBusy(true);
     try {
-      const isFirst = addresses.length === 0;
-      await apiFetch("/addresses", {
-        method: "POST",
-        body: JSON.stringify({ ...addr, isDefault: isFirst }),
-      });
-      setShowAddressForm(false);
-      setAddr({ address: "", city: "", state: "", pincode: "" });
+      if (editingAddr) {
+        await apiFetch(`/addresses/${editingAddr.id}`, {
+          method: "PUT",
+          body: JSON.stringify({
+            address: addr.address,
+            apartment: addr.apartment,
+            city: addr.city,
+            state: addr.state,
+            pincode: addr.pincode,
+            alternatePhone: addr.alternatePhone,
+            isDefault: editingAddr.isDefault,
+          }),
+        });
+      } else {
+        const isFirst = addresses.length === 0;
+        await apiFetch("/addresses", {
+          method: "POST",
+          body: JSON.stringify({ ...addr, isDefault: isFirst }),
+        });
+      }
+      resetAddressForm();
       await loadAddresses();
     } catch (err) {
       setAddrErr(errMessage(err));
     } finally {
       setAddrBusy(false);
     }
+  };
+
+  const handleEditAddress = (a: SavedAddress) => {
+    setEditingAddr(a);
+    setAddr({
+      address: a.address || "",
+      apartment: a.apartment || "",
+      city: a.city || "",
+      state: a.state || "",
+      pincode: a.pincode || "",
+      alternatePhone: a.alternatePhone || "",
+    });
+    setShowAddressForm(true);
   };
 
   const handleSetDefault = async (id: string) => {
@@ -465,7 +502,7 @@ function AccountContent() {
                     </h3>
                     <button
                       type="button"
-                      onClick={() => setShowAddressForm((s) => !s)}
+                      onClick={() => { setShowAddressForm((s) => !s); setEditingAddr(null); setAddrErr(""); }}
                       className={cn(
                         "inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.2em] transition-colors duration-300",
                         light
@@ -513,20 +550,27 @@ function AccountContent() {
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
-                              <p className={cn("text-sm", light ? "text-onyx" : "text-white")}>
-                                {a.address}
-                                {a.isDefault && (
-                                  <span
-                                    className={cn(
-                                      "ml-2 rounded-full border px-2 py-0.5 text-[9px] font-semibold tracking-wider",
-                                      light
-                                        ? "border-sapphire/25 bg-sapphire/10 text-sapphire"
-                                        : "border-gold/25 bg-gold/10 text-gold-light"
-                                    )}
-                                  >
-                                    DEFAULT
-                                  </span>
-                                )}
+                              <p className={cn("flex items-center text-sm", light ? "text-onyx" : "text-white")}>
+                                <Home
+                                  size={14}
+                                  strokeWidth={1.5}
+                                  className={cn("mr-2 shrink-0", light ? "text-sapphire" : "text-gold")}
+                                />
+                                <span className="min-w-0">
+                                  <span className="line-clamp-2">{a.address}</span>
+                                  {a.isDefault && (
+                                    <span
+                                      className={cn(
+                                        "ml-2 rounded-full border px-2 py-0.5 text-[9px] font-semibold tracking-wider",
+                                        light
+                                          ? "border-sapphire/25 bg-sapphire/10 text-sapphire"
+                                          : "border-gold/25 bg-gold/10 text-gold-light"
+                                      )}
+                                    >
+                                      DEFAULT
+                                    </span>
+                                  )}
+                                </span>
                               </p>
                               <p className={cn("mt-1 text-xs", light ? "text-onyx/60" : "text-dark-400")}>
                                 {a.city}
@@ -535,6 +579,17 @@ function AccountContent() {
                               </p>
                             </div>
                             <div className="flex shrink-0 gap-1">
+                              <button
+                                type="button"
+                                onClick={() => handleEditAddress(a)}
+                                title="Edit address"
+                                className={cn(
+                                  "rounded-lg p-2 transition-colors",
+                                  light ? "text-onyx/40 hover:bg-sapphire/10 hover:text-sapphire" : "text-dark-400 hover:bg-gold/10 hover:text-gold-light"
+                                )}
+                              >
+                                <Pencil size={14} />
+                              </button>
                               {!a.isDefault && (
                                 <button
                                   type="button"
@@ -568,12 +623,24 @@ function AccountContent() {
 
                   {showAddressForm && (
                     <form
-                      onSubmit={handleAddAddress}
+                      onSubmit={handleSaveAddress}
                       className={cn(
                         "mt-4 space-y-4 rounded-xl border p-4",
                         light ? "border-sapphire/20 bg-sapphire/[0.03]" : "border-gold/15 bg-gold/[0.03]"
                       )}
                     >
+                      <div className="flex items-center justify-between">
+                        <h4 className={cn("text-xs font-semibold uppercase tracking-[0.2em]", light ? "text-sapphire" : "text-gold/80")}>
+                          {editingAddr ? "Edit Address" : "Add Address"}
+                        </h4>
+                        <button
+                          type="button"
+                          onClick={resetAddressForm}
+                          className={cn("text-[10px] uppercase tracking-[0.2em] transition-colors", light ? "text-onyx/40 hover:text-rose-500" : "text-dark-400 hover:text-rose-300")}
+                        >
+                          Cancel
+                        </button>
+                      </div>
                       {addrErr && (
                         <p
                           className={cn(
@@ -605,6 +672,72 @@ function AccountContent() {
                               : "border-dark-700 bg-dark-800 text-white placeholder:text-dark-500 focus:border-gold"
                           )}
                         />
+                      </div>
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <div>
+                          <label
+                            className={cn(
+                              "mb-2 block text-xs uppercase tracking-wider font-medium",
+                              light ? "text-onyx/50" : "text-dark-400"
+                            )}
+                          >
+                            Apartment / Suite
+                          </label>
+                          <div className="relative">
+                            <Building2
+                              size={15}
+                              strokeWidth={1.5}
+                              className={cn(
+                                "pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2",
+                                light ? "text-onyx/40" : "text-dark-500"
+                              )}
+                            />
+                            <input
+                              type="text"
+                              value={addr.apartment}
+                              onChange={(e) => setAddr({ ...addr, apartment: e.target.value })}
+                              placeholder="Apt 4B, 2nd floor"
+                              className={cn(
+                                "w-full rounded-xl border py-3 pl-10 pr-4 text-sm focus:outline-none",
+                                light
+                                  ? "border-onyx/15 bg-white text-onyx placeholder:text-onyx/35 focus:border-sapphire"
+                                  : "border-dark-700 bg-dark-800 text-white placeholder:text-dark-500 focus:border-gold"
+                              )}
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label
+                            className={cn(
+                              "mb-2 block text-xs uppercase tracking-wider font-medium",
+                              light ? "text-onyx/50" : "text-dark-400"
+                            )}
+                          >
+                            Alternate Phone
+                          </label>
+                          <div className="relative">
+                            <Phone
+                              size={15}
+                              strokeWidth={1.5}
+                              className={cn(
+                                "pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2",
+                                light ? "text-onyx/40" : "text-dark-500"
+                              )}
+                            />
+                            <input
+                              type="tel"
+                              value={addr.alternatePhone}
+                              onChange={(e) => setAddr({ ...addr, alternatePhone: e.target.value.replace(/[^\d-]/g, "") })}
+                              placeholder="Alternate number"
+                              className={cn(
+                                "w-full rounded-xl border py-3 pl-10 pr-4 text-sm focus:outline-none",
+                                light
+                                  ? "border-onyx/15 bg-white text-onyx placeholder:text-onyx/35 focus:border-sapphire"
+                                  : "border-dark-700 bg-dark-800 text-white placeholder:text-dark-500 focus:border-gold"
+                              )}
+                            />
+                          </div>
+                        </div>
                       </div>
                       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                         <div>
@@ -692,7 +825,7 @@ function AccountContent() {
                           </>
                         ) : (
                           <>
-                            <Plus size={14} /> Save Address
+                            <Save size={14} /> {editingAddr ? "Update Address" : "Save Address"}
                           </>
                         )}
                       </button>

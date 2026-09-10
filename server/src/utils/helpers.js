@@ -31,6 +31,8 @@ const ORDER_STATUSES = [
   "delivered",
   "cancelled",
   "return_requested",
+  "return_approved",
+  "return_rejected",
   "returned",
 ];
 

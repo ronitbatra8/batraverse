@@ -107,6 +107,30 @@ function buildSellerPricing(price, colorOptions, sizeOptions) {
   };
 }
 
+/* Full seller-entered detail snapshot, kept alongside the live/owner-approved
+   fields. Every buyer-facing change the seller submits lands here; owner
+   approval edits ONLY the live fields. Mirrors the sellerPrice/sellerPricing
+   pattern used for payouts. */
+function buildSellerDetails(d) {
+  return {
+    name: d && d.name !== undefined ? d.name : null,
+    brand: d && d.brand !== undefined ? d.brand : null,
+    category: d && d.category !== undefined ? d.category : null,
+    subCategory: d && d.subCategory !== undefined ? d.subCategory : null,
+    source: d && d.source !== undefined ? d.source : "store",
+    price: d && d.price != null ? Number(d.price) : null,
+    originalPrice: d && d.originalPrice != null ? Number(d.originalPrice) : null,
+    description: d && d.description !== undefined ? d.description : null,
+    images: d && Array.isArray(d.images) ? d.images : [],
+    inStock: d && d.inStock !== undefined ? Boolean(d.inStock) : true,
+    badge: d && d.badge !== undefined ? d.badge : null,
+    specifications: d && Array.isArray(d.specifications) ? d.specifications : [],
+    keyFeatures: d && Array.isArray(d.keyFeatures) ? d.keyFeatures : [],
+    colorOptions: d && Array.isArray(d.colorOptions) ? d.colorOptions : [],
+    sizeOptions: d && d.sizeOptions && typeof d.sizeOptions === "object" && !Array.isArray(d.sizeOptions) ? d.sizeOptions : {},
+  };
+}
+
 /* Best seller-entered price for a purchased order item, in precedence order:
   1) size price under the purchased color (order item carries color + size)
   2) color price
@@ -128,4 +152,4 @@ function effectiveSellerPrice(product, item) {
   return null;
 }
 
-module.exports = { SLIM_SELECT, FULL_SELECT, slimProduct, buildSellerPricing, effectiveSellerPrice, PUBLIC_WHERE };
+module.exports = { SLIM_SELECT, FULL_SELECT, slimProduct, buildSellerPricing, buildSellerDetails, effectiveSellerPrice, PUBLIC_WHERE };

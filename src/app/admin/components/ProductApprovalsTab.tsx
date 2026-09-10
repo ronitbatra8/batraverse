@@ -618,7 +618,7 @@ export default function ProductApprovalsTab({ adminKey, onCount }: { adminKey: s
   const [processing, setProcessing] = useState<string | null>(null);
   const [edits, setEdits] = useState<Record<string, EditState>>({});
   const [dbCategories, setDbCategories] = useState<DbCategory[]>([]);
-  const [statusFilter, setStatusFilter] = useState<"pending" | "all" | "approved">("pending");
+  const [statusFilter, setStatusFilter] = useState<"pending" | "all" | "approved">("all");
   const [typeFilter, setTypeFilter] = useState<"all" | "add" | "update">("all");
   const [visibleCount, setVisibleCount] = useState(50);
   const visibleProducts = products.slice(0, visibleCount);
@@ -654,7 +654,8 @@ export default function ProductApprovalsTab({ adminKey, onCount }: { adminKey: s
         for (const p of list) next[p.id] = prev[p.id] || initialEdit(p);
         return next;
       });
-      if (statusFilter === "pending") onCount?.(list.length);
+      const pendingCount = statusFilter === "all" ? list.filter((p) => p.status === "pending").length : (statusFilter === "pending" ? list.length : 0);
+      if (statusFilter === "pending" || statusFilter === "all") onCount?.(pendingCount);
     } catch {
       console.error("Failed to load product approvals");
     } finally {
@@ -814,7 +815,7 @@ export default function ProductApprovalsTab({ adminKey, onCount }: { adminKey: s
       {products.length === 0 ? (
         <div className="text-center py-16 bg-dark-900/60 border border-dark-800/50 rounded-2xl">
           <PackageCheck className="w-12 h-12 text-dark-600 mx-auto mb-3" />
-          <p className="text-dark-400 text-sm">No products {statusFilter === "pending" ? "awaiting approval" : statusFilter}</p>
+          <p className="text-dark-400 text-sm">No products {statusFilter === "pending" ? "awaiting approval" : statusFilter === "all" ? "found" : statusFilter}</p>
         </div>
       ) : (
         <div className="space-y-3">

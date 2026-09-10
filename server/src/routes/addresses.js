@@ -53,14 +53,16 @@ router.put("/:id", userAuth, async (req, res) => {
   try {
     const existing = await prisma.address.findFirst({ where: { id: req.params.id, userId: req.userId } });
     if (!existing) return res.status(404).json({ error: "Address not found" });
-    const { address, city, state, pincode, isDefault } = req.body;
+    const { address, apartment, city, state, pincode, alternatePhone, isDefault } = req.body;
     const updated = await prisma.address.update({
       where: { id: req.params.id },
       data: {
-        address: address !== undefined ? address.trim() : existing.address,
-        city: city !== undefined ? city.trim() : existing.city,
+        address: address !== undefined ? String(address).trim() : existing.address,
+        apartment: apartment !== undefined ? (apartment ? String(apartment).trim() : null) : existing.apartment,
+        city: city !== undefined ? String(city).trim() : existing.city,
         state: state !== undefined ? (state ? String(state).trim() : null) : existing.state,
         pincode: pincode !== undefined ? (pincode ? String(pincode).trim() : null) : existing.pincode,
+        alternatePhone: alternatePhone !== undefined ? (alternatePhone ? String(alternatePhone).trim() : null) : existing.alternatePhone,
         isDefault: isDefault !== undefined ? !!isDefault : existing.isDefault,
       },
     });

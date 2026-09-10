@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { Package, ChevronDown, ChevronUp, Clock, Check, Truck, MapPin, X, Loader2, Shield, RotateCcw } from "lucide-react";
+import { Package, ChevronDown, ChevronUp, Clock, Check, Truck, MapPin, X, Loader2, Shield, RotateCcw, Star } from "lucide-react";
 import { cn, formatPrice } from "@/lib/utils";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import { useAuth } from "@/components/auth/AuthContext";
@@ -11,6 +11,7 @@ import { useToast } from "@/components/Toast";
 import SignaturePad from "@/components/SignaturePad";
 import SiteLayout from "@/components/layout/SiteLayout";
 import { useDualCamera } from "@/lib/useDualCamera";
+import { resolveImageUrl } from "@/lib/imageUrl";
 
 interface OrderItem {
   productId?: string;
@@ -22,6 +23,7 @@ interface OrderItem {
   size?: string;
   source?: string;
   status?: string;
+  image?: string | null;
 }
 
 interface Order {
@@ -40,6 +42,7 @@ interface Order {
   createdAt: string;
   cancelledAt?: string;
   deliveredAt?: string;
+  returnedAt?: string;
   returnRequestedAt?: string;
   signatureData?: string;
   signedAt?: string;
@@ -72,8 +75,20 @@ function getTrackingSteps(paymentMethod?: string) {
 
 const CANCEL_STATUSES = ["pending", "confirmed"];
 
+/* Store orders show "shipped" instead of "packed"; mart keeps "packed". */
+function displayStatus(status: string, isMart: boolean): string {
+  if (status === "packed" && !isMart) return "shipped";
+  return status;
+}
+
+/* Catalogs expose ids prefixed with "db-"; the DB stores them without. */
+function normalizePid(pid?: string): string {
+  if (!pid) return "";
+  return pid.startsWith("db-") ? pid.slice(3) : pid;
+}
+
 function getTrackingIndex(status: string, paymentMethod?: string): number {
-  if (status === "cancelled" || status === "returned" || status === "return_requested") return -1;
+  if (status === "cancelled" || status === "returned" || status === "return_requested" || status === "return_approved" || status === "return_rejected") return -1;
   const steps = getTrackingSteps(paymentMethod);
   if (status === "confirmed" && paymentMethod && ONLINE_METHODS.includes(paymentMethod)) {
     return 2;
@@ -93,6 +108,8 @@ const statusColors: Record<string, string> = {
   delivered: "text-emerald-400",
   cancelled: "text-red-400",
   return_requested: "text-amber-400",
+  return_approved: "text-teal-400",
+  return_rejected: "text-rose-400",
   returned: "text-fuchsia-400",
 };
 
@@ -104,8 +121,167 @@ const statusBg: Record<string, string> = {
   delivered: "bg-emerald-500/10 border-emerald-500/20",
   cancelled: "bg-red-500/10 border-red-500/20",
   return_requested: "bg-amber-500/10 border-amber-500/20",
+  return_approved: "bg-teal-500/10 border-teal-500/20",
+  return_rejected: "bg-rose-500/10 border-rose-500/20",
   returned: "bg-fuchsia-500/10 border-fuchsia-500/20",
 };
+
+const statusGradients: Record<string, string> = {
+  pending: "from-amber-500/15 to-amber-500/5",
+  confirmed: "from-sky-500/15 to-sky-500/5",
+  packed: "from-violet-500/15 to-violet-500/5",
+  out_for_delivery: "from-orange-500/15 to-orange-500/5",
+  delivered: "from-emerald-500/15 to-emerald-500/5",
+  cancelled: "from-red-500/15 to-red-500/5",
+  return_requested: "from-amber-500/15 to-amber-500/5",
+  return_approved: "from-teal-500/15 to-teal-500/5",
+  return_rejected: "from-rose-500/15 to-rose-500/5",
+  returned: "from-fuchsia-500/15 to-fuchsia-500/5",
+};
+
+const statusBorders: Record<string, string> = {
+  pending: "border-amber-500/25",
+  confirmed: "border-sky-500/25",
+  packed: "border-violet-500/25",
+  out_for_delivery: "border-orange-500/25",
+  delivered: "border-emerald-500/25",
+  cancelled: "border-red-500/25",
+  return_requested: "border-amber-500/25",
+  return_approved: "border-teal-500/25",
+  return_rejected: "border-rose-500/25",
+  returned: "border-fuchsia-500/25",
+};
+
+function ReviewForm({ item, light, onSubmitted }: { item: OrderItem; light: boolean; onSubmitted?: (review: any) => void }) {
+  const { toast } = useToast();
+  const [rating, setRating] = useState(0);
+  const [hover, setHover] = useState(0);
+  const [body, setBody] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [done, setDone] = useState(false);
+
+  const handleSubmit = async () => {
+    if (rating === 0) {
+      toast("Please select a star rating", "error");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await apiFetch("/reviews", {
+        method: "POST",
+        body: JSON.stringify({ productId: item.productId, rating, body }),
+      });
+      setDone(true);
+      onSubmitted?.(res);
+      toast("Review submitted — thank you!", "success");
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Failed to submit review", "error");
+    }
+    setSubmitting(false);
+  };
+
+  const imgSrc = resolveImageUrl(item.image);
+
+  return (
+    <div className={cn("rounded-xl p-3", light ? "border border-dark-100 bg-white" : "border border-white/5 bg-graphite")}>
+      <div className="flex items-center gap-3">
+        <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg", light ? "bg-dark-100" : "bg-dark-800")}>
+          {imgSrc ? (
+            <img src={imgSrc} alt={item.name} className="h-full w-full object-cover" loading="lazy" />
+          ) : (
+            <Package size={16} className={light ? "text-dark-300" : "text-dark-500"} />
+          )}
+        </div>
+        <p className={cn("min-w-0 flex-1 truncate text-xs font-medium", light ? "text-dark-900" : "text-cream")}>{item.name}</p>
+      </div>
+      <div className={cn("mt-3 flex items-center gap-1", done && "opacity-50")}>
+        {[1, 2, 3, 4, 5].map((s) => (
+          <button
+            key={s}
+            type="button"
+            disabled={done}
+            onClick={() => setRating(s)}
+            onMouseEnter={() => setHover(s)}
+            onMouseLeave={() => setHover(0)}
+            className="disabled:cursor-not-allowed"
+            aria-label={`Rate ${s} star${s !== 1 ? "s" : ""}`}
+          >
+            <Star
+              size={18}
+              className={cn("transition-colors", (hover || rating) >= s ? (light ? "text-amber-500" : "text-gold") : light ? "text-dark-200" : "text-dark-600")}
+              fill={(hover || rating) >= s ? "currentColor" : "none"}
+            />
+          </button>
+        ))}
+        <span className={cn("ml-2 text-[10px]", light ? "text-dark-400" : "text-cream-dim/50")}>
+          {rating ? `${rating}/5` : "Tap to rate"}
+        </span>
+      </div>
+      <textarea
+        value={body}
+        disabled={done}
+        onChange={(e) => setBody(e.target.value)}
+        placeholder="Share your experience with this product (optional)"
+        rows={2}
+        className={cn("mt-3 w-full rounded-lg border px-3 py-2 text-xs outline-none disabled:opacity-50", light ? "border-dark-200 bg-white text-dark-900 placeholder:text-dark-300" : "border-white/10 bg-onyx text-cream placeholder:text-dark-500")}
+      />
+      <div className="mt-2 flex justify-end">
+        {done ? (
+          <span className={cn("flex items-center gap-1.5 rounded-lg px-3 py-2 text-[10px] font-bold uppercase tracking-wider", light ? "bg-emerald-100 text-emerald-600" : "bg-emerald-500/10 text-emerald-400")}>
+            <Check size={12} /> Review Submitted
+          </span>
+        ) : (
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={submitting}
+            className={cn("rounded-lg px-4 py-2 text-[10px] font-bold uppercase tracking-wider transition-all", submitting ? "opacity-50" : "", light ? "bg-sky-600 text-white hover:bg-sky-700" : "bg-gold text-abyss hover:brightness-110")}
+          >
+            {submitting ? <Loader2 size={12} className="animate-spin" /> : "Submit Review"}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ReviewCard({ item, review, light }: { item: OrderItem; review: any; light: boolean }) {
+  const imgSrc = resolveImageUrl(item.image);
+  const rating = Number(review?.rating) || 0;
+  return (
+    <div className={cn("rounded-xl p-3", light ? "border border-dark-100 bg-white" : "border border-white/5 bg-graphite")}>
+      <div className="flex items-center gap-3">
+        <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg", light ? "bg-dark-100" : "bg-dark-800")}>
+          {imgSrc ? (
+            <img src={imgSrc} alt={item.name} className="h-full w-full object-cover" loading="lazy" />
+          ) : (
+            <Package size={16} className={light ? "text-dark-300" : "text-dark-500"} />
+          )}
+        </div>
+        <p className={cn("min-w-0 flex-1 truncate text-xs font-medium", light ? "text-dark-900" : "text-cream")}>{item.name}</p>
+      </div>
+      <div className={cn("mt-3 flex items-center gap-1")}>
+        {[1, 2, 3, 4, 5].map((s) => (
+          <Star
+            key={s}
+            size={14}
+            fill={s <= rating ? "currentColor" : "none"}
+            className={cn(s <= rating ? (light ? "text-amber-500" : "text-gold") : light ? "text-dark-200" : "text-dark-600")}
+          />
+        ))}
+        <span className={cn("ml-2 text-[10px]", light ? "text-dark-400" : "text-cream-dim/50")}>
+          {rating}/5
+          {review?.createdAt ? ` · ${new Date(review.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}` : ""}
+        </span>
+      </div>
+      {review?.comment ? (
+        <p className={cn("mt-2 text-xs leading-relaxed", light ? "text-dark-600" : "text-cream-dim/80")}>{review.comment}</p>
+      ) : (
+        <p className={cn("mt-2 text-[10px] italic", light ? "text-dark-300" : "text-dark-500")}>No written comment</p>
+      )}
+    </div>
+  );
+}
 
 export default function OrdersPage() {
   const { theme } = useTheme();
@@ -118,8 +294,6 @@ export default function OrdersPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
-  const [confirmItemCancel, setConfirmItemCancel] = useState<{ orderId: string; itemIdx: number } | null>(null);
-  const [cancellingItem, setCancellingItem] = useState<string | null>(null);
 
   const [returningId, setReturningId] = useState<string | null>(null);
   const [confirmReturnId, setConfirmReturnId] = useState<string | null>(null);
@@ -130,11 +304,34 @@ export default function OrdersPage() {
   const [verifyingOtp, setVerifyingOtp] = useState(false);
   const [needsSignatureOrderId, setNeedsSignatureOrderId] = useState<string | null>(null);
   const [submittingSignature, setSubmittingSignature] = useState(false);
+  const [reviewOrderId, setReviewOrderId] = useState<string | null>(null);
+  const [myReviews, setMyReviews] = useState<Record<string, any>>({});
 
   const fetchOrders = useCallback(async () => {
     try {
       const data = await apiFetch("/orders/my");
-      setOrders(Array.isArray(data) ? data : []);
+      const list = Array.isArray(data) ? data : [];
+      setOrders(list);
+      const deliveredPids = [
+        ...new Set(
+          list
+            .filter((o) => o.status === "delivered")
+            .flatMap((o) => (o.items || []).map((it: any) => it.productId).filter(Boolean))
+        ),
+      ];
+      if (deliveredPids.length > 0) {
+        try {
+          const reviews = await apiFetch(`/reviews/mine?productIds=${encodeURIComponent(deliveredPids.join(","))}`);
+          if (Array.isArray(reviews)) {
+            setMyReviews((prev) => ({
+              ...prev,
+              ...Object.fromEntries(reviews.map((r: any) => [normalizePid(r.productId), r])),
+            }));
+          }
+        } catch {
+          /* ignore — review state is best-effort */
+        }
+      }
     } catch {
       setOrders([]);
     }
@@ -161,22 +358,6 @@ export default function OrdersPage() {
     }
     setCancellingId(null);
     setConfirmCancelId(null);
-  };
-
-  const handleCancelItem = async (orderId: string, itemIdx: number) => {
-    setCancellingItem(`${orderId}-${itemIdx}`);
-    try {
-      const res = await apiFetch(`/orders/${orderId}/items/${itemIdx}/cancel`, { method: "PUT" });
-      if (res.error) {
-        toast(res.error, "error");
-      } else {
-        setOrders((prev) => prev.map((o) => o.id === orderId ? res : o));
-      }
-    } catch {
-      toast("Failed to cancel item", "error");
-    }
-    setCancellingItem(null);
-    setConfirmItemCancel(null);
   };
 
   const handleReturnRequest = async (orderId: string) => {
@@ -304,55 +485,83 @@ export default function OrdersPage() {
                 const isQuickDelivery = isMart;
                 const canCancel = !isQuickDelivery && CANCEL_STATUSES.includes(order.status);
                 const returnWindow = isWithinReturnWindow(order);
+                const primaryName = order.items?.[0]?.name || "Order";
+                const mainTitle = order.items.length > 1 ? `${primaryName} +${order.items.length - 1}` : primaryName;
 
                 const steps = getTrackingSteps(order.paymentMethod);
+
+                const reviewItems = (order.items || []).filter((it): it is OrderItem & { productId: string } => !!it.productId);
+                const reviewedPids = reviewItems.filter((it) => myReviews[normalizePid(it.productId)]).map((it) => it.productId);
+                const allReviewed = reviewItems.length > 0 && reviewedPids.length === reviewItems.length;
 
                 return (
                   <div
                     key={order.id}
                     className={cn(
-                      "rounded-2xl border overflow-hidden transition-all duration-300",
-                      light ? "border-dark-200/60 bg-white" : "border-white/5 bg-graphite"
+                      "overflow-hidden rounded-xl border bg-gradient-to-r transition-all duration-300",
+                      statusGradients[order.status] || "from-dark-900/40 to-dark-900/20",
+                      statusBorders[order.status] || "border-dark-800/40"
                     )}
                   >
-                    {/* Order header */}
-                    <button
-                      type="button"
-                      onClick={() => setExpandedId(isExpanded ? null : order.id)}
-                      className={cn("w-full px-4 sm:px-6 py-4 flex items-center gap-4 text-left transition-colors", light ? "hover:bg-dark-50/50" : "hover:bg-white/[0.02]")}
-                    >
-                      <div className={cn("flex h-10 w-10 items-center justify-center rounded-xl", light ? "bg-dark-100" : "bg-onyx")}>
-                        <Package size={18} className={cn(statusColors[order.status])} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className={cn("font-mono text-sm font-medium", light ? "text-dark-900" : "text-cream")}>
+                    {/* Collapsed row — payout style */}
+                    <div className="flex items-center gap-3 px-4 py-3.5 text-left sm:px-5">
+                      <button
+                        type="button"
+                        onClick={() => setExpandedId(isExpanded ? null : order.id)}
+                        className={cn("flex min-w-0 flex-1 items-center gap-3 text-left", light ? "hover:brightness-95" : "hover:brightness-110")}
+                      >
+                        <div className={cn("flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br", statusGradients[order.status] || "from-dark-900/40 to-dark-900/20")}>
+                          {(() => {
+                            const rowImg = order.items?.find((i) => i.image)?.image;
+                            const src = resolveImageUrl(rowImg);
+                            return src ? (
+                              <img src={src} alt={order.items?.[0]?.name || "Order"} className="h-full w-full object-cover" loading="lazy" />
+                            ) : (
+                              <Package size={18} className={statusColors[order.status]} />
+                            );
+                          })()}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className={cn("inline-block rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider", statusBg[order.status], statusColors[order.status])}>
+                              {displayStatus(order.status, isMart).replace(/_/g, " ")}
+                            </span>
+                            <span className={cn("truncate text-sm font-semibold", light ? "text-dark-900" : "text-cream")}>
+                              {mainTitle}
+                            </span>
+                            <span className={cn("hidden text-[10px] sm:inline", light ? "text-dark-400" : "text-dark-500")}>
+                              &middot; {isMart ? "Mart" : "Store"}
+                            </span>
+                            {isMart && order.deliveryMode === "express" && (
+                              <span className="hidden text-[10px] text-emerald-400/80 sm:inline">&middot; 10 min</span>
+                            )}
+                            {isMart && order.deliveryMode === "regular" && (
+                              <span className="hidden text-[10px] text-emerald-400/80 sm:inline">&middot; 3-5 days</span>
+                            )}
+                          </div>
+                          <p className={cn("mt-1 truncate text-xs", light ? "text-dark-400" : "text-dark-400")}>
                             #{order.orderId || order.id.slice(0, 8).toUpperCase()}
-                          </span>
-                          <span className={cn("inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border", statusBg[order.status], statusColors[order.status])}>
-                            {order.status.replace(/_/g, " ")}
-                          </span>
-                          {isMart && (
-                            <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                              Mart
-                            </span>
-                          )}
-                          {!isMart && (
-                            <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-gold/10 text-gold/80 border border-gold/20">
-                              Store
-                            </span>
-                          )}
+                            <span className={cn("mx-1.5", light ? "text-dark-300" : "text-dark-600")}>&middot;</span>
+                            {new Date(order.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                            <span className={cn("mx-1.5", light ? "text-dark-300" : "text-dark-600")}>&middot;</span>
+                            {order.items.length} item{order.items.length !== 1 ? "s" : ""}
+                          </p>
                         </div>
-                        <div className={cn("mt-1 flex items-center gap-3 text-xs", light ? "text-dark-400" : "text-cream-dim/50")}>
-                          <span>{new Date(order.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</span>
-                          <span>&middot;</span>
-                          <span>{order.items.length} item{order.items.length !== 1 ? "s" : ""}</span>
-                          <span>&middot;</span>
-                          <span className="font-medium tabular-nums">{formatPrice(order.totalAmount)}</span>
+                        <div className="shrink-0 text-right">
+                          <div className={cn("text-base font-bold tabular-nums sm:text-lg", light ? "text-dark-900" : "text-cream")}>
+                            {formatPrice(order.totalAmount)}
+                          </div>
+                          <div className={cn("mt-0.5 text-[10px]", light ? "text-dark-400" : "text-dark-500")}>Total</div>
                         </div>
-                      </div>
-                      {isExpanded ? <ChevronUp size={16} className={cn(light ? "text-dark-400" : "text-cream-dim/50")} /> : <ChevronDown size={16} className={cn(light ? "text-dark-400" : "text-cream-dim/50")} />}
-                    </button>
+                      </button>
+                      <span className="shrink-0">
+                        {isExpanded ? (
+                          <ChevronUp size={16} className={cn("shrink-0", light ? "text-dark-400" : "text-dark-400")} />
+                        ) : (
+                          <ChevronDown size={16} className={cn("shrink-0", light ? "text-dark-400" : "text-dark-400")} />
+                        )}
+                      </span>
+                    </div>
 
                     {isExpanded && (
                       <div className={cn("border-t px-4 sm:px-6 py-5 space-y-5", light ? "border-dark-100" : "border-white/5")}>
@@ -376,7 +585,7 @@ export default function OrdersPage() {
                                       <Icon size={14} className={cn(isCompleted ? "text-emerald-500" : light ? "text-dark-400" : "text-cream-dim/40")} />
                                     </div>
                                     <p className={cn("mt-2 text-center text-[8px] font-medium leading-tight", isCompleted ? "text-emerald-500" : light ? "text-dark-400" : "text-cream-dim/40")}>
-                                      {step.label}
+                                      {step.key === "packed" && !isMart ? "Shipped" : step.label}
                                     </p>
                                   </div>
                                 );
@@ -399,6 +608,24 @@ export default function OrdersPage() {
                           <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3">
                             <p className="text-xs text-amber-400 font-medium">
                               Return request pending approval{order.returnRequestedAt ? ` — requested ${new Date(order.returnRequestedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}` : ""}.
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Return approved notice */}
+                        {order.status === "return_approved" && (
+                          <div className="rounded-xl border border-teal-500/20 bg-teal-500/5 px-4 py-3">
+                            <p className="text-xs text-teal-400 font-medium">
+                              Return request approved{order.returnedAt ? ` on ${new Date(order.returnedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}` : ""}. Pickup will be done soon, after which your refund will be processed.
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Return rejected notice */}
+                        {order.status === "return_rejected" && (
+                          <div className="rounded-xl border border-rose-500/20 bg-rose-500/5 px-4 py-3">
+                            <p className="text-xs text-rose-400 font-medium">
+                              Return request rejected{order.returnRequestedAt ? ` on ${new Date(order.returnRequestedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}` : ""}. Contact support if you believe this is a mistake.
                             </p>
                           </div>
                         )}
@@ -464,59 +691,41 @@ export default function OrdersPage() {
                           <p className={cn("mb-3 text-[10px] font-semibold uppercase tracking-[0.25em]", light ? "text-dark-500" : "text-cream-dim/70")}>
                             Items
                           </p>
-                          <div className="space-y-2">
+                          <div className="space-y-2.5">
                             {order.items.map((item, idx) => {
                               const itemStatus = item.status || "pending";
-                              const isStore = item.source !== "mart";
-                              const canCancelItem = isQuickDelivery ? false : isStore && ["pending", "confirmed"].includes(itemStatus);
-                              const itemStatusColors: Record<string, string> = {
-                                pending: light ? "text-amber-600 bg-amber-50 border-amber-200" : "text-amber-400 bg-amber-500/10 border-amber-500/20",
-                                confirmed: light ? "text-sky-600 bg-sky-50 border-sky-200" : "text-sky-400 bg-sky-500/10 border-sky-500/20",
-                                packed: light ? "text-violet-600 bg-violet-50 border-violet-200" : "text-violet-400 bg-violet-500/10 border-violet-500/20",
-                                out_for_delivery: light ? "text-orange-600 bg-orange-50 border-orange-200" : "text-orange-400 bg-orange-500/10 border-orange-500/20",
-                                delivered: light ? "text-emerald-600 bg-emerald-50 border-emerald-200" : "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
-                                cancelled: light ? "text-red-600 bg-red-50 border-red-200" : "text-red-400 bg-red-500/10 border-red-500/20",
-                                return_requested: light ? "text-amber-600 bg-amber-50 border-amber-200" : "text-amber-400 bg-amber-500/10 border-amber-500/20",
-                                returned: light ? "text-fuchsia-600 bg-fuchsia-50 border-fuchsia-200" : "text-fuchsia-400 bg-fuchsia-500/10 border-fuchsia-500/20",
-                              };
+                              const imgSrc = resolveImageUrl(item.image);
                               return (
-                                <div key={idx} className={cn("flex items-center justify-between rounded-xl px-4 py-3", itemStatus === "cancelled" ? (light ? "bg-red-50/80 opacity-60" : "bg-red-500/5 opacity-60") : light ? "bg-dark-50/80" : "bg-onyx/50")}>
-                                  <div className="flex-1 min-w-0">
+                                <div key={idx} className={cn("flex items-center gap-4 rounded-xl px-4 py-4 transition-colors", itemStatus === "cancelled" ? (light ? "bg-red-50/80 opacity-60" : "bg-red-500/5 opacity-60") : light ? "bg-dark-50/80" : "bg-onyx/50")}>
+                                  <div className={cn("flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl", light ? "bg-dark-100" : "bg-graphite")}>
+                                    {imgSrc ? (
+                                      <img
+                                        src={imgSrc}
+                                        alt={item.name}
+                                        className="h-full w-full object-cover"
+                                        loading="lazy"
+                                      />
+                                    ) : (
+                                      <Package size={22} className={cn(light ? "text-dark-300" : "text-dark-500")} />
+                                    )}
+                                  </div>
+                                  <div className="min-w-0 flex-1">
                                     <div className="flex flex-wrap items-center gap-1.5">
-                                      <p className={cn("text-xs font-medium truncate", itemStatus === "cancelled" && "line-through", light ? "text-dark-900" : "text-cream")}>{item.name}</p>
-                                      <span className={cn("inline-block px-1.5 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider border", itemStatusColors[itemStatus] || "")}>
-                                        {itemStatus.replace(/_/g, " ")}
-                                      </span>
+                                      <p className={cn("truncate text-sm font-medium", itemStatus === "cancelled" && "line-through", light ? "text-dark-900" : "text-cream")}>{item.name}</p>
                                       {isMart && (
-                                        <span className="inline-block px-1.5 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Mart</span>
+                                        <span className="inline-block rounded-full border border-emerald-500/20 bg-emerald-500/10 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider text-emerald-400">Mart</span>
+                                      )}
+                                      {isQuickDelivery && itemStatus !== "cancelled" && itemStatus !== "delivered" && (
+                                        <span className={cn("whitespace-nowrap text-[9px]", light ? "text-dark-400" : "text-cream-dim/40")}>Combined</span>
                                       )}
                                     </div>
-                                    <p className={cn("text-[10px] mt-0.5", light ? "text-dark-400" : "text-cream-dim/50")}>
+                                    <p className={cn("mt-1 text-xs", light ? "text-dark-500" : "text-cream-dim/60")}>
                                       Qty: {item.quantity}{item.color ? ` · ${item.color}` : ""}{item.size ? ` · ${item.size}` : ""}
                                     </p>
                                   </div>
-                                  <div className="flex flex-wrap items-center gap-3">
-                                    <span className={cn("text-xs font-medium tabular-nums", light ? "text-dark-900" : "text-cream")}>
-                                      {formatPrice(item.price * item.quantity)}
-                                    </span>
-                                    {canCancelItem && (
-                                      confirmItemCancel?.orderId === order.id && confirmItemCancel?.itemIdx === idx ? (
-                                        <div className="flex items-center gap-1.5">
-                                          <button type="button" onClick={() => handleCancelItem(order.id, idx)} disabled={cancellingItem === `${order.id}-${idx}`} className={cn("rounded-lg px-2 py-1 text-[9px] font-bold uppercase tracking-wider transition-all", cancellingItem === `${order.id}-${idx}` ? "bg-red-500/20 text-red-400" : "bg-red-500 text-white hover:bg-red-600")}>
-                                            {cancellingItem === `${order.id}-${idx}` ? <Loader2 size={10} className="animate-spin" /> : "Yes"}
-                                          </button>
-                                          <button type="button" onClick={() => setConfirmItemCancel(null)} className={cn("rounded-lg px-2 py-1 text-[9px] font-bold uppercase tracking-wider border transition-all", light ? "border-dark-200 text-dark-500" : "border-white/10 text-cream-dim")}>No</button>
-                                        </div>
-                                      ) : (
-                                        <button type="button" onClick={() => setConfirmItemCancel({ orderId: order.id, itemIdx: idx })} className={cn("rounded-lg px-2 py-1 text-[9px] font-bold uppercase tracking-wider border transition-all", light ? "border-red-200 text-red-500 hover:bg-red-50" : "border-red-500/20 text-red-400 hover:bg-red-500/5")}>
-                                          <X size={10} className="inline" /> Cancel
-                                        </button>
-                                      )
-                                    )}
-                                    {isQuickDelivery && itemStatus !== "cancelled" && itemStatus !== "delivered" && (
-                                      <span className={cn("text-[9px]", light ? "text-dark-400" : "text-cream-dim/40")}>Combined</span>
-                                    )}
-                                  </div>
+                                  <p className={cn("shrink-0 text-base font-bold tabular-nums sm:text-lg", light ? "text-dark-900" : "text-cream")}>
+                                    {formatPrice(item.price * item.quantity)}
+                                  </p>
                                 </div>
                               );
                             })}
@@ -524,14 +733,7 @@ export default function OrdersPage() {
                         </div>
 
                         {/* Details grid */}
-                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                          <div className={cn("rounded-xl p-3", light ? "bg-dark-50/80" : "bg-onyx/50")}>
-                            <p className={cn("text-[9px] font-semibold uppercase tracking-wider", light ? "text-dark-400" : "text-cream-dim/50")}>Shipping</p>
-                            <p className={cn("mt-1 text-xs font-medium", light ? "text-dark-900" : "text-cream")}>{order.shippingName}</p>
-                            <p className={cn("text-[10px] mt-0.5 leading-relaxed", light ? "text-dark-400" : "text-cream-dim/50")}>
-                              {order.shippingAddress}, {order.shippingCity}
-                            </p>
-                          </div>
+                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                           <div className={cn("rounded-xl p-3", light ? "bg-dark-50/80" : "bg-onyx/50")}>
                             <p className={cn("text-[9px] font-semibold uppercase tracking-wider", light ? "text-dark-400" : "text-cream-dim/50")}>Payment</p>
                             <p className={cn("mt-1 text-xs font-medium", light ? "text-dark-900" : "text-cream")}>{order.paymentMethod || "N/A"}</p>
@@ -616,6 +818,57 @@ export default function OrdersPage() {
                                 className={cn("flex items-center gap-2 rounded-xl border px-4 py-2.5 text-[10px] font-bold uppercase tracking-[0.2em] transition-all", light ? "border-amber-200 text-amber-600 hover:bg-amber-50" : "border-amber-500/20 text-amber-400 hover:bg-amber-500/5")}
                               >
                                 <RotateCcw size={12} /> Return within 2 hours
+                              </button>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Write a review (delivered only) */}
+                        {order.status === "delivered" && (
+                          <div>
+                            {reviewOrderId === order.id ? (
+                              <div className={cn("space-y-4 rounded-xl border p-4", light ? "border-sky-200 bg-sky-50/50" : "border-gold/20 bg-onyx/50")}>
+                                <div className="flex items-center justify-between">
+                                  <p className={cn("text-xs font-semibold", light ? "text-dark-900" : "text-cream")}>
+                                    {allReviewed ? "Your Reviews" : "Write a Review"}
+                                  </p>
+                                  <button
+                                    type="button"
+                                    onClick={() => setReviewOrderId(null)}
+                                    className={cn("flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider transition-colors", light ? "text-dark-400 hover:text-dark-600" : "text-cream-dim/60 hover:text-cream")}
+                                  >
+                                    <X size={12} /> Close
+                                  </button>
+                                </div>
+                                <p className={cn("text-[10px]", light ? "text-dark-400" : "text-cream-dim/50")}>
+                                  {allReviewed
+                                    ? "These are the reviews you added for this order."
+                                    : "Rate the products from this order — your reviews help other customers."}
+                                </p>
+                                <div className="space-y-3">
+                                  {reviewItems.map((item, i) =>
+                                    myReviews[normalizePid(item.productId)] ? (
+                                      <ReviewCard key={`${order.id}-${i}`} item={item} review={myReviews[normalizePid(item.productId)]} light={light} />
+                                    ) : (
+                                      <ReviewForm
+                                        key={`${order.id}-${i}`}
+                                        item={item}
+                                        light={light}
+                                        onSubmitted={(review) =>
+                                          setMyReviews((prev) => ({ ...prev, [normalizePid(item.productId)]: review }))
+                                        }
+                                      />
+                                    )
+                                  )}
+                                </div>
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => setReviewOrderId(order.id)}
+                                className={cn("flex items-center gap-2 rounded-xl border px-4 py-2.5 text-[10px] font-bold uppercase tracking-[0.2em] transition-all", light ? "border-sky-200 text-sky-600 hover:bg-sky-50" : "border-gold/30 text-gold hover:bg-gold/5")}
+                              >
+                                <Star size={12} /> {allReviewed ? "View Review" : "Write a Review"}
                               </button>
                             )}
                           </div>

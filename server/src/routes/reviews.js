@@ -5,9 +5,30 @@ const { safeErrorMessage } = require("../utils/helpers");
 
 const router = express.Router();
 
+function normalizeProductId(raw) {
+  if (!raw) return "";
+  return raw.startsWith("db-") ? raw.replace(/^db-/, "") : raw;
+}
+
+/* The current user's reviews for a set of products (comma-separated productIds). */
+router.get("/mine", userAuth, async (req, res) => {
+  try {
+    const raw = String(req.query.productIds || "").split(",").map((s) => s.trim()).filter(Boolean);
+    const productIds = [...new Set(raw.map(normalizeProductId))];
+    if (productIds.length === 0) return res.json([]);
+    const reviews = await prisma.review.findMany({
+      where: { userId: req.userId, productId: { in: productIds } },
+      orderBy: { createdAt: "desc" },
+    });
+    res.json(reviews);
+  } catch (err) {
+    res.status(500).json({ error: safeErrorMessage(err) });
+  }
+});
+
 router.get("/:productId", async (req, res) => {
   try {
-    const { productId } = req.params;
+    const productId = normalizeProductId(req.params.productId);
     const reviews = await prisma.review.findMany({
       where: { productId },
       include: {
@@ -31,12 +52,18 @@ router.get("/:productId", async (req, res) => {
 
 router.post("/", userAuth, async (req, res) => {
   try {
-    const { productId, rating, title, body } = req.body;
+    const { rating, title, body } = req.body;
+    const productId = normalizeProductId(req.body.productId);
     if (!productId || !rating) {
       return res.status(400).json({ error: "productId and rating are required" });
     }
     if (rating < 1 || rating > 5) {
       return res.status(400).json({ error: "Rating must be between 1 and 5" });
+    }
+
+    const existing = await prisma.review.findFirst({ where: { userId: req.userId, productId } });
+    if (existing) {
+      return res.status(409).json({ error: "You have already reviewed this product" });
     }
 
     const review = await prisma.review.create({

@@ -33,18 +33,22 @@ const statusGradients: Record<string, string> = {
   delivered: "from-emerald-500/15 to-emerald-500/5",
   cancelled: "from-red-500/15 to-red-500/5",
   return_requested: "from-amber-500/15 to-amber-500/5",
+  return_approved: "from-teal-500/15 to-teal-500/5",
+  return_rejected: "from-rose-500/15 to-rose-500/5",
   returned: "from-fuchsia-500/15 to-fuchsia-500/5",
 };
 
 const statusBorders: Record<string, string> = {
-  pending: "border-l-amber-400",
-  confirmed: "border-l-sky-400",
-  packed: "border-l-violet-400",
-  out_for_delivery: "border-l-orange-400",
-  delivered: "border-l-emerald-400",
-  cancelled: "border-l-red-400",
-  return_requested: "border-l-amber-400",
-  returned: "border-l-fuchsia-400",
+  pending: "border-amber-500/25",
+  confirmed: "border-sky-500/25",
+  packed: "border-violet-500/25",
+  out_for_delivery: "border-orange-500/25",
+  delivered: "border-emerald-500/25",
+  cancelled: "border-red-500/25",
+  return_requested: "border-amber-500/25",
+  return_approved: "border-teal-500/25",
+  return_rejected: "border-rose-500/25",
+  returned: "border-fuchsia-500/25",
 };
 
 function getOrderSource(order: any): string {
@@ -60,6 +64,12 @@ function getOrderSource(order: any): string {
     return (unique[0] as string) || "store";
   }
   return "store";
+}
+
+/* Store orders show "shipped" instead of "packed"; mart keeps "packed". */
+function displayStatus(status: string, source?: string): string {
+  if (status === "packed" && source !== "mart") return "shipped";
+  return status;
 }
 
 export default function OrdersTab({
@@ -141,7 +151,7 @@ export default function OrdersTab({
     return matchesSearch && matchesFilter && matchesSource;
   });
 
-  const statuses = ["pending", "confirmed", "packed", "out_for_delivery", "delivered", "cancelled", "return_requested", "returned"];
+  const statuses = ["pending", "confirmed", "packed", "out_for_delivery", "delivered", "cancelled", "return_requested", "return_approved", "return_rejected", "returned"];
 
   const statusCounts = statuses.reduce((acc, status) => {
     acc[status] = orders.filter((o) => o.status === status).length;
@@ -280,87 +290,52 @@ export default function OrdersTab({
               <div
                 key={order.id}
                 id={`order-${order.id}`}
-                className={`bg-gradient-to-r ${statusGradients[order.status] || "from-dark-900/40 to-dark-900/20"} border border-dark-800/50 border-l-4 ${statusBorders[order.status] || "border-l-dark-600"} rounded-2xl overflow-hidden transition-all`}
+                className={`bg-gradient-to-r ${statusGradients[order.status] || "from-dark-900/40 to-dark-900/20"} border ${statusBorders[order.status] || "border-dark-800/40"} rounded-xl overflow-hidden transition-colors`}
               >
-                <button
-                  onClick={() =>
-                    setExpandedOrder(isExpanded ? null : order.id)
-                  }
-                  className="w-full px-4 sm:px-6 py-4 flex items-center gap-4 hover:bg-white/[0.02] transition-colors text-left"
-                >
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-gradient-to-br ${statusGradients[order.status] || ""} border border-dark-700/50`}>
-                    <Package className="w-5 h-5" style={{ color: statusColors[order.status as keyof typeof statusColors] }} />
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
-                      <span className="text-white font-mono text-sm font-medium">
+                {/* Collapsed row — payout style */}
+                <div className="w-full text-left px-4 sm:px-5 py-3.5 flex items-center gap-3">
+                  <button
+                    onClick={() =>
+                      setExpandedOrder(isExpanded ? null : order.id)
+                    }
+                    className="flex items-center gap-3 flex-1 min-w-0 text-left"
+                  >
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-gradient-to-br ${statusGradients[order.status] || ""}`}>
+                      <Package size={16} style={{ color: statusColors[order.status as keyof typeof statusColors] }} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${statusColors[order.status as keyof typeof statusColors] || "text-dark-400 bg-dark-800 border-dark-700"}`}>
+                          {displayStatus(order.status, getOrderSource(order)).replace(/_/g, " ")}
+                        </span>
+                        <span className="text-white font-semibold text-sm truncate">{order.shippingName || "Unknown"}</span>
+                        <span className="text-[10px] text-dark-500 hidden sm:inline">· {getOrderSource(order) === "mart" ? "Mart" : "Store"}</span>
+                        {order.deliveryMode === "express" && getOrderSource(order) === "mart"
+                          ? <span className="text-[10px] text-emerald-400/80 hidden sm:inline">· 10 min</span>
+                          : null}
+                        {order.deliveryMode === "regular" && getOrderSource(order) === "mart"
+                          ? <span className="text-[10px] text-emerald-400/80 hidden sm:inline">· 3-5 days</span>
+                          : null}
+                      </div>
+                      <p className="text-dark-400 text-xs mt-1 truncate">
                         #{order.orderId || order.id?.slice(0, 8)}
-                      </span>
-                      <span
-                        className="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold w-fit capitalize"
-                        style={{
-                          backgroundColor: `${statusColors[order.status as keyof typeof statusColors]}20`,
-                          color: statusColors[order.status as keyof typeof statusColors],
-                        }}
-                      >
-                        {order.status}
-                      </span>
-                      <span
-                        className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                          getOrderSource(order) === "mart"
-                            ? "bg-emerald-500/15 text-emerald-400"
-                            : "bg-gold/10 text-gold/80"
-                        }`}
-                      >
-                        {getOrderSource(order) === "mart" ? "Mart" : "Store"}
-                      </span>
-                      {order.orderId && (
-                        <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider bg-dark-800 text-dark-300">
-                          {order.orderId}
-                        </span>
-                      )}
-                      {order.deliveryMode === "express" || order.deliveryMode === "regular" ? (getOrderSource(order) === "mart") && (
-                        <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-500/15 text-emerald-400`}>
-                          {order.deliveryMode === "express" ? "10 min" : "3-5 days"}
-                        </span>
-                      ) : null}
-                    </div>
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 mt-1">
-                      <span className="text-dark-300 text-sm truncate">
-                        {order.shippingName || "Unknown"}
-                      </span>
-                      <span className="text-dark-500 text-sm hidden sm:block">
-                        &middot;
-                      </span>
-                      <span className="text-dark-500 text-sm truncate hidden sm:block">
+                        <span className="text-dark-600 mx-1.5">&middot;</span>
                         {order.user?.email || order.shippingPhone || "No contact"}
-                      </span>
-                      <span className="text-dark-500 text-sm hidden sm:block">
-                        &middot;
-                      </span>
-                      <span className="text-dark-500 text-sm hidden sm:block">
-                        {new Date(order.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
-                      </span>
+                      </p>
                     </div>
-                  </div>
-
-                  <div className="text-right shrink-0 hidden sm:block">
-                    <div className="text-sm text-dark-400">
-                      {order.items?.length || 0} item
-                      {(order.items?.length || 0) !== 1 ? "s" : ""}
+                    <div className="shrink-0 text-right">
+                      <div className="text-white font-bold text-base sm:text-lg">{formatPrice(order.totalAmount || 0)}</div>
+                      <div className="text-[10px] text-dark-500 mt-0.5">Total</div>
                     </div>
-                    <div className="text-white font-semibold">
-                      {formatPrice(order.totalAmount || 0)}
-                    </div>
-                  </div>
-
-                  {isExpanded ? (
-                    <ChevronUp className="w-5 h-5 text-dark-400 shrink-0" />
-                  ) : (
-                    <ChevronDown className="w-5 h-5 text-dark-400 shrink-0" />
-                  )}
-                </button>
+                  </button>
+                  <span className="shrink-0">
+                    {isExpanded ? (
+                      <ChevronUp className="w-5 h-5 text-dark-400 shrink-0" />
+                    ) : (
+                      <ChevronDown className="w-5 h-5 text-dark-400 shrink-0" />
+                    )}
+                  </span>
+                </div>
 
                 {isExpanded && (
                   <div className="px-4 sm:px-6 pb-6 space-y-5 border-t border-dark-800/30">
@@ -497,7 +472,7 @@ export default function OrdersTab({
                           ) : (
                             <div>
                               <p className="text-dark-400 text-sm">
-                                  {order.assignedTo ? <>Assigned to: <span className="text-purple-400 font-medium">{order.deliveryExecutive?.name || `#${order.assignedTo.slice(-8).toUpperCase()}`}</span></> : (order.status === "delivered" || order.status === "returned") ? "Order completed — no assignment needed" : order.status === "confirmed" ? "Mark order as packed to assign a delivery executive" : "Assignment not available for this order status"}
+                                  {order.assignedTo ? <>Assigned to: <span className="text-purple-400 font-medium">{order.deliveryExecutive?.name || `#${order.assignedTo.slice(-8).toUpperCase()}`}</span></> : (order.status === "delivered" || order.status === "returned" || order.status === "return_rejected") ? "Order completed — no assignment needed" : order.status === "confirmed" ? (getOrderSource(order) === "mart" ? "Mark order as packed to assign a delivery executive" : "Mark order as shipped to assign a delivery executive") : "Assignment not available for this order status"}
                               </p>
                             </div>
                           )}
@@ -534,7 +509,7 @@ export default function OrdersTab({
                             </p>
                             <button
                               onClick={() => handleShipDelhivery(order.id)}
-                              disabled={shippingOrderId === order.id || ["delivered", "cancelled", "returned"].includes(order.status)}
+                              disabled={shippingOrderId === order.id || ["delivered", "cancelled", "returned", "return_rejected", "return_approved"].includes(order.status)}
                               className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-[10px] font-bold uppercase tracking-wider bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/30 transition-colors disabled:opacity-50"
                             >
                               {shippingOrderId === order.id ? (
@@ -610,7 +585,7 @@ export default function OrdersTab({
                                   </div>
                                   {storeItemCount > 1 && order.paymentStatus !== "PENDING" && itemStatus !== "delivered" && itemStatus !== "cancelled" && itemStatus !== "returned" && (
                                     <div className="flex flex-wrap gap-1.5 pl-0 sm:pl-13">
-                                      {statuses.filter((s) => s !== "return_requested").map((st) => (
+                                      {statuses.filter((s) => s !== "return_requested" && s !== "return_approved" && s !== "return_rejected").map((st) => (
                                         <button
                                           key={st}
                                           disabled={updatingId === order.id || itemStatus === st}
@@ -801,7 +776,7 @@ export default function OrdersTab({
                                   : "bg-dark-800 text-dark-500 border-dark-700 hover:text-white"
                               }`}
                             >
-                              {status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, " ")}
+                              {displayStatus(status, getOrderSource(order)).charAt(0).toUpperCase() + displayStatus(status, getOrderSource(order)).slice(1).replace(/_/g, " ")}
                             </button>
                           ))}
                         </div>

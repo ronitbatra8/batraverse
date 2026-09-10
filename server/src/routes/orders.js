@@ -10,6 +10,7 @@ const {
   sendDeliveryVerificationEmail,
   generateOTP,
 } = require("../utils/email");
+const { resolveOrderItemImages } = require("./admin");
 
 const router = express.Router();
 
@@ -56,6 +57,7 @@ router.get("/my", userAuth, async (req, res) => {
       orderBy: { createdAt: "desc" },
     });
     const parsed = orders.map((o) => ({ ...o, securityPhotos: o.securityPhotos ? JSON.parse(o.securityPhotos) : null }));
+    await resolveOrderItemImages(parsed);
     res.json(parsed);
   } catch (err) {
     res.status(500).json({ error: safeErrorMessage(err) });
@@ -92,6 +94,7 @@ router.post("/", userAuth, customerOnly, async (req, res) => {
         size: item.size || null,
         source,
         status: "pending",
+        image: item.image || null,
       };
     });
 

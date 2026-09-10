@@ -5,7 +5,7 @@ const fs = require("fs");
 const prisma = require("../db");
 const { safeErrorMessage } = require("../utils/helpers");
 const { sellerAuth, requireSeller } = require("../middleware/sellerAuth");
-const { buildSellerPricing, effectiveSellerPrice } = require("../utils/products");
+const { buildSellerPricing, buildSellerDetails, effectiveSellerPrice } = require("../utils/products");
 
 const router = express.Router();
 
@@ -16,7 +16,7 @@ router.use(sellerAuth);
 // gate below, so a freshly registered seller can complete their mandatory
 // profile and submit for owner review.
 
-const PROFILE_SELECT = { id: true, name: true, email: true, phone: true, role: true, approved: true, submittedForApproval: true, rejectedAt: true, shopName: true, shopDescription: true, pickupName: true, pickupAddress: true, pickupCity: true, pickupState: true, pickupPincode: true, pickupPhone: true, cardNumber: true, cardLevel: true };
+const PROFILE_SELECT = { id: true, name: true, email: true, phone: true, role: true, approved: true, submittedForApproval: true, rejectedAt: true, shopName: true, shopDescription: true, pickupName: true, pickupAddress: true, pickupCity: true, pickupState: true, pickupPincode: true, pickupPhone: true };
 
 function profileDataFromBody(body) {
   const { shopName, shopDescription, pickupName, pickupAddress, pickupCity, pickupState, pickupPincode, pickupPhone } = body;
@@ -246,13 +246,13 @@ router.get("/products", async (req, res) => {
     const products = await prisma.product.findMany({
       where: { sellerId: req.userId, baseProductId: null },
       orderBy: { name: "asc" },
-      select: { id: true, name: true, brand: true, category: true, subCategory: true, source: true, price: true, originalPrice: true, description: true, images: true, inStock: true, badge: true, rating: true, reviewCount: true, specifications: true, keyFeatures: true, colorOptions: true, sizeOptions: true, status: true, sellerPrice: true, rejectReason: true },
+      select: { id: true, name: true, brand: true, category: true, subCategory: true, source: true, price: true, originalPrice: true, description: true, images: true, inStock: true, badge: true, rating: true, reviewCount: true, specifications: true, keyFeatures: true, colorOptions: true, sizeOptions: true, status: true, sellerPrice: true, sellerDetails: true, rejectReason: true },
     });
     const liveIds = products.map((p) => p.id);
     const drafts = liveIds.length > 0
       ? await prisma.product.findMany({
           where: { sellerId: req.userId, baseProductId: { in: liveIds }, status: { in: ["pending", "rejected"] } },
-          orderBy: { updatedAt: "desc" },
+          orderBy: { createdAt: "desc" },
           select: { baseProductId: true, name: true, brand: true, category: true, subCategory: true, source: true, price: true, originalPrice: true, description: true, images: true, inStock: true, badge: true, specifications: true, keyFeatures: true, colorOptions: true, sizeOptions: true, status: true, rejectReason: true, sellerPrice: true },
         })
       : [];
@@ -260,7 +260,21 @@ router.get("/products", async (req, res) => {
     for (const d of drafts) {
       if (d.baseProductId && !draftByBase.has(d.baseProductId)) draftByBase.set(d.baseProductId, d);
     }
-    const result = products.map((p) => (draftByBase.has(p.id) ? { ...p, pendingUpdate: draftByBase.get(p.id) } : p));
+    /* Backfill: products created before the sellerDetails snapshot exists get a
+       seller copy seeded from their current (approved) details so editing keeps
+       working for older products too. */
+    const result = products.map((p) => {
+      const hasSellerCopy = p.sellerDetails && typeof p.sellerDetails === "object" && Object.keys(p.sellerDetails).length > 0;
+      const sellerCopy = hasSellerCopy
+        ? p.sellerDetails
+        : buildSellerDetails({ name: p.name, brand: p.brand, category: p.category, subCategory: p.subCategory, source: p.source, price: p.price, originalPrice: p.originalPrice, description: p.description, images: p.images, inStock: p.inStock, badge: p.badge, specifications: p.specifications, keyFeatures: p.keyFeatures, colorOptions: p.colorOptions, sizeOptions: p.sizeOptions });
+      return {
+        ...p,
+        sellerDetails: sellerCopy,
+        sellerDetailsIsBackfill: !hasSellerCopy,
+        pendingUpdate: draftByBase.has(p.id) ? draftByBase.get(p.id) : undefined,
+      };
+    });
     res.json(result);
   } catch (err) {
     res.status(500).json({ error: safeErrorMessage(err) });
@@ -307,6 +321,7 @@ router.post("/products", async (req, res) => {
         status: "pending",
         sellerPrice: (price != null && price > 0) ? price : null,
         sellerPricing: buildSellerPricing(price, colorOptions, sizeOptions),
+        sellerDetails: buildSellerDetails({ name, brand, category, subCategory, source, price, originalPrice, description, images, inStock, badge, specifications, keyFeatures, colorOptions, sizeOptions }),
         rejectReason: null,
         specifications: Array.isArray(specifications) ? specifications : [],
         keyFeatures: Array.isArray(keyFeatures) ? keyFeatures : [],
@@ -342,7 +357,7 @@ router.put("/products/:id", async (req, res) => {
       }
       const existingDraft = await prisma.product.findFirst({
         where: { sellerId: req.userId, baseProductId: existing.id, status: { in: ["pending", "rejected"] } },
-        orderBy: { updatedAt: "desc" },
+        orderBy: { createdAt: "desc" },
       });
       /* Prefer the seller's own last-entered values (pending/rejected draft) as
          the base so re-editing never resets to the owner-approved details. */
@@ -351,6 +366,10 @@ router.put("/products/:id", async (req, res) => {
       const sizes = sizeOptions !== undefined ? sizeOptions : base.sizeOptions;
       const draftPrice = price !== undefined ? (price != null ? Number(price) : null) : base.price;
       const sellerPrice = draftPrice != null && draftPrice > 0 ? draftPrice : null;
+      const sellerDetails = buildSellerDetails(
+        name !== undefined ? { name, brand, category, subCategory, source, price: draftPrice, originalPrice, description, images, inStock, badge, specifications, keyFeatures, colorOptions: colors, sizeOptions: sizes }
+          : base.sellerDetails
+      );
       const draftData = {
         name: name !== undefined ? name : base.name,
         brand: brand !== undefined ? brand : base.brand,
@@ -371,14 +390,24 @@ router.put("/products/:id", async (req, res) => {
         rejectReason: null,
         sellerPrice,
         sellerPricing: buildSellerPricing(draftPrice != null ? draftPrice : base.price, colors, sizes),
+        sellerDetails,
       };
       if (existingDraft) {
         const product = await prisma.product.update({ where: { id: existingDraft.id }, data: draftData });
+        /* Persist the seller's entered copy on the live product too, so editing
+           always reflects what the seller filled in (even while pending). */
+        if (existing.baseProductId === null) {
+          await prisma.product.update({ where: { id: existing.id }, data: { sellerDetails } });
+        }
         return res.json({ ...product, alreadyInReview: true });
       }
       const product = await prisma.product.create({
         data: { ...draftData, sellerId: req.userId, approvalType: "update", baseProductId: existing.id },
       });
+      /* Persist the seller's entered copy on the live product too. */
+      if (existing.baseProductId === null) {
+        await prisma.product.update({ where: { id: existing.id }, data: { sellerDetails } });
+      }
       return res.status(201).json({ ...product, submittedForReview: true });
     }
 
@@ -411,6 +440,23 @@ router.put("/products/:id", async (req, res) => {
       colorOptions !== undefined ? colorOptions : existing.colorOptions,
       sizeOptions !== undefined ? sizeOptions : existing.sizeOptions
     );
+    data.sellerDetails = buildSellerDetails({
+      name: name !== undefined ? name : existing.name,
+      brand: brand !== undefined ? brand : existing.brand,
+      category: category !== undefined ? category : existing.category,
+      subCategory: subCategory !== undefined ? subCategory : existing.subCategory,
+      source: source !== undefined ? source : existing.source,
+      price: price !== undefined ? price : existing.price,
+      originalPrice: originalPrice !== undefined ? originalPrice : existing.originalPrice,
+      description: description !== undefined ? description : existing.description,
+      images: images !== undefined ? images : existing.images,
+      inStock: inStock !== undefined ? inStock : existing.inStock,
+      badge: badge !== undefined ? badge : existing.badge,
+      specifications: specifications !== undefined ? specifications : existing.specifications,
+      keyFeatures: keyFeatures !== undefined ? keyFeatures : existing.keyFeatures,
+      colorOptions: colorOptions !== undefined ? colorOptions : existing.colorOptions,
+      sizeOptions: sizeOptions !== undefined ? sizeOptions : existing.sizeOptions,
+    });
 
     /* Editing a rejected product re-submits it for approval. */
     if (existing.status === "rejected") {
@@ -468,7 +514,8 @@ router.get("/orders", async (req, res) => {
       orderBy: { createdAt: "desc" },
       select: {
         id: true, status: true, totalAmount: true, items: true, createdAt: true,
-        shippingName: true, shippingCity: true,
+        shippingName: true, shippingCity: true, shippingState: true,
+        shippingAddress: true, shippingPincode: true, shippingPhone: true,
         userId: true,
       },
     });
@@ -493,6 +540,10 @@ router.get("/orders", async (req, res) => {
         createdAt: order.createdAt,
         shippingName: order.shippingName,
         shippingCity: order.shippingCity,
+        shippingState: order.shippingState,
+        shippingAddress: order.shippingAddress,
+        shippingPincode: order.shippingPincode,
+        shippingPhone: order.shippingPhone,
         items: sellerItems,
         userId: order.userId,
       });

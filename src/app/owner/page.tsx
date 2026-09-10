@@ -18,7 +18,6 @@ import MessagesTab from "../admin/components/MessagesTab";
 import SecurityTab from "../admin/components/SecurityTab";
 import AnalyticsTab from "../admin/components/AnalyticsTab";
 import NewsletterTab from "../admin/components/NewsletterTab";
-import PrivateViewingTab from "../admin/components/PrivateViewingTab";
 import DeliveryExecTab from "../admin/components/DeliveryExecTab";
 import CardsWalletTab from "../admin/components/CardsWalletTab";
 import ViolationsTab from "../admin/components/ViolationsTab";
@@ -218,8 +217,7 @@ export default function AdminPage() {
     users: users.length,
     messages: messages?.unread || 0,
     security: passwordResets.length,
-    newsletter: newsletter?.active || 0,
-    privateviewing: privateViewing?.unread || 0,
+    newsletter: (newsletter?.active || 0) + (privateViewing?.unread || 0),
     sellersystem: productApprovalCount,
   } as Partial<Record<Tab, number>>), [orders, users, messages, passwordResets, newsletter, privateViewing, productApprovalCount]);
 
@@ -286,8 +284,7 @@ export default function AdminPage() {
           {tab === "messages" && <MessagesTab messages={messages} adminKey={adminKey} setMessages={setMessages} />}
           {tab === "security" && <SecurityTab />}
           {tab === "analytics" && <AnalyticsTab analytics={analytics} />}
-          {tab === "newsletter" && <NewsletterTab newsletter={newsletter} adminKey={adminKey} setNewsletter={setNewsletter} />}
-          {tab === "privateviewing" && <PrivateViewingTab privateViewing={privateViewing} adminKey={adminKey} setPrivateViewing={setPrivateViewing} />}
+          {tab === "newsletter" && <NewsletterTab newsletter={newsletter} privateViewing={privateViewing} adminKey={adminKey} setNewsletter={setNewsletter} setPrivateViewing={setPrivateViewing} />}
           {tab === "delivery" && <DeliveryExecTab adminKey={adminKey} />}
           {tab === "sellersystem" && <SellerSystemTab adminKey={adminKey} onCount={setProductApprovalCount} />}
           {tab === "cards" && <CardsWalletTab adminKey={adminKey} />}

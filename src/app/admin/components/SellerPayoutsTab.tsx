@@ -17,6 +17,7 @@ interface Payout {
   amount: number;
   chargedPrice: number | null;
   status: "pending" | "paid" | "voided";
+  deductions: { amount: number; label: string; createdAt: string }[] | null;
   createdAt: string;
   paidAt: string | null;
   voidedAt: string | null;
@@ -126,7 +127,7 @@ export default function SellerPayoutsTab({ adminKey }: { adminKey: string }) {
       <p className="text-xs text-dark-500">Settlements are paid by bank/UPI outside the app. Mark a payout paid once you have transferred the money to the seller.</p>
 
       {/* Summary */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="bg-gradient-to-br from-amber-500/20 to-amber-500/10 border border-amber-500/30 rounded-2xl p-5">
           <Wallet className="w-5 h-5 text-amber-400" />
           <p className="text-2xl font-display font-bold text-white mt-3">{formatPrice(pendingTotal)}</p>
@@ -136,11 +137,6 @@ export default function SellerPayoutsTab({ adminKey }: { adminKey: string }) {
           <CheckCircle2 className="w-5 h-5 text-emerald-400" />
           <p className="text-2xl font-display font-bold text-white mt-3">{formatPrice(paidTotal)}</p>
           <p className="text-xs text-dark-400 mt-1">{paidCount} payout(s) paid out</p>
-        </div>
-        <div className="bg-gradient-to-br from-white/10 border border-dark-700 rounded-2xl p-5">
-          <Undo2 className="w-5 h-5 text-dark-400" />
-          <p className="text-2xl font-display font-bold text-white mt-3">{formatPrice(voidedTotal)}</p>
-          <p className="text-xs text-dark-400 mt-1">Voided (returns/cancellations)</p>
         </div>
       </div>
 
@@ -176,45 +172,47 @@ export default function SellerPayoutsTab({ adminKey }: { adminKey: string }) {
             return (
               <div key={p.id} className={`bg-gradient-to-r ${PAYOUT_GRADIENTS[p.status] || "from-dark-900/40 to-dark-900/20"} border ${PAYOUT_BORDERS[p.status] || "border-dark-800/40"} rounded-xl overflow-hidden transition-colors`}>
                 {/* Collapsed row */}
-                <button
-                  onClick={() => setExpandedPayout(isExpanded ? null : p.id)}
-                  className="w-full text-left px-4 sm:px-5 py-3.5 flex items-center gap-3"
-                >
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-gradient-to-br ${PAYOUT_GRADIENTS[p.status] || ""}`}>
-                    <Wallet size={16} className={PAYOUT_ICON_COLORS[p.status] || "text-dark-600"} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className={cn("inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider", STATUS_STYLE[p.status])}>
-                        {p.status}
-                      </span>
-                      <span className="text-white font-semibold text-sm">{formatPrice(p.amount)}</span>
-                      {p.seller.shopName && <span className="text-[10px] text-dark-500 hidden sm:inline">· {p.seller.shopName}</span>}
+                <div className="w-full text-left px-4 sm:px-5 py-3.5 flex items-center gap-3">
+                  <button
+                    onClick={() => setExpandedPayout(isExpanded ? null : p.id)}
+                    className="flex items-center gap-3 flex-1 min-w-0"
+                  >
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-gradient-to-br ${PAYOUT_GRADIENTS[p.status] || ""}`}>
+                      <Wallet size={16} className={PAYOUT_ICON_COLORS[p.status] || "text-dark-600"} />
                     </div>
-                    <p className="text-dark-400 text-xs mt-1 truncate">
-                      {p.seller.name || "Unknown"}
-                      <span className="text-dark-600 mx-1.5">&middot;</span>
-                      {p.productName || "Product"}
-                      <span className="text-dark-600 mx-1.5">&middot;</span>
-                      {p.orderRef || "#" + p.orderId.slice(0, 8)}
-                    </p>
-                  </div>
-                  <div className="shrink-0 text-right">
-                    <div className="text-dark-500 text-[10px]">{new Date(p.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</div>
-                  </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={cn("inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider", STATUS_STYLE[p.status])}>
+                          {p.status}
+                        </span>
+                        <span className="text-white font-semibold text-sm">{formatPrice(p.amount)}</span>
+                        {p.seller.shopName && <span className="text-[10px] text-dark-500 hidden sm:inline">· {p.seller.shopName}</span>}
+                      </div>
+                      <p className="text-dark-400 text-xs mt-1 truncate">
+                        {p.seller.name || "Unknown"}
+                        <span className="text-dark-600 mx-1.5">&middot;</span>
+                        {p.productName || "Product"}
+                        <span className="text-dark-600 mx-1.5">&middot;</span>
+                        {p.orderRef || "#" + p.orderId.slice(0, 8)}
+                      </p>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <div className="text-dark-500 text-[10px]">{new Date(p.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</div>
+                    </div>
+                  </button>
                   {p.status === "pending" ? (
                     <button
-                      onClick={(e) => { e.stopPropagation(); handleMarkPaid(p.id); }}
+                      onClick={() => handleMarkPaid(p.id)}
                       disabled={proceeding === p.id}
-                      className="shrink-0 flex items-center gap-1 px-3 py-1.5 bg-emerald-500/20 border border-emerald-500/30 rounded-lg text-xs text-emerald-300 font-medium hover:bg-emerald-500/30 transition-colors disabled:opacity-50"
+                      className="shrink-0 flex items-center gap-1 px-3 py-1.5 bg-amber-500/15 border border-amber-500/30 rounded-lg text-xs text-amber-300 font-medium hover:bg-amber-500/25 transition-colors disabled:opacity-50"
                     >
-                      {proceeding === p.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />} Paid
+                      {proceeding === p.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />} Mark Paid
                     </button>
                   ) : p.status === "paid" ? (
-                    <span className="text-emerald-400/80 text-[10px] flex items-center gap-1 shrink-0"><CheckCircle2 className="w-3 h-3" /> Paid</span>
+                    <span className="shrink-0 inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-500/15 border border-emerald-500/30 rounded-lg text-xs text-emerald-300 font-medium"><CheckCircle2 className="w-3 h-3" /> Paid</span>
                   ) : null}
-                  {isExpanded ? <ChevronUp className="w-5 h-5 text-dark-400 shrink-0" /> : <ChevronDown className="w-5 h-5 text-dark-400 shrink-0" />}
-                </button>
+                  <span className="shrink-0">{isExpanded ? <ChevronUp className="w-5 h-5 text-dark-400 shrink-0" /> : <ChevronDown className="w-5 h-5 text-dark-400 shrink-0" />}</span>
+                </div>
 
                 {/* Expanded details */}
                 {isExpanded && (
@@ -282,6 +280,34 @@ export default function SellerPayoutsTab({ adminKey }: { adminKey: string }) {
                           <span className={`${diff >= 0 ? "text-amber-400/80" : "text-red-400/90"}`}>
                             Difference <span className={`font-semibold ${diff >= 0 ? "text-amber-300" : "text-red-300"}`}>{diff >= 0 ? "+" : "-"}{formatPrice(Math.abs(diff * p.quantity))}</span>
                           </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Deductions */}
+                    {Array.isArray(p.deductions) && p.deductions.length > 0 && (
+                      <div className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 border border-blue-500/20 rounded-xl p-4 space-y-3">
+                        <h4 className="text-xs text-blue-400 uppercase tracking-wider font-semibold flex items-center gap-2">
+                          <Wallet className="w-3.5 h-3.5" /> Deductions
+                        </h4>
+                        <div className="space-y-2">
+                          {p.deductions.map((d, i) => (
+                            <div key={i} className="flex flex-wrap items-center justify-between gap-2 text-sm px-3 py-2 rounded-lg bg-dark-900/30">
+                              <span className="text-dark-300">{d.label || "Deduction"}</span>
+                              <span className="flex items-center gap-3">
+                                <span className="text-red-400/90 font-medium">− {formatPrice(d.amount)}</span>
+                                {d.createdAt && (
+                                  <span className="text-dark-500 text-xs">
+                                    {new Date(d.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                                  </span>
+                                )}
+                              </span>
+                            </div>
+                          ))}
+                          <div className="flex items-center justify-between gap-2 px-3 pt-1 text-xs">
+                            <span className="text-dark-400">Net payout now pending</span>
+                            <span className="text-white font-semibold">{formatPrice(p.amount)}</span>
+                          </div>
                         </div>
                       </div>
                     )}

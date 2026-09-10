@@ -145,12 +145,16 @@ router.post("/register", async (req, res) => {
     const isOwner = normalizedEmail === OWNER_EMAIL || normalizedPhone === OWNER_PHONE;
 
     const hashed = await bcrypt.hash(String(password), 10);
+    // Customer accounts get a membership card number. Staff roles (SELLER,
+    // DELIVERY) have their own dashboards and don't need a card.
     let cardNumber;
     let cardUnique = false;
-    while (!cardUnique) {
-      cardNumber = generateCardNumber(name);
-      const existing = await prisma.user.findUnique({ where: { cardNumber } });
-      if (!existing) cardUnique = true;
+    if (userRole === "USER") {
+      while (!cardUnique) {
+        cardNumber = generateCardNumber(name);
+        const existing = await prisma.user.findUnique({ where: { cardNumber } });
+        if (!existing) cardUnique = true;
+      }
     }
     const user = await prisma.user.create({
       data: {
@@ -160,7 +164,7 @@ router.post("/register", async (req, res) => {
         passwordHash: hashed,
         role: userRole,
         approved: !needsApproval || isOwner,
-        cardNumber,
+        cardNumber: cardNumber || null,
         cardLevel: null,
       },
     });

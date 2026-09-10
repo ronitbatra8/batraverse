@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Loader2, Check, X, ClipboardList, User, Megaphone, Tags } from "lucide-react";
+import { Loader2, Check, X, ClipboardList, User, Megaphone, Tags, Wallet } from "lucide-react";
 import { API, adminHeaders } from "./types";
 
 interface CategoryRequest {
@@ -29,6 +29,11 @@ interface AdRequest {
   duration: number;
   status: string;
   note: string;
+  cost: number;
+  deducted: boolean;
+  deductedAt: string | null;
+  payoutId: string | null;
+  sellerHasPendingPayout: boolean;
   createdAt: string;
 }
 
@@ -163,6 +168,24 @@ export default function SellerRequestsTab({ adminKey }: { adminKey: string }) {
     }
   }
 
+  async function handleAdDeduct(id: string) {
+    setProcessing(`deduct:${id}`);
+    try {
+      const res = await fetch(`${API}/api/admin/ad-requests/${id}/deduct`, {
+        method: "POST",
+        headers: adminHeaders(adminKey),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        alert(body.error || "Failed to deduct fee");
+        return;
+      }
+      fetchRequests();
+    } finally {
+      setProcessing(null);
+    }
+  }
+
   const matches = (r: CategoryRequest | AdRequest): boolean => {
     const kind = "type" in r ? "category" : "ads";
     const status = r.status;
@@ -187,7 +210,12 @@ export default function SellerRequestsTab({ adminKey }: { adminKey: string }) {
   const byDate = (a: { createdAt: string }, b: { createdAt: string }) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
   const filteredCategories = categories.filter((r) => matches(r)).sort(byDate);
   const filteredAds = ads.filter((r) => matches(r)).sort(byDate);
-  const total = filteredCategories.length + filteredAds.length;
+
+  const combined = [
+    ...filteredCategories.map((r) => ({ kind: "category" as const, r })),
+    ...filteredAds.map((r) => ({ kind: "ads" as const, r })),
+  ].sort((a, b) => new Date(b.r.createdAt).getTime() - new Date(a.r.createdAt).getTime());
+  const total = combined.length;
 
   if (loading) return <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 text-gold-400 animate-spin" /></div>;
 
@@ -245,7 +273,8 @@ export default function SellerRequestsTab({ adminKey }: { adminKey: string }) {
         </div>
       ) : (
         <div className="space-y-3">
-          {filteredCategories.map((r) => (
+          {combined.map(({ kind, r }) =>
+            kind === "category" ? (
               <div key={r.id} className="bg-dark-900/60 border border-dark-800/50 rounded-xl p-4">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
@@ -292,8 +321,7 @@ export default function SellerRequestsTab({ adminKey }: { adminKey: string }) {
                 </div>
               </div>
             )
-          )}
-          {filteredAds.map((r) => (
+            : (
               <div key={r.id} className="bg-dark-900/60 border border-dark-800/50 rounded-xl p-4">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
@@ -322,8 +350,8 @@ export default function SellerRequestsTab({ adminKey }: { adminKey: string }) {
                     </div>
                     {r.status === "rejected" && r.note && <p className="text-red-400/90 text-xs mt-1">Note: {r.note}</p>}
                   </div>
-                  {r.status === "pending" && (
-                    <div className="flex flex-col items-end gap-2 shrink-0">
+                  <div className="flex flex-col items-end gap-2 shrink-0">
+                    {r.status === "pending" && (
                       <div className="flex items-center gap-2">
                         <button onClick={() => handleAdApprove(r.id)} disabled={processing === `ad:${r.id}`}
                           className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-lg text-xs font-medium hover:bg-emerald-500/20 transition-all disabled:opacity-50">
@@ -344,16 +372,36 @@ export default function SellerRequestsTab({ adminKey }: { adminKey: string }) {
                           </button>
                         )}
                       </div>
-                      {rejectOpenId === r.id && (
-                        <input
-                          value={notes[r.id] ?? r.note ?? ""}
-                          onChange={(e) => setNotes((prev) => ({ ...prev, [r.id]: e.target.value }))}
-                          placeholder="Note visible to seller (optional)"
-                          className="w-64 bg-dark-800/60 border border-dark-700/50 rounded-lg px-3 py-1.5 text-white text-xs focus:outline-none focus:border-red-500/40"
-                        />
-                      )}
-                    </div>
-                  )}
+                    )}
+                    {r.status !== "rejected" && r.deducted ? (
+                      <button disabled
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-500/80 rounded-lg text-xs font-medium cursor-not-allowed">
+                        <Check size={11} />
+                        ₹{Math.round(r.cost || 100)} Deducted
+                      </button>
+                    ) : r.status !== "rejected" ? (
+                      <button
+                        onClick={() => handleAdDeduct(r.id)}
+                        disabled={!r.sellerHasPendingPayout || processing === `deduct:${r.id}`}
+                        title={r.sellerHasPendingPayout ? "Deduct ₹100 from the seller's newest payout" : "No pending payout to deduct from"}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                          r.sellerHasPendingPayout
+                            ? "bg-blue-500/10 border border-blue-500/30 text-blue-400 hover:bg-blue-500/20"
+                            : "bg-dark-800/40 border border-dark-700/30 text-dark-600 opacity-50 cursor-not-allowed"
+                        }`}>
+                        {processing === `deduct:${r.id}` ? <Loader2 size={11} className="animate-spin" /> : <Wallet size={11} />}
+                        Deduct ₹{Math.round(r.cost || 100)}
+                      </button>
+                    ) : null}
+                    {rejectOpenId === r.id && (
+                      <input
+                        value={notes[r.id] ?? r.note ?? ""}
+                        onChange={(e) => setNotes((prev) => ({ ...prev, [r.id]: e.target.value }))}
+                        placeholder="Note visible to seller (optional)"
+                        className="w-64 bg-dark-800/60 border border-dark-700/50 rounded-lg px-3 py-1.5 text-white text-xs focus:outline-none focus:border-red-500/40"
+                      />
+                    )}
+                  </div>
                 </div>
               </div>
             )

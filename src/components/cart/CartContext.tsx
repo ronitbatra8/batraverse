@@ -123,10 +123,18 @@ function hydrateLocal(slim: SlimCartItem[]): CartItem[] {
 const Ctx = createContext<CartCtx | null>(null);
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
-  const [items, setItems] = useState<CartItem[]>(() => hydrateLocal(loadLocal()));
+  const [items, setItems] = useState<CartItem[]>([]);
   const [deliveryMode, setDeliveryMode] = useState<"standard" | "express" | "regular">("standard");
   const userRef = useRef<string | null>(null);
   const itemsRef = useRef<CartItem[]>(items);
+
+  useEffect(() => {
+    // Hydrate cart from localStorage after mount so server and client first
+    // renders match (avoiding hydration mismatch on branches over items.length).
+    const local = hydrateLocal(loadLocal());
+    itemsRef.current = local;
+    setItems(local);
+  }, []);
 
   useEffect(() => {
     itemsRef.current = items;

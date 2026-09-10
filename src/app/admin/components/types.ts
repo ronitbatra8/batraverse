@@ -15,6 +15,8 @@ export const statusColors: Record<string, string> = {
   delivered: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
   cancelled: "text-red-400 bg-red-500/10 border-red-500/20",
   return_requested: "text-amber-400 bg-amber-500/10 border-amber-500/20",
+  return_approved: "text-teal-400 bg-teal-500/10 border-teal-500/20",
+  return_rejected: "text-rose-400 bg-rose-500/10 border-rose-500/20",
   returned: "text-fuchsia-400 bg-fuchsia-500/10 border-fuchsia-500/20",
 };
 

@@ -212,8 +212,17 @@ export default function SellersTab({ adminKey }: { adminKey: string }) {
                                 </div>
                                 <div className="flex items-center justify-between text-[10px] text-dark-500">
                                   <span className="capitalize">{product.category}</span>
-                                  <span className={`flex items-center gap-1 ${product.inStock ? "text-emerald-500" : "text-red-400"}`}>
-                                    {product.inStock ? "In Stock" : "Out of Stock"}
+                                  <span className="flex items-center gap-1.5">
+                                    {product.status && product.status !== "approved" ? (
+                                      <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-semibold border ${
+                                        product.status === "rejected" ? "text-red-400 bg-red-500/10 border-red-500/20" : "text-amber-400 bg-amber-500/10 border-amber-500/20"
+                                      }`}>
+                                        {product.status === "rejected" ? "Rejected" : "Pending"}
+                                      </span>
+                                    ) : null}
+                                    <span className={`flex items-center gap-1 ${product.inStock ? "text-emerald-500" : "text-red-400"}`}>
+                                      {product.inStock ? "In Stock" : "Out of Stock"}
+                                    </span>
                                   </span>
                                 </div>
                                 {product.description && (

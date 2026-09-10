@@ -35,7 +35,7 @@ const LEVELS = {
     name: "",
     icon: null,
     grad: "from-red-500/25 via-red-600/15 to-red-700/30",
-    border: "border-l-red-400",
+    border: "border-red-500/30",
     text: "text-red-300",
     chip: "",
     badge: "",
@@ -46,7 +46,7 @@ const LEVELS = {
     name: "BRONZE",
     icon: Shield,
     grad: "from-amber-600/25 via-amber-700/15 to-amber-800/30",
-    border: "border-l-amber-500",
+    border: "border-amber-500/30",
     text: "text-amber-300",
     chip: "bg-amber-500/10 border border-amber-500/30 text-amber-300",
     badge: "bg-amber-500/15 border border-amber-500/30 text-amber-300",
@@ -57,7 +57,7 @@ const LEVELS = {
     name: "SILVER",
     icon: Shield,
     grad: "from-slate-300/25 via-slate-400/15 to-slate-500/30",
-    border: "border-l-slate-300/70",
+    border: "border-slate-300/30",
     text: "text-slate-200",
     chip: "bg-slate-200/10 border border-slate-300/30 text-slate-200",
     badge: "bg-slate-300/15 border border-slate-300/30 text-slate-200",
@@ -68,7 +68,7 @@ const LEVELS = {
     name: "GOLD",
     icon: Crown,
     grad: "from-gold-500/25 via-gold-400/15 to-gold-600/30",
-    border: "border-l-gold-400",
+    border: "border-gold-400/30",
     text: "text-gold-300",
     chip: "bg-gold-500/10 border border-gold-400/30 text-gold-300",
     badge: "bg-gold-500/15 border border-gold-400/30 text-gold-300",
@@ -79,7 +79,7 @@ const LEVELS = {
     name: "PLATINUM",
     icon: Sparkles,
     grad: "from-white/25 via-gray-100/15 to-gray-300/30",
-    border: "border-l-gray-100",
+    border: "border-white/25",
     text: "text-gray-100",
     chip: "bg-white/10 border border-white/30 text-white",
     badge: "bg-white/15 border border-white/30 text-white",
@@ -90,7 +90,7 @@ const LEVELS = {
     name: "DIAMOND",
     icon: Gem,
     grad: "from-sky-300/25 via-cyan-300/15 to-sky-500/30",
-    border: "border-l-sky-300",
+    border: "border-sky-300/30",
     text: "text-sky-200",
     chip: "bg-sky-400/10 border border-sky-300/30 text-sky-200",
     badge: "bg-sky-300/15 border border-sky-300/30 text-sky-200",
@@ -101,7 +101,7 @@ const LEVELS = {
     name: "BLACK",
     icon: Star,
     grad: "from-black via-dark-900 to-black",
-    border: "border-l-white/70",
+    border: "border-white/25",
     text: "text-white",
     chip: "bg-white/10 border border-white/25 text-white",
     badge: "bg-white/15 border border-white/30 text-white",
@@ -112,7 +112,7 @@ const LEVELS = {
     name: "OWNER",
     icon: Star,
     grad: "from-rose-300/30 via-amber-200/15 to-rose-400/25",
-    border: "border-l-rose-300",
+    border: "border-rose-300/30",
     text: "text-rose-200",
     chip: "bg-rose-300/10 border border-rose-300/30 text-rose-200",
     badge: "bg-rose-300/15 border border-rose-300/30 text-rose-200",
@@ -338,69 +338,53 @@ export default function UsersTab({
               <div
                 key={user.id}
                 id={`user-${user.id}`}
-                className={`bg-gradient-to-r ${meta.grad} border border-dark-800/50 border-l-4 ${meta.border} rounded-2xl overflow-hidden transition-all`}
+                className={`bg-gradient-to-r ${meta.grad} border ${meta.border} rounded-xl overflow-hidden transition-colors`}
               >
-                <button
-                  onClick={() => toggleExpand(user.id)}
-                  className="w-full px-4 sm:px-6 py-4 flex items-center gap-4 hover:bg-white/[0.02] transition-colors text-left"
-                >
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-gradient-to-br ${meta.avatar} border border-dark-700/50`}>
-                    <span className={`text-sm font-bold ${meta.initial}`}>
-                      {user.name?.charAt(0)?.toUpperCase() || "?"}
-                    </span>
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
-                      <span className="text-white font-medium text-sm truncate">
-                        {user.name}
+                {/* Collapsed row — payout style */}
+                <div className="w-full text-left px-4 sm:px-5 py-3.5 flex items-center gap-3">
+                  <button
+                    onClick={() => toggleExpand(user.id)}
+                    className="flex items-center gap-3 flex-1 min-w-0 text-left"
+                  >
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-gradient-to-br ${meta.avatar}`}>
+                      <span className={`text-sm font-bold ${meta.initial}`}>
+                        {user.name?.charAt(0)?.toUpperCase() || "?"}
                       </span>
-                      {meta.name && LevelIcon && (
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-[0.14em] border ${meta.chip}`}>
-                          <LevelIcon size={11} />
-                          {meta.name}
-                        </span>
-                      )}
-                      {orderCount > 0 ? (
-                        <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold w-fit ${meta.badge}`}>
-                          {orderCount} order{orderCount !== 1 ? "s" : ""}
-                        </span>
-                      ) : (
-                        <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold w-fit bg-dark-700/50 text-dark-400">
-                          No orders
-                        </span>
-                      )}
                     </div>
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 mt-1">
-                      <span className="text-dark-300 text-sm truncate flex items-center gap-1.5">
-                        <Mail className="w-3 h-3 text-dark-500 shrink-0" />
-                        {user.email}
-                      </span>
-                      {user.phone && (
-                        <>
-                          <span className="text-dark-500 text-sm hidden sm:block">&middot;</span>
-                          <span className="text-dark-500 text-sm truncate hidden sm:block flex items-center gap-1.5">
-                            <Phone className="w-3 h-3 text-dark-500 shrink-0" />
-                            {user.phone}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {meta.name && LevelIcon && (
+                          <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold tracking-[0.14em] border ${meta.chip}`}>
+                            <LevelIcon size={11} />
+                            {meta.name}
                           </span>
-                        </>
-                      )}
-                      <span className="text-dark-500 text-sm hidden sm:block">&middot;</span>
-                      <span className="text-dark-500 text-sm hidden sm:block">
+                        )}
+                        <span className="text-white font-semibold text-sm truncate">{user.name}</span>
+                        <span className="text-[10px] text-dark-500 hidden sm:inline">
+                          · {orderCount > 0 ? `${orderCount} order${orderCount !== 1 ? "s" : ""}` : "no orders"}
+                        </span>
+                      </div>
+                      <p className="text-dark-400 text-xs mt-1 truncate">
+                        {user.email}
+                        {user.phone && (
+                          <>
+                            <span className="text-dark-600 mx-1.5">&middot;</span>
+                            {user.phone}
+                          </>
+                        )}
+                        <span className="text-dark-600 mx-1.5">&middot;</span>
                         {new Date(user.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
-                      </span>
+                      </p>
                     </div>
-                  </div>
-
-                  <div className="text-right shrink-0 hidden sm:block">
-                    <div className="text-sm text-dark-400">
-                      {reviewCount} review{reviewCount !== 1 ? "s" : ""}
+                    <div className="shrink-0 text-right hidden sm:block">
+                      <div className="text-xs text-dark-400">
+                        {reviewCount} review{reviewCount !== 1 ? "s" : ""}
+                      </div>
+                      <div className="text-white font-semibold">
+                        {addressCount} addr{addressCount !== 1 ? "s" : ""}
+                      </div>
                     </div>
-                    <div className="text-white font-semibold">
-                      {addressCount} addr{addressCount !== 1 ? "s" : ""}
-                    </div>
-                  </div>
-
+                  </button>
                   <div
                     onClick={(e) => { e.stopPropagation(); if (user.email) openEmailModal(user); }}
                     className={`shrink-0 p-2 rounded-lg transition-colors ${user.email ? "text-dark-400 hover:text-gold-400 hover:bg-dark-800 cursor-pointer" : "text-dark-700 cursor-not-allowed"}`}
@@ -408,17 +392,17 @@ export default function UsersTab({
                   >
                     <Send className="w-4 h-4" />
                   </div>
-
                   <span onClick={(e) => { e.stopPropagation(); handleAccess(user.id, user.role); }} role="button" className="shrink-0 p-2 rounded-lg text-violet-400 hover:text-violet-300 hover:bg-dark-800 transition-colors cursor-pointer" title="Access Account">
                     <LogIn className="w-4 h-4" />
                   </span>
-
-                  {isExpanded ? (
-                    <ChevronUp className="w-5 h-5 text-dark-400 shrink-0" />
-                  ) : (
-                    <ChevronDown className="w-5 h-5 text-dark-400 shrink-0" />
-                  )}
-                </button>
+                  <span className="shrink-0">
+                    {isExpanded ? (
+                      <ChevronUp className="w-5 h-5 text-dark-400 shrink-0" />
+                    ) : (
+                      <ChevronDown className="w-5 h-5 text-dark-400 shrink-0" />
+                    )}
+                  </span>
+                </div>
 
                 {isExpanded && (
                   <div className="px-4 sm:px-6 pb-6 space-y-5 border-t border-dark-800/30 pt-5">

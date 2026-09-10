@@ -155,6 +155,8 @@ const STATUS_LABELS = {
   delivered: "Delivered",
   cancelled: "Cancelled",
   return_requested: "Return Requested",
+  return_approved: "Return Approved",
+  return_rejected: "Return Rejected",
   returned: "Returned",
   payment_approved: "Payment Approved",
 };
@@ -164,8 +166,9 @@ const SOURCE_LABELS = {
   mart: "Grocery/Mart",
 };
 
-async function sendOrderStatusEmail(to, name, orderId, status) {
-  const label = STATUS_LABELS[status] || status;
+async function sendOrderStatusEmail(to, name, orderId, status, source) {
+  let label = STATUS_LABELS[status] || status;
+  if (status === "packed" && source !== "mart") label = "Shipped";
   const isCancel = status === "cancelled";
   const isDelivered = status === "delivered";
   const accent = isCancel ? "#ef4444" : isDelivered ? "#22c55e" : "#d4a853";

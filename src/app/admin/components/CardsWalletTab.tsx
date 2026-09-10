@@ -9,9 +9,6 @@ import {
   ChevronDown,
   ChevronUp,
   Users,
-  Mail,
-  Phone,
-  CalendarDays,
   Shield,
   Crown,
   Sparkles,
@@ -35,7 +32,7 @@ const LEVELS = {
     name: "",
     icon: null,
     grad: "from-red-500/25 via-red-600/15 to-red-700/30",
-    border: "border-l-red-400",
+    border: "border-red-500/30",
     chip: "",
     avatar: "from-red-500/40 to-red-700/30",
     initial: "text-red-300",
@@ -46,7 +43,7 @@ const LEVELS = {
     name: "BRONZE",
     icon: Shield,
     grad: "from-amber-600/25 via-amber-700/15 to-amber-800/30",
-    border: "border-l-amber-500",
+    border: "border-amber-500/30",
     chip: "bg-amber-500/10 border border-amber-500/30 text-amber-300",
     avatar: "from-amber-400/50 to-amber-600/40",
     initial: "text-amber-200",
@@ -57,7 +54,7 @@ const LEVELS = {
     name: "SILVER",
     icon: Shield,
     grad: "from-slate-300/25 via-slate-400/15 to-slate-500/30",
-    border: "border-l-slate-300/70",
+    border: "border-slate-300/30",
     chip: "bg-slate-200/10 border border-slate-300/30 text-slate-200",
     avatar: "from-slate-200/40 to-slate-400/30",
     initial: "text-slate-100",
@@ -68,7 +65,7 @@ const LEVELS = {
     name: "GOLD",
     icon: Crown,
     grad: "from-gold-500/25 via-gold-400/15 to-gold-600/30",
-    border: "border-l-gold-400",
+    border: "border-gold-400/30",
     chip: "bg-gold-500/10 border border-gold-400/30 text-gold-300",
     avatar: "from-gold-400/50 to-gold-600/40",
     initial: "text-gold-200",
@@ -79,7 +76,7 @@ const LEVELS = {
     name: "PLATINUM",
     icon: Sparkles,
     grad: "from-white/25 via-gray-100/15 to-gray-300/30",
-    border: "border-l-gray-100",
+    border: "border-white/25",
     chip: "bg-white/10 border border-white/30 text-white",
     avatar: "from-white/50 to-gray-300/40",
     initial: "text-dark-900",
@@ -90,7 +87,7 @@ const LEVELS = {
     name: "DIAMOND",
     icon: Gem,
     grad: "from-sky-300/25 via-cyan-300/15 to-sky-500/30",
-    border: "border-l-sky-300",
+    border: "border-sky-300/30",
     chip: "bg-sky-400/10 border border-sky-300/30 text-sky-200",
     avatar: "from-sky-300/50 to-sky-500/40",
     initial: "text-sky-100",
@@ -101,7 +98,7 @@ const LEVELS = {
     name: "BLACK",
     icon: Star,
     grad: "from-black via-dark-900 to-black",
-    border: "border-l-white/70",
+    border: "border-white/25",
     chip: "bg-white/10 border border-white/25 text-white",
     avatar: "from-white/25 to-black",
     initial: "text-white",
@@ -112,7 +109,7 @@ const LEVELS = {
     name: "OWNER",
     icon: Gem,
     grad: "from-rose-300/30 via-amber-200/15 to-rose-400/25",
-    border: "border-l-rose-300",
+    border: "border-rose-300/30",
     chip: "bg-rose-300/10 border border-rose-300/30 text-rose-200",
     avatar: "from-rose-300/50 to-rose-400/40",
     initial: "text-rose-100",
@@ -447,75 +444,58 @@ export default function CardsWalletTab({ adminKey }: { adminKey: string }) {
               return (
                 <div
                   key={u.id}
-                  className={`bg-gradient-to-r ${meta.grad} border border-dark-800/50 border-l-4 ${meta.border} rounded-2xl overflow-hidden transition-all`}
+                  className={`bg-gradient-to-r ${meta.grad} border ${meta.border} rounded-xl overflow-hidden transition-colors`}
                 >
-                  <button
-                    onClick={() => setExpandedUser(isExpanded ? null : u.id)}
-                    className="w-full px-4 sm:px-6 py-4 flex items-center gap-4 hover:bg-white/[0.02] transition-colors text-left"
-                  >
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-gradient-to-br ${meta.avatar} border border-dark-700/50`}>
-                      <span className={`text-sm font-bold ${meta.initial}`}>
-                        {u.name?.charAt(0)?.toUpperCase() || "?"}
-                      </span>
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
-                        <span className="text-white font-medium text-sm truncate">
-                          {u.name}
-                        </span>
-                        {meta.name && LevelIcon && (
-                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-[0.14em] border ${meta.chip}`}>
-                            <LevelIcon size={11} />
-                            {meta.name}
-                          </span>
-                        )}
-                        <span className="text-dark-500 text-xs font-mono">
-                          {u.cardNumber || "—"}
+                  {/* Collapsed row — payout style */}
+                  <div className="w-full text-left px-4 sm:px-5 py-3.5 flex items-center gap-3">
+                    <button
+                      onClick={() => setExpandedUser(isExpanded ? null : u.id)}
+                      className="flex items-center gap-3 flex-1 min-w-0 text-left"
+                    >
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-gradient-to-br ${meta.avatar}`}>
+                        <span className={`text-sm font-bold ${meta.initial}`}>
+                          {u.name?.charAt(0)?.toUpperCase() || "?"}
                         </span>
                       </div>
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 mt-1">
-                        <span className="text-dark-300 text-sm truncate flex items-center gap-1.5">
-                          <Mail className="w-3 h-3 text-dark-500 shrink-0" />
-                          {u.email}
-                        </span>
-                        {u.phone && (
-                          <>
-                            <span className="text-dark-500 text-sm hidden sm:block">&middot;</span>
-                            <span className="text-dark-500 text-sm truncate hidden sm:flex items-center gap-1.5">
-                              <Phone className="w-3 h-3 text-dark-500 shrink-0" />
-                              {u.phone}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {meta.name && LevelIcon && (
+                            <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold tracking-[0.14em] border ${meta.chip}`}>
+                              <LevelIcon size={11} />
+                              {meta.name}
                             </span>
-                          </>
-                        )}
-                        <span className="text-dark-500 text-sm hidden sm:block">&middot;</span>
-                        <span className="text-dark-500 text-sm hidden sm:flex items-center gap-1.5">
-                          <CalendarDays className="w-3 h-3 text-dark-500 shrink-0" />
-                          {new Date(u.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
-                        </span>
+                          )}
+                          <span className="text-white font-semibold text-sm truncate">{u.name}</span>
+                          <span className="text-[10px] text-dark-500 hidden sm:inline">· {u.cardNumber || "no card"}</span>
+                        </div>
+                        <p className="text-dark-400 text-xs mt-1 truncate">
+                          {u.role === "ADMIN" ? "Owner" : u.role === "SELLER" ? "Seller" : u.role === "DELIVERY" ? "Delivery" : "Customer"}
+                          <span className="text-dark-600 mx-1.5">&middot;</span>
+                          {u.email}
+                          {u.phone && (
+                            <>
+                              <span className="text-dark-600 mx-1.5">&middot;</span>
+                              {u.phone}
+                            </>
+                          )}
+                        </p>
                       </div>
-                    </div>
-
-                    <div className="text-right shrink-0 hidden sm:block">
-                      <div className="text-xs text-dark-400">
-                        {u.role === "ADMIN" ? "Owner" : u.role === "SELLER" ? "Seller" : u.role === "DELIVERY" ? "Delivery" : "Customer"}
+                      <div className="shrink-0 text-right">
+                        <div className="text-sm font-semibold text-gold-400 flex items-center gap-1.5 justify-end">
+                          <Wallet className="w-3.5 h-3.5 text-dark-500" />
+                          {formatPrice(u.walletBalance ?? 0)}
+                        </div>
+                        <div className="text-[10px] text-dark-500 mt-0.5">Balance</div>
                       </div>
-                    </div>
-
-                    <div className="text-right shrink-0">
-                      <div className="text-sm font-semibold text-gold-400 flex items-center gap-1.5 justify-end">
-                        <Wallet className="w-3.5 h-3.5 text-dark-500" />
-                        {formatPrice(u.walletBalance ?? 0)}
-                      </div>
-                      <div className="text-[10px] text-dark-500 mt-0.5">Balance</div>
-                    </div>
-
-                    {isExpanded ? (
-                      <ChevronUp className="w-5 h-5 text-dark-400 shrink-0" />
-                    ) : (
-                      <ChevronDown className="w-5 h-5 text-dark-400 shrink-0" />
-                    )}
-                  </button>
+                    </button>
+                    <span className="shrink-0">
+                      {isExpanded ? (
+                        <ChevronUp className="w-5 h-5 text-dark-400 shrink-0" />
+                      ) : (
+                        <ChevronDown className="w-5 h-5 text-dark-400 shrink-0" />
+                      )}
+                    </span>
+                  </div>
 
                   {isExpanded && (
                     <div className="px-4 sm:px-6 pb-6 space-y-5 border-t border-dark-800/30 pt-5">

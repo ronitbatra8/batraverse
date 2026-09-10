@@ -20,8 +20,6 @@ import {
   Mail,
   BarChart3,
   Phone,
-  CreditCard,
-  Crown,
   ArrowUpRight,
   ArrowLeft,
   ImageIcon,
@@ -39,6 +37,10 @@ import {
   Ban,
   CalendarDays,
   CheckCircle2,
+  MapPin,
+  Download,
+  Wallet,
+  RefreshCw,
 } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthContext";
 import { useToast } from "@/components/Toast";
@@ -59,6 +61,9 @@ const STATUS_COLORS: Record<string, string> = {
   out_for_delivery: "text-orange-400 bg-orange-500/10 border-orange-500/20",
   delivered: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
   cancelled: "text-red-400 bg-red-500/10 border-red-500/20",
+  return_requested: "text-rose-400 bg-rose-500/10 border-rose-500/20",
+  return_approved: "text-teal-400 bg-teal-500/10 border-teal-500/20",
+  return_rejected: "text-red-400 bg-red-500/10 border-red-500/20",
 };
 
 interface SellerProfile {
@@ -73,8 +78,6 @@ interface SellerProfile {
   pickupState: string;
   pickupPincode: string;
   pickupPhone: string;
-  cardNumber: string;
-  cardLevel: string;
   createdAt: string;
 }
 
@@ -100,6 +103,7 @@ interface Payout {
   amount: number;
   chargedPrice: number | null;
   status: "pending" | "paid" | "voided";
+  deductions: { amount: number; label: string; createdAt: string }[] | null;
   createdAt: string;
   paidAt: string | null;
   voidedAt: string | null;
@@ -144,6 +148,25 @@ interface Product {
     sellerPrice?: number | null;
     rejectReason?: string | null;
   };
+  /* Seller copy: the full detail set the seller last entered (parallel to the
+     live/owner-approved fields). The edit form loads from this. */
+  sellerDetails?: {
+    name: string;
+    brand: string;
+    category: string;
+    subCategory: string;
+    source: string;
+    price: number | null;
+    originalPrice: number | null;
+    description: string | null;
+    images: string[];
+    inStock: boolean;
+    badge: string | null;
+    specifications: { key: string; value: string }[];
+    keyFeatures: string[];
+    colorOptions: { name: string; hex: string; colors: string[]; images: string[]; specifications: { key: string; value: string }[]; keyFeatures: string[]; price?: number; originalPrice?: number }[];
+    sizeOptions: Record<string, { name: string; price?: number; originalPrice?: number }[]>;
+  };
   specifications: { key: string; value: string }[];
   keyFeatures: string[];
   colorOptions: { name: string; hex: string; colors: string[]; images: string[]; specifications: { key: string; value: string }[]; keyFeatures: string[]; price?: number; originalPrice?: number }[];
@@ -168,8 +191,12 @@ interface Order {
   createdAt: string;
   shippingName: string;
   shippingCity: string;
+  shippingState?: string | null;
+  shippingAddress?: string;
+  shippingPincode?: string | null;
+  shippingPhone?: string;
   items: OrderItem[];
-  user: { name: string; email: string };
+  user?: { name: string; email: string } | null;
 }
 
 interface ProductForm {
@@ -279,6 +306,7 @@ export default function SellerDashboardPage() {
   const [tab, setTab] = useState<Tab>("overview");
   const goToTab = (key: Tab) => { setTab(key); window.scrollTo(0, 0); };
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const [profile, setProfile] = useState<SellerProfile | null>(null);
@@ -345,8 +373,8 @@ export default function SellerDashboardPage() {
     }
   }, [authLoading, user, router]);
 
-  const fetchDashboard = useCallback(async () => {
-    setLoading(true);
+  const fetchDashboard = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const [p, s, pr, o, cats, cr, adr, pouts] = await Promise.all([
         apiFetch("/seller/profile"),
@@ -361,20 +389,51 @@ export default function SellerDashboardPage() {
       setProfile(p);
       setStats(s);
       setProducts(
-        (Array.isArray(pr) ? pr : []).map((item: Product & { images: unknown; specifications?: unknown; keyFeatures?: unknown; colorOptions?: unknown; sizeOptions?: unknown }) => ({
-          ...item,
-          images: parseImages(item.images),
-          specifications: parseJsonArray(item.specifications) as Product["specifications"],
-          keyFeatures: parseJsonArray(item.keyFeatures) as Product["keyFeatures"],
-          colorOptions: Array.isArray(item.colorOptions) ? (item.colorOptions as Product["colorOptions"]).map((c) => ({
-            ...c,
-            images: parseImages(c.images),
-            colors: parseImages(c.colors),
-            specifications: Array.isArray(c.specifications) ? c.specifications : [],
-            keyFeatures: Array.isArray(c.keyFeatures) ? c.keyFeatures : [],
-          })) : [],
-          sizeOptions: (item.sizeOptions && typeof item.sizeOptions === "object" && !Array.isArray(item.sizeOptions)) ? item.sizeOptions as Product["sizeOptions"] : {},
-        }))
+        (Array.isArray(pr) ? pr : []).map((item: Product & { images: unknown; specifications?: unknown; keyFeatures?: unknown; colorOptions?: unknown; sizeOptions?: unknown }) => {
+          const normDetails = item.sellerDetails && typeof item.sellerDetails === "object"
+            ? {
+                ...item.sellerDetails,
+                name: String(item.sellerDetails.name ?? ""),
+                brand: String(item.sellerDetails.brand ?? ""),
+                category: String(item.sellerDetails.category ?? ""),
+                subCategory: String(item.sellerDetails.subCategory ?? ""),
+                source: String(item.sellerDetails.source ?? "store"),
+                price: Number(item.sellerDetails.price) || 0,
+                originalPrice: Number(item.sellerDetails.originalPrice) || 0,
+                description: String(item.sellerDetails.description ?? ""),
+                images: parseImages(item.sellerDetails.images),
+                inStock: item.sellerDetails.inStock !== false,
+                badge: String(item.sellerDetails.badge ?? ""),
+                specifications: parseJsonArray(item.sellerDetails.specifications) as Product["specifications"],
+                keyFeatures: parseJsonArray(item.sellerDetails.keyFeatures) as Product["keyFeatures"],
+                colorOptions: Array.isArray(item.sellerDetails.colorOptions) ? (item.sellerDetails.colorOptions as Product["colorOptions"]).map((c: Product["colorOptions"][number]) => ({
+                  ...c,
+                  name: c.name || "",
+                  hex: c.hex || "#000000",
+                  images: parseImages(c.images),
+                  colors: parseImages(c.colors),
+                  specifications: Array.isArray(c.specifications) ? c.specifications : [],
+                  keyFeatures: Array.isArray(c.keyFeatures) ? c.keyFeatures : [],
+                })) : [],
+                sizeOptions: (item.sellerDetails.sizeOptions && typeof item.sellerDetails.sizeOptions === "object" && !Array.isArray(item.sellerDetails.sizeOptions)) ? item.sellerDetails.sizeOptions as Product["sizeOptions"] : {},
+              }
+            : undefined;
+          return {
+            ...item,
+            images: parseImages(item.images),
+            specifications: parseJsonArray(item.specifications) as Product["specifications"],
+            keyFeatures: parseJsonArray(item.keyFeatures) as Product["keyFeatures"],
+            colorOptions: Array.isArray(item.colorOptions) ? (item.colorOptions as Product["colorOptions"]).map((c) => ({
+              ...c,
+              images: parseImages(c.images),
+              colors: parseImages(c.colors),
+              specifications: Array.isArray(c.specifications) ? c.specifications : [],
+              keyFeatures: Array.isArray(c.keyFeatures) ? c.keyFeatures : [],
+            })) : [],
+            sizeOptions: (item.sizeOptions && typeof item.sizeOptions === "object" && !Array.isArray(item.sizeOptions)) ? item.sizeOptions as Product["sizeOptions"] : {},
+            sellerDetails: normDetails,
+          };
+        })
       );
       setOrders(Array.isArray(o) ? o : []);
       setPayouts(Array.isArray(pouts) ? pouts : []);
@@ -392,9 +451,16 @@ export default function SellerDashboardPage() {
     } catch {
       toast("Failed to load dashboard", "error");
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [toast]);
+
+  const handleRefresh = useCallback(async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    await fetchDashboard(true);
+    setTimeout(() => setRefreshing(false), 600);
+  }, [fetchDashboard, refreshing]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- initial data fetch
@@ -497,34 +563,39 @@ export default function SellerDashboardPage() {
 
   function openEditProduct(p: Product) {
     setEditingProduct(p);
-    /* Prefer the seller's own last-entered values (their pending/rejected
-       update draft) so editing never resets to owner-approved details. */
-    const d = p.pendingUpdate;
+    /* Prefer the SELLER COPY (what the seller last entered) so the edit form
+       never shows owner-approved details. Falls back to the pending draft, then
+       the live product. */
+    const sellerCopy = p.sellerDetails && Object.keys(p.sellerDetails).length > 0 && typeof p.sellerDetails === "object" ? p.sellerDetails : undefined;
+    const d: Product = sellerCopy !== undefined ? (sellerCopy as Product) : (p.pendingUpdate || p) as Product;
+    const dImages = Array.isArray(d.images) ? d.images : (Array.isArray(p.images) ? p.images : []);
+    const dColorOptions = Array.isArray(d.colorOptions) ? d.colorOptions : (Array.isArray(p.colorOptions) ? p.colorOptions : []);
+    const dSizeOptions = d.sizeOptions && typeof d.sizeOptions === "object" && !Array.isArray(d.sizeOptions) ? d.sizeOptions : (p.sizeOptions && typeof p.sizeOptions === "object" ? p.sizeOptions : {});
     setProductForm({
-      name: (d ? d.name : p.name) ?? "",
-      brand: (d ? d.brand : p.brand) ?? "",
-      category: (d ? d.category : p.category) ?? "",
-      subCategory: (d ? d.subCategory : p.subCategory) || "",
-      source: (d ? d.source : p.source) || "store",
-      price: (d ? d.price : p.price) ?? 0,
-      originalPrice: (d ? d.originalPrice : p.originalPrice) ?? 0,
-      description: (d ? d.description : p.description) ?? "",
-      images: (d ? d.images : p.images) || [],
-      inStock: (d ? d.inStock : p.inStock) ?? true,
-      badge: (d ? d.badge : p.badge) || "",
-      specifications: Array.isArray(d ? d.specifications : p.specifications) ? (d ? d.specifications : p.specifications) : [],
-      keyFeatures: Array.isArray(d ? d.keyFeatures : p.keyFeatures) ? (d ? d.keyFeatures : p.keyFeatures) : [],
-      colorOptions: Array.isArray(d ? d.colorOptions : p.colorOptions) ? (d ? d.colorOptions : p.colorOptions).map((c) => ({
-        name: c.name || "",
-        hex: c.hex || "#000000",
+      name: String(d.name ?? p.name ?? ""),
+      brand: String(d.brand ?? p.brand ?? ""),
+      category: String(d.category ?? p.category ?? ""),
+      subCategory: String(d.subCategory ?? p.subCategory ?? "") || "",
+      source: String(d.source ?? p.source ?? "") || "store",
+      price: Number(d.price ?? p.price) || 0,
+      originalPrice: Number(d.originalPrice ?? p.originalPrice) || 0,
+      description: String(d.description ?? p.description ?? ""),
+      images: dImages,
+      inStock: d.inStock !== undefined ? d.inStock : (p.inStock ?? true),
+      badge: String(d.badge ?? p.badge ?? "") || "",
+      specifications: Array.isArray(d.specifications) ? d.specifications : (Array.isArray(p.specifications) ? p.specifications : []),
+      keyFeatures: Array.isArray(d.keyFeatures) ? d.keyFeatures : (Array.isArray(p.keyFeatures) ? p.keyFeatures : []),
+      colorOptions: dColorOptions.map((c) => ({
+        name: String(c.name ?? ""),
+        hex: String(c.hex ?? "#000000"),
         colors: Array.isArray(c.colors) ? c.colors : [],
         images: Array.isArray(c.images) ? c.images : [],
         specifications: Array.isArray(c.specifications) ? c.specifications : [],
         keyFeatures: Array.isArray(c.keyFeatures) ? c.keyFeatures : [],
         price: c.price,
         originalPrice: c.originalPrice,
-      })) : [],
-      sizeOptions: (d ? d.sizeOptions : p.sizeOptions) && typeof (d ? d.sizeOptions : p.sizeOptions) === "object" && !Array.isArray(d ? d.sizeOptions : p.sizeOptions) ? (d ? d.sizeOptions : p.sizeOptions) as Record<string, { name: string; price?: number; originalPrice?: number }[]> : {},
+      })),
+      sizeOptions: dSizeOptions as Record<string, { name: string; price?: number; originalPrice?: number }[]>,
     });
     goToTab("addproduct");
   }
@@ -771,6 +842,14 @@ export default function SellerDashboardPage() {
           </div>
           <div className="border-t border-dark-800 p-3">
             <button
+              onClick={() => handleRefresh()}
+              disabled={refreshing}
+              className="flex w-full items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-dark-300 transition-all duration-200 hover:bg-white/[0.05] hover:text-white disabled:opacity-50"
+            >
+              <RefreshCw size={18} className={`shrink-0 ${refreshing ? "animate-spin" : ""}`} />
+              <span className="truncate">{refreshing ? "Refreshing..." : "Refresh"}</span>
+            </button>
+            <button
               onClick={() => { logout(); router.replace("/"); }}
               className="flex w-full items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-red-400 transition-all duration-200 hover:bg-red-500/10"
             >
@@ -843,6 +922,14 @@ export default function SellerDashboardPage() {
                   ))}
                 </div>
                 <div className="border-t border-gold/15 pt-3">
+                  <button
+                    onClick={() => { setSidebarOpen(false); handleRefresh(); }}
+                    disabled={refreshing}
+                    className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-cream-dim/60 transition-colors duration-300 hover:bg-white/5 hover:text-cream disabled:opacity-50"
+                  >
+                    <RefreshCw size={18} className={`shrink-0 ${refreshing ? "animate-spin" : ""}`} />
+                    <span className="truncate">{refreshing ? "Refreshing..." : "Refresh"}</span>
+                  </button>
                   <button
                     onClick={() => { setSidebarOpen(false); logout(); router.replace("/"); }}
                     className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-rose-400 transition-colors duration-300 hover:bg-white/5"
@@ -1182,11 +1269,10 @@ function PayoutsTab({ payouts, stats }: { payouts: Payout[]; stats: Stats | null
         </p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {[
           { label: "Pending", value: totals.pending, icon: Clock, color: "text-amber-400", bg: "from-amber-500/20 to-amber-500/10", border: "border-amber-500/30" },
           { label: "Paid to You", value: totals.paid, icon: Coins, color: "text-emerald-400", bg: "from-emerald-500/20 to-emerald-500/10", border: "border-emerald-500/30" },
-          { label: "Voided", value: totals.voided, icon: Ban, color: "text-dark-400", bg: "from-dark-800 to-dark-900", border: "border-dark-700/50" },
         ].map((s) => (
           <div key={s.label} className={`bg-gradient-to-br ${s.bg} border ${s.border} rounded-2xl p-5`}>
             <s.icon size={20} className={s.color} />
@@ -1282,6 +1368,34 @@ function PayoutsTab({ payouts, stats }: { payouts: Payout[]; stats: Stats | null
                         </div>
                       </div>
 
+                      {/* Deductions */}
+                      {Array.isArray(pay.deductions) && pay.deductions.length > 0 && (
+                        <div className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 border border-blue-500/20 rounded-xl p-4 space-y-3">
+                          <h4 className="text-xs text-blue-400 uppercase tracking-wider font-semibold flex items-center gap-2">
+                            <Wallet className="w-3.5 h-3.5" /> Deductions
+                          </h4>
+                          <div className="space-y-2">
+                            {pay.deductions.map((d, i) => (
+                              <div key={i} className="flex flex-wrap items-center justify-between gap-2 text-sm px-3 py-2 rounded-lg bg-dark-900/30">
+                                <span className="text-dark-300">{d.label || "Deduction"}</span>
+                                <span className="flex items-center gap-3">
+                                  <span className="text-red-400/90 font-medium">− {formatPrice(d.amount)}</span>
+                                  {d.createdAt && (
+                                    <span className="text-dark-500 text-xs">
+                                      {new Date(d.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                                    </span>
+                                  )}
+                                </span>
+                              </div>
+                            ))}
+                            <div className="flex items-center justify-between gap-2 px-3 pt-1 text-xs">
+                              <span className="text-dark-400">Net payout</span>
+                              <span className="text-white font-semibold">{formatPrice(pay.amount)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
                       {/* Timestamp */}
                       <div className="flex flex-wrap items-center gap-3 text-[10px] text-dark-500">
                         <span className="flex items-center gap-1"><CalendarDays className="w-3 h-3" /> Created {new Date(pay.createdAt).toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
@@ -1348,7 +1462,7 @@ function ProductsTab({
           </button>
         </div>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4">
           {products.map((p) => {
             const cardImage = (p.images && p.images.length > 0 && p.images[0]) || (p.colorOptions && p.colorOptions.length > 0 && p.colorOptions[0].images && p.colorOptions[0].images.length > 0 && p.colorOptions[0].images[0]) || "";
             let cardPrice = p.price;
@@ -1366,7 +1480,7 @@ function ProductsTab({
             }
             return (
             <div key={p.id} className="bg-dark-900/60 border border-dark-800/50 rounded-xl overflow-hidden group">
-              <div className="aspect-[4/3] bg-dark-800 relative overflow-hidden">
+              <div className="aspect-[3/4] bg-dark-800 relative overflow-hidden">
                 {cardImage ? (
                   <img src={getImageUrl(cardImage)} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                 ) : (
@@ -1398,7 +1512,7 @@ function ProductsTab({
                     {p.inStock ? "In Stock" : "Out of Stock"}
                   </span>
                 </div>
-                <div className="absolute bottom-2 left-2">
+                <div className="absolute bottom-2 left-2 hidden sm:block">
                   <span className={cn("px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded-full border", p.source === "mart" ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" : "bg-sky-500/15 text-sky-400 border-sky-500/30")}>
                     {p.source === "mart" ? "Mart" : "Store"}
                   </span>
@@ -1421,21 +1535,21 @@ function ProductsTab({
                 <div className="flex items-center gap-1.5 pt-1">
                   <button
                     onClick={() => onEdit(p)}
-                    className="flex items-center gap-1 px-2.5 py-1.5 bg-dark-800/60 border border-dark-700/50 rounded-lg text-[11px] text-dark-300 hover:text-white hover:border-gold-500/30 transition-all"
+                    className="flex-1 flex items-center justify-center gap-1 px-1.5 py-1.5 bg-dark-800/60 border border-dark-700/50 rounded-lg text-[11px] text-dark-300 hover:text-white hover:border-gold-500/30 transition-all"
                   >
                     <Pencil size={11} /> Edit
                   </button>
                   <button
                     onClick={() => onToggleStock(p.id)}
                     disabled={togglingStock === p.id}
-                    className="flex items-center gap-1 px-2.5 py-1.5 bg-dark-800/60 border border-dark-700/50 rounded-lg text-[11px] text-dark-300 hover:text-white hover:border-gold-500/30 transition-all disabled:opacity-50"
+                    className="flex-1 flex items-center justify-center gap-1 px-1.5 py-1.5 bg-dark-800/60 border border-dark-700/50 rounded-lg text-[11px] text-dark-300 hover:text-white hover:border-gold-500/30 transition-all disabled:opacity-50"
                   >
                     {togglingStock === p.id ? <Loader2 size={11} className="animate-spin" /> : p.inStock ? <EyeOff size={11} /> : <Eye size={11} />}
                     {p.inStock ? "Hide" : "Show"}
                   </button>
                   <button
                     onClick={() => onDelete(p)}
-                    className="flex items-center gap-1 px-2 py-1.5 bg-dark-800/60 border border-dark-700/50 rounded-lg text-[11px] text-dark-300 hover:text-red-400 hover:border-red-500/30 transition-all ml-auto"
+                    className="flex-1 flex items-center justify-center gap-1 px-1.5 py-1.5 bg-dark-800/60 border border-dark-700/50 rounded-lg text-[11px] text-dark-300 hover:text-red-400 hover:border-red-500/30 transition-all"
                   >
                     <Trash2 size={11} />
                   </button>
@@ -1463,30 +1577,75 @@ function OrdersTab({
   const sorted = [...orders].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   const filtered = filter === "all" ? sorted : sorted.filter((o) => o.status === filter);
 
+  const ORDER_GRADIENTS: Record<string, string> = {
+    pending: "from-amber-500/15 to-amber-500/5",
+    confirmed: "from-sky-500/15 to-sky-500/5",
+    shipped: "from-teal-500/15 to-teal-500/5",
+    packed: "from-violet-500/15 to-violet-500/5",
+    out_for_delivery: "from-orange-500/15 to-orange-500/5",
+    delivered: "from-emerald-500/15 to-emerald-500/5",
+    cancelled: "from-red-500/15 to-red-500/5",
+    return_requested: "from-rose-500/15 to-rose-500/5",
+    return_approved: "from-teal-500/15 to-teal-500/5",
+    return_rejected: "from-red-500/15 to-red-500/5",
+    returned: "from-red-500/15 to-red-500/5",
+  };
+  const ORDER_BORDERS: Record<string, string> = {
+    pending: "border-amber-500/25",
+    confirmed: "border-sky-500/25",
+    shipped: "border-teal-500/25",
+    packed: "border-violet-500/25",
+    out_for_delivery: "border-orange-500/25",
+    delivered: "border-emerald-500/25",
+    cancelled: "border-red-500/25",
+    return_requested: "border-rose-500/25",
+    return_approved: "border-teal-500/25",
+    return_rejected: "border-red-500/25",
+    returned: "border-red-500/25",
+  };
+
+  const statusFilters = ["pending", "confirmed", "shipped", "packed", "out_for_delivery", "delivered", "cancelled", "return_requested", "return_approved", "return_rejected", "returned"];
+  const statusCounts = (s: string) => orders.filter((o) => o.status === s).length;
+
   return (
     <div className="space-y-5">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <h2 className="text-lg font-bold text-white">Orders ({orders.length})</h2>
-        <select
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          className="px-4 py-2.5 bg-dark-800/60 border border-dark-700/50 rounded-xl text-white text-sm focus:outline-none focus:border-gold-500/50 appearance-none cursor-pointer"
-        >
-          <option value="all">All Status</option>
-          {["pending", "confirmed", "shipped", "packed", "out_for_delivery", "delivered", "cancelled"].map((s) => (
-            <option key={s} value={s}>
-              {s.charAt(0).toUpperCase() + s.slice(1).replace(/_/g, " ")}
-            </option>
-          ))}
-        </select>
-      </div>
+      <h2 className="text-lg font-bold text-white">Orders ({orders.length})</h2>
 
-      {filtered.length === 0 ? (
-        <div className="text-center py-16 bg-dark-900/60 border border-dark-800/50 rounded-2xl">
-          <ShoppingBag className="w-12 h-12 text-dark-600 mx-auto mb-3" />
-          <p className="text-dark-400 text-sm">No orders found</p>
+      <div className="bg-dark-900/60 border border-dark-800/50 rounded-2xl overflow-hidden">
+        <div className="px-4 sm:px-6 py-3 border-b border-dark-800/50 flex items-center gap-1.5 overflow-x-auto">
+          <button
+            onClick={() => setFilter("all")}
+            className={cn(
+              "shrink-0 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all border",
+              filter === "all"
+                ? "bg-gold-500/10 text-gold-400 border-gold-500/20"
+                : "text-dark-400 hover:text-white hover:bg-dark-800/40 border-transparent"
+            )}
+          >
+            All · {orders.length}
+          </button>
+          {statusFilters.map((s) => (
+            <button
+              key={s}
+              onClick={() => setFilter(s)}
+              className={cn(
+                "shrink-0 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all border capitalize",
+                filter === s
+                  ? "bg-gold-500/10 text-gold-400 border-gold-500/20"
+                  : "text-dark-400 hover:text-white hover:bg-dark-800/40 border-transparent"
+              )}
+            >
+              {s.replace(/_/g, " ")} · {statusCounts(s)}
+            </button>
+          ))}
         </div>
-      ) : (
+
+        {filtered.length === 0 ? (
+          <div className="py-16 text-center">
+            <ShoppingBag className="w-8 h-8 text-dark-700 mx-auto mb-3" />
+            <p className="text-dark-500 text-sm">No {filter === "all" ? "" : filter.replace(/_/g, " ") + " "}orders found</p>
+          </div>
+        ) : (
         <div className="space-y-3">
           {filtered.map((order) => {
             const isExpanded = expandedOrder === order.id;
@@ -1494,35 +1653,56 @@ function OrdersTab({
               <div
                 key={order.id}
                 id={`order-${order.id}`}
-                className="bg-dark-900/60 border border-dark-800/50 rounded-2xl overflow-hidden"
+                className={`bg-dark-900/60 border rounded-2xl overflow-hidden ${ORDER_BORDERS[order.status] || "border-dark-800/50"}`}
               >
-                <button
-                  onClick={() => onToggle(isExpanded ? null : order.id)}
-                  className="w-full px-4 sm:px-6 py-4 flex items-center gap-4 hover:bg-dark-800/20 transition-colors text-left"
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
-                      <span className="text-white font-mono text-sm font-medium">#{order.id.slice(0, 8)}</span>
-                      <span className={cn("inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold w-fit capitalize border", STATUS_COLORS[order.status] || "")}>
-                        {order.status.replace(/_/g, " ")}
-                      </span>
+                <div className={`bg-gradient-to-r ${ORDER_GRADIENTS[order.status] || "from-dark-900/40 to-dark-900/20"} px-4 sm:px-6 py-4 flex items-center gap-4`}>
+                  <button
+                    onClick={() => onToggle(isExpanded ? null : order.id)}
+                    className="flex-1 min-w-0 text-left flex items-center gap-4"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
+                        <span className="text-white font-mono text-sm font-medium">#{order.id.slice(0, 8)}</span>
+                        <span className={cn("inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold w-fit capitalize border", STATUS_COLORS[order.status] || "")}>
+                          {order.status === "packed" ? "Shipped" : order.status.replace(/_/g, " ")}
+                        </span>
+                      </div>
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 mt-1">
+                        <span className="text-dark-300 text-sm">{order.shippingName || "Unknown"}</span>
+                        <span className="text-dark-500 text-sm hidden sm:block">•</span>
+                        <span className="text-dark-500 text-sm hidden sm:block">{order.shippingCity || "N/A"}</span>
+                        <span className="text-dark-500 text-sm hidden sm:block">•</span>
+                        <span className="text-dark-500 text-sm hidden sm:block">
+                          {new Date(order.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 mt-1">
-                      <span className="text-dark-300 text-sm">{order.shippingName || "Unknown"}</span>
-                      <span className="text-dark-500 text-sm hidden sm:block">�</span>
-                      <span className="text-dark-500 text-sm hidden sm:block">{order.shippingCity || "N/A"}</span>
-                      <span className="text-dark-500 text-sm hidden sm:block">�</span>
-                      <span className="text-dark-500 text-sm hidden sm:block">
-                        {new Date(order.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
-                      </span>
+                    <div className="text-right shrink-0 hidden sm:block">
+                      <p className="text-sm text-dark-400">{order.items?.length || 0} item{(order.items?.length || 0) !== 1 ? "s" : ""}</p>
+                      <p className="text-white font-semibold">{formatPrice(order.totalAmount)}</p>
                     </div>
+                  </button>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {["confirmed", "shipped", "packed", "out_for_delivery"].includes(order.status) && (
+                      <a
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault();
+                        }}
+                        className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 transition-all"
+                        title="Download bill"
+                      >
+                        <Download size={13} /> Bill
+                      </a>
+                    )}
+                    <button
+                      onClick={() => onToggle(isExpanded ? null : order.id)}
+                      className="shrink-0 flex items-center justify-center"
+                    >
+                      {isExpanded ? <ChevronUp className="w-5 h-5 text-dark-400" /> : <ChevronDown className="w-5 h-5 text-dark-400" />}
+                    </button>
                   </div>
-                  <div className="text-right shrink-0 hidden sm:block">
-                    <p className="text-sm text-dark-400">{order.items?.length || 0} item{(order.items?.length || 0) !== 1 ? "s" : ""}</p>
-                    <p className="text-white font-semibold">{formatPrice(order.totalAmount)}</p>
-                  </div>
-                  {isExpanded ? <ChevronUp className="w-5 h-5 text-dark-400 shrink-0" /> : <ChevronDown className="w-5 h-5 text-dark-400 shrink-0" />}
-                </button>
+                </div>
 
                 {isExpanded && (
                   <div className="px-4 sm:px-6 pb-6 space-y-4 border-t border-dark-800/30 pt-4">
@@ -1532,14 +1712,15 @@ function OrdersTab({
                           <User size={12} /> Customer
                         </h4>
                         <p className="text-white text-sm font-medium">{order.shippingName}</p>
-                        <p className="text-dark-400 text-xs">{order.user?.email || "N/A"}</p>
+                        <p className="text-dark-400 text-xs">{order.shippingPhone || "N/A"}</p>
                       </div>
                       <div className="bg-dark-800/30 rounded-xl p-4 space-y-2">
                         <h4 className="text-xs text-dark-500 uppercase tracking-wider font-semibold flex items-center gap-2">
-                          <CreditCard size={12} /> Order Info
+                          <MapPin size={12} /> Shipping Address
                         </h4>
-                        <p className="text-white text-sm font-medium">{formatPrice(order.totalAmount)}</p>
-                        <p className="text-dark-400 text-xs">{order.shippingCity}</p>
+                        <p className="text-dark-400 text-xs leading-relaxed">
+                          {[order.shippingCity, order.shippingState, "India"].filter(Boolean).join(", ")}
+                        </p>
                       </div>
                     </div>
 
@@ -1560,9 +1741,6 @@ function OrdersTab({
                           </div>
                           <div className="text-right shrink-0">
                             <span className="text-white text-sm font-medium block">{formatPrice(item.price * (item.quantity || 1))}</span>
-                            {item.sellerPrice != null && item.sellerPrice > 0 && (
-                              <span className="text-[11px] text-emerald-400 mt-0.5 block">You get {formatPrice(item.sellerPrice * (item.quantity || 1))}</span>
-                            )}
                           </div>
                         </div>
                       ))}
@@ -1573,7 +1751,8 @@ function OrdersTab({
             );
           })}
         </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
@@ -1744,8 +1923,6 @@ function ProfileTab({
           { label: "Name", value: profile.name, icon: User },
           { label: "Email", value: profile.email, icon: Mail },
           { label: "Phone", value: profile.phone, icon: Phone },
-          { label: "Card Number", value: profile.cardNumber || "N/A", icon: CreditCard },
-          { label: "Card Level", value: profile.cardLevel || "N/A", icon: Crown },
         ].map((f) => (
           <div key={f.label} className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-dark-800/60 border border-dark-700/50 flex items-center justify-center shrink-0">
@@ -2573,9 +2750,18 @@ function AdRequestsTab({ form, onChange, saving, onSubmit }: {
   saving: boolean;
   onSubmit: () => void;
 }) {
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const inputCls = "w-full px-3 py-2.5 rounded-xl bg-dark-900/60 border border-dark-700/50 text-sm text-white placeholder:text-dark-500 focus:outline-none focus:border-gold-500/40 transition-colors";
   return (
     <div className="space-y-6">
+      <div className="rounded-2xl p-5 bg-gold-500/10 border border-gold-500/25">
+        <h3 className="text-sm font-display font-semibold text-gold-400 mb-1.5">Ad Listing</h3>
+        <p className="text-dark-300 text-xs leading-relaxed">
+          Your ad stays live for 7 days on the selected page at a flat fee of ₹100 per listing.
+          The fee is deducted from your upcoming payout.
+          Submit your creative and it will go live once the ad is approved.
+        </p>
+      </div>
       <div className="bg-dark-900/60 border border-dark-800/50 rounded-2xl p-6">
         <h3 className="text-lg font-serif text-white mb-4">Submit Ad Request</h3>
         <div className="space-y-4">
@@ -2598,12 +2784,52 @@ function AdRequestsTab({ form, onChange, saving, onSubmit }: {
             <div className="w-full sm:w-28"><label className="block text-xs font-medium text-dark-400 mb-1.5">Duration (sec)</label>
               <input type="number" min={1} max={30} value={form.duration} onChange={(e) => { const v = parseInt(e.target.value, 10); if (!isNaN(v) && v >= 1 && v <= 30) onChange({ ...form, duration: v }); else if (e.target.value === "") onChange({ ...form, duration: 1 }); }} className={inputCls} />
             </div>
-            <button onClick={onSubmit} disabled={saving || !form.img || !form.tagline || !form.line} className="px-5 py-2.5 rounded-xl text-sm font-semibold bg-gold-500/20 text-gold-400 border border-gold-500/30 hover:bg-gold-500/30 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
+            <button onClick={() => setConfirmOpen(true)} disabled={saving || !form.img || !form.tagline || !form.line} className="px-5 py-2.5 rounded-xl text-sm font-semibold bg-gold-500/20 text-gold-400 border border-gold-500/30 hover:bg-gold-500/30 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
               {saving ? "Submitting..." : "Submit Request"}
             </button>
           </div>
         </div>
       </div>
+
+      {/* Confirmation */}
+      {confirmOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" onClick={() => setConfirmOpen(false)}>
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+          <div className="relative bg-dark-900 border border-dark-800/60 rounded-2xl w-full max-w-md p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => setConfirmOpen(false)} className="absolute top-4 right-4 text-dark-500 hover:text-white transition-colors">
+              <X size={18} />
+            </button>
+            <h3 className="text-lg font-semibold text-white">Confirm Ad Request</h3>
+            <p className="text-dark-400 text-sm mt-1 mb-5">Your ad will go live once approved.</p>
+
+            <div className="space-y-2.5 rounded-xl bg-dark-800/40 border border-dark-700/40 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <span className="flex items-center gap-1.5 text-dark-500 text-xs"><Megaphone size={12} /> Ad goes live</span>
+                <span className="text-emerald-400 text-sm font-medium">After approval · 7 days</span>
+              </div>
+              <div className="h-px bg-dark-700/60" />
+              <div className="flex items-center justify-between gap-3">
+                <span className="flex items-center gap-1.5 text-dark-500 text-xs"><Wallet size={12} /> Ad fee</span>
+                <span className="text-red-400 text-sm font-semibold">₹100</span>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span className="flex items-center gap-1.5 text-dark-500 text-xs"><Coins size={12} /> Payment</span>
+                <span className="text-amber-300 text-xs font-medium text-right">Deducted from your upcoming payout</span>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-5">
+              <button onClick={() => setConfirmOpen(false)} disabled={saving} className="flex-1 bg-dark-800 hover:bg-dark-700 text-dark-300 py-3 rounded-xl text-sm font-medium transition-all disabled:opacity-50">
+                Cancel
+              </button>
+              <button onClick={() => { setConfirmOpen(false); onSubmit(); }} disabled={saving}
+                className="flex-1 py-3 rounded-xl text-sm font-semibold bg-gold-500 hover:bg-gold-400 text-dark-950 transition-all disabled:opacity-50">
+                {saving ? "Submitting..." : "Confirm & Submit"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -2645,17 +2871,17 @@ function CategoryRequestsTab({
 
       <div className="bg-dark-900/60 border border-dark-800/50 rounded-2xl p-6 space-y-4">
         <h3 className="text-sm font-display font-bold text-white">Request New Category</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="space-y-4">
           <div>
             <label className="text-xs text-dark-500 uppercase tracking-wider font-semibold mb-1.5 block">Type</label>
             <div className="grid grid-cols-2 gap-2">
               <button type="button" onClick={() => setCatReqType("new_category")}
-                className={cn("px-3 py-2 rounded-xl border text-xs font-medium transition-all",
+                className={cn("px-3 py-3.5 rounded-xl border text-sm font-medium transition-all",
                   catReqType === "new_category" ? "bg-gold-500/10 border-gold-500/40 text-gold-400" : "bg-dark-800/60 border-dark-700/50 text-dark-400")}>
                 New Category
               </button>
               <button type="button" onClick={() => setCatReqType("new_subcategory")}
-                className={cn("px-3 py-2 rounded-xl border text-xs font-medium transition-all",
+                className={cn("px-3 py-3.5 rounded-xl border text-sm font-medium transition-all",
                   catReqType === "new_subcategory" ? "bg-gold-500/10 border-gold-500/40 text-gold-400" : "bg-dark-800/60 border-dark-700/50 text-dark-400")}>
                 New Subcategory
               </button>
@@ -2665,12 +2891,12 @@ function CategoryRequestsTab({
             <label className="text-xs text-dark-500 uppercase tracking-wider font-semibold mb-1.5 block">Source</label>
             <div className="grid grid-cols-2 gap-2">
               <button type="button" onClick={() => setCatReqSource("store")}
-                className={cn("px-3 py-2 rounded-xl border text-xs font-medium transition-all",
+                className={cn("px-3 py-3.5 rounded-xl border text-sm font-medium transition-all",
                   catReqSource === "store" ? "bg-sky-500/10 border-sky-500/40 text-sky-400" : "bg-dark-800/60 border-dark-700/50 text-dark-400")}>
                 Store
               </button>
               <button type="button" onClick={() => setCatReqSource("mart")}
-                className={cn("px-3 py-2 rounded-xl border text-xs font-medium transition-all",
+                className={cn("px-3 py-3.5 rounded-xl border text-sm font-medium transition-all",
                   catReqSource === "mart" ? "bg-emerald-500/10 border-emerald-500/40 text-emerald-400" : "bg-dark-800/60 border-dark-700/50 text-dark-400")}>
                 Mart
               </button>
@@ -2687,13 +2913,12 @@ function CategoryRequestsTab({
               className="w-full bg-dark-800/60 border border-dark-700/50 rounded-xl px-4 py-3 text-white text-sm placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50"
               placeholder="e.g. Organic, Stationery..." />
           ) : (
-            <select value={catReqCategory} onChange={(e) => { setCatReqCategory(e.target.value); setCatReqSub(""); }}
-              className="w-full bg-dark-800/60 border border-dark-700/50 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-gold-500/50 appearance-none cursor-pointer">
-              <option value="">Select existing category</option>
-              {dbCategories.filter((c) => c.source === catReqSource).map((c) => (
-                <option key={c.id} value={c.slug}>{c.name}</option>
-              ))}
-            </select>
+            <SelectList
+              value={catReqCategory}
+              onChange={(v) => { setCatReqCategory(v); setCatReqSub(""); }}
+              placeholder="Select existing category"
+              options={dbCategories.filter((c) => c.source === catReqSource).map((c) => ({ value: c.slug, label: c.name }))}
+            />
           )}
         </div>
 

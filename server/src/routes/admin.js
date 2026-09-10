@@ -31,10 +31,11 @@ function normalizeItemProductId(raw) {
   return raw && raw.startsWith("db-") ? raw.replace(/^db-/, "") : raw;
 }
 
-/* Injects a product image (product.images[0], falling back to color-option
-   images) into each order item that has a productId but no image yet. This
-   keeps order thumbnails working even for orders placed before the image was
-   stored on the item. */
+/* Injects an order-item image when the item doesn't carry one yet. Prefers
+   the purchased color's image (matching item.color against the product's
+   colorOptions, as checkout renders), then the product's first image, then
+   any color-option image. Keeps order thumbnails working even for orders
+   placed before the image was stored on the item. */
 async function resolveOrderItemImages(orders) {
   const items = [];
   (Array.isArray(orders) ? orders : []).forEach((o) => {
@@ -48,18 +49,26 @@ async function resolveOrderItemImages(orders) {
   });
   const imgByProductId = new Map();
   for (const p of products) {
-    let img = Array.isArray(p.images) ? p.images[0] : "";
-    if (!img && Array.isArray(p.colorOptions)) {
-      img = p.colorOptions
-        .map((c) => (Array.isArray(c.images) ? c.images[0] : typeof c.images === "string" ? c.images : null))
-        .find(Boolean) || "";
-    }
-    imgByProductId.set(p.id, img || "");
+    const colors = Array.isArray(p.colorOptions) ? p.colorOptions : [];
+    const topImg = Array.isArray(p.images) ? p.images[0] : "";
+    const anyColorImg = colors
+      .map((c) => (Array.isArray(c.images) ? c.images[0] : typeof c.images === "string" ? c.images : null))
+      .find(Boolean) || "";
+    const resolveColor = (name) => {
+      if (!name) return "";
+      const n = String(name).trim().toLowerCase();
+      const match = colors.find((c) => c && typeof c.name === "string" && c.name.trim().toLowerCase() === n);
+      if (!match) return "";
+      return Array.isArray(match.images) ? match.images[0] : typeof match.images === "string" ? match.images : "";
+    };
+    imgByProductId.set(p.id, { topImg, anyColorImg, resolveColor });
   }
   items.forEach((it) => {
-    if (it && it.productId && !it.image) {
-      const pid = normalizeItemProductId(it.productId);
-      if (pid) it.image = imgByProductId.get(pid) || "";
+    if (!it || !it.productId || it.image) return;
+    const pid = normalizeItemProductId(it.productId);
+    const entry = imgByProductId.get(pid);
+    if (entry) {
+      it.image = entry.resolveColor(it.color) || entry.topImg || entry.anyColorImg || "";
     }
   });
   return orders;
@@ -191,7 +200,7 @@ router.put("/orders/:id/status", async (req, res) => {
       const order = await prisma.order.update({ where: { id: req.params.id }, data });
       await resolveOrderItemSellerPrices([order]);
       const user = await prisma.user.findUnique({ where: { id: existing.userId }, select: { name: true, email: true } });
-      sendOrderStatusEmail(user.email, user.name, existing.id, status).catch(() => {});
+      sendOrderStatusEmail(user.email, user.name, existing.id, status, existing.source).catch(() => {});
       return res.json(order);
     }
 
@@ -213,7 +222,7 @@ router.put("/orders/:id/status", async (req, res) => {
     await resolveOrderItemSellerPrices([order]);
 
     const user = await prisma.user.findUnique({ where: { id: existing.userId }, select: { name: true, email: true } });
-    sendOrderStatusEmail(user.email, user.name, existing.id, status).catch(() => {});
+    sendOrderStatusEmail(user.email, user.name, existing.id, status, existing.source).catch(() => {});
 
     res.json(order);
   } catch (err) {
@@ -266,7 +275,7 @@ router.put("/orders/:id/items/:itemIdx/status", async (req, res) => {
     await resolveOrderItemSellerPrices([updated]);
 
     const user = await prisma.user.findUnique({ where: { id: order.userId }, select: { name: true, email: true } });
-    sendOrderStatusEmail(user.email, user.name, id, status).catch(() => {});
+    sendOrderStatusEmail(user.email, user.name, id, status, order.source).catch(() => {});
 
     res.json(updated);
   } catch (err) {
@@ -381,7 +390,7 @@ router.put("/orders/:id/return-approve", async (req, res) => {
       await syncPayoutsForItemChange(order, updatedItems);
       const updated = await prisma.order.update({
         where: { id: order.id },
-        data: { items: updatedItems, status: "delivered", returnReason: null, returnRequestedAt: null },
+        data: { items: updatedItems, status: "return_rejected" },
       });
       const user = await prisma.user.findUnique({ where: { id: order.userId }, select: { name: true, email: true } });
       sendReturnApprovedEmail(user.email, user.name, order.id, false).catch(() => {});
@@ -400,7 +409,7 @@ router.put("/orders/:id/return-approve", async (req, res) => {
       where: { id: order.id },
       data: {
         items: updatedItems,
-        status: "returned",
+        status: "return_approved",
         returnedAt: new Date(),
         ...(allReturned ? {} : {}),
       },
@@ -518,7 +527,7 @@ router.get("/stats", async (req, res) => {
       prisma.product.count(),
       prisma.order.aggregate({ _sum: { totalAmount: true }, where: { status: "delivered" } }),
       prisma.order.count({ where: { status: "pending" } }),
-      prisma.order.count({ where: { paymentStatus: "PENDING", status: { notIn: ["cancelled", "delivered", "returned", "return_requested"] } } }),
+      prisma.order.count({ where: { paymentStatus: "PENDING", status: { notIn: ["cancelled", "delivered", "returned", "return_requested", "return_approved", "return_rejected"] } } }),
       prisma.order.count({ where: { status: "confirmed" } }),
       prisma.order.count({ where: { status: "out_for_delivery" } }),
       prisma.order.count({ where: { status: "delivered" } }),
@@ -559,7 +568,10 @@ router.get("/password-resets", async (req, res) => {
 
 router.get("/users/cards", async (req, res) => {
   try {
+    // Only customers and the owner hold cards — staff roles (SELLER, DELIVERY)
+    // have their own dashboards and don't participate in the card/wallet system.
     const users = await prisma.user.findMany({
+      where: { role: { notIn: ["SELLER", "DELIVERY"] } },
       orderBy: { createdAt: "desc" },
       select: {
         id: true, name: true, email: true, phone: true, role: true,
@@ -606,7 +618,11 @@ router.get("/users/:id", async (req, res) => {
         },
         products: {
           orderBy: { name: "asc" },
-          select: { id: true, name: true, brand: true, category: true, subCategory: true, source: true, price: true, originalPrice: true, description: true, images: true, inStock: true, badge: true, rating: true, reviewCount: true, colorOptions: true, sizeOptions: true },
+          /* Only the seller's own products — update requests are stored as
+             pending draft copies (baseProductId set) and belong in the product
+             approvals view, not here, or a single product shows up twice. */
+          where: { baseProductId: null },
+          select: { id: true, name: true, brand: true, category: true, subCategory: true, source: true, price: true, originalPrice: true, description: true, images: true, inStock: true, badge: true, rating: true, reviewCount: true, colorOptions: true, sizeOptions: true, status: true, rejectReason: true },
         },
       },
     });
@@ -681,7 +697,7 @@ router.get("/sellers", async (req, res) => {
       orderBy: { createdAt: "desc" },
       select: {
         id: true, name: true, email: true, phone: true, approved: true, submittedForApproval: true, rejectedAt: true, createdAt: true,
-        _count: { select: { products: true } },
+        _count: { select: { products: { where: { baseProductId: null } } } },
       },
     });
     res.json(sellers);
@@ -847,6 +863,9 @@ router.put("/users/:id/card", async (req, res) => {
     if (user.role === "ADMIN") {
       return res.status(400).json({ error: "The owner card is permanently OWNER and cannot be changed." });
     }
+    if (user.role === "SELLER" || user.role === "DELIVERY") {
+      return res.status(400).json({ error: "Staff accounts (sellers, delivery) don't hold cards." });
+    }
 
     /* A manual level set is money-driven: you cannot set a level lower than
        what the current balance already earns, nor higher than what the peak
@@ -890,6 +909,9 @@ router.put("/users/:id/card-number", async (req, res) => {
     const { mode, customPrefix, customText, customNumber } = req.body;
     const user = await prisma.user.findUnique({ where: { id: req.params.id } });
     if (!user) return res.status(404).json({ error: "User not found" });
+    if (user.role === "SELLER" || user.role === "DELIVERY") {
+      return res.status(400).json({ error: "Staff accounts (sellers, delivery) don't hold cards." });
+    }
 
     const rand = (s, n) => Array.from({ length: n }, () => s[Math.floor(Math.random() * s.length)]).join("");
 
@@ -1138,6 +1160,7 @@ router.post("/product-approvals/:id/approve", async (req, res) => {
         ...data,
         sellerPrice: existing.sellerPrice,
         sellerPricing: existing.sellerPricing,
+        sellerDetails: existing.sellerDetails || (base && base.sellerDetails) || {},
       };
       const updatedBase = await prisma.product.update({ where: { id: base.id }, data: baseData });
       return res.json({ product: updatedBase, updated: true });
@@ -1265,7 +1288,15 @@ router.delete("/spotlight-ads/:id", async (req, res) => {
 router.get("/ad-requests", async (req, res) => {
   try {
     const requests = await prisma.adRequest.findMany({ orderBy: { createdAt: "desc" } });
-    res.json(requests);
+    const sellerIds = [...new Set(requests.map((r) => r.sellerId))];
+    const pending = sellerIds.length > 0
+      ? await prisma.sellerPayout.findMany({
+          where: { sellerId: { in: sellerIds }, status: "pending" },
+          select: { sellerId: true },
+        })
+      : [];
+    const sellersWithPending = new Set(pending.map((p) => p.sellerId));
+    res.json(requests.map((r) => ({ ...r, sellerHasPendingPayout: sellersWithPending.has(r.sellerId) })));
   } catch (err) {
     res.status(500).json({ error: safeErrorMessage(err) });
   }
@@ -1299,6 +1330,49 @@ router.put("/ad-requests/:id/reject", async (req, res) => {
     const { note } = req.body;
     await prisma.adRequest.update({ where: { id: req.params.id }, data: { status: "rejected", note: note || "" } });
     res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: safeErrorMessage(err) });
+  }
+});
+
+/* Deduct the ad fee (cost) from the newest pending payout for the ad's seller.
+   Idempotent: an ad request can only be charged once. If the seller has no
+   pending payout left, the request fails so the owner can see why. */
+router.post("/ad-requests/:id/deduct", async (req, res) => {
+  try {
+    const ad = await prisma.adRequest.findUnique({ where: { id: req.params.id } });
+    if (!ad) return res.status(404).json({ error: "Ad request not found" });
+    if (ad.deducted) return res.status(400).json({ error: "Fee already deducted for this ad" });
+    if (ad.status === "rejected") return res.status(400).json({ error: "Cannot deduct fee from a rejected ad" });
+
+    const cost = Number(ad.cost) || 100;
+    const payout = await prisma.sellerPayout.findFirst({
+      where: { sellerId: ad.sellerId, status: "pending" },
+      orderBy: { createdAt: "desc" },
+    });
+    if (!payout) {
+      return res.status(400).json({ error: "No pending payout to deduct from for this seller" });
+    }
+
+    const deductions = Array.isArray(payout.deductions) ? [...payout.deductions] : [];
+    deductions.push({ amount: cost, label: `Ad fee — ${ad.tagline || "Ad"}`, createdAt: new Date().toISOString() });
+
+    const updatedPayout = await prisma.$transaction([
+      prisma.sellerPayout.update({
+        where: { id: payout.id },
+        data: { amount: payout.amount - cost, deductions },
+      }),
+      prisma.adRequest.update({
+        where: { id: ad.id },
+        data: { deducted: true, deductedAt: new Date(), payoutId: payout.id },
+      }),
+    ]);
+
+    res.json({
+      message: `₹${cost} deducted from the newest payout`,
+      payout: updatedPayout[0],
+      ad: updatedPayout[1],
+    });
   } catch (err) {
     res.status(500).json({ error: safeErrorMessage(err) });
   }
@@ -1522,3 +1596,4 @@ router.delete("/testimonials/:id", async (req, res) => {
 });
 
 module.exports = router;
+module.exports.resolveOrderItemImages = resolveOrderItemImages;
