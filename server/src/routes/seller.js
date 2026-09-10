@@ -248,7 +248,20 @@ router.get("/products", async (req, res) => {
       orderBy: { name: "asc" },
       select: { id: true, name: true, brand: true, category: true, subCategory: true, source: true, price: true, originalPrice: true, description: true, images: true, inStock: true, badge: true, rating: true, reviewCount: true, specifications: true, keyFeatures: true, colorOptions: true, sizeOptions: true, status: true, sellerPrice: true, rejectReason: true },
     });
-    res.json(products);
+    const liveIds = products.map((p) => p.id);
+    const drafts = liveIds.length > 0
+      ? await prisma.product.findMany({
+          where: { sellerId: req.userId, baseProductId: { in: liveIds }, status: { in: ["pending", "rejected"] } },
+          orderBy: { updatedAt: "desc" },
+          select: { baseProductId: true, name: true, brand: true, category: true, subCategory: true, source: true, price: true, originalPrice: true, description: true, images: true, inStock: true, badge: true, specifications: true, keyFeatures: true, colorOptions: true, sizeOptions: true, status: true, rejectReason: true, sellerPrice: true },
+        })
+      : [];
+    const draftByBase = new Map();
+    for (const d of drafts) {
+      if (d.baseProductId && !draftByBase.has(d.baseProductId)) draftByBase.set(d.baseProductId, d);
+    }
+    const result = products.map((p) => (draftByBase.has(p.id) ? { ...p, pendingUpdate: draftByBase.get(p.id) } : p));
+    res.json(result);
   } catch (err) {
     res.status(500).json({ error: safeErrorMessage(err) });
   }
@@ -327,32 +340,38 @@ router.put("/products/:id", async (req, res) => {
         const hasColorImages = Array.isArray(colorOptions) && colorOptions.some((c) => Array.isArray(c.images) && c.images.length > 0);
         if (!hasImages && !hasColorImages) return res.status(400).json({ error: "At least one product image is required" });
       }
-      const colors = colorOptions !== undefined ? colorOptions : existing.colorOptions;
-      const sizes = sizeOptions !== undefined ? sizeOptions : existing.sizeOptions;
-      const draftPrice = price !== undefined ? (price != null ? Number(price) : null) : existing.price;
+      const existingDraft = await prisma.product.findFirst({
+        where: { sellerId: req.userId, baseProductId: existing.id, status: { in: ["pending", "rejected"] } },
+        orderBy: { updatedAt: "desc" },
+      });
+      /* Prefer the seller's own last-entered values (pending/rejected draft) as
+         the base so re-editing never resets to the owner-approved details. */
+      const base = existingDraft || existing;
+      const colors = colorOptions !== undefined ? colorOptions : base.colorOptions;
+      const sizes = sizeOptions !== undefined ? sizeOptions : base.sizeOptions;
+      const draftPrice = price !== undefined ? (price != null ? Number(price) : null) : base.price;
       const sellerPrice = draftPrice != null && draftPrice > 0 ? draftPrice : null;
       const draftData = {
-        name: name !== undefined ? name : existing.name,
-        brand: brand !== undefined ? brand : existing.brand,
-        category: category !== undefined ? category : existing.category,
-        subCategory: subCategory !== undefined ? subCategory : existing.subCategory,
-        source: source !== undefined ? source : existing.source || "store",
-        price: draftPrice != null && draftPrice > 0 ? draftPrice : existing.price,
-        originalPrice: originalPrice !== undefined ? originalPrice : existing.originalPrice,
-        description: description !== undefined ? description : existing.description,
-        images: images !== undefined ? images : existing.images,
-        inStock: inStock !== undefined ? Boolean(inStock) : existing.inStock,
-        badge: badge !== undefined ? badge : existing.badge,
-        specifications: specifications !== undefined ? specifications : existing.specifications,
-        keyFeatures: keyFeatures !== undefined ? keyFeatures : existing.keyFeatures,
+        name: name !== undefined ? name : base.name,
+        brand: brand !== undefined ? brand : base.brand,
+        category: category !== undefined ? category : base.category,
+        subCategory: subCategory !== undefined ? subCategory : base.subCategory,
+        source: source !== undefined ? source : base.source || "store",
+        price: draftPrice != null && draftPrice > 0 ? draftPrice : base.price,
+        originalPrice: originalPrice !== undefined ? originalPrice : base.originalPrice,
+        description: description !== undefined ? description : base.description,
+        images: images !== undefined ? images : base.images,
+        inStock: inStock !== undefined ? Boolean(inStock) : base.inStock,
+        badge: badge !== undefined ? badge : base.badge,
+        specifications: specifications !== undefined ? specifications : base.specifications,
+        keyFeatures: keyFeatures !== undefined ? keyFeatures : base.keyFeatures,
         colorOptions: colors,
         sizeOptions: sizes,
         status: "pending",
         rejectReason: null,
         sellerPrice,
-        sellerPricing: buildSellerPricing(draftPrice != null ? draftPrice : existing.price, colors, sizes),
+        sellerPricing: buildSellerPricing(draftPrice != null ? draftPrice : base.price, colors, sizes),
       };
-      const existingDraft = await prisma.product.findFirst({ where: { sellerId: req.userId, baseProductId: existing.id, status: "pending" } });
       if (existingDraft) {
         const product = await prisma.product.update({ where: { id: existingDraft.id }, data: draftData });
         return res.json({ ...product, alreadyInReview: true });

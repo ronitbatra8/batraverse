@@ -123,6 +123,27 @@ interface Product {
   status?: string;
   sellerPrice?: number | null;
   rejectReason?: string | null;
+  pendingUpdate?: {
+    id?: string;
+    name: string;
+    brand: string;
+    category: string;
+    subCategory: string;
+    source: string;
+    price: number;
+    originalPrice: number;
+    description: string;
+    images: string[];
+    inStock: boolean;
+    badge: string;
+    specifications: { key: string; value: string }[];
+    keyFeatures: string[];
+    colorOptions: { name: string; hex: string; colors: string[]; images: string[]; specifications: { key: string; value: string }[]; keyFeatures: string[]; price?: number; originalPrice?: number }[];
+    sizeOptions: Record<string, { name: string; price?: number; originalPrice?: number }[]>;
+    status: string;
+    sellerPrice?: number | null;
+    rejectReason?: string | null;
+  };
   specifications: { key: string; value: string }[];
   keyFeatures: string[];
   colorOptions: { name: string; hex: string; colors: string[]; images: string[]; specifications: { key: string; value: string }[]; keyFeatures: string[]; price?: number; originalPrice?: number }[];
@@ -476,21 +497,24 @@ export default function SellerDashboardPage() {
 
   function openEditProduct(p: Product) {
     setEditingProduct(p);
+    /* Prefer the seller's own last-entered values (their pending/rejected
+       update draft) so editing never resets to owner-approved details. */
+    const d = p.pendingUpdate;
     setProductForm({
-      name: p.name,
-      brand: p.brand,
-      category: p.category,
-      subCategory: p.subCategory || "",
-      source: p.source || "store",
-      price: p.price,
-      originalPrice: p.originalPrice,
-      description: p.description,
-      images: p.images || [],
-      inStock: p.inStock,
-      badge: p.badge || "",
-      specifications: Array.isArray(p.specifications) ? p.specifications : [],
-      keyFeatures: Array.isArray(p.keyFeatures) ? p.keyFeatures : [],
-      colorOptions: Array.isArray(p.colorOptions) ? p.colorOptions.map((c) => ({
+      name: (d ? d.name : p.name) ?? "",
+      brand: (d ? d.brand : p.brand) ?? "",
+      category: (d ? d.category : p.category) ?? "",
+      subCategory: (d ? d.subCategory : p.subCategory) || "",
+      source: (d ? d.source : p.source) || "store",
+      price: (d ? d.price : p.price) ?? 0,
+      originalPrice: (d ? d.originalPrice : p.originalPrice) ?? 0,
+      description: (d ? d.description : p.description) ?? "",
+      images: (d ? d.images : p.images) || [],
+      inStock: (d ? d.inStock : p.inStock) ?? true,
+      badge: (d ? d.badge : p.badge) || "",
+      specifications: Array.isArray(d ? d.specifications : p.specifications) ? (d ? d.specifications : p.specifications) : [],
+      keyFeatures: Array.isArray(d ? d.keyFeatures : p.keyFeatures) ? (d ? d.keyFeatures : p.keyFeatures) : [],
+      colorOptions: Array.isArray(d ? d.colorOptions : p.colorOptions) ? (d ? d.colorOptions : p.colorOptions).map((c) => ({
         name: c.name || "",
         hex: c.hex || "#000000",
         colors: Array.isArray(c.colors) ? c.colors : [],
@@ -500,7 +524,7 @@ export default function SellerDashboardPage() {
         price: c.price,
         originalPrice: c.originalPrice,
       })) : [],
-      sizeOptions: p.sizeOptions && typeof p.sizeOptions === "object" && !Array.isArray(p.sizeOptions) ? p.sizeOptions as Record<string, { name: string; price?: number; originalPrice?: number }[]> : {},
+      sizeOptions: (d ? d.sizeOptions : p.sizeOptions) && typeof (d ? d.sizeOptions : p.sizeOptions) === "object" && !Array.isArray(d ? d.sizeOptions : p.sizeOptions) ? (d ? d.sizeOptions : p.sizeOptions) as Record<string, { name: string; price?: number; originalPrice?: number }[]> : {},
     });
     goToTab("addproduct");
   }
@@ -1324,7 +1348,7 @@ function ProductsTab({
           </button>
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {products.map((p) => {
             const cardImage = (p.images && p.images.length > 0 && p.images[0]) || (p.colorOptions && p.colorOptions.length > 0 && p.colorOptions[0].images && p.colorOptions[0].images.length > 0 && p.colorOptions[0].images[0]) || "";
             let cardPrice = p.price;
@@ -1341,73 +1365,79 @@ function ProductsTab({
               }
             }
             return (
-            <div key={p.id} className="bg-dark-900/60 border border-dark-800/50 rounded-2xl overflow-hidden group">
+            <div key={p.id} className="bg-dark-900/60 border border-dark-800/50 rounded-xl overflow-hidden group">
               <div className="aspect-[4/3] bg-dark-800 relative overflow-hidden">
                 {cardImage ? (
                   <img src={getImageUrl(cardImage)} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
-                    <ImageIcon size={32} className="text-dark-600" />
+                    <ImageIcon size={24} className="text-dark-600" />
                   </div>
                 )}
-                <div className="absolute top-3 left-3 flex gap-2">
+                <div className="absolute top-2 left-2 flex gap-1.5">
+                  {p.pendingUpdate && (
+                    <span className={cn("px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded-full border",
+                      p.pendingUpdate.status === "rejected" ? "bg-red-500/15 text-red-400 border-red-500/30" : "bg-amber-500/15 text-amber-400 border-amber-500/30")}>
+                      {p.pendingUpdate.status === "rejected" ? "Update Rejected" : "Update in Review"}
+                    </span>
+                  )}
                   {p.status !== "approved" && (
-                    <span className={cn("px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full border",
+                    <span className={cn("px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded-full border",
                       p.status === "rejected" ? "bg-red-500/15 text-red-400 border-red-500/30" : "bg-amber-500/15 text-amber-400 border-amber-500/30")}>
                       {p.status === "rejected" ? "Rejected" : "Pending"}
                     </span>
                   )}
                   {p.badge && (
-                    <span className="px-2 py-0.5 bg-gold-500/90 text-dark-950 text-[10px] font-bold uppercase tracking-wider rounded-full">
+                    <span className="px-1.5 py-0.5 bg-gold-500/90 text-dark-950 text-[9px] font-bold uppercase tracking-wider rounded-full">
                       {p.badge}
                     </span>
                   )}
                 </div>
-                <div className="absolute top-3 right-3">
-                  <span className={cn("px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full border", p.inStock ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" : "bg-red-500/15 text-red-400 border-red-500/30")}>
+                <div className="absolute top-2 right-2">
+                  <span className={cn("px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded-full border", p.inStock ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" : "bg-red-500/15 text-red-400 border-red-500/30")}>
                     {p.inStock ? "In Stock" : "Out of Stock"}
                   </span>
                 </div>
-                <div className="absolute bottom-3 left-3">
-                  <span className={cn("px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full border", p.source === "mart" ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" : "bg-sky-500/15 text-sky-400 border-sky-500/30")}>
+                <div className="absolute bottom-2 left-2">
+                  <span className={cn("px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded-full border", p.source === "mart" ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" : "bg-sky-500/15 text-sky-400 border-sky-500/30")}>
                     {p.source === "mart" ? "Mart" : "Store"}
                   </span>
                 </div>
               </div>
-              <div className="p-4 space-y-3">
+              <div className="p-3 space-y-2">
                 <div>
-                  <p className="text-xs text-dark-500 uppercase tracking-wider">{p.brand}{p.category ? ` / ${p.category}` : ""}{p.subCategory ? ` / ${p.subCategory}` : ""}</p>
+                  <p className="text-[10px] text-dark-500 uppercase tracking-wider truncate">{p.brand}{p.category ? ` / ${p.category}` : ""}{p.subCategory ? ` / ${p.subCategory}` : ""}</p>
                   <h3 className="text-sm font-semibold text-white mt-0.5 truncate">{p.name}</h3>
                 </div>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-lg font-bold text-white">{formatPrice(cardPrice)}</span>
+                  <span className="text-base font-bold text-white">{formatPrice(cardPrice)}</span>
                   {cardOriginalPrice && cardOriginalPrice > cardPrice && (
-                    <span className="text-sm text-dark-500 line-through">{formatPrice(cardOriginalPrice)}</span>
+                    <span className="text-xs text-dark-500 line-through">{formatPrice(cardOriginalPrice)}</span>
                   )}
                 </div>
                 {p.description && (
-                  <p className="text-xs text-dark-400 line-clamp-2">{p.description}</p>
+                  <p className="text-xs text-dark-400 line-clamp-1">{p.description}</p>
                 )}
-                <div className="flex items-center gap-2 pt-1">
+                <div className="flex items-center gap-1.5 pt-1">
                   <button
                     onClick={() => onEdit(p)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-dark-800/60 border border-dark-700/50 rounded-lg text-xs text-dark-300 hover:text-white hover:border-gold-500/30 transition-all"
+                    className="flex items-center gap-1 px-2.5 py-1.5 bg-dark-800/60 border border-dark-700/50 rounded-lg text-[11px] text-dark-300 hover:text-white hover:border-gold-500/30 transition-all"
                   >
-                    <Pencil size={12} /> Edit
+                    <Pencil size={11} /> Edit
                   </button>
                   <button
                     onClick={() => onToggleStock(p.id)}
                     disabled={togglingStock === p.id}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-dark-800/60 border border-dark-700/50 rounded-lg text-xs text-dark-300 hover:text-white hover:border-gold-500/30 transition-all disabled:opacity-50"
+                    className="flex items-center gap-1 px-2.5 py-1.5 bg-dark-800/60 border border-dark-700/50 rounded-lg text-[11px] text-dark-300 hover:text-white hover:border-gold-500/30 transition-all disabled:opacity-50"
                   >
-                    {togglingStock === p.id ? <Loader2 size={12} className="animate-spin" /> : p.inStock ? <EyeOff size={12} /> : <Eye size={12} />}
+                    {togglingStock === p.id ? <Loader2 size={11} className="animate-spin" /> : p.inStock ? <EyeOff size={11} /> : <Eye size={11} />}
                     {p.inStock ? "Hide" : "Show"}
                   </button>
                   <button
                     onClick={() => onDelete(p)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-dark-800/60 border border-dark-700/50 rounded-lg text-xs text-dark-300 hover:text-red-400 hover:border-red-500/30 transition-all ml-auto"
+                    className="flex items-center gap-1 px-2 py-1.5 bg-dark-800/60 border border-dark-700/50 rounded-lg text-[11px] text-dark-300 hover:text-red-400 hover:border-red-500/30 transition-all ml-auto"
                   >
-                    <Trash2 size={12} />
+                    <Trash2 size={11} />
                   </button>
                 </div>
               </div>

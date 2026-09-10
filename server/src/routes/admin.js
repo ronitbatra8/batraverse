@@ -1113,7 +1113,7 @@ router.post("/product-approvals/:id/approve", async (req, res) => {
     if (originalPrice !== undefined && originalPrice !== null && Number(originalPrice) >= 0) data.originalPrice = Number(originalPrice);
     if (name !== undefined && String(name).trim()) data.name = String(name).trim();
     if (description !== undefined) data.description = description || null;
-    if (images !== undefined) data.images = Array.isArray(images) ? images : existing.images;
+    data.images = Array.isArray(images) ? images : (Array.isArray(existing.images) ? existing.images : []);
     if (inStock !== undefined) data.inStock = Boolean(inStock);
     if (badge !== undefined) data.badge = badge || null;
     if (brand !== undefined) data.brand = brand || null;

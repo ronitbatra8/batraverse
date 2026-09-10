@@ -59,6 +59,7 @@ interface EditState {
   category: string;
   subCategory: string;
   description: string;
+  images: string[];
   inStock: boolean;
   badge: string;
   specifications: { key: string; value: string }[];
@@ -148,6 +149,7 @@ function initialEdit(p: PendingProduct): EditState {
     category: p.category || "",
     subCategory: p.subCategory || "",
     description: p.description || "",
+    images: Array.isArray(p.images) ? p.images.map(String) : [],
     inStock: p.inStock !== false,
     badge: p.badge || "",
     specifications: parseApprovalSpecs(p.specifications),
@@ -327,6 +329,37 @@ function ApprovalEditor({ p, e, setEdit, dbCategories }: ApprovalEditorProps) {
               {e.inStock ? "In Stock" : "Out of Stock"}
             </button>
           </div>
+        </div>
+
+        {/* Product images — seller-submitted, editable here */}
+        <div className="rounded-xl bg-dark-800/30 border border-dark-700/40 p-4">
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-[10px] text-dark-500 uppercase tracking-wider font-semibold">Product Images</label>
+            {e.images.length < 10 && (
+              <button type="button" onClick={() => {
+                const url = prompt("Paste image URL");
+                if (url && url.trim()) setEdit(id, { images: [...e.images, url.trim()] });
+              }}
+                className="text-[10px] text-gold-400 hover:text-gold-300 font-semibold uppercase tracking-wider flex items-center gap-1">
+                <Plus size={10} /> Add URL
+              </button>
+            )}
+          </div>
+          {e.images.length === 0 && <p className="text-[11px] text-dark-600 italic">No images</p>}
+          {e.images.length > 0 && (
+            <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
+              {e.images.map((img, ii) => (
+                <div key={ii} className="relative aspect-square rounded-lg overflow-hidden border border-dark-700/50 bg-dark-800 group/ci">
+                  <img src={resolveImageUrl(img)} alt="" className="w-full h-full object-cover" onError={(ev) => { (ev.target as HTMLImageElement).style.display = "none"; }} />
+                  {ii === 0 && <span className="absolute top-1 left-1 px-1 py-0.5 text-[8px] font-bold uppercase tracking-wider rounded bg-gold-500/90 text-dark-950">Cover</span>}
+                  <button type="button" onClick={() => setEdit(id, { images: e.images.filter((_, j) => j !== ii) })}
+                    className="absolute inset-0 bg-black/50 opacity-0 group-hover/ci:opacity-100 transition-opacity flex items-center justify-center">
+                    <X size={12} className="text-white" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {!hasColors && (
@@ -652,6 +685,7 @@ export default function ProductApprovalsTab({ adminKey, onCount }: { adminKey: s
         category: e.category || null,
         subCategory: e.subCategory || null,
         description: e.description || null,
+        images: e.images.filter((img) => img && img.trim()),
         inStock: e.inStock,
         badge: e.badge || null,
         specifications: e.specifications.filter((s) => s.key.trim() || s.value.trim()),
