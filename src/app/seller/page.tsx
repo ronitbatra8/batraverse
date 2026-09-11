@@ -1218,28 +1218,32 @@ function OverviewTab({ stats, orders, payouts, onTab }: { stats: Stats | null; o
 }
 
 function PayoutsTab({ payouts, stats }: { payouts: Payout[]; stats: Stats | null }) {
-  const [filter, setFilter] = useState<"all" | "pending" | "paid">("all");
+  const [filter, setFilter] = useState<"all" | "pending" | "paid" | "voided">("all");
   const [expandedPayout, setExpandedPayout] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(50);
 
   const PAYOUT_GRADIENTS: Record<string, string> = {
     pending: "from-amber-500/15 to-amber-500/5",
     paid: "from-emerald-500/15 to-emerald-500/5",
+    voided: "from-red-500/15 to-red-500/5",
   };
 
   const PAYOUT_BORDERS: Record<string, string> = {
     pending: "border-amber-500/25",
     paid: "border-emerald-500/25",
+    voided: "border-red-500/25",
   };
 
   const PAYOUT_ICON_COLORS: Record<string, string> = {
     pending: "text-amber-400",
     paid: "text-emerald-400",
+    voided: "text-red-400",
   };
 
   const PAYOUT_LABEL_STYLE: Record<string, string> = {
     pending: "text-amber-400 bg-amber-500/10",
     paid: "text-emerald-400 bg-emerald-500/10",
+    voided: "text-red-400 bg-red-500/10",
   };
 
   const totals = useMemo(() => {
@@ -1258,6 +1262,7 @@ function PayoutsTab({ payouts, stats }: { payouts: Payout[]; stats: Stats | null
     { key: "all", label: "All", count: payouts.length },
     { key: "pending", label: "Pending", count: payouts.filter((p) => p.status === "pending").length },
     { key: "paid", label: "Paid", count: payouts.filter((p) => p.status === "paid").length },
+    { key: "voided", label: "Voided", count: payouts.filter((p) => p.status === "voided").length },
   ];
 
   return (
