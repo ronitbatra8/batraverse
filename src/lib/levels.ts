@@ -9,7 +9,10 @@ export interface LevelMeta {
   chip: string;
   badge: string;
   discount: number;
+  discountFlat?: number;
+  discountFlatMin?: number;
   freeDeliveries: number;
+  freeDeliveryMin?: number;
 }
 
 export const LEVELS: Record<string, LevelMeta> = {
@@ -21,8 +24,9 @@ export const LEVELS: Record<string, LevelMeta> = {
     text: "text-rose-200",
     chip: "bg-rose-300/10 border border-rose-300/30 text-rose-200",
     badge: "bg-rose-300/15 border border-rose-300/30 text-rose-200",
-    discount: 15,
-    freeDeliveries: 15,
+    discount: 0,
+    freeDeliveries: 0,
+    freeDeliveryMin: 0,
   },
   none: {
     name: "MEMBER",
@@ -34,6 +38,7 @@ export const LEVELS: Record<string, LevelMeta> = {
     badge: "bg-gray-500/15 border border-gray-400/30 text-gray-300",
     discount: 0,
     freeDeliveries: 0,
+    freeDeliveryMin: 0,
   },
   bronze: {
     name: "BRONZE",
@@ -45,6 +50,7 @@ export const LEVELS: Record<string, LevelMeta> = {
     badge: "bg-amber-500/15 border border-amber-500/30 text-amber-300",
     discount: 0,
     freeDeliveries: 1,
+    freeDeliveryMin: 150,
   },
   silver: {
     name: "SILVER",
@@ -56,6 +62,7 @@ export const LEVELS: Record<string, LevelMeta> = {
     badge: "bg-slate-300/15 border border-slate-300/30 text-slate-200",
     discount: 0,
     freeDeliveries: 2,
+    freeDeliveryMin: 150,
   },
   gold: {
     name: "GOLD",
@@ -66,7 +73,8 @@ export const LEVELS: Record<string, LevelMeta> = {
     chip: "bg-gold-500/10 border border-gold-400/30 text-gold-300",
     badge: "bg-gold-500/15 border border-gold-400/30 text-gold-300",
     discount: 0,
-    freeDeliveries: 5,
+    freeDeliveries: 3,
+    freeDeliveryMin: 150,
   },
   platinum: {
     name: "PLATINUM",
@@ -76,8 +84,9 @@ export const LEVELS: Record<string, LevelMeta> = {
     text: "text-gray-100",
     chip: "bg-white/10 border border-white/30 text-white",
     badge: "bg-white/15 border border-white/30 text-white",
-    discount: 5,
-    freeDeliveries: 7,
+    discount: 0,
+    freeDeliveries: 5,
+    freeDeliveryMin: 150,
   },
   diamond: {
     name: "DIAMOND",
@@ -87,8 +96,11 @@ export const LEVELS: Record<string, LevelMeta> = {
     text: "text-sky-200",
     chip: "bg-sky-400/10 border border-sky-300/30 text-sky-200",
     badge: "bg-sky-300/15 border border-sky-300/30 text-sky-200",
-    discount: 10,
-    freeDeliveries: 10,
+    discount: 0,
+    discountFlat: 300,
+    discountFlatMin: 3000,
+    freeDeliveries: 5,
+    freeDeliveryMin: 150,
   },
   black: {
     name: "BLACK",
@@ -98,8 +110,11 @@ export const LEVELS: Record<string, LevelMeta> = {
     text: "text-white",
     chip: "bg-white/10 border border-white/25 text-white",
     badge: "bg-white/15 border border-white/30 text-white",
-    discount: 15,
-    freeDeliveries: 15,
+    discount: 0,
+    discountFlat: 500,
+    discountFlatMin: 5000,
+    freeDeliveries: 7,
+    freeDeliveryMin: 150,
   },
 } as const;
 
@@ -163,4 +178,12 @@ export function getDiscountPercent(level: LevelKey): number {
 
 export function getFreeDeliveries(level: LevelKey): number {
   return LEVELS[level]?.freeDeliveries ?? 0;
+}
+
+/* Flat rupee discount per level. Only applies when the (store) order passes
+   the level's minimum spend; below it the benefit is simply inactive. */
+export function getFlatDiscount(level: LevelKey, subtotal: number): number {
+  const meta = LEVELS[level];
+  if (!meta || !meta.discountFlat || !meta.discountFlatMin || subtotal <= meta.discountFlatMin) return 0;
+  return meta.discountFlat;
 }

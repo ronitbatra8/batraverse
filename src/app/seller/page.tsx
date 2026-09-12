@@ -186,6 +186,7 @@ interface OrderItem {
 
 interface Order {
   id: string;
+  orderId?: string | null;
   status: string;
   totalAmount: number;
   createdAt: string;
@@ -1166,7 +1167,7 @@ function OverviewTab({ stats, orders, payouts, onTab }: { stats: Stats | null; o
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-white truncate group-hover:text-gold-400 transition-colors">{o.shippingName}</p>
-                      <p className="text-xs text-dark-500">#{o.id.slice(0, 8)}</p>
+                      <p className="text-xs text-dark-500">#{o.orderId || o.id.slice(0, 8).toUpperCase()}</p>
                     </div>
                   </div>
                   <div className="text-right shrink-0 ml-3">
@@ -1274,10 +1275,11 @@ function PayoutsTab({ payouts, stats }: { payouts: Payout[]; stats: Stats | null
         </p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
           { label: "Pending", value: totals.pending, icon: Clock, color: "text-amber-400", bg: "from-amber-500/20 to-amber-500/10", border: "border-amber-500/30" },
           { label: "Paid to You", value: totals.paid, icon: Coins, color: "text-emerald-400", bg: "from-emerald-500/20 to-emerald-500/10", border: "border-emerald-500/30" },
+          { label: "Voided", value: totals.voided, icon: Ban, color: "text-red-400", bg: "from-red-500/20 to-red-500/10", border: "border-red-500/30" },
         ].map((s) => (
           <div key={s.label} className={`bg-gradient-to-br ${s.bg} border ${s.border} rounded-2xl p-5`}>
             <s.icon size={20} className={s.color} />
@@ -1667,7 +1669,7 @@ function OrdersTab({
                   >
                     <div className="flex-1 min-w-0">
                       <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
-                        <span className="text-white font-mono text-sm font-medium">#{order.id.slice(0, 8)}</span>
+                        <span className="text-white font-mono text-sm font-medium">#{order.orderId || order.id.slice(0, 8).toUpperCase()}</span>
                         <span className={cn("inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold w-fit capitalize border", STATUS_COLORS[order.status] || "")}>
                           {order.status === "packed" ? "Shipped" : order.status.replace(/_/g, " ")}
                         </span>
@@ -1717,7 +1719,6 @@ function OrdersTab({
                           <User size={12} /> Customer
                         </h4>
                         <p className="text-white text-sm font-medium">{order.shippingName}</p>
-                        <p className="text-dark-400 text-xs">{order.shippingPhone || "N/A"}</p>
                       </div>
                       <div className="bg-dark-800/30 rounded-xl p-4 space-y-2">
                         <h4 className="text-xs text-dark-500 uppercase tracking-wider font-semibold flex items-center gap-2">

@@ -418,7 +418,7 @@ function OverviewTab({ user, light }: { user: any; light: boolean }) {
               <Card key={order.id} light={light} className="p-4">
                 <div className="flex items-center justify-between mb-2">
                   <p className={cn("text-xs font-mono", light ? "text-onyx/40" : "text-dark-500")}>
-                    #{order.id?.slice(0, 8)}
+                    #{order.orderId || order.id?.slice(0, 8).toUpperCase()}
                   </p>
                   <StatusBadge status={order.status} light={light} />
                 </div>
@@ -504,7 +504,7 @@ function OrdersTab({ orders, light }: { orders: any[]; light: boolean }) {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <p className={cn("text-xs font-mono", light ? "text-onyx/40" : "text-dark-500")}>
-                      #{order.id?.slice(0, 8)}
+                      #{order.orderId || order.id?.slice(0, 8).toUpperCase()}
                     </p>
                     <StatusBadge status={order.status} light={light} />
                   </div>

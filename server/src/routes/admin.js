@@ -4,7 +4,7 @@ const prisma = require("../db");
 const { adminAuth } = require("../middleware/auth");
 const { getEffectiveCardLevel, levelFromBalance } = require("../utils/cardLevel");
 const { safeErrorMessage, ORDER_STATUSES } = require("../utils/helpers");
-const { syncPayoutsForItemChange } = require("../utils/sellerPayout");
+const { reconcilePayoutsForStatus } = require("../utils/sellerPayout");
 const { effectiveSellerPrice } = require("../utils/products");
 const {
   sendOrderStatusEmail,
@@ -18,6 +18,34 @@ const {
 } = require("../services/delhivery");
 
 const router = express.Router();
+
+async function refundToWallet(order, refundAmount, userId) {
+  if (!order || refundAmount <= 0) return;
+  if (!["WALLET", "UPI"].includes(order.paymentMethod)) return;
+  if (order.paymentStatus !== "APPROVED") return;
+  const walletUser = await prisma.user.findUnique({ where: { id: userId }, select: { walletBalance: true, peakWalletBalance: true } });
+  const newBalance = (walletUser.walletBalance || 0) + refundAmount;
+  await prisma.$transaction([
+    prisma.walletTopUp.create({
+      data: {
+        userId,
+        amount: refundAmount,
+        paymentMethod: "REFUND",
+        transactionId: `REFUND:${order.orderId || order.id}`,
+        status: "APPROVED",
+        processedAt: new Date(),
+        adminNote: `Refund for cancelled order #${order.orderId || order.id}`,
+      },
+    }),
+    prisma.user.update({
+      where: { id: userId },
+      data: {
+        walletBalance: { increment: refundAmount },
+        ...(newBalance > (walletUser.peakWalletBalance || 0) ? { peakWalletBalance: newBalance } : {}),
+      },
+    }),
+  ]);
+}
 
 router.use(adminAuth);
 
@@ -196,7 +224,7 @@ router.put("/orders/:id/status", async (req, res) => {
       if (status === "cancelled") data.cancelledAt = new Date();
       if (status === "return_requested") data.returnRequestedAt = new Date();
       if (status === "returned") data.returnedAt = new Date();
-      await syncPayoutsForItemChange(existing, updatedItems);
+      await reconcilePayoutsForStatus(existing, updatedItems, status);
       const order = await prisma.order.update({ where: { id: req.params.id }, data });
       await resolveOrderItemSellerPrices([order]);
       const user = await prisma.user.findUnique({ where: { id: existing.userId }, select: { name: true, email: true } });
@@ -208,15 +236,27 @@ router.put("/orders/:id/status", async (req, res) => {
     if (status === "cancelled") data.cancelledAt = new Date();
     if (status === "return_requested") data.returnRequestedAt = new Date();
     if (status === "returned") data.returnedAt = new Date();
+    if (status === "return_approved") data.returnedAt = new Date();
     if (status === "delivered") data.deliveredAt = new Date();
+    const isReturnFinal = status === "returned" || status === "return_approved";
     if (Array.isArray(existing.items)) {
       data.items = existing.items.map((it) => {
-        if (it.status === "cancelled" || it.status === "delivered" || it.status === "returned") return it;
+        if (it.status === "cancelled" || it.status === "returned") return it;
+        if (isReturnFinal) {
+          return it.status === "return_requested" || it.status === "delivered" || it.status === "return_approved"
+            ? { ...it, status: "returned" }
+            : it;
+        }
+        if (it.status === "delivered") return it;
         return { ...it, status };
       });
     }
 
-    await syncPayoutsForItemChange(existing, data.items);
+    await reconcilePayoutsForStatus(existing, data.items, status);
+
+    if (status === "cancelled") {
+      await refundToWallet(existing, existing.totalAmount, existing.userId);
+    }
 
     const order = await prisma.order.update({ where: { id: req.params.id }, data });
     await resolveOrderItemSellerPrices([order]);
@@ -270,7 +310,12 @@ router.put("/orders/:id/items/:itemIdx/status", async (req, res) => {
       if (allCancelled) data.cancelledAt = new Date();
     }
     if (status === "delivered") data.deliveredAt = new Date();
-    await syncPayoutsForItemChange(order, updatedItems);
+    await reconcilePayoutsForStatus(order, updatedItems, status);
+    if (status === "cancelled") {
+      const allCancelled = updatedItems.every((it) => it.status === "cancelled");
+      const cancelRefund = allCancelled ? order.totalAmount : (item.price || 0) * (item.quantity || 1);
+      await refundToWallet(order, cancelRefund, order.userId);
+    }
     const updated = await prisma.order.update({ where: { id }, data });
     await resolveOrderItemSellerPrices([updated]);
 
@@ -314,7 +359,7 @@ router.put("/orders/:id/payment", async (req, res) => {
       });
 
       const user = await prisma.user.findUnique({ where: { id: order.userId }, select: { name: true, email: true } });
-      sendOrderStatusEmail(user.email, user.name, order.id, "confirmed").catch(() => {});
+      sendOrderStatusEmail(user.email, user.name, order.orderId || order.id, "confirmed").catch(() => {});
 
       return res.json(updated);
     }
@@ -330,7 +375,7 @@ router.put("/orders/:id/payment", async (req, res) => {
     });
 
     const user = await prisma.user.findUnique({ where: { id: order.userId }, select: { name: true, email: true } });
-    sendOrderStatusEmail(user.email, user.name, order.id, "cancelled").catch(() => {});
+    sendOrderStatusEmail(user.email, user.name, order.orderId || order.id, "cancelled").catch(() => {});
 
     res.json(updated);
   } catch (err) {
@@ -360,7 +405,7 @@ router.put("/orders/:id/assign", async (req, res) => {
 
     await prisma.order.update({ where: { id: req.params.id }, data: { assignedTo: deliveryId, assignedAt: new Date() } });
 
-    sendDeliveryAssignedEmail(exec.email, exec.name, order.id, order.source).catch(() => {});
+    sendDeliveryAssignedEmail(exec.email, exec.name, order.orderId || order.id, order.source).catch(() => {});
 
     res.json({ message: "Order assigned" });
   } catch (err) {
@@ -387,24 +432,24 @@ router.put("/orders/:id/return-approve", async (req, res) => {
             return it;
           })
         : order.items;
-      await syncPayoutsForItemChange(order, updatedItems);
+      await reconcilePayoutsForStatus(order, updatedItems, "return_rejected");
       const updated = await prisma.order.update({
         where: { id: order.id },
         data: { items: updatedItems, status: "return_rejected" },
       });
       const user = await prisma.user.findUnique({ where: { id: order.userId }, select: { name: true, email: true } });
-      sendReturnApprovedEmail(user.email, user.name, order.id, false).catch(() => {});
+      sendReturnApprovedEmail(user.email, user.name, order.orderId || order.id, false).catch(() => {});
       return res.json(updated);
     }
 
     const updatedItems = Array.isArray(order.items)
       ? order.items.map((it) => {
-          if (it.status === "return_requested") return { ...it, status: "returned" };
+          if (it.status === "return_requested" || it.status === "delivered") return { ...it, status: "returned" };
           return it;
         })
       : order.items;
     const allReturned = updatedItems.every((it) => it.status === "returned" || it.status === "cancelled");
-    await syncPayoutsForItemChange(order, updatedItems);
+    await reconcilePayoutsForStatus(order, updatedItems, "return_approved");
     const updated = await prisma.order.update({
       where: { id: order.id },
       data: {
@@ -416,7 +461,7 @@ router.put("/orders/:id/return-approve", async (req, res) => {
     });
 
     const user = await prisma.user.findUnique({ where: { id: order.userId }, select: { name: true, email: true } });
-    sendReturnApprovedEmail(user.email, user.name, order.id, true).catch(() => {});
+    sendReturnApprovedEmail(user.email, user.name, order.orderId || order.id, true).catch(() => {});
 
     res.json(updated);
   } catch (err) {
@@ -594,7 +639,7 @@ router.get("/users/:id", async (req, res) => {
         orders: {
           orderBy: { createdAt: "desc" },
           select: {
-            id: true, items: true, totalAmount: true, status: true, paymentMethod: true, paymentStatus: true,
+            id: true, orderId: true, items: true, totalAmount: true, status: true, paymentMethod: true, paymentStatus: true,
             shippingName: true, shippingPhone: true, shippingAddress: true, shippingCity: true,
             shippingState: true, shippingPincode: true, createdAt: true,
           },
@@ -633,7 +678,7 @@ router.get("/users/:id", async (req, res) => {
         where: { assignedTo: req.params.id },
         orderBy: { createdAt: "desc" },
         select: {
-          id: true, items: true, totalAmount: true, status: true,
+          id: true, orderId: true, items: true, totalAmount: true, status: true,
           shippingName: true, shippingPhone: true, shippingAddress: true,
           shippingCity: true, shippingState: true, shippingPincode: true,
           paymentMethod: true, createdAt: true,
@@ -654,7 +699,7 @@ router.get("/users/:id", async (req, res) => {
       const allOrders = await prisma.order.findMany({
         orderBy: { createdAt: "desc" },
         select: {
-          id: true, items: true, totalAmount: true, status: true, paymentMethod: true,
+          id: true, orderId: true, items: true, totalAmount: true, status: true, paymentMethod: true,
           paymentStatus: true, shippingName: true, shippingPhone: true,
           shippingAddress: true, shippingCity: true, shippingState: true,
           shippingPincode: true, userId: true, createdAt: true,

@@ -2,6 +2,7 @@ const express = require("express");
 const prisma = require("../db");
 const { userAuth } = require("../middleware/userAuth");
 const { safeErrorMessage } = require("../utils/helpers");
+const { reconcilePayoutsForStatus } = require("../utils/sellerPayout");
 const {
   generateOTP,
   sendDeliveryVerificationEmail,
@@ -71,7 +72,7 @@ router.put("/orders/:id/status", userAuth, async (req, res) => {
         where: { id: order.userId },
         select: { name: true, email: true },
       });
-      sendDeliveryVerificationEmail(customer.email, customer.name, order.id, code).catch(() => {});
+      sendDeliveryVerificationEmail(customer.email, customer.name, order.orderId || order.id, code).catch(() => {});
       return res.json({ message: "Verification OTP sent to customer. Awaiting confirmation." });
     }
 
@@ -90,7 +91,7 @@ router.put("/orders/:id/status", userAuth, async (req, res) => {
         where: { id: order.userId },
         select: { name: true, email: true },
       });
-      sendOrderStatusEmail(customer.email, customer.name, order.id, "out_for_delivery").catch(() => {});
+      sendOrderStatusEmail(customer.email, customer.name, order.orderId || order.id, "out_for_delivery").catch(() => {});
       return res.json(updated);
     }
   } catch (err) {
@@ -121,7 +122,7 @@ router.put("/orders/:id/unassign", userAuth, async (req, res) => {
           orderSource: order.source,
         },
       });
-      sendDeliveryWarningEmail(user.email, user.name, order.id, "Late unassignment — outside allowed time window").catch(() => {});
+      sendDeliveryWarningEmail(user.email, user.name, order.orderId || order.id, "Late unassignment — outside allowed time window").catch(() => {});
     }
 
     await prisma.order.update({ where: { id: order.id }, data: { assignedTo: null } });
@@ -155,7 +156,7 @@ router.post("/orders/:id/resend-otp", userAuth, async (req, res) => {
       where: { id: order.userId },
       select: { name: true, email: true },
     });
-    sendDeliveryVerificationEmail(customer.email, customer.name, order.id, code).catch(() => {});
+    sendDeliveryVerificationEmail(customer.email, customer.name, order.orderId || order.id, code).catch(() => {});
 
     res.json({ message: "OTP resent to customer" });
   } catch (err) {
@@ -198,6 +199,7 @@ router.post("/orders/:id/verify-otp", userAuth, async (req, res) => {
     const updatedItems = Array.isArray(order.items)
       ? order.items.map((it) => ({ ...it, status: "delivered" }))
       : order.items;
+    await reconcilePayoutsForStatus(order, updatedItems, "delivered");
     const updated = await prisma.order.update({
       where: { id: order.id },
       data: { items: updatedItems, status: "delivered", deliveredAt: new Date() },
@@ -207,7 +209,7 @@ router.post("/orders/:id/verify-otp", userAuth, async (req, res) => {
       where: { id: order.userId },
       select: { name: true, email: true },
     });
-    sendOrderStatusEmail(customer.email, customer.name, order.id, "delivered").catch(() => {});
+    sendOrderStatusEmail(customer.email, customer.name, order.orderId || order.id, "delivered").catch(() => {});
 
     res.json(updated);
   } catch (err) {

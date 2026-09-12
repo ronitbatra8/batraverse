@@ -496,7 +496,7 @@ export default function UsersTab({
                                   >
                                     <div className="flex-1 min-w-0">
                                       <div className="flex items-center gap-2">
-                                        <p className="text-xs text-dark-500 font-mono group-hover:text-gold-400 transition-colors">#{order.id?.slice(0, 8)}</p>
+                                        <p className="text-xs text-dark-500 font-mono group-hover:text-gold-400 transition-colors">#{order.orderId || order.id?.slice(0, 8).toUpperCase()}</p>
                                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border ${statusColors[order.status] || ""}`}>
                                           {order.status}
                                         </span>

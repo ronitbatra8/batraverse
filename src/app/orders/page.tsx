@@ -535,9 +535,6 @@ export default function OrdersPage() {
                             {isMart && order.deliveryMode === "express" && (
                               <span className="hidden text-[10px] text-emerald-400/80 sm:inline">&middot; 10 min</span>
                             )}
-                            {isMart && order.deliveryMode === "regular" && (
-                              <span className="hidden text-[10px] text-emerald-400/80 sm:inline">&middot; 3-5 days</span>
-                            )}
                           </div>
                           <p className={cn("mt-1 truncate text-xs", light ? "text-dark-400" : "text-dark-400")}>
                             #{order.orderId || order.id.slice(0, 8).toUpperCase()}
@@ -742,7 +739,7 @@ export default function OrdersPage() {
                           <div className={cn("rounded-xl p-3", light ? "bg-dark-50/80" : "bg-onyx/50")}>
                             <p className={cn("text-[9px] font-semibold uppercase tracking-wider", light ? "text-dark-400" : "text-cream-dim/50")}>Delivery</p>
                             <p className={cn("mt-1 text-xs font-medium", light ? "text-dark-900" : "text-cream")}>
-                              {order.deliveryMode === "express" ? "20 Min Express" : order.deliveryMode === "regular" ? "3-5 Days Regular" : isQuickDelivery ? "1 Hour Standard" : "Standard"}
+                              {order.deliveryMode === "express" ? "20 Min Express" : isQuickDelivery ? "1 Hour Standard" : "Standard"}
                             </p>
                           </div>
                           <div className={cn("rounded-xl p-3", light ? "bg-dark-50/80" : "bg-onyx/50")}>
@@ -817,7 +814,7 @@ export default function OrdersPage() {
                                 onClick={() => setConfirmReturnId(order.id)}
                                 className={cn("flex items-center gap-2 rounded-xl border px-4 py-2.5 text-[10px] font-bold uppercase tracking-[0.2em] transition-all", light ? "border-amber-200 text-amber-600 hover:bg-amber-50" : "border-amber-500/20 text-amber-400 hover:bg-amber-500/5")}
                               >
-                                <RotateCcw size={12} /> Return within 2 hours
+                                <RotateCcw size={12} /> Return within 12 hours
                               </button>
                             )}
                           </div>

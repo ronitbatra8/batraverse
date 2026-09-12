@@ -23,7 +23,7 @@ export default function CartPage() {
 
   const storeSubtotal = storeItems.reduce((s, i) => s + (i.colorPrice ?? i.product.price) * i.qty, 0);
   const martSubtotal = martItems.reduce((s, i) => s + (i.colorPrice ?? i.product.price) * i.qty, 0);
-  const storeDelivery = storeItems.length > 0 ? (storeSubtotal >= 800 ? 0 : 49) : 0;
+  const storeDelivery = storeItems.length > 0 ? (storeSubtotal >= 250 ? 0 : 49) : 0;
   const martDelivery = martItems.length > 0 ? (martSubtotal >= 200 ? 0 : 49) : 0;
   const deliveryCharge = storeDelivery + martDelivery;
   const expressFee = hasMartItems && deliveryMode === "express" ? 49 : 0;
@@ -375,9 +375,9 @@ export default function CartPage() {
                         </span>
                       </div>
                       {storeDelivery === 0 ? (
-                        <p className="text-[9px] text-emerald-500">Free store delivery on orders above ₹800</p>
+                        <p className="text-[9px] text-emerald-500">Free store delivery on orders above ₹250</p>
                       ) : (
-                        <p className="text-[9px] text-amber-500">Add {formatPrice(800 - storeSubtotal)} more to get free store delivery</p>
+                        <p className="text-[9px] text-amber-500">Add {formatPrice(250 - storeSubtotal)} more to get free store delivery</p>
                       )}
                     </div>
                   )}

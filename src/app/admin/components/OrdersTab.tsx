@@ -285,6 +285,8 @@ export default function OrdersTab({
             const sc = statusColors[order.status as keyof typeof statusColors] || "";
             const storeItemCount = (order.items || []).filter((it: any) => it.source !== "mart").length;
             const splitItems = (order.items || []).filter((it: any) => it.sellerPrice != null && it.sellerPrice > 0);
+            const orderDiscount = Number(order.discountAmount) || 0;
+            const splitSubtotal = splitItems.reduce((s: number, it: any) => s + (it.price || 0) * (it.quantity || 1), 0);
 
             return (
               <div
@@ -313,12 +315,9 @@ export default function OrdersTab({
                         {order.deliveryMode === "express" && getOrderSource(order) === "mart"
                           ? <span className="text-[10px] text-emerald-400/80 hidden sm:inline">· 10 min</span>
                           : null}
-                        {order.deliveryMode === "regular" && getOrderSource(order) === "mart"
-                          ? <span className="text-[10px] text-emerald-400/80 hidden sm:inline">· 3-5 days</span>
-                          : null}
                       </div>
                       <p className="text-dark-400 text-xs mt-1 truncate">
-                        #{order.orderId || order.id?.slice(0, 8)}
+                        #{order.orderId || order.id?.slice(0, 8).toUpperCase()}
                         <span className="text-dark-600 mx-1.5">&middot;</span>
                         {order.user?.email || order.shippingPhone || "No contact"}
                       </p>
@@ -656,7 +655,8 @@ export default function OrdersTab({
                         <div className="space-y-2">
                           {splitItems.map((item: any, idx: number) => {
                             const qty = item.quantity || 1;
-                            const customer = (item.price || 0) * qty;
+                            const share = splitSubtotal > 0 ? (item.price || 0) * qty / splitSubtotal : 1;
+                            const customer = ((item.price || 0) * qty) - (orderDiscount * share);
                             const seller = item.sellerPrice * qty;
                             const diff = customer - seller;
                             return (
@@ -718,11 +718,11 @@ export default function OrdersTab({
                         </div>
                         {order.deliveryMode && getOrderSource(order) === "mart" && (
                           <div className="flex items-center gap-3">
-                            <div className={`w-4 h-4 rounded-full ${order.deliveryMode === "express" ? "bg-emerald-500" : order.deliveryMode === "regular" ? "bg-violet-500" : "bg-sky-500"}`} />
+                            <div className={`w-4 h-4 rounded-full ${order.deliveryMode === "express" ? "bg-emerald-500" : "bg-sky-500"}`} />
                             <div>
                               <div className="text-xs text-dark-500">Delivery</div>
-                              <div className={`text-sm font-medium ${order.deliveryMode === "express" ? "text-emerald-400" : order.deliveryMode === "regular" ? "text-violet-400" : "text-sky-400"}`}>
-                                {order.deliveryMode === "express" ? "20 Min Express" : order.deliveryMode === "regular" ? "3-5 Days Regular" : "1 Hour Standard"}
+                              <div className={`text-sm font-medium ${order.deliveryMode === "express" ? "text-emerald-400" : "text-sky-400"}`}>
+                                {order.deliveryMode === "express" ? "20 Min Express" : "1 Hour Standard"}
                               </div>
                             </div>
                           </div>

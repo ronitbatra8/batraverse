@@ -271,7 +271,7 @@ export default function CardUpgradeCheckout({ currentLevel, walletBalance = 0 }:
                               {meta?.name || p.toLevel}
                             </p>
                             <p className={cn("text-[9px]", light ? "text-onyx/40" : "text-dark-500")}>
-                              {meta?.discount ? `${meta.discount}% off · ` : ""}{meta?.freeDeliveries ? `${meta.freeDeliveries} free deliveries/mo` : "standard benefits"}
+                              {meta?.discountFlat ? `₹${meta.discountFlat} off ${meta.discountFlatMin}+ · ` : ""}{meta?.freeDeliveries ? `${meta.freeDeliveries} free deliveries/mo` : "standard benefits"}
                             </p>
                           </div>
                           <div className="shrink-0 text-right">

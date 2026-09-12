@@ -34,10 +34,37 @@ function deriveOrderStatus(items) {
   return "pending";
 }
 
+async function refundToWallet(order, refundAmount, userId) {
+  if (!order || refundAmount <= 0) return;
+  if (!["WALLET", "UPI"].includes(order.paymentMethod)) return;
+  if (order.paymentStatus !== "APPROVED") return;
+  const walletUser = await prisma.user.findUnique({ where: { id: userId }, select: { walletBalance: true, peakWalletBalance: true } });
+  const newBalance = (walletUser.walletBalance || 0) + refundAmount;
+  await prisma.$transaction([
+    prisma.walletTopUp.create({
+      data: {
+        userId,
+        amount: refundAmount,
+        paymentMethod: "REFUND",
+        transactionId: `REFUND:${order.orderId || order.id}`,
+        status: "APPROVED",
+        processedAt: new Date(),
+        adminNote: `Refund for cancelled order #${order.orderId || order.id}`,
+      },
+    }),
+    prisma.user.update({
+      where: { id: userId },
+      data: {
+        walletBalance: { increment: refundAmount },
+        ...(newBalance > (walletUser.peakWalletBalance || 0) ? { peakWalletBalance: newBalance } : {}),
+      },
+    }),
+  ]);
+}
+
 const AUTO_APPROVE_METHODS = ["COD", "UPI_DELIVERY"];
 const ONLINE_METHODS = ["CARD", "UPI", "NETBANKING", "WALLET"];
 
-const LEVEL_DISCOUNT = { none: 0, bronze: 0, silver: 0, gold: 0, platinum: 5, diamond: 10, black: 15, owner: 15 };
 const LEVEL_ORDER = ["none", "bronze", "silver", "gold", "platinum", "diamond", "black"];
 
 function getLevelFromBalance(balance) {
@@ -66,7 +93,7 @@ router.get("/my", userAuth, async (req, res) => {
 
 router.post("/", userAuth, customerOnly, async (req, res) => {
   try {
-    const { items, shipping, paymentMethod, source, deliveryMode, transactionId, deliveryAmount, expressAmount, cardPin } = req.body;
+    const { items, shipping, paymentMethod, source, deliveryMode, transactionId, deliveryAmount, expressAmount, discountAmount, usedFreeDeliverySlot, cardPin } = req.body;
 
     if (!items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ error: "At least one item is required" });
@@ -103,9 +130,10 @@ router.post("/", userAuth, customerOnly, async (req, res) => {
     // Card-level discount
     const user = await prisma.user.findUnique({ where: { id: req.userId }, select: { cardLevel: true, freeDeliveryUsed: true, freeDeliveryMonth: true, walletBalance: true, peakWalletBalance: true, cardPinHash: true } });
     const effectiveLevel = getEffectiveCardLevel(user);
-    const discountPct = LEVEL_DISCOUNT[effectiveLevel] || 0;
-    const discountAmount = discountPct > 0 ? Math.round(subtotal * discountPct / 100 * 100) / 100 : 0;
-    const discountedSubtotal = subtotal - discountAmount;
+    const isOwner = effectiveLevel === "owner";
+
+    const discountAmt = isOwner ? 0 : Math.max(0, Number(discountAmount) || 0);
+    const discountedSubtotal = Math.max(0, Math.round((subtotal - discountAmt) * 100) / 100);
 
     // Free delivery check
     const currentMonth = new Date().toISOString().slice(0, 7);
@@ -113,12 +141,13 @@ router.post("/", userAuth, customerOnly, async (req, res) => {
     if (user.freeDeliveryMonth !== currentMonth) {
       freeDeliveryUsed = 0;
     }
-    const LEVEL_FREE_DEL = { none: 0, bronze: 1, silver: 2, gold: 5, platinum: 7, diamond: 10, black: 15, owner: 15 };
+    const LEVEL_FREE_DEL = { none: 0, bronze: 1, silver: 2, gold: 3, platinum: 5, diamond: 5, black: 7, owner: 0 };
     const freeDelLimit = LEVEL_FREE_DEL[effectiveLevel] || 0;
-    const hasFreeDelivery = freeDelLimit > 0 && freeDeliveryUsed < freeDelLimit;
+    const slotUsed = !isOwner && source === "store" && paymentMethod === "WALLET" && usedFreeDeliverySlot === true;
+    const hasFreeDelivery = slotUsed && freeDelLimit > 0 && freeDeliveryUsed < freeDelLimit;
 
-    const expressFee = Number(expressAmount) || 0;
-    const deliveryCharge = hasFreeDelivery ? 0 : (Number(deliveryAmount) || 0);
+    const expressFee = isOwner ? 0 : (Number(expressAmount) || 0);
+    const deliveryCharge = isOwner || hasFreeDelivery ? 0 : (Number(deliveryAmount) || 0);
 
     const totalAmount = Math.round((discountedSubtotal + deliveryCharge + expressFee) * 100) / 100;
 
@@ -150,6 +179,7 @@ router.post("/", userAuth, customerOnly, async (req, res) => {
         orderId: generateOrderId(source),
         items: orderItems,
         totalAmount,
+        discountAmount: Math.max(0, Number(discountAmount) || 0),
         status: initialStatus,
         paymentMethod: paymentMethod || "CARD",
         paymentStatus,
@@ -184,9 +214,9 @@ router.post("/", userAuth, customerOnly, async (req, res) => {
     }
 
     const emailUser = await prisma.user.findUnique({ where: { id: req.userId }, select: { name: true, email: true } });
-    sendOrderConfirmationEmail(emailUser.email, emailUser.name, order.id, totalAmount, source).catch(() => {});
+    sendOrderConfirmationEmail(emailUser.email, emailUser.name, order.orderId || order.id, totalAmount, source).catch(() => {});
 
-    res.status(201).json({ ...order, discount: discountAmount, discountPct, freeDelivery: hasFreeDelivery });
+    res.status(201).json({ ...order, discount: discountAmount, freeDelivery: hasFreeDelivery });
   } catch (err) {
     console.error("Order creation error:", err);
     res.status(500).json({ error: safeErrorMessage(err) });
@@ -211,8 +241,10 @@ router.put("/:id/cancel", userAuth, customerOnly, async (req, res) => {
       data: { items: updatedItems, status: "cancelled", cancelledAt: new Date() },
     });
 
+    await refundToWallet(order, order.totalAmount, order.userId);
+
     const user = await prisma.user.findUnique({ where: { id: req.userId }, select: { name: true, email: true } });
-    sendOrderStatusEmail(user.email, user.name, order.id, "cancelled").catch(() => {});
+    sendOrderStatusEmail(user.email, user.name, order.orderId || order.id, "cancelled").catch(() => {});
 
     res.json(updated);
   } catch (err) {
@@ -248,6 +280,10 @@ router.put("/:id/items/:itemIdx/cancel", userAuth, customerOnly, async (req, res
         ...(allCancelled ? { cancelledAt: new Date() } : {}),
       },
     });
+
+    const refundAmount = allCancelled ? order.totalAmount : (item.price || 0) * (item.quantity || 1);
+    await refundToWallet(order, refundAmount, order.userId);
+
     const updatedOrder = await prisma.order.findUnique({ where: { id } });
 
     const user = await prisma.user.findUnique({ where: { id: req.userId }, select: { name: true, email: true } });
@@ -274,10 +310,10 @@ router.post("/:id/return-request", userAuth, customerOnly, async (req, res) => {
     if (!order.deliveredAt) {
       return res.status(400).json({ error: "Delivery timestamp not found" });
     }
-    const twoHoursMs = 2 * 60 * 60 * 1000;
+    const returnWindowMs = 12 * 60 * 60 * 1000;
     const elapsed = Date.now() - new Date(order.deliveredAt).getTime();
-    if (elapsed > twoHoursMs) {
-      return res.status(400).json({ error: "Return window has expired (2 hours after delivery)" });
+    if (elapsed > returnWindowMs) {
+      return res.status(400).json({ error: "Return window has expired (12 hours after delivery)" });
     }
 
     const updatedItems = order.items.map((it) => {
@@ -296,7 +332,7 @@ router.post("/:id/return-request", userAuth, customerOnly, async (req, res) => {
     });
 
     const user = await prisma.user.findUnique({ where: { id: req.userId }, select: { name: true, email: true } });
-    sendOrderStatusEmail(user.email, user.name, order.id, "return_requested").catch(() => {});
+    sendOrderStatusEmail(user.email, user.name, order.orderId || order.id, "return_requested").catch(() => {});
 
     res.json(updated);
   } catch (err) {
@@ -337,7 +373,7 @@ router.post("/:id/verify-delivery", userAuth, async (req, res) => {
     });
 
     const user = await prisma.user.findUnique({ where: { id: req.userId }, select: { name: true, email: true } });
-    sendOrderStatusEmail(user.email, user.name, order.id, "delivered").catch(() => {});
+    sendOrderStatusEmail(user.email, user.name, order.orderId || order.id, "delivered").catch(() => {});
 
     res.json(updated);
   } catch (err) {

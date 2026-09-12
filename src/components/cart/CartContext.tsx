@@ -22,8 +22,8 @@ interface CartCtx {
   removeItem: (key: string) => void;
   updateQty: (key: string, qty: number) => void;
   clear: () => void;
-  deliveryMode: "standard" | "express" | "regular";
-  setDeliveryMode: (mode: "standard" | "express" | "regular") => void;
+  deliveryMode: "standard" | "express";
+  setDeliveryMode: (mode: "standard" | "express") => void;
   totalItems: number;
   subtotal: number;
 }
@@ -124,7 +124,7 @@ const Ctx = createContext<CartCtx | null>(null);
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
-  const [deliveryMode, setDeliveryMode] = useState<"standard" | "express" | "regular">("standard");
+  const [deliveryMode, setDeliveryMode] = useState<"standard" | "express">("standard");
   const userRef = useRef<string | null>(null);
   const itemsRef = useRef<CartItem[]>(items);
 
@@ -159,7 +159,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           items: cartItems.map((i) => ({
             productId: i.product.id,
             name: i.product.name,
-            price: i.product.price,
+            price: i.colorPrice ?? i.product.price,
             color: i.color,
             colorHex: i.colorHex,
             image: i.colorImage,
@@ -197,18 +197,19 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
             const hydrated: CartItem[] = backendItems.map((b) => {
               const key = fullItemKey(b.productId, b.color || "", b.size || undefined);
               const local = localByKey.get(key);
+              const effectivePrice = local?.colorPrice ?? b.price ?? local?.product.price ?? 0;
               return {
                 product: {
                   id: b.productId,
                   name: b.name || local?.product.name || "Unknown",
-                  price: b.price || local?.product.price || 0,
+                  price: effectivePrice,
                   gradient: local?.product.gradient || "",
                   category: local?.product.category || "",
                 } as Product,
                 color: b.color || "",
                 colorHex: b.colorHex || "#0a0a0a",
                 colorImage: b.image || local?.colorImage,
-                colorPrice: b.price || local?.colorPrice,
+                colorPrice: effectivePrice,
                 size: b.size || undefined,
                 qty: b.qty || 1,
                 source: b.source || local?.source || "store",
@@ -217,6 +218,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
             itemsRef.current = hydrated;
             setItems(hydrated);
             saveLocal(hydrated);
+            await syncToBackend(hydrated);
           }
         } catch {
           // keep localStorage items

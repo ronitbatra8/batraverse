@@ -248,7 +248,7 @@ export default function SellersTab({ adminKey }: { adminKey: string }) {
                             {detail.orders.slice(0, 10).map((order: any) => (
                               <div key={order.id} className="bg-dark-900/40 border border-dark-800/30 rounded-xl p-4 space-y-1">
                                 <div className="flex items-center justify-between">
-                                  <p className="text-xs text-dark-500 font-mono">#{order.id?.slice(0, 8)}</p>
+                                  <p className="text-xs text-dark-500 font-mono">#{order.orderId || order.id?.slice(0, 8).toUpperCase()}</p>
                                   <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border ${statusColors[order.status] || "text-dark-400 bg-dark-800/50 border-dark-700/50"}`}>{order.status}</span>
                                 </div>
                                 <p className="text-sm text-white font-medium">{formatPrice(order.totalAmount)}</p>

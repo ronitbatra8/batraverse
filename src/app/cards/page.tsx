@@ -405,15 +405,22 @@ function CardsContent() {
               <div className="mt-3 grid grid-cols-2 gap-2">
                 <div className={cn("rounded-xl border p-3 text-center", light ? "border-sapphire/10 bg-sapphire/5" : "border-gold/10 bg-gold/5")}>
                   <p className={cn("text-lg font-bold", light ? "text-sapphire" : "text-gold")}>
-                    {LEVELS[effectiveLevel]?.discount || 0}%
+                    {LEVELS[effectiveLevel]?.discountFlat ? `₹${LEVELS[effectiveLevel]?.discountFlat}` : "0"}
                   </p>
-                  <p className={cn("text-[9px] uppercase tracking-wider", light ? "text-onyx/50" : "text-dark-500")}>Discount</p>
+                  <p className={cn("text-[9px] uppercase tracking-wider", light ? "text-onyx/50" : "text-dark-500")}>
+                    {LEVELS[effectiveLevel]?.discountFlat ? `Off ${LEVELS[effectiveLevel]?.discountFlatMin}+` : "Discount"}
+                  </p>
                 </div>
                 <div className={cn("rounded-xl border p-3 text-center", light ? "border-sky-500/10 bg-sky-500/5" : "border-sky-400/10 bg-sky-400/5")}>
                   <p className={cn("text-lg font-bold", light ? "text-sky-600" : "text-sky-300")}>
                     {LEVELS[effectiveLevel]?.freeDeliveries || 0}
                   </p>
                   <p className={cn("text-[9px] uppercase tracking-wider", light ? "text-onyx/50" : "text-dark-500")}>Free Delivery/mo</p>
+                  {LEVELS[effectiveLevel]?.freeDeliveries > 0 && (
+                    <p className={cn("text-[8px] font-semibold", light ? "text-sky-600" : "text-sky-300")}>
+                      Above ₹{LEVELS[effectiveLevel]?.freeDeliveryMin || 150}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>

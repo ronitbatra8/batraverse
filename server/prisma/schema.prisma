@@ -119,6 +119,7 @@ model Order {
   orderId           String?  @unique
   items             Json
   totalAmount       Float
+  discountAmount    Float    @default(0)
   status            OrderStatus @default(pending)
   paymentMethod     String?
   paymentStatus     PaymentStatus @default(PENDING)

@@ -790,8 +790,8 @@ src={resolveImageUrl(item.colorImage) || ""}
                       </p>
                       {hasMartItems && (
                         <p className={cn("text-xs mt-1 flex items-center gap-1", light ? "text-dark-400" : "text-cream-dim/40")}>
-                          {deliveryMode === "express" ? <Zap size={10} /> : deliveryMode === "regular" ? <Truck size={10} /> : <Clock size={10} />}
-                          Mart: {deliveryMode === "express" ? "Express (20 Min)" : deliveryMode === "regular" ? "Regular (3-5 Days)" : "Standard (1 Hour)"}
+                          {deliveryMode === "express" ? <Zap size={10} /> : deliveryMode === "standard" ? <Truck size={10} /> : <Clock size={10} />}
+                          Mart: {deliveryMode === "express" ? "Express (20 Min)" : deliveryMode === "standard" ? "Standard (1 Hour)" : "Standard (1 Hour)"}
                         </p>
                       )}
                       <p className={cn("text-xs mt-0.5", light ? "text-dark-400" : "text-cream-dim/40")}>{ship.email}</p>
@@ -864,7 +864,7 @@ src={resolveImageUrl(item.colorImage) || ""}
                 </div>
                 {discountAmount > 0 && (
                   <div className="flex justify-between">
-                    <span className="text-xs text-emerald-500">Card Discount ({discountPct}%)</span>
+                    <span className="text-xs text-emerald-500">Card Payment Discount</span>
                     <span className="text-xs font-medium tabular-nums text-emerald-500">-{formatPrice(discountAmount)}</span>
                   </div>
                 )}
@@ -948,20 +948,20 @@ src={resolveImageUrl(item.colorImage) || ""}
                       </button>
                       <button
                         type="button"
-                        onClick={() => setDeliveryMode("regular")}
+                        onClick={() => setDeliveryMode("standard")}
                         className={cn(
                           "flex flex-1 items-center gap-2 rounded-xl border-2 px-3 py-3 transition-all duration-300",
-                          deliveryMode === "regular"
+                          deliveryMode === "standard"
                             ? light ? "border-sapphire bg-sapphire/5" : "border-gold bg-gold/5"
                             : light ? "border-dark-200 hover:border-dark-300" : "border-white/10 hover:border-white/20"
                         )}
                       >
-                        <Truck size={14} className={deliveryMode === "regular" ? (light ? "text-sapphire" : "text-gold") : (light ? "text-dark-400" : "text-cream-dim/50")} />
+                        <Truck size={14} className={deliveryMode === "standard" ? (light ? "text-sapphire" : "text-gold") : (light ? "text-dark-400" : "text-cream-dim/50")} />
                         <div className="text-left">
-                          <p className={cn("text-[10px] font-semibold", deliveryMode === "regular" ? (light ? "text-dark-900" : "text-cream") : (light ? "text-dark-500" : "text-cream-dim/60"))}>
+                          <p className={cn("text-[10px] font-semibold", deliveryMode === "standard" ? (light ? "text-dark-900" : "text-cream") : (light ? "text-dark-500" : "text-cream-dim/60"))}>
                             3-5 Days
                           </p>
-                          <p className={cn("text-[8px]", deliveryMode === "regular" ? (light ? "text-sapphire font-medium" : "text-gold-light font-medium") : (light ? "text-dark-400" : "text-cream-dim/40"))}>
+                          <p className={cn("text-[8px]", deliveryMode === "standard" ? (light ? "text-sapphire font-medium" : "text-gold-light font-medium") : (light ? "text-dark-400" : "text-cream-dim/40"))}>
                             Regular
                           </p>
                         </div>
@@ -971,14 +971,30 @@ src={resolveImageUrl(item.colorImage) || ""}
                 )}
               </div>
               <div className={cn("my-4 h-px", light ? "bg-dark-200" : "bg-white/10")} />
-              {hasMartItems && deliveryMode === "express" && (
-                <div className="mb-3 flex items-center gap-1.5">
-                  <Zap size={10} className={light ? "text-sapphire" : "text-gold"} />
-                  <span className={cn("text-[9px] font-medium", light ? "text-sapphire" : "text-gold")}>
-                    Express for mart items — +{formatPrice(49)}
-                  </span>
-                </div>
-              )}
+                              {expressFee > 0 && (
+                  <div className="flex items-center justify-between">
+                    <span className={cn("flex items-center gap-1 text-xs", light ? "text-dark-500" : "text-cream-dim/60")}>
+                      <Zap size={11} className={light ? "text-sapphire" : "text-gold"} /> Express Surcharge
+                    </span>
+                    <span className={cn("text-xs font-medium tabular-nums", light ? "text-dark-900" : "text-cream")}>{formatPrice(expressFee)}</span>
+                  </div>
+                )}
+                {expressFee > 0 && (
+                  <div className="flex items-center justify-between">
+                    <span className={cn("flex items-center gap-1 text-xs", light ? "text-dark-500" : "text-cream-dim/60")}>
+                      <Zap size={11} className={light ? "text-sapphire" : "text-gold"} /> Express Surcharge
+                    </span>
+                    <span className={cn("text-xs font-medium tabular-nums", light ? "text-dark-900" : "text-cream")}>{formatPrice(expressFee)}</span>
+                  </div>
+                )}
+                {hasMartItems && deliveryMode === "express" && (
+                  <div className="mb-3 flex items-center gap-1.5">
+                    <Zap size={10} className={light ? "text-sapphire" : "text-gold"} />
+                    <span className={cn("text-[9px] font-medium", light ? "text-sapphire" : "text-gold")}>
+                      Express for mart items — +{formatPrice(49)}
+                    </span>
+                  </div>
+                )}
               <div className="flex items-baseline justify-between">
                 <span className={cn("text-xs font-semibold uppercase tracking-[0.2em]", light ? "text-dark-700" : "text-cream-dim")}>Total</span>
                 <span className={cn("text-lg font-bold tabular-nums", light ? "text-dark-900" : "text-cream")}>{formatPrice(total)}</span>

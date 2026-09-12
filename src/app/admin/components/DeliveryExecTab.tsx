@@ -221,7 +221,7 @@ export default function DeliveryExecTab({ adminKey }: { adminKey: string }) {
                               return (
                                 <div key={order.id} className="bg-dark-900/40 border border-dark-800/30 rounded-xl p-4 space-y-2">
                                   <div className="flex items-center justify-between">
-                                    <p className="text-xs text-dark-500 font-mono">#{order.id?.slice(0, 8)}</p>
+                                    <p className="text-xs text-dark-500 font-mono">#{order.orderId || order.id?.slice(0, 8).toUpperCase()}</p>
                                     <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border ${statusColor}`}>{order.status}</span>
                                   </div>
                                   <p className="text-sm text-white font-medium">{formatPrice(order.totalAmount)}</p>

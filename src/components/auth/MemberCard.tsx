@@ -73,9 +73,9 @@ export default function MemberCard({
               MEMBER
             </span>
           )}
-          {meta.discount > 0 && (
+          {(meta.discountFlat || meta.discount > 0) && (
             <span className="hidden sm:inline-flex items-center rounded-full bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 text-[9px] font-bold text-emerald-300">
-              {meta.discount}% OFF
+              {meta.discountFlat ? `₹${meta.discountFlat} OFF ${meta.discountFlatMin}+` : `${meta.discount}% OFF`}
             </span>
           )}
           {meta.freeDeliveries > 0 && (

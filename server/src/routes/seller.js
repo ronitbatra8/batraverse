@@ -513,7 +513,7 @@ router.get("/orders", async (req, res) => {
     const allOrders = await prisma.order.findMany({
       orderBy: { createdAt: "desc" },
       select: {
-        id: true, status: true, totalAmount: true, items: true, createdAt: true,
+        id: true, orderId: true, status: true, totalAmount: true, items: true, createdAt: true,
         shippingName: true, shippingCity: true, shippingState: true,
         shippingAddress: true, shippingPincode: true, shippingPhone: true,
         userId: true,
@@ -535,6 +535,7 @@ router.get("/orders", async (req, res) => {
       if (sellerItems.length === 0) continue;
       sellerOrders.push({
         id: order.id,
+        orderId: order.orderId,
         status: order.status,
         totalAmount: order.totalAmount,
         createdAt: order.createdAt,

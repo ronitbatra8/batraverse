@@ -70,7 +70,7 @@ export default function OverviewTab({ stats, orders, passwordResets, messages, o
                     })()}
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-white truncate group-hover:text-gold-400 transition-colors">{o.shippingName}</p>
-                      <p className="text-xs text-dark-500">#{o.id.slice(-8)}</p>
+                      <p className="text-xs text-dark-500">#{o.orderId || o.id.slice(0, 8).toUpperCase()}</p>
                     </div>
                   </div>
                   <div className="text-right shrink-0 ml-3 flex items-center gap-2">
@@ -116,7 +116,7 @@ export default function OverviewTab({ stats, orders, passwordResets, messages, o
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-xs text-dark-300">
-                    {item.type === "order" && <><span className="text-white font-medium group-hover:text-gold-400 transition-colors">{item.data.shippingName}</span> placed an order <span className="text-dark-500">#{item.data.id.slice(-8)}</span></>}
+                    {item.type === "order" && <><span className="text-white font-medium group-hover:text-gold-400 transition-colors">{item.data.shippingName}</span> placed an order <span className="text-dark-500">#{item.data.orderId || item.data.id.slice(0, 8).toUpperCase()}</span></>}
                     {item.type === "security" && <><span className="text-white font-medium group-hover:text-gold-400 transition-colors">{item.data.user?.name || "User"}</span> — password reset <span className={`font-medium ${item.data.status === "completed" ? "text-emerald-400" : item.data.status === "failed" ? "text-red-400" : "text-amber-400"}`}>{item.data.status}</span></>}
                     {item.type === "message" && <><span className="text-white font-medium group-hover:text-gold-400 transition-colors">{item.data.name}</span> sent a message: <span className="text-dark-500">{item.data.subject}</span></>}
                   </p>

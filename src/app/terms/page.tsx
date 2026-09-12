@@ -26,7 +26,7 @@ const sections = [
   },
   {
     title: "5. Shipping & Delivery",
-    body: "Delivery charges are calculated based on your delivery address and may vary from the flat rate depending on pin code and distance. Standard delivery on the Mart is ₹49, free on orders above ₹200. Orders on the Store above ₹800 are eligible for free delivery. Delivery timelines are estimates and may vary based on location and product availability. Risk of loss and title pass to you upon delivery.",
+    body: "Delivery charges are calculated based on your delivery address and may vary from the flat rate depending on pin code and distance. Standard delivery on the Mart is ₹49, free on orders above ₹200. Orders on the Store above ₹250 are eligible for free delivery. Delivery timelines are estimates and may vary based on location and product availability. Risk of loss and title pass to you upon delivery.",
   },
   {
     title: "6. Returns & Refunds",

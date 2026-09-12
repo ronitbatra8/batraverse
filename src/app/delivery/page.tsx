@@ -355,11 +355,6 @@ export default function DeliveryPage() {
                               Express
                             </span>
                           )}
-                          {order.deliveryMode === "regular" && (
-                            <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-violet-500/10 text-violet-400 border border-violet-500/20">
-                              Regular
-                            </span>
-                          )}
                           <span className={cn("inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border", order.source === "mart" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-sky-500/10 text-sky-400 border-sky-500/20")}>
                             {order.source === "mart" ? "Mart" : "Store"}
                           </span>
