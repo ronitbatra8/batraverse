@@ -724,6 +724,43 @@ router.get("/finance", async (req, res) => {
   }
 });
 
+/* Stock analysis: overall in-stock/out-of-stock for live products plus a
+   per-category breakdown (donut + category bars, mirroring the seller
+   dashboard analytics). Only real/live products (baseProductId null). */
+router.get("/stock-summary", async (req, res) => {
+  try {
+    const products = await prisma.product.findMany({
+      where: { baseProductId: null },
+      select: { category: true, inStock: true, status: true },
+    });
+    const live = products.length;
+    const inStock = products.filter((p) => p.inStock && p.status === "approved").length;
+    const outOfStock = live - inStock;
+
+    const byCategoryMap = {};
+    products.forEach((p) => {
+      const cat = p.category || "Uncategorized";
+      if (!byCategoryMap[cat]) byCategoryMap[cat] = { total: 0, inStock: 0 };
+      byCategoryMap[cat].total += 1;
+      if (p.inStock && p.status === "approved") byCategoryMap[cat].inStock += 1;
+    });
+    const byCategory = Object.entries(byCategoryMap)
+      .map(([category, v]) => ({ category, ...v }))
+      .sort((a, b) => b.total - a.total);
+
+    res.json({
+      total: live,
+      inStock,
+      outOfStock,
+      inStockPct: live > 0 ? Math.round((inStock / live) * 100) : 0,
+      outOfStockPct: live > 0 ? Math.round((outOfStock / live) * 100) : 0,
+      byCategory,
+    });
+  } catch (err) {
+    res.status(500).json({ error: safeErrorMessage(err) });
+  }
+});
+
 router.get("/password-resets", async (req, res) => {
   try {
     const resets = await prisma.passwordReset.findMany({

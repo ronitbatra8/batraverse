@@ -55,6 +55,7 @@ const EMPTY_DATA = {
     topPages: [],
   },
   passwordResets: [],
+  stockSummary: { total: 0, inStock: 0, outOfStock: 0, inStockPct: 0, outOfStockPct: 0, byCategory: [] },
 };
 
 export default function AdminPage() {
@@ -79,6 +80,7 @@ export default function AdminPage() {
   const [privateViewing, setPrivateViewing] = useState<any>(EMPTY_DATA.privateViewing);
   const [passwordResets, setPasswordResets] = useState<any[]>(EMPTY_DATA.passwordResets);
   const [productApprovalCount, setProductApprovalCount] = useState(0);
+  const [stockSummary, setStockSummary] = useState<any>({ total: 0, inStock: 0, outOfStock: 0, inStockPct: 0, outOfStockPct: 0, byCategory: [] });
 
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [focusOrderId, setFocusOrderId] = useState<string | null>(null);
@@ -90,7 +92,7 @@ export default function AdminPage() {
     setAuthError("");
     try {
       const h = adminHeaders(adminKey);
-      const [o, u, s, a, nl, mg, pv, pr, appr] = await Promise.all([
+      const [o, u, s, a, nl, mg, pv, pr, appr, ss] = await Promise.all([
         fetch(`${API}/api/admin/orders`, { headers: h }).then((r) => r.json()),
         fetch(`${API}/api/admin/users`, { headers: h }).then((r) => r.json()),
         fetch(`${API}/api/admin/stats`, { headers: h }).then((r) => r.json()),
@@ -100,6 +102,7 @@ export default function AdminPage() {
         fetch(`${API}/api/private-viewing/list`, { headers: h }).then((r) => r.json()),
         fetch(`${API}/api/admin/password-resets`, { headers: h }).then((r) => r.json()),
         fetch(`${API}/api/admin/product-approvals`, { headers: h }).then((r) => r.json()),
+        fetch(`${API}/api/admin/stock-summary`, { headers: h }).then((r) => r.json()),
       ]);
       if (o && o.error) { setAuthError(o.error); setLoading(false); return; }
       setOrders(Array.isArray(o) ? o : []);
@@ -117,6 +120,7 @@ export default function AdminPage() {
         : EMPTY_DATA.privateViewing);
       setPasswordResets(Array.isArray(pr) ? pr : []);
       setProductApprovalCount(Array.isArray(appr) ? appr.length : 0);
+      setStockSummary(ss && typeof ss === "object" && !Array.isArray(ss) ? ss : EMPTY_DATA.stockSummary);
       setAuthenticated(true);
     } catch { setAuthError("Cannot connect to server"); }
     setLoading(false);
@@ -280,7 +284,7 @@ export default function AdminPage() {
 
       <main className={cn("pt-24 min-h-screen origin-left transition-[padding] duration-500 ease-in-out", sidebarCollapsed ? "lg:pl-0" : "lg:pl-64")}>
         <div key={refreshKey} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-24 lg:pb-8">
-          {tab === "overview" && <OverviewTab stats={stats} orders={orders} passwordResets={passwordResets} messages={messages} onNavigate={handleNavigateToTab} />}
+          {tab === "overview" && <OverviewTab stats={stats} orders={orders} passwordResets={passwordResets} messages={messages} stockSummary={stockSummary} onNavigate={handleNavigateToTab} />}
           {tab === "orders" && <OrdersTab orders={orders} updatingId={updatingId} onStatusUpdate={updateStatus} onItemStatusUpdate={updateItemStatus} onAssign={assignOrder} onPaymentAction={paymentAction} onReturnApprove={returnApprove} focusOrderId={focusOrderId} onFocusHandled={() => setFocusOrderId(null)} adminKey={adminKey} onShipDelhivery={shipViaDelhivery} />}
           {tab === "users" && <UsersTab users={users} adminKey={adminKey} onNavigate={handleNavigateToTab} />}
           {tab === "messages" && <MessagesTab messages={messages} adminKey={adminKey} setMessages={setMessages} />}
