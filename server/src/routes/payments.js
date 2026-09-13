@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
-const { userAuth } = require("../middleware/auth");
-const { safeErrorMessage } = require("../utils/errors");
+const { userAuth } = require("../middleware/userAuth");
+const { safeErrorMessage } = require("../utils/helpers");
 
 const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || "";
 const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || "";
