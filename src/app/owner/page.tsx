@@ -22,7 +22,6 @@ import DeliveryExecTab from "../admin/components/DeliveryExecTab";
 import CardsWalletTab from "../admin/components/CardsWalletTab";
 import MoneyTab from "../admin/components/MoneyTab";
 import ViolationsTab from "../admin/components/ViolationsTab";
-import ProductsTab from "../admin/components/ProductsTab";
 import ProductCatalogTab from "../admin/components/ProductCatalogTab";
 import SellerSystemTab from "../admin/components/SellerSystemTab";
 import AdsTab from "../admin/components/AdsTab";
@@ -290,7 +289,7 @@ export default function AdminPage() {
           {tab === "orders" && <OrdersTab orders={orders} updatingId={updatingId} onStatusUpdate={updateStatus} onItemStatusUpdate={updateItemStatus} onAssign={assignOrder} onPaymentAction={paymentAction} onReturnApprove={returnApprove} focusOrderId={focusOrderId} onFocusHandled={() => setFocusOrderId(null)} adminKey={adminKey} onShipDelhivery={shipViaDelhivery} initialStatusFilter={orderStatusFilter} />}
           {tab === "users" && <UsersTab users={users} adminKey={adminKey} onNavigate={handleNavigateToTab} />}
           {tab === "messages" && <MessagesTab messages={messages} adminKey={adminKey} setMessages={setMessages} />}
-          {tab === "security" && <SecurityTab />}
+          {tab === "security" && <SecurityTab adminKey={adminKey} />}
           {tab === "analytics" && <AnalyticsTab analytics={analytics} />}
           {tab === "newsletter" && <NewsletterTab newsletter={newsletter} privateViewing={privateViewing} adminKey={adminKey} setNewsletter={setNewsletter} setPrivateViewing={setPrivateViewing} />}
           {tab === "delivery" && <DeliveryExecTab adminKey={adminKey} />}
@@ -298,7 +297,6 @@ export default function AdminPage() {
           {tab === "cards" && <CardsWalletTab adminKey={adminKey} />}
           {tab === "money" && <MoneyTab adminKey={adminKey} />}
           {tab === "violations" && <ViolationsTab adminKey={adminKey} />}
-          {tab === "categories" && <ProductsTab adminKey={adminKey} />}
           {tab === "productcatalog" && <ProductCatalogTab adminKey={adminKey} />}
           {tab === "ads" && <AdsTab adminKey={adminKey} />}
           {tab === "featured" && <FeaturedTab adminKey={adminKey} />}

@@ -1,5 +1,8 @@
 const express = require("express");
 const jwt = require("jsonwebtoken");
+const multer = require("multer");
+const path = require("path");
+const fs = require("fs");
 const prisma = require("../db");
 const { adminAuth } = require("../middleware/auth");
 const { getEffectiveCardLevel, levelFromBalance } = require("../utils/cardLevel");
@@ -50,6 +53,43 @@ async function refundToWallet(order, refundAmount, userId) {
 }
 
 router.use(adminAuth);
+
+const adminUploadsDir = path.join(__dirname, "..", "..", "uploads", "products");
+if (!fs.existsSync(adminUploadsDir)) fs.mkdirSync(adminUploadsDir, { recursive: true });
+
+const adminStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, adminUploadsDir),
+  filename: (_req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    cb(null, `${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext}`);
+  },
+});
+const adminUpload = multer({
+  storage: adminStorage,
+  limits: { fileSize: 15 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const extOk = /\.(jpg|jpeg|png|gif|webp|svg|heic|heif|avif)$/i.test(file.originalname);
+    const mimeOk = /^image\/(jpeg|png|gif|webp|svg\+xml|heic|heif|avif)$/i.test(file.mimetype || "");
+    if (extOk || mimeOk) cb(null, true);
+    else cb(new Error("Only image files allowed"));
+  },
+});
+
+router.post("/upload", (req, res) => {
+  adminUpload.array("images", 10)(req, res, (err) => {
+    if (err) {
+      if (err instanceof multer.MulterError) {
+        if (err.code === "LIMIT_FILE_SIZE") return res.status(400).json({ error: "Image too large (max 15MB per image)" });
+        if (err.code === "LIMIT_FILE_COUNT") return res.status(400).json({ error: "Too many images (max 10)" });
+        return res.status(400).json({ error: err.message });
+      }
+      return res.status(400).json({ error: err.message || "Upload failed" });
+    }
+    if (!req.files || req.files.length === 0) return res.status(400).json({ error: "No files uploaded" });
+    const urls = req.files.map((f) => `/uploads/products/${f.filename}`);
+    res.json({ urls });
+  });
+});
 
 const ONLINE_METHODS = ["CARD", "UPI", "NETBANKING", "WALLET"];
 
@@ -609,6 +649,11 @@ router.get("/finance", async (req, res) => {
     const PAID = { paymentStatus: "APPROVED" };
     const SUCCEEDED = { status: { notIn: ["cancelled", "returned", "return_requested", "return_approved", "return_rejected"] } };
     const DELIVERED = { status: "delivered" };
+    const SHIPPED = { status: { in: ["packed", "out_for_delivery", "delivered"] } };
+    const SHIPPING_FEE = 60;
+    const RAZORPAY_FEE_PCT = 0.02;
+    const RAZORPAY_GST_PCT = 0.18;
+    const ONLINE_METHODS = ["CARD", "UPI", "NETBANKING"];
 
     const [
       delivered,
@@ -616,10 +661,19 @@ router.get("/finance", async (req, res) => {
       walletAgg,
       refundsAgg,
       upgradeAgg,
+      upgradePendingAgg,
       payoutAgg,
       userAgg,
       paymentMethodBreakdown,
       revenueByDay,
+      shippedCount,
+      returnsOrders,
+      razorpayAgg,
+      walletCreditAgg,
+      walletDebitAgg,
+      walletRecent,
+      upgradeRecent,
+      payoutRecent,
     ] = await Promise.all([
       // Delivered (completed) orders: all money actually earned
       prisma.order.aggregate({
@@ -634,11 +688,13 @@ router.get("/finance", async (req, res) => {
       // Wallet: approved inflows (topups + manual credit) vs outflows (refunds, order spends)
       prisma.walletTopUp.aggregate({
         _sum: { amount: true },
+        _count: { _all: true },
         where: { status: "APPROVED" },
       }),
       // Refunds issued to customers (wallet or order refunds)
       prisma.walletTopUp.aggregate({
         _sum: { amount: true },
+        _count: { _all: true },
         where: { status: "APPROVED", paymentMethod: { in: ["REFUND"] } },
       }),
       // Card upgrade income (approved upgrades only)
@@ -646,6 +702,12 @@ router.get("/finance", async (req, res) => {
         _sum: { price: true },
         _count: true,
         where: { status: "APPROVED" },
+      }),
+      // Pending card upgrade requests (awaiting owner decision)
+      prisma.cardUpgradeRequest.aggregate({
+        _sum: { price: true },
+        _count: true,
+        where: { status: "PENDING" },
       }),
       // Seller payouts by status
       prisma.sellerPayout.groupBy({
@@ -671,6 +733,65 @@ router.get("/finance", async (req, res) => {
         where: { ...DELIVERED, ...PAID, deliveredAt: { gte: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000) } },
         _sum: { totalAmount: true },
       }),
+      // Orders that actually shipped (packed → out for delivery → delivered):
+      // a flat shipping fee is charged per shipped order.
+      prisma.order.count({ where: SHIPPED }),
+      // Paid orders whose items carry a "returned" status → return money
+      prisma.order.findMany({
+        where: PAID,
+        select: { items: true },
+      }),
+      // Online (Razorpay) payments on delivered+paid orders: card / UPI / net-banking.
+      // COD and wallet topups are excluded — those never pass through Razorpay.
+      prisma.order.aggregate({
+        _sum: { totalAmount: true },
+        _count: { _all: true },
+        where: { ...DELIVERED, ...PAID, paymentMethod: { in: ONLINE_METHODS } },
+      }),
+      // Wallet credits split by method (approved positive amounts: customer
+      // topups by UPI/COD/UPI_DELIVERY/RAZORPAY, owner manual credits, refunds)
+      prisma.walletTopUp.groupBy({
+        by: ["paymentMethod"],
+        where: { status: "APPROVED", amount: { gte: 0 } },
+        _sum: { amount: true },
+        _count: { _all: true },
+      }),
+      // Wallet debits split by method (approved negative amounts: order spends
+      // "ORDER", owner manual debits)
+      prisma.walletTopUp.groupBy({
+        by: ["paymentMethod"],
+        where: { status: "APPROVED", amount: { lt: 0 } },
+        _sum: { amount: true },
+        _count: { _all: true },
+      }),
+      // Recent approved wallet activity
+      prisma.walletTopUp.findMany({
+        where: { status: "APPROVED" },
+        orderBy: { processedAt: "desc" },
+        take: 6,
+        select: {
+          id: true, amount: true, paymentMethod: true, adminNote: true, createdAt: true,
+          user: { select: { name: true } },
+        },
+      }),
+      // Recent card upgrade requests
+      prisma.cardUpgradeRequest.findMany({
+        orderBy: { createdAt: "desc" },
+        take: 6,
+        select: {
+          id: true, fromLevel: true, toLevel: true, price: true, status: true, createdAt: true,
+          user: { select: { name: true, email: true } },
+        },
+      }),
+      // Recent seller payouts
+      prisma.sellerPayout.findMany({
+        orderBy: { createdAt: "desc" },
+        take: 6,
+        select: {
+          id: true, orderRef: true, productName: true, quantity: true, amount: true, status: true, createdAt: true,
+          seller: { select: { name: true } },
+        },
+      }),
     ]);
 
     const byStatus = Object.fromEntries(
@@ -679,7 +800,6 @@ router.get("/finance", async (req, res) => {
     const paidPayouts = byStatus.paid?.amount || 0;
     const pendingPayouts = byStatus.pending?.amount || 0;
     const grossRevenue = delivered._sum.totalAmount || 0;
-    const netEarnings = grossRevenue - paidPayouts;
 
     const dayMap = {};
     revenueByDay.forEach((d) => {
@@ -693,6 +813,43 @@ router.get("/finance", async (req, res) => {
       days.push({ date: key, amount: dayMap[key] || 0, label: date.toLocaleDateString("en-IN", { weekday: "short", day: "numeric" }) });
     }
 
+    // Money of returned items: sum item value (price × qty) for items whose
+    // per-item status is "returned", only on paid orders.
+    let returnsTotal = 0;
+    let returnedItemCount = 0;
+    for (const o of returnsOrders) {
+      if (!Array.isArray(o.items)) continue;
+      for (const it of o.items) {
+        if (it && it.status === "returned") {
+          returnsTotal += (Number(it.price) || 0) * (Number(it.quantity) || 1);
+          returnedItemCount += Number(it.quantity) || 1;
+        }
+      }
+    }
+    returnsTotal = Math.round(returnsTotal * 100) / 100;
+
+    // Razorpay processing fee: 2% of online payment + 18% GST on that 2%.
+    const razorpayPaid = razorpayAgg._sum.totalAmount || 0;
+    const razorpayFees = Math.round(razorpayPaid * RAZORPAY_FEE_PCT * (1 + RAZORPAY_GST_PCT) * 100) / 100;
+
+    // Net earnings = total delivered revenue minus everything BATRAVERSE only
+    // passes through or pays out: GST collected, flat shipping charges,
+    // Razorpay processing fees, delivery + express fees, and seller payouts.
+    const shippingFees = shippedCount * SHIPPING_FEE;
+    const gstCollected = delivered._sum.gstAmount || 0;
+    const deliveryFees = delivered._sum.deliveryAmount || 0;
+    const expressFees = delivered._sum.expressAmount || 0;
+    const netEarnings = Math.round(
+      (grossRevenue - gstCollected - shippingFees - razorpayFees - deliveryFees - expressFees - paidPayouts) * 100
+    ) / 100;
+
+    // Whole-wallet picture: everything that flows INTO and OUT of customer
+    // wallets. Credits = approved positive ledger rows (topups by any method,
+    // owner manual credits, refunds) + card-upgrade income. Debits = order
+    // spends + owner manual debits.
+    const creditTotal = Math.round(walletCreditAgg.reduce((s, m) => s + (m._sum.amount || 0), 0) * 100) / 100;
+    const debitTotal = Math.round(walletDebitAgg.reduce((s, m) => s + Math.abs(m._sum.amount || 0), 0) * 100) / 100;
+
     res.json({
       grossRevenue,
       netEarnings,
@@ -701,23 +858,49 @@ router.get("/finance", async (req, res) => {
       gstCollected: delivered._sum.gstAmount || 0,
       deliveryFees: delivered._sum.deliveryAmount || 0,
       expressFees: delivered._sum.expressAmount || 0,
+      shippingFees,
+      shippingCount: shippedCount,
+      returnsTotal,
+      returnedItemCount,
+      razorpayPaid,
+      razorpayCount: razorpayAgg._count._all || 0,
+      razorpayFees,
       paymentMethods: paymentMethodBreakdown.map((p) => ({
         method: p.paymentMethod || "UNKNOWN",
         amount: p._sum.totalAmount || 0,
         count: p._count._all || 0,
       })),
       wallet: {
-        approvedInflow: walletAgg._sum.amount || 0,
+        creditsTotal: creditTotal,
+        credits: walletCreditAgg.map((m) => ({
+          method: m.paymentMethod || "MANUAL",
+          amount: m._sum.amount || 0,
+          count: m._count._all || 0,
+        })),
+        debitTotal: debitTotal,
+        debits: walletDebitAgg.map((m) => ({
+          method: m.paymentMethod || "MANUAL_DEBIT",
+          amount: Math.abs(m._sum.amount) || 0,
+          count: m._count._all || 0,
+        })),
+        cardUpgradeTotal: upgradeAgg._sum.price || 0,
+        cardUpgradeCount: upgradeAgg._count || 0,
         refundsIssued: refundsAgg._sum.amount || 0,
+        refundCount: refundsAgg._count._all || 0,
         outstandingBalance: userAgg._sum.walletBalance || 0,
+        recent: walletRecent,
       },
       upgrades: {
         total: upgradeAgg._sum.price || 0,
         count: upgradeAgg._count || 0,
+        pending: upgradePendingAgg._sum.price || 0,
+        pendingCount: upgradePendingAgg._count || 0,
+        recent: upgradeRecent,
       },
       payouts: {
         paid: { amount: paidPayouts, count: byStatus.paid?.count || 0 },
         pending: { amount: pendingPayouts, count: byStatus.pending?.count || 0 },
+        recent: payoutRecent,
       },
       revenueByDay: days,
     });
@@ -1407,27 +1590,64 @@ router.post("/product-approvals/:id/reject", async (req, res) => {
 
 router.post("/products", async (req, res) => {
   try {
-    const { name, brand, category, subCategory, source, price, originalPrice, description, badge, images, inStock, sellerId } = req.body;
-    if (!name || price === undefined) {
-      return res.status(400).json({ error: "name and price are required" });
+    const { name, brand, category, subCategory, source, price, originalPrice, description, badge, images, inStock, sellerId, specifications, keyFeatures, colorOptions, sizeOptions } = req.body;
+    if (name == null || !String(name).trim()) {
+      return res.status(400).json({ error: "Product name is required" });
     }
+    const src = source || "store";
+    if (!["store", "mart"].includes(src)) {
+      return res.status(400).json({ error: "Source must be 'store' or 'mart'" });
+    }
+    const hasColors = Array.isArray(colorOptions) && colorOptions.length > 0;
+    const hasTopSizePriced = hasColors && (sizeOptions && typeof sizeOptions === "object" && !Array.isArray(sizeOptions)) &&
+      Object.values(sizeOptions).some((arr) => Array.isArray(arr) && arr.some((s) => s.price != null && s.price > 0));
+    const hasColorPriced = hasColors && (hasTopSizePriced || colorOptions.some((c) => c.price != null && c.price > 0));
+    const hasImages = Array.isArray(images) && images.length > 0;
+    const hasColorImages = hasColors && colorOptions.some((c) => Array.isArray(c.images) && c.images.length > 0);
+    if (!hasImages && !hasColorImages) {
+      return res.status(400).json({ error: "At least one product image is required" });
+    }
+    if (!hasColors && (price == null || parseFloat(price) <= 0)) {
+      return res.status(400).json({ error: "Valid price is required" });
+    }
+    if (hasColors && !hasColorPriced) {
+      return res.status(400).json({ error: "Set a price on at least one color (or its sizes)" });
+    }
+
+    if (category) {
+      const cat = await prisma.category.findFirst({ where: { slug: category, source: src } });
+      if (!cat) return res.status(400).json({ error: `Invalid category '${category}' for ${src}` });
+    }
+    if (subCategory && category) {
+      const cat = await prisma.category.findFirst({ where: { slug: category, source: src } });
+      if (cat) {
+        const sub = await prisma.subcategory.findFirst({ where: { categoryId: cat.id, slug: subCategory } });
+        if (!sub) return res.status(400).json({ error: `Invalid subcategory '${subCategory}'` });
+      }
+    }
+
     const product = await prisma.product.create({
       data: {
-        name,
+        name: String(name).trim(),
         brand: brand || null,
         category: category || null,
         subCategory: subCategory || null,
-        source: source || "store",
-        price: parseFloat(price),
+        source: src,
+        price: price != null ? parseFloat(price) : 0,
         originalPrice: originalPrice ? parseFloat(originalPrice) : null,
         description: description || null,
         badge: badge || null,
         images: Array.isArray(images) ? images : [],
         inStock: inStock !== false,
+        status: "approved",
         sellerId: sellerId || null,
+        specifications: Array.isArray(specifications) ? specifications : [],
+        keyFeatures: Array.isArray(keyFeatures) ? keyFeatures : [],
+        colorOptions: Array.isArray(colorOptions) ? colorOptions : [],
+        sizeOptions: (sizeOptions && typeof sizeOptions === "object" && !Array.isArray(sizeOptions)) ? sizeOptions : {},
       },
     });
-    res.json(product);
+    res.status(201).json(product);
   } catch (err) {
     res.status(500).json({ error: safeErrorMessage(err) });
   }

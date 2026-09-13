@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Loader2, Search, Trash2, Eye, EyeOff, Package, User, Star, ChevronDown, ChevronUp, Filter, Plus, X } from "lucide-react";
+import { Loader2, Search, Trash2, Eye, EyeOff, Package, User, Star, ChevronDown, ChevronUp, Filter, Plus } from "lucide-react";
 import { API, adminHeaders } from "./types";
 import { resolveImageUrl } from "@/lib/imageUrl";
 import { formatPrice } from "@/lib/utils";
 import { useConfirm } from "@/components/useConfirm";
+import ProductsTab from "./ProductsTab";
+import AdminAddProductForm from "./AdminAddProductForm";
 
 interface SellerProduct {
   id: string;
@@ -34,6 +36,12 @@ function parseCatalogImages(raw: unknown): string[] {
   if (Array.isArray(raw)) return raw;
   if (typeof raw === "string") { try { const p = JSON.parse(raw); return Array.isArray(p) ? p : []; } catch { return []; } }
   return [];
+}
+
+function safeParse(raw: unknown): any {
+  if (raw == null) return raw ?? undefined;
+  if (typeof raw === "string") { try { return JSON.parse(raw); } catch { return raw; } }
+  return raw;
 }
 
 function getCatalogImage(p: SellerProduct): string {
@@ -82,17 +90,18 @@ function getAllCatalogImages(p: SellerProduct): string[] {
 }
 
 export default function ProductCatalogTab({ adminKey }: { adminKey: string }) {
+  const [viewMode, setViewMode] = useState<"products" | "categories">("products");
   const [products, setProducts] = useState<SellerProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [sourceFilter, setSourceFilter] = useState<"all" | "store" | "mart">("all");
   const [stockFilter, setStockFilter] = useState<"all" | "in" | "out">("all");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [subCategoryFilter, setSubCategoryFilter] = useState("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(50);
   const [showAddForm, setShowAddForm] = useState(false);
-  const [addForm, setAddForm] = useState({ name: "", brand: "", category: "", subCategory: "", source: "store", price: "", originalPrice: "", description: "", badge: "", inStock: true });
-  const [addSaving, setAddSaving] = useState(false);
   const [dbCategories, setDbCategories] = useState<{ id: string; name: string; slug: string; source: string; subcategories: { id: string; name: string; slug: string }[] }[]>([]);
 
   const { confirm, prompt, ConfirmDialog, PromptDialog } = useConfirm();
@@ -150,43 +159,26 @@ export default function ProductCatalogTab({ adminKey }: { adminKey: string }) {
     }
   }
 
-  async function handleAddProduct() {
-    if (!addForm.name || !addForm.price) return;
-    setAddSaving(true);
-    try {
-      const res = await fetch(`${API}/api/admin/products`, {
-        method: "POST",
-        headers: adminHeaders(adminKey),
-        body: JSON.stringify({
-          name: addForm.name,
-          brand: addForm.brand || undefined,
-          category: addForm.category || undefined,
-          subCategory: addForm.subCategory || undefined,
-          source: addForm.source,
-          price: parseFloat(addForm.price),
-          originalPrice: addForm.originalPrice ? parseFloat(addForm.originalPrice) : undefined,
-          description: addForm.description || undefined,
-          badge: addForm.badge || undefined,
-          inStock: addForm.inStock,
-        }),
-      });
-      const newProduct = await res.json();
-      if (newProduct.id) {
-        setProducts((prev) => [newProduct, ...prev]);
-        setAddForm({ name: "", brand: "", category: "", subCategory: "", source: "store", price: "", originalPrice: "", description: "", badge: "", inStock: true });
-        setShowAddForm(false);
-      }
-    } catch {
-      console.error("Failed to add product");
-    } finally {
-      setAddSaving(false);
-    }
+  async function handleAddProductDone(created: SellerProduct) {
+    setProducts((prev) => [
+      {
+        ...created,
+        colorOptions: safeParse(created.colorOptions),
+        sizeOptions: safeParse(created.sizeOptions),
+        specifications: safeParse(created.specifications),
+        keyFeatures: safeParse(created.keyFeatures),
+      },
+      ...prev,
+    ]);
+    setShowAddForm(false);
   }
 
   const filtered = products.filter((p) => {
     if (sourceFilter !== "all" && p.source !== sourceFilter) return false;
     if (stockFilter === "in" && !p.inStock) return false;
     if (stockFilter === "out" && p.inStock) return false;
+    if (categoryFilter !== "all" && p.category !== categoryFilter) return false;
+    if (subCategoryFilter !== "all" && p.subCategory !== subCategoryFilter) return false;
     if (search) {
       const q = search.toLowerCase();
       if (
@@ -201,7 +193,7 @@ export default function ProductCatalogTab({ adminKey }: { adminKey: string }) {
 
   const visibleProducts = filtered.slice(0, visibleCount);
 
-  useEffect(() => { setVisibleCount(50); }, [search, sourceFilter, stockFilter]);
+  useEffect(() => { setVisibleCount(50); }, [search, sourceFilter, stockFilter, categoryFilter, subCategoryFilter]);
 
   const stats = {
     total: products.length,
@@ -216,6 +208,19 @@ export default function ProductCatalogTab({ adminKey }: { adminKey: string }) {
 
   return (
     <div className="space-y-6">
+      <div className="flex gap-2 p-1 bg-dark-900/60 border border-dark-800/50 rounded-xl w-fit">
+        {([["products", "Products"], ["categories", "Categories"]] as const).map(([key, label]) => (
+          <button key={key} onClick={() => setViewMode(key)}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${viewMode === key ? "bg-gold-500/10 text-gold-400 border border-gold-500/20" : "text-dark-400 hover:text-dark-200 border border-transparent"}`}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {viewMode === "categories" ? (
+        <ProductsTab adminKey={adminKey} />
+      ) : (
+      <>
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-bold text-white">Product Catalog</h2>
         <div className="flex items-center gap-3">
@@ -228,59 +233,12 @@ export default function ProductCatalogTab({ adminKey }: { adminKey: string }) {
       </div>
 
       {showAddForm && (
-        <div className="bg-dark-900/60 border border-gold-500/20 rounded-2xl p-5 space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-white">New Product</h3>
-            <button onClick={() => setShowAddForm(false)} className="text-dark-400 hover:text-white"><X size={16} /></button>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            <input value={addForm.name} onChange={(e) => setAddForm({ ...addForm, name: e.target.value })} placeholder="Product name *"
-              className="bg-dark-800/60 border border-dark-700/50 rounded-lg px-3 py-2 text-white text-sm placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50" />
-            <input value={addForm.brand} onChange={(e) => setAddForm({ ...addForm, brand: e.target.value })} placeholder="Brand"
-              className="bg-dark-800/60 border border-dark-700/50 rounded-lg px-3 py-2 text-white text-sm placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50" />
-            <input value={addForm.price} onChange={(e) => setAddForm({ ...addForm, price: e.target.value })} placeholder="Price *" type="number" step="0.01"
-              className="bg-dark-800/60 border border-dark-700/50 rounded-lg px-3 py-2 text-white text-sm placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50" />
-            <input value={addForm.originalPrice} onChange={(e) => setAddForm({ ...addForm, originalPrice: e.target.value })} placeholder="Original price" type="number" step="0.01"
-              className="bg-dark-800/60 border border-dark-700/50 rounded-lg px-3 py-2 text-white text-sm placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50" />
-            <select value={addForm.source} onChange={(e) => setAddForm({ ...addForm, source: e.target.value, category: "", subCategory: "" })}
-              className="bg-dark-800/60 border border-dark-700/50 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-gold-500/50">
-              <option value="store">Store</option>
-              <option value="mart">Mart</option>
-            </select>
-            <select value={addForm.category} onChange={(e) => setAddForm({ ...addForm, category: e.target.value, subCategory: "" })}
-              className="bg-dark-800/60 border border-dark-700/50 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-gold-500/50 appearance-none cursor-pointer">
-              <option value="">Select category</option>
-              {dbCategories.filter((c) => c.source === addForm.source).map((c) => (
-                <option key={c.id} value={c.slug}>{c.name}</option>
-              ))}
-            </select>
-            {addForm.category && dbCategories.find((c) => c.slug === addForm.category && c.source === addForm.source)?.subcategories?.length ? (
-              <select value={addForm.subCategory} onChange={(e) => setAddForm({ ...addForm, subCategory: e.target.value })}
-                className="bg-dark-800/60 border border-dark-700/50 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-gold-500/50 appearance-none cursor-pointer">
-                <option value="">None</option>
-                {dbCategories.find((c) => c.slug === addForm.category && c.source === addForm.source)?.subcategories.map((s) => (
-                  <option key={s.id} value={s.slug}>{s.name}</option>
-                ))}
-              </select>
-            ) : (
-              <input value={addForm.subCategory} onChange={(e) => setAddForm({ ...addForm, subCategory: e.target.value })} placeholder="Subcategory"
-                className="bg-dark-800/60 border border-dark-700/50 rounded-lg px-3 py-2 text-white text-sm placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50" />
-            )}
-            <input value={addForm.badge} onChange={(e) => setAddForm({ ...addForm, badge: e.target.value })} placeholder="Badge (e.g. NEW)"
-              className="bg-dark-800/60 border border-dark-700/50 rounded-lg px-3 py-2 text-white text-sm placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50" />
-            <label className="flex items-center gap-2 text-sm text-dark-400">
-              <input type="checkbox" checked={addForm.inStock} onChange={(e) => setAddForm({ ...addForm, inStock: e.target.checked })}
-                className="rounded border-dark-600 bg-dark-800 text-gold-500 focus:ring-gold-500" />
-              In Stock
-            </label>
-          </div>
-          <textarea value={addForm.description} onChange={(e) => setAddForm({ ...addForm, description: e.target.value })} rows={2} placeholder="Description"
-            className="w-full bg-dark-800/60 border border-dark-700/50 rounded-lg px-3 py-2 text-white text-sm placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50 resize-none" />
-          <button onClick={handleAddProduct} disabled={addSaving || !addForm.name || !addForm.price}
-            className="px-5 py-2 rounded-lg bg-gold-500/10 border border-gold-500/30 text-gold-400 text-xs font-semibold hover:bg-gold-500/20 transition-all disabled:opacity-50 flex items-center gap-2">
-            {addSaving && <Loader2 size={13} className="animate-spin" />} Create Product
-          </button>
-        </div>
+        <AdminAddProductForm
+          adminKey={adminKey}
+          dbCategories={dbCategories}
+          onCreated={handleAddProductDone}
+          onClose={() => setShowAddForm(false)}
+        />
       )}
 
       {/* Stats */}
@@ -300,16 +258,12 @@ export default function ProductCatalogTab({ adminKey }: { adminKey: string }) {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[200px] max-w-xs">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-500" />
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search products, brands, sellers..."
-            className="w-full bg-dark-800/60 border border-dark-700/50 rounded-lg pl-9 pr-3 py-2 text-white text-sm placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50" />
-        </div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-1.5">
           <Filter size={13} className="text-dark-500" />
           {(["all", "store", "mart"] as const).map((s) => (
-            <button key={s} onClick={() => setSourceFilter(s)}
+            <button key={s} onClick={() => { setSourceFilter(s); setCategoryFilter("all"); setSubCategoryFilter("all"); }}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${
                 sourceFilter === s ? "border-gold-500/30 bg-gold-500/10 text-gold-400" : "border-dark-700/50 text-dark-400 hover:text-white"
               }`}>
@@ -327,6 +281,34 @@ export default function ProductCatalogTab({ adminKey }: { adminKey: string }) {
             </button>
           ))}
         </div>
+        <select
+          value={categoryFilter}
+          onChange={(e) => { setCategoryFilter(e.target.value); setSubCategoryFilter("all"); }}
+          className="bg-dark-800/60 border border-dark-700/50 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-gold-500/50 appearance-none cursor-pointer"
+        >
+          <option value="all">All categories</option>
+          {dbCategories.filter((c) => sourceFilter === "all" || c.source === sourceFilter).map((c) => (
+            <option key={c.id} value={c.slug}>{c.name}</option>
+          ))}
+        </select>
+        {dbCategories.find((c) => c.slug === categoryFilter && (sourceFilter === "all" || c.source === sourceFilter))?.subcategories?.length ? (
+          <select
+            value={subCategoryFilter}
+            onChange={(e) => setSubCategoryFilter(e.target.value)}
+            className="bg-dark-800/60 border border-dark-700/50 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-gold-500/50 appearance-none cursor-pointer"
+          >
+            <option value="all">All subcategories</option>
+            {dbCategories.find((c) => c.slug === categoryFilter && (sourceFilter === "all" || c.source === sourceFilter))?.subcategories.map((s) => (
+              <option key={s.id} value={s.slug}>{s.name}</option>
+            ))}
+          </select>
+        ) : null}
+        </div>
+      </div>
+      <div className="relative w-full sm:w-72">
+        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-500" />
+        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search products, brands, sellers..."
+          className="w-full bg-dark-800/60 border border-dark-700/50 rounded-lg pl-9 pr-3 py-2 text-white text-sm placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50" />
       </div>
 
       {/* Product list */}
@@ -559,6 +541,8 @@ export default function ProductCatalogTab({ adminKey }: { adminKey: string }) {
       )}
       {ConfirmDialog}
       {PromptDialog}
+      </>
+      )}
     </div>
   );
 }

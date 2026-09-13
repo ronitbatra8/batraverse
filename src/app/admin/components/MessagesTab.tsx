@@ -95,12 +95,12 @@ export default function MessagesTab({
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col gap-4">
         <h2 className="text-xl font-bold text-white flex items-center gap-2">
           <MessageSquare size={20} className="text-gold-400" />
           Messages
         </h2>
-        <div className="flex gap-2 overflow-x-auto pb-1">
+        <div className="flex gap-2 overflow-x-auto pb-1 justify-start">
           {filterButtons.map((f) => (
             <button
               key={f.key}

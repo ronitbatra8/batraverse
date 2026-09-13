@@ -39,7 +39,7 @@ router.get("/stats", adminAuth, async (req, res) => {
       prisma.visit.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
       prisma.visit.findMany({ where: { createdAt: { gte: todayStart } }, select: { visitorId: true }, distinct: ["visitorId"] }).then((r) => r.length),
       prisma.visit.findMany({ where: { createdAt: { gte: sevenDaysAgo } }, select: { visitorId: true }, distinct: ["visitorId"] }).then((r) => r.length),
-      prisma.visit.groupBy({ by: ["page"], _count: { id: true }, orderBy: { _count: { id: "desc" } }, take: 10 }),
+      prisma.visit.groupBy({ by: ["page"], _count: { id: true }, orderBy: { _count: { id: "desc" } }, take: 5 }),
       prisma.visit.aggregate({ _avg: { duration: true }, where: { duration: { not: null } } }),
       (async () => {
         const out = [];

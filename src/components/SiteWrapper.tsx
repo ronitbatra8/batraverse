@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import Navbar from "@/components/layout/Navbar";
 import CustomCursor from "@/components/cursor/CustomCursor";
+import AnalyticsTracker from "@/components/AnalyticsTracker";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { ToastProvider } from "@/components/Toast";
 import { BootProvider, useBootDone } from "@/components/boot/BootProvider";
@@ -75,6 +76,7 @@ export default function SiteWrapper({
           <BootScreen />
           <ContentWrapper>
             <CustomCursor />
+            <AnalyticsTracker />
             {!isDashboardRoute && <Navbar />}
             <motion.div
               className={`relative z-10 flex min-h-screen w-full flex-col${!isDashboardRoute && pathname !== "/" ? " pt-20 sm:pt-[92px]" : ""}`}

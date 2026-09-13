@@ -53,24 +53,45 @@ export default function AnalyticsTab({
       </div>
 
       <div className="bg-dark-900/60 border border-dark-800/50 rounded-2xl p-6">
-        <h3 className="text-sm font-display font-bold text-white mb-5">Daily Visits (Last 7 Days)</h3>
-        <div className="h-48 flex items-end gap-2">
-          {(analytics.dailyLast7 || []).map((day: any, i: number) => (
-            <div key={i} className="flex-1 flex flex-col items-center gap-2">
-              <span className="text-[10px] text-dark-400">{day.visits}</span>
-              <div
-                className="w-full bg-gradient-to-t from-gold-500/80 to-gold-400/40 rounded-t-lg transition-all"
-                style={{ height: `${Math.max((day.visits / maxVisits) * 100, 4)}%` }}
-              />
-              <span className="text-[10px] text-dark-500">{day.label}</span>
-            </div>
-          ))}
-          {(!analytics.dailyLast7 || analytics.dailyLast7.length === 0) && (
-            <div className="w-full h-full flex items-center justify-center text-dark-600 text-sm">
-              No visit data yet
-            </div>
-          )}
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="text-sm font-display font-bold text-white">Daily Visits</h3>
+          <span className="text-xs text-dark-500">Last 7 days</span>
         </div>
+        {(!analytics.dailyLast7 || analytics.dailyLast7.length === 0) ? (
+          <div className="py-12 text-center text-dark-500 text-sm">No visit data yet</div>
+        ) : (
+          <>
+            <div className="flex items-end justify-between gap-3 h-44 border-b border-dark-800/40 pb-1">
+              {analytics.dailyLast7.map((day: any) => (
+                <div key={day.label} className="group flex flex-1 flex-col items-center justify-end h-full min-w-0">
+                  <span className={`mb-1.5 text-[11px] font-display font-bold tabular-nums transition-all ${day.visits > 0 ? "text-sky-300 opacity-0 group-hover:opacity-100" : "text-dark-600"}`}>
+                    {day.visits}
+                  </span>
+                  <div className="relative w-full max-w-[38px]">
+                    <div
+                      className="w-full rounded-t-lg bg-gradient-to-t from-sky-600 via-sky-500 to-sky-400 shadow-[0_0_18px_rgba(56,189,248,0.25)] transition-all duration-500 ease-out"
+                      style={{ height: `${Math.max(day.visits > 0 ? 8 : 2, (day.visits / maxVisits) * 150)}px` }}
+                    />
+                    <div className="absolute inset-0 rounded-t-lg bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-between gap-3 mt-3">
+              {analytics.dailyLast7.map((day: any) => (
+                <div key={day.label} className="flex-1 text-center min-w-0">
+                  <p className="text-[11px] text-dark-400 font-medium truncate">{day.label}</p>
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-between gap-3 mt-2 pt-3 border-t border-dark-800/30">
+              <p className="text-xs text-dark-500">Total</p>
+              <p className="text-sm font-display font-bold text-sky-300 tabular-nums">
+                {analytics.dailyLast7.reduce((s: number, d: any) => s + d.visits, 0)} visit{analytics.dailyLast7.reduce((s: number, d: any) => s + d.visits, 0) === 1 ? "" : "s"}
+              </p>
+            </div>
+          </>
+        )}
       </div>
 
       <div className="bg-dark-900/60 border border-dark-800/50 rounded-2xl p-6">

@@ -1,10 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Loader2, Plus, Pencil, Trash2, ChevronDown, ChevronUp, Eye, EyeOff, Search } from "lucide-react";
+import { Loader2, Plus, Pencil, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { API, adminHeaders } from "./types";
-import { resolveImageUrl } from "@/lib/imageUrl";
-import { formatPrice, cn } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { useConfirm } from "@/components/useConfirm";
 
 interface Category {
@@ -18,78 +17,12 @@ interface Category {
   subcategories: { id: string; name: string; slug: string; active: boolean; sortOrder: number; gstPct?: number | null }[];
 }
 
-interface SellerProduct {
-  id: string;
-  name: string;
-  brand: string | null;
-  category: string | null;
-  subCategory: string | null;
-  source: string | null;
-  price: number;
-  originalPrice: number | null;
-  description: string | null;
-  images: string[];
-  inStock: boolean;
-  badge: string | null;
-  rating: number;
-  reviewCount: number;
-  sellerId: string | null;
-  seller: { id: string; name: string; email: string; shopName?: string | null } | null;
-  colorOptions: { name: string; hex: string; images?: string | string[]; price?: number; originalPrice?: number }[] | null;
-  sizeOptions: Record<string, { name: string; price?: number; originalPrice?: number }[]> | null;
-}
-
-function parseAdminImages(raw: unknown): string[] {
-  if (Array.isArray(raw)) return raw;
-  if (typeof raw === "string") { try { const p = JSON.parse(raw); return Array.isArray(p) ? p : []; } catch { return []; } }
-  return [];
-}
-
-function getEffectiveAdminImage(p: SellerProduct): string {
-  if (p.images && p.images.length > 0 && p.images[0]) return p.images[0];
-  if (p.colorOptions) {
-    for (const c of p.colorOptions) {
-      const imgs = parseAdminImages(c.images);
-      if (imgs.length > 0 && imgs[0]) return imgs[0];
-    }
-  }
-  return "";
-}
-
-function getEffectiveAdminPrice(p: SellerProduct): number {
-  if (p.price > 0) return p.price;
-  if (p.sizeOptions && typeof p.sizeOptions === "object") {
-    const firstName = p.colorOptions && p.colorOptions.length > 0 ? p.colorOptions[0].name : "";
-    const firstSizes = p.sizeOptions[firstName] || Object.values(p.sizeOptions)[0] || [];
-    const withPrice = firstSizes.find((s) => s.price != null && s.price > 0);
-    if (withPrice && withPrice.price != null) return withPrice.price;
-  }
-  return p.price;
-}
-
-function getEffectiveAdminOriginalPrice(p: SellerProduct): number | null {
-  if (p.originalPrice && p.originalPrice > 0) return p.originalPrice;
-  if (p.sizeOptions && typeof p.sizeOptions === "object") {
-    const firstName = p.colorOptions && p.colorOptions.length > 0 ? p.colorOptions[0].name : "";
-    const firstSizes = p.sizeOptions[firstName] || Object.values(p.sizeOptions)[0] || [];
-    const withOP = firstSizes.find((s) => s.originalPrice != null && s.originalPrice > (s.price || 0));
-    if (withOP && withOP.originalPrice != null) return withOP.originalPrice;
-  }
-  return null;
-}
-
 export default function ProductsTab({ adminKey }: { adminKey: string }) {
   const { confirm, ConfirmDialog } = useConfirm();
-  const [activeSub, setActiveSub] = useState<"categories" | "seller-products" | "store" | "mart">("categories");
+  const [activeSub, setActiveSub] = useState<"all" | "store" | "mart">("all");
   const [categories, setCategories] = useState<Category[]>([]);
-  const [sellerProducts, setSellerProducts] = useState<SellerProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedCat, setExpandedCat] = useState<string | null>(null);
-  const [productFilter, setProductFilter] = useState("");
-  const [showInStock, setShowInStock] = useState(true);
-  const [visibleCount, setVisibleCount] = useState(50);
-
-  useEffect(() => { setVisibleCount(50); }, [productFilter, showInStock, activeSub]);
 
   const [newCatName, setNewCatName] = useState("");
   const [newCatSource, setNewCatSource] = useState<"store" | "mart">("store");
@@ -106,14 +39,10 @@ export default function ProductsTab({ adminKey }: { adminKey: string }) {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [cats, prods] = await Promise.all([
-        fetch(`${API}/api/categories/all`, { headers: adminHeaders(adminKey) }).then((r) => r.json()),
-        fetch(`${API}/api/admin/products`, { headers: adminHeaders(adminKey) }).then((r) => r.json()),
-      ]);
+      const cats = await fetch(`${API}/api/categories/all`, { headers: adminHeaders(adminKey) }).then((r) => r.json());
       setCategories(Array.isArray(cats) ? cats : []);
-      setSellerProducts(Array.isArray(prods) ? prods : []);
     } catch {
-      console.error("Failed to fetch");
+      console.error("Failed to fetch categories");
     } finally {
       setLoading(false);
     }
@@ -195,17 +124,6 @@ export default function ProductsTab({ adminKey }: { adminKey: string }) {
   const storeCats = categories.filter((c) => c.source === "store");
   const martCats = categories.filter((c) => c.source === "mart");
 
-  const filteredProducts = sellerProducts.filter((p) => {
-    if (!showInStock && p.inStock) return false;
-    if (productFilter) {
-      const q = productFilter.toLowerCase();
-      if (!p.name.toLowerCase().includes(q) && !(p.brand || "").toLowerCase().includes(q) && !(p.seller?.name || "").toLowerCase().includes(q)) return false;
-    }
-    return true;
-  });
-
-  const visibleProducts = filteredProducts.slice(0, visibleCount);
-
   function renderCategoryList(cats: Category[]) {
     return (
       <div className="space-y-3">
@@ -277,10 +195,8 @@ export default function ProductsTab({ adminKey }: { adminKey: string }) {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-lg font-bold text-white">Products & Categories</h2>
-
       <div className="flex gap-2 p-1 bg-dark-900/60 border border-dark-800/50 rounded-xl w-fit">
-        {([["categories", "Categories"], ["seller-products", "Seller Products"], ["store", "Store"], ["mart", "Mart"]] as const).map(([key, label]) => (
+        {([["all", "All"], ["store", "Store"], ["mart", "Mart"]] as const).map(([key, label]) => (
           <button key={key} onClick={() => setActiveSub(key)}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeSub === key ? "bg-gold-500/10 text-gold-400 border border-gold-500/20" : "text-dark-400 hover:text-dark-200 border border-transparent"}`}>
             {label}
@@ -288,100 +204,32 @@ export default function ProductsTab({ adminKey }: { adminKey: string }) {
         ))}
       </div>
 
-      {activeSub === "seller-products" && (
-        <div className="space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="relative flex-1 max-w-xs">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-500" />
-              <input value={productFilter} onChange={(e) => setProductFilter(e.target.value)} placeholder="Search products or sellers..."
-                className="w-full bg-dark-800/60 border border-dark-700/50 rounded-lg pl-9 pr-3 py-2 text-white text-sm placeholder:text-dark-500" />
-            </div>
-            <button onClick={() => setShowInStock(!showInStock)}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm border ${showInStock ? "border-emerald-500/30 text-emerald-400" : "border-dark-700 text-dark-500"}`}>
-              {showInStock ? <Eye size={14} /> : <EyeOff size={14} />}
-              {showInStock ? "In Stock" : "Out of Stock"}
-            </button>
-            <span className="text-dark-500 text-sm">{filteredProducts.length} products</span>
-          </div>
-
-          {filteredProducts.length === 0 ? (
-            <p className="text-dark-500 text-sm py-8 text-center">No seller products found</p>
-          ) : (
-            <div className="space-y-2">
-              {visibleProducts.map((p) => (
-                <div key={p.id} className="bg-dark-800/40 border border-dark-700/50 rounded-xl px-4 py-3 flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-lg bg-dark-700/50 flex items-center justify-center text-dark-400 text-xs font-bold shrink-0 overflow-hidden">
-                    {getEffectiveAdminImage(p) ? (
-                      <img src={resolveImageUrl(getEffectiveAdminImage(p))} alt="" className="w-full h-full object-cover rounded-lg" />
-                    ) : (
-                      p.name.slice(0, 2).toUpperCase()
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-white truncate">{p.name}</p>
-                    <p className="text-[11px] text-dark-500 truncate">
-                      {p.brand || "No brand"} &middot; {p.category || "uncategorized"}{p.subCategory ? ` / ${p.subCategory}` : ""} &middot; {p.source || "store"}
-                    </p>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-sm font-semibold text-gold-400">{formatPrice(getEffectiveAdminPrice(p))}</p>
-                    {getEffectiveAdminOriginalPrice(p) && <p className="text-[10px] text-dark-500 line-through">{formatPrice(getEffectiveAdminOriginalPrice(p)!)}</p>}
-                  </div>
-                  <div className="text-right shrink-0 w-24">
-                    <p className="text-[11px] text-dark-400">{p.seller?.name || "Unknown"}</p>
-                    <p className="text-[10px] text-dark-600">{p.reviewCount} reviews</p>
-                  </div>
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full border shrink-0 ${p.inStock ? "text-emerald-400 border-emerald-500/30" : "text-red-400 border-red-500/30"}`}>
-                    {p.inStock ? "In Stock" : "Out"}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-          {filteredProducts.length > visibleProducts.length && (
-            <div className="flex justify-center pt-2">
-              <button
-                onClick={() => setVisibleCount((c) => c + 50)}
-                className="flex items-center gap-2 px-6 py-2.5 rounded-xl border border-dark-700 text-dark-300 text-sm hover:border-gold-500/40 hover:text-gold-400 transition-all"
-              >
-                Show more ({filteredProducts.length - visibleProducts.length} more)
-              </button>
-            </div>
-          )}
+      <div className="bg-dark-900/60 border border-dark-800/50 rounded-xl p-4">
+        <h3 className="text-sm font-semibold text-white mb-3">Add New Category</h3>
+        <div className="flex items-center gap-3">
+          <select value={newCatSource} onChange={(e) => setNewCatSource(e.target.value as "store" | "mart")}
+            className="bg-dark-800/60 border border-dark-700/50 rounded-lg px-3 py-2 text-white text-sm">
+            <option value="store">Store</option>
+            <option value="mart">Mart</option>
+          </select>
+          <input value={newCatName} onChange={(e) => setNewCatName(e.target.value)} placeholder="Category name"
+            className="bg-dark-800/60 border border-dark-700/50 rounded-lg px-3 py-2 text-white text-sm w-48 placeholder:text-dark-500"
+            onKeyDown={(e) => { if (e.key === "Enter") handleAddCategory(); }} />
+          <input value={newCatGst} onChange={(e) => setNewCatGst(e.target.value.replace(/[^0-9.]/g, ""))} placeholder="GST %"
+            title="GST %" className="bg-dark-800/60 border border-dark-700/50 rounded-lg px-3 py-2 text-white text-sm w-20 placeholder:text-dark-500"
+            onKeyDown={(e) => { if (e.key === "Enter") handleAddCategory(); }} />
+          <button onClick={handleAddCategory} disabled={!newCatName.trim() || addingCat}
+            className="flex items-center gap-1.5 px-4 py-2 bg-gold-500 hover:bg-gold-400 disabled:opacity-50 text-dark-950 rounded-lg text-sm font-semibold transition-all">
+            {addingCat ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
+            Add
+          </button>
         </div>
-      )}
+      </div>
 
-      {(activeSub === "store" || activeSub === "mart" || activeSub === "categories") && (
-        <>
-          <div className="bg-dark-900/60 border border-dark-800/50 rounded-xl p-4">
-            <h3 className="text-sm font-semibold text-white mb-3">Add New Category</h3>
-            <div className="flex items-center gap-3">
-              <select value={newCatSource} onChange={(e) => setNewCatSource(e.target.value as "store" | "mart")}
-                className="bg-dark-800/60 border border-dark-700/50 rounded-lg px-3 py-2 text-white text-sm">
-                <option value="store">Store</option>
-                <option value="mart">Mart</option>
-              </select>
-              <input value={newCatName} onChange={(e) => setNewCatName(e.target.value)} placeholder="Category name"
-                className="bg-dark-800/60 border border-dark-700/50 rounded-lg px-3 py-2 text-white text-sm w-48 placeholder:text-dark-500"
-                onKeyDown={(e) => { if (e.key === "Enter") handleAddCategory(); }} />
-              <input value={newCatGst} onChange={(e) => setNewCatGst(e.target.value.replace(/[^0-9.]/g, ""))} placeholder="GST %"
-                title="GST %" className="bg-dark-800/60 border border-dark-700/50 rounded-lg px-3 py-2 text-white text-sm w-20 placeholder:text-dark-500"
-                onKeyDown={(e) => { if (e.key === "Enter") handleAddCategory(); }} />
-              <button onClick={handleAddCategory} disabled={!newCatName.trim() || addingCat}
-                className="flex items-center gap-1.5 px-4 py-2 bg-gold-500 hover:bg-gold-400 disabled:opacity-50 text-dark-950 rounded-lg text-sm font-semibold transition-all">
-                {addingCat ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
-                Add
-              </button>
-            </div>
-          </div>
-
-          {activeSub === "store" && renderCategoryList(storeCats)}
-          {activeSub === "mart" && renderCategoryList(martCats)}
-          {activeSub === "categories" && renderCategoryList(categories)}
-        </>
-      )}
+      {activeSub === "all" && renderCategoryList(categories)}
+      {activeSub === "store" && renderCategoryList(storeCats)}
+      {activeSub === "mart" && renderCategoryList(martCats)}
       {ConfirmDialog}
     </div>
   );
 }
-

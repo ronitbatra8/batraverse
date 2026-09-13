@@ -29,6 +29,13 @@ async function main() {
   // Delete in correct order to respect foreign keys
   await prisma.cardUpgradeRequest.deleteMany();
   await prisma.cardUpgradePricing.deleteMany();
+  await prisma.walletTopUp.deleteMany();
+  await prisma.sellerPayout.deleteMany();
+  await prisma.deliveryComplaint.deleteMany();
+  await prisma.deliveryOTP.deleteMany();
+  await prisma.adRequest.deleteMany();
+  await prisma.featuredProduct.deleteMany();
+  await prisma.testimonial.deleteMany();
   await prisma.visit.deleteMany();
   await prisma.otp.deleteMany();
   await prisma.passwordReset.deleteMany();
@@ -38,85 +45,50 @@ async function main() {
   await prisma.wishlist.deleteMany();
   await prisma.review.deleteMany();
   await prisma.order.deleteMany();
+  await prisma.cartItem.deleteMany();
   await prisma.address.deleteMany();
-  await prisma.product.deleteMany();
+  await prisma.categoryRequest.deleteMany();
   await prisma.subcategory.deleteMany();
   await prisma.category.deleteMany();
-  await prisma.cartItem.deleteMany();
-  await prisma.categoryRequest.deleteMany();
   await prisma.spotlightAd.deleteMany();
+  await prisma.product.deleteMany();
   await prisma.user.deleteMany();
 
   console.log("DB wiped. Creating accounts...");
 
   const ownerHash = await bcrypt.hash("batraverseronit0811", 10);
   const ownerPinHash = await bcrypt.hash("0811", 10);
-  const sellerHash = await bcrypt.hash("seller123", 10);
-  const customerHash = await bcrypt.hash("customer123", 10);
-  const deliveryHash = await bcrypt.hash("delivery123", 10);
 
   const accounts = [
     {
-      name: "Ronit",
-      email: "ronit_batra_08_11@gmail.com",
-      phone: "9000000001",
+      name: "RONIT BATRA",
+      email: "ronit.batra.08.11@gmail.com",
+      phone: "9251196757",
       role: "ADMIN",
       approved: true,
+      cardNumber: "RB-OWNER-0811",
       cardLevel: "owner",
-    },
-    {
-      name: "Seller",
-      email: "batraverse@seller.com",
-      phone: "9000000002",
-      role: "SELLER",
-      approved: true,
-      cardLevel: null,
-    },
-    {
-      name: "Customer",
-      email: "batraverse@customer.com",
-      phone: "9000000003",
-      role: "USER",
-      approved: true,
-      cardLevel: null,
-    },
-    {
-      name: "Delivery",
-      email: "batraverse@delivery.com",
-      phone: "9000000004",
-      role: "DELIVERY",
-      approved: true,
-      cardLevel: null,
     },
   ];
 
-  const hashMap = { ADMIN: ownerHash, SELLER: sellerHash, USER: customerHash, DELIVERY: deliveryHash };
-
   for (const acct of accounts) {
-    let cardNumber;
-    let ok = false;
-    while (!ok) {
-      cardNumber = generateCardNumber(acct.name);
-      const exists = await prisma.user.findUnique({ where: { cardNumber } });
-      if (!exists) ok = true;
-    }
     await prisma.user.create({
       data: {
         name: acct.name,
         email: acct.email,
         phone: acct.phone,
-        passwordHash: hashMap[acct.role] || sellerHash,
+        passwordHash: ownerHash,
         role: acct.role,
         approved: acct.approved,
-        cardNumber: acct.role === "ADMIN" ? "ronit-batra-08-11" : cardNumber,
+        cardNumber: acct.cardNumber,
         cardLevel: acct.cardLevel,
         ...(acct.role === "ADMIN" ? { cardPinHash: ownerPinHash } : {}),
       },
     });
-    console.log(`  Created: ${acct.name} (${acct.role}) — ${acct.role === "ADMIN" ? "ronit-batra-08-11" : cardNumber}`);
+    console.log(`  Created: ${acct.name} (${acct.role}) — ${acct.cardNumber}`);
   }
 
-  console.log("Done. Owner: batraverseronit0811 (PIN: 0811) | Seller: seller123 | Customer: customer123 | Delivery: delivery123");
+  console.log("Done. Owner: batraverseronit0811 (PIN: 0811)");
 
   console.log("Seeding categories...");
   const storeCategories = [

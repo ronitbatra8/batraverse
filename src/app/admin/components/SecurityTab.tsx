@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { useLight } from "@/components/auth/auth-ui";
 import { cn } from "@/lib/utils";
-import { apiFetch } from "@/lib/api";
+import { adminHeaders } from "./types";
 
 const statusColors: Record<string, string> = {
   requested: "bg-yellow-500/10 border-yellow-500/30 text-yellow-600 dark:text-yellow-400",
@@ -36,7 +36,7 @@ const statusDot: Record<string, string> = {
   expired: "bg-red-500",
 };
 
-export default function SecurityTab() {
+export default function SecurityTab({ adminKey }: { adminKey?: string }) {
   const light = useLight();
   const [resets, setResets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -47,7 +47,11 @@ export default function SecurityTab() {
     setLoading(true);
     setError("");
     try {
-      const data = await apiFetch("/admin/security/password-resets");
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api"}/admin/security/password-resets`, {
+        headers: adminHeaders(adminKey),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to load password resets");
       const list = Array.isArray(data?.resets) ? (data.resets as any[]) : (Array.isArray(data) ? data : []);
       setResets(list);
     } catch (err: any) {

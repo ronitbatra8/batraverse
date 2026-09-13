@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from "react";
-import { Sparkles, LayoutDashboard, Package, Users, MessageSquare, KeyRound, BarChart3, Newspaper, Truck, Store, CreditCard, IndianRupee, AlertTriangle, ShoppingCart, Tags, Megaphone, Quote, RefreshCw, LogOut, Menu, X } from "lucide-react";
+import { Sparkles, LayoutDashboard, Package, Users, MessageSquare, KeyRound, BarChart3, Newspaper, Truck, Store, CreditCard, IndianRupee, AlertTriangle, ShoppingCart, Megaphone, Quote, RefreshCw, LogOut, Menu, X } from "lucide-react";
 import { Tab } from "./types";
 import Brand from "@/components/brand/Brand";
 import { cn } from "@/lib/utils";
@@ -15,12 +15,11 @@ export const topNavItems: { key: Tab; label: string; icon: any }[] = [
   { key: "sellersystem", label: "Seller System", icon: Store },
   { key: "analytics", label: "Analytics", icon: BarChart3 },
   { key: "delivery", label: "Delivery", icon: Truck },
-  { key: "productcatalog", label: "Products", icon: ShoppingCart },
 ];
 
 export const sideNavItems: { key: Tab; label: string; icon: any }[] = [
+  { key: "productcatalog", label: "Products", icon: ShoppingCart },
   { key: "money", label: "Money", icon: IndianRupee },
-  { key: "categories", label: "Categories", icon: Tags },
   { key: "featured", label: "Featured", icon: Sparkles },
   { key: "testimonials", label: "Testimonials", icon: Quote },
   { key: "ads", label: "Ads", icon: Megaphone },
