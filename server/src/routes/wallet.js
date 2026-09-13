@@ -25,6 +25,33 @@ function levelFromBalance(balance) {
   return "none";
 }
 
+// Classify a WalletTopUp row into a history kind. Order payments and refunds
+// are stored as ledger rows (transactionId prefixed ORDER:/REFUND:), manual
+// owner adjustments as ADMIN:, everything else is a customer top-up.
+function topUpKind(t) {
+  const tx = t.transactionId || "";
+  if (tx.startsWith("ADMIN:")) return t.amount < 0 ? "manual_debit" : "manual_credit";
+  if (tx.startsWith("ORDER:")) return "order_payment";
+  if (tx.startsWith("REFUND:")) return "refund";
+  return "topup";
+}
+
+function ledgerEntry(t) {
+  const kind = topUpKind(t);
+  return {
+    id: t.id,
+    kind,
+    amount: t.amount,
+    status: t.status,
+    // ORDER / REFUND are ledger markers, not actual payment methods
+    // (a top-up by COD / UPI_DELIVERY / UPI keeps its real method).
+    paymentMethod: ["ORDER", "REFUND"].includes(t.paymentMethod) ? null : t.paymentMethod || null,
+    transactionId: t.transactionId || null,
+    note: t.adminNote || null,
+    createdAt: t.createdAt,
+  };
+}
+
 router.get("/balance", userAuth, customerOnly, async (req, res) => {
   try {
     const user = await prisma.user.findUnique({
@@ -109,31 +136,7 @@ router.get("/my-history", userAuth, customerOnly, async (req, res) => {
     ]);
 
     const entries = [
-      ...topUps.map((t) => {
-        const isManual = (t.transactionId || "").startsWith("ADMIN:");
-        if (isManual) {
-          return {
-            id: t.id,
-            kind: t.amount < 0 ? "manual_debit" : "manual_credit",
-            amount: t.amount,
-            status: t.status,
-            paymentMethod: t.paymentMethod || null,
-            transactionId: t.transactionId || null,
-            note: t.adminNote || null,
-            createdAt: t.createdAt,
-          };
-        }
-        return {
-          id: t.id,
-          kind: "topup",
-          amount: t.amount,
-          status: t.status,
-          paymentMethod: t.paymentMethod || null,
-          transactionId: t.transactionId || null,
-          note: t.adminNote || null,
-          createdAt: t.createdAt,
-        };
-      }),
+      ...topUps.map((t) => ledgerEntry(t)),
       ...upgrades.map((u) => ({
         id: u.id,
         kind: "upgrade",
@@ -327,34 +330,11 @@ router.get("/admin/history", userAuth, async (req, res) => {
     ]);
 
     const entries = [
-      ...topUps.map((t) => {
-        const isManual = (t.transactionId || "").startsWith("ADMIN:");
-        if (isManual) {
-          return {
-            id: t.id,
-            kind: t.amount < 0 ? "manual_debit" : "manual_credit",
-            amount: t.amount,
-            status: t.status,
-            transactionId: t.transactionId || null,
-            note: t.adminNote || null,
-            createdAt: t.createdAt,
-            userId: t.userId,
-            user: t.user,
-          };
-        }
-        return {
-          id: t.id,
-          kind: "topup",
-          amount: t.amount,
-          status: t.status,
-          paymentMethod: t.paymentMethod || null,
-          transactionId: t.transactionId || null,
-          note: t.adminNote || null,
-          createdAt: t.createdAt,
-          userId: t.userId,
-          user: t.user,
-        };
-      }),
+      ...topUps.map((t) => ({
+        ...ledgerEntry(t),
+        userId: t.userId,
+        user: t.user,
+      })),
       ...upgrades.map((u) => ({
         id: u.id,
         kind: "upgrade",

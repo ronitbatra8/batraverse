@@ -14,10 +14,12 @@ import {
   Wallet,
   UserRound,
   ListOrdered,
+  ShoppingBag,
+  RotateCcw,
 } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
 
-type Kind = "topup" | "manual_credit" | "manual_debit" | "upgrade";
+type Kind = "topup" | "manual_credit" | "manual_debit" | "upgrade" | "order_payment" | "refund";
 
 interface HistoryEntry {
   id: string;
@@ -70,6 +72,18 @@ const KIND_META: Record<Kind, { label: string; icon: typeof Wallet; badge: strin
     badge: "border-gold-500/30 bg-gold-500/10 text-gold-300",
     chip: "text-gold-400",
   },
+  order_payment: {
+    label: "Order Payment",
+    icon: ShoppingBag,
+    badge: "border-red-500/30 bg-red-500/10 text-red-300",
+    chip: "text-red-400",
+  },
+  refund: {
+    label: "Order Refund",
+    icon: RotateCcw,
+    badge: "border-emerald-500/30 bg-emerald-500/10 text-emerald-300",
+    chip: "text-emerald-400",
+  },
 };
 
 export default function WalletHistory() {
@@ -95,7 +109,7 @@ export default function WalletHistory() {
     void load();
   }, [load]);
 
-  const isCredit = (e: HistoryEntry) => e.kind !== "manual_debit";
+  const isCredit = (e: HistoryEntry) => e.amount >= 0;
 
   const filtered = entries.filter((e) => {
     if (filter === "credit" && !isCredit(e)) return false;
@@ -125,7 +139,7 @@ export default function WalletHistory() {
           <p className="text-sm font-semibold text-white flex items-center gap-2">
             <ListOrdered className="w-4 h-4 text-gold-400" /> Wallet History
           </p>
-          <p className="text-xs text-dark-400 mt-0.5">Every credit &amp; debit — top-ups, manual adjustments, upgrades</p>
+          <p className="text-xs text-dark-400 mt-0.5">Every credit &amp; debit — top-ups, order payments, manual adjustments, upgrades</p>
         </div>
         <button
           onClick={() => { setLoading(true); load(); }}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { Banknote, Smartphone, CircleDollarSign, Check, ArrowUpRight, Loader2, Wallet } from "lucide-react";
+import { Banknote, Smartphone, CircleDollarSign, Check, ArrowUpRight, Loader2, Wallet, CreditCard } from "lucide-react";
 import { cn, errMessage, formatPrice } from "@/lib/utils";
 import { useLight } from "@/components/auth/auth-ui";
 import { apiFetch } from "@/lib/api";
@@ -16,12 +16,13 @@ interface UpgradePrice {
   active: boolean;
 }
 
-type PayMethod = "cod" | "upi_delivery" | "upi";
+type PayMethod = "cod" | "upi_delivery" | "upi" | "razorpay";
 
 const PAYMENT_METHODS: Array<{ key: PayMethod; label: string; desc: string; icon: ReactNode }> = [
   { key: "cod", label: "Cash on Delivery", desc: "Pay when you receive", icon: <Banknote size={20} /> },
   { key: "upi_delivery", label: "UPI on Delivery", desc: "Scan & pay at owner/delivery", icon: <Smartphone size={20} /> },
   { key: "upi", label: "Online UPI", desc: "QR / Transaction ID", icon: <CircleDollarSign size={20} /> },
+  { key: "razorpay", label: "Online Razorpay", desc: "Pay instantly via Razorpay", icon: <CreditCard size={20} /> },
 ];
 
 const TOP_UP_PRESETS = [100, 200, 500, 1000, 2000, 5000];
@@ -38,7 +39,24 @@ interface PendingCheckout {
 }
 
 function methodLabel(m: string): string {
-  return m === "cod" ? "COD" : m === "upi_delivery" ? "UPI on Delivery" : "Online UPI";
+  return m === "cod" ? "COD" : m === "upi_delivery" ? "UPI on Delivery" : m === "razorpay" ? "Razorpay" : "Online UPI";
+}
+
+let rzpLoadPromise: Promise<boolean> | null = null;
+function loadRazorpay(): Promise<boolean> {
+  if (typeof window === "undefined") return Promise.resolve(false);
+  if ((window as any).Razorpay) return Promise.resolve(true);
+  if (!rzpLoadPromise) {
+    rzpLoadPromise = new Promise<boolean>((resolve) => {
+      const s = document.createElement("script");
+      s.src = "https://checkout.razorpay.com/v1/checkout.js";
+      s.async = true;
+      s.onload = () => resolve(true);
+      s.onerror = () => resolve(false);
+      document.head.appendChild(s);
+    });
+  }
+  return rzpLoadPromise;
 }
 
 export default function CardUpgradeCheckout({ currentLevel, walletBalance = 0 }: { currentLevel: string; walletBalance?: number }) {
@@ -59,6 +77,19 @@ export default function CardUpgradeCheckout({ currentLevel, walletBalance = 0 }:
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState<{ kind: "upgrade"; toLevel: string; amount: number; methodLabel: string } | { kind: "topup"; amount: number; methodLabel: string } | null>(null);
+
+  const [rzpReady, setRzpReady] = useState(false);
+  const [rzpKeyId, setRzpKeyId] = useState("");
+
+  useEffect(() => {
+    apiFetch("/payments/keys")
+      .then((j: any) => {
+        const enabled = Boolean(j?.enabled) && Boolean(j?.keyId);
+        setRzpKeyId(j?.keyId || "");
+        setRzpReady(enabled);
+      })
+      .catch(() => setRzpReady(false));
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -138,6 +169,69 @@ export default function CardUpgradeCheckout({ currentLevel, walletBalance = 0 }:
     setPayMethod("");
   }, [pending]);
 
+  const startRazorpay = useCallback(async (c: PendingCheckout) => {
+    setSubmitting(true);
+    setError("");
+    try {
+      if (!rzpKeyId || !rzpReady || !(await loadRazorpay())) {
+        setError("Online payment is not configured yet. Please use another method.");
+        setPayMethod("");
+        setSubmitting(false);
+        return;
+      }
+      const isUpgrade = c.mode === "upgrade";
+      const orderData: any = await apiFetch(isUpgrade ? "/payments/upgrade-order" : "/payments/topup-order", {
+        method: "POST",
+        body: JSON.stringify(isUpgrade ? { toLevel: c.target } : { amount: c.amount }),
+      });
+      const order = orderData?.order;
+      if (!order?.id) {
+        setError("Failed to create Razorpay order. Please try again or use another method.");
+        setSubmitting(false);
+        return;
+      }
+      const RZP: any = (window as any).Razorpay;
+      const rzp = new RZP({
+        key_id: rzpKeyId,
+        amount: order.amount,
+        currency: order.currency || "INR",
+        order_id: order.id,
+        name: "Batraverse",
+        description: isUpgrade ? "Card upgrade" : "Wallet top-up",
+        handler: async (resp: any) => {
+          try {
+            const target = isUpgrade ? "/payments/upgrade-verify" : "/payments/topup-verify";
+            await apiFetch(target, {
+              method: "POST",
+              body: JSON.stringify({
+                razorpayOrderId: order.id,
+                razorpayPaymentId: resp.razorpay_payment_id,
+                razorpaySignature: resp.razorpay_signature,
+              }),
+            });
+            setDone(
+              isUpgrade
+                ? { kind: "upgrade", toLevel: c.target, amount: c.amount, methodLabel: "Razorpay" }
+                : { kind: "topup", amount: c.amount, methodLabel: "Razorpay" }
+            );
+            setPending(null);
+            setSelected(null);
+            setPayMethod("");
+            setSubmitting(false);
+          } catch (e: any) {
+            setError(e?.message || "Payment verification failed");
+            setSubmitting(false);
+          }
+        },
+        modal: { ondismiss: () => setSubmitting(false) },
+      });
+      rzp.open();
+    } catch (e: any) {
+      setError(e?.message || "Online payment request failed");
+      setSubmitting(false);
+    }
+  }, [rzpKeyId, rzpReady]);
+
   const handleSubmit = useCallback(() => {
     if (!checkout) return;
     if (checkout.method === "upi") {
@@ -146,8 +240,12 @@ export default function CardUpgradeCheckout({ currentLevel, walletBalance = 0 }:
       setUpiModal(true);
       return;
     }
+    if (checkout.method === "razorpay") {
+      startRazorpay(checkout);
+      return;
+    }
     submit(checkout);
-  }, [checkout, submit]);
+  }, [checkout, submit, startRazorpay]);
 
   const handleUpiSuccess = useCallback(() => {
     setUpiModal(false);
@@ -207,9 +305,15 @@ export default function CardUpgradeCheckout({ currentLevel, walletBalance = 0 }:
           </p>
           <p className={cn("text-[10px] leading-relaxed", light ? "text-onyx/50" : "text-dark-500")}>
             {done.kind === "upgrade" ? (
-              <>{LEVELS[done.toLevel]?.name || done.toLevel.toUpperCase()} upgrade for {formatPrice(done.amount).replace(/\.00$/, "")} via {done.methodLabel}. Once confirmed, the amount will be credited to your wallet and your card upgraded.</>
+              <>{LEVELS[done.toLevel]?.name || done.toLevel.toUpperCase()} upgrade for {formatPrice(done.amount).replace(/\.00$/, "")} via {done.methodLabel}.
+                {done.methodLabel === "Razorpay"
+                  ? <> Your card is upgraded and {formatPrice(done.amount).replace(/\.00$/, "")} has been credited to your wallet — no owner approval needed.</>
+                  : <> Once confirmed, the amount will be credited to your wallet and your card upgraded.</>}</>
             ) : (
-              <>{formatPrice(done.amount).replace(/\.00$/, "")} top-up via {done.methodLabel}. Amount will be credited to your wallet after the owner confirms your payment.</>
+              <>{formatPrice(done.amount).replace(/\.00$/, "")} top-up via {done.methodLabel}.
+                {done.methodLabel === "Razorpay"
+                  ? <> Your wallet has been credited instantly.</>
+                  : <> Amount will be credited to your wallet after the owner confirms your payment.</>}</>
             )}
           </p>
           <button
@@ -328,32 +432,46 @@ export default function CardUpgradeCheckout({ currentLevel, walletBalance = 0 }:
               <p className={cn("text-[10px] uppercase tracking-[0.2em] font-semibold mb-2", light ? "text-sapphire/60" : "text-white/50")}>
                 Select Payment Method
               </p>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                {PAYMENT_METHODS.map((m) => (
-                  <button
-                    key={m.key}
-                    type="button"
-                    onClick={() => { setPayMethod(m.key); setError(""); }}
-                    className={cn(
-                      "relative flex items-center gap-3 rounded-xl border-2 p-3 transition-all duration-300 text-left",
-                      payMethod === m.key
-                        ? (light ? "border-sapphire bg-sapphire/5" : "border-gold bg-gold/5")
-                        : (light ? "border-black/10 bg-white hover:border-sapphire/30" : "border-white/10 bg-white/[0.03] hover:border-gold/30")
-                    )}
-                  >
-                    <span className={cn("transition-colors duration-300", payMethod === m.key ? (light ? "text-sapphire" : "text-gold") : (light ? "text-onyx/40" : "text-dark-500"))}>{m.icon}</span>
-                    <div className="flex-1 min-w-0">
-                      <p className={cn("text-[10px] font-bold", payMethod === m.key ? (light ? "text-dark-900" : "text-cream") : (light ? "text-dark-600" : "text-cream-dim/80"))}>{m.label}</p>
-                      <p className={cn("text-[9px] mt-0.5 leading-snug", light ? "text-onyx/40" : "text-dark-500")}>{m.desc}</p>
-                    </div>
-                    {payMethod === m.key && (
-                      <span className={cn("absolute top-2 right-2 flex h-4 w-4 items-center justify-center rounded-full", light ? "bg-sapphire text-white" : "bg-gold text-abyss")}>
-                        <Check size={9} />
-                      </span>
-                    )}
-                  </button>
-                ))}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {PAYMENT_METHODS.map((m) => {
+                  const disabled = m.key === "razorpay" && !rzpReady;
+                  return (
+                    <button
+                      key={m.key}
+                      type="button"
+                      onClick={() => { setPayMethod(m.key); setError(""); }}
+                      disabled={disabled}
+                      className={cn(
+                        "relative flex items-center gap-3 rounded-xl border-2 p-3 transition-all duration-300 text-left",
+                        disabled
+                          ? "opacity-50 cursor-not-allowed"
+                          : payMethod === m.key
+                            ? (light ? "border-sapphire bg-sapphire/5" : "border-gold bg-gold/5")
+                            : (light ? "border-black/10 bg-white hover:border-sapphire/30" : "border-white/10 bg-white/[0.03] hover:border-gold/30")
+                      )}
+                    >
+                      <span className={cn("transition-colors duration-300", payMethod === m.key ? (light ? "text-sapphire" : "text-gold") : (light ? "text-onyx/40" : "text-dark-500"))}>{m.icon}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className={cn("text-[10px] font-bold", payMethod === m.key ? (light ? "text-dark-900" : "text-cream") : (light ? "text-dark-600" : "text-cream-dim/80"))}>{m.label}</p>
+                        <p className={cn("text-[9px] mt-0.5 leading-snug", light ? "text-onyx/40" : "text-dark-500")}>
+                          {disabled ? "Not configured yet" : m.desc}
+                        </p>
+                      </div>
+                      {payMethod === m.key && (
+                        <span className={cn("absolute top-2 right-2 flex h-4 w-4 items-center justify-center rounded-full", light ? "bg-sapphire text-white" : "bg-gold text-abyss")}>
+                          <Check size={9} />
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
+
+              {!rzpReady && (
+                <p className="mt-3 text-[10px] text-amber-500">
+                  Razorpay online payments are being set up — keys not configured yet. Please use COD, UPI on delivery or online UPI for now.
+                </p>
+              )}
 
               {payMethod === "upi" && (
                 <div className={cn("mt-3 rounded-xl border p-3", light ? "border-black/10 bg-dark-50/40" : "border-white/10 bg-graphite")}>
@@ -376,6 +494,12 @@ export default function CardUpgradeCheckout({ currentLevel, walletBalance = 0 }:
               {payMethod === "upi_delivery" && (
                 <div className={cn("mt-3 rounded-xl border p-3 text-[10px] leading-relaxed", light ? "border-black/10 bg-dark-50/40 text-onyx/50" : "border-white/10 bg-graphite text-dark-500")}>
                   The owner or delivery partner will share a UPI QR code when upgrading your card. Scan and pay to complete your upgrade.
+                </div>
+              )}
+
+              {payMethod === "razorpay" && rzpReady && (
+                <div className={cn("mt-3 rounded-xl border p-3 text-[10px] leading-relaxed", light ? "border-black/10 bg-dark-50/40 text-onyx/50" : "border-white/10 bg-graphite text-dark-500")}>
+                  You'll be redirected to Razorpay to pay <span className="font-bold">{formatPrice(checkout.amount)}</span> securely (Card / UPI / NetBanking). Once paid, your wallet is credited or your card upgraded instantly — no owner approval needed.
                 </div>
               )}
 

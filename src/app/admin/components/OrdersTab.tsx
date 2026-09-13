@@ -287,6 +287,12 @@ export default function OrdersTab({
             const splitItems = (order.items || []).filter((it: any) => it.sellerPrice != null && it.sellerPrice > 0);
             const orderDiscount = Number(order.discountAmount) || 0;
             const splitSubtotal = splitItems.reduce((s: number, it: any) => s + (it.price || 0) * (it.quantity || 1), 0);
+            const subtotalUsed = (Number(order.subtotalAmount) || 0) > 0
+              ? Number(order.subtotalAmount)
+              : (order.items || []).reduce((s: number, it: any) => s + (it.price || 0) * (it.quantity || 1), 0);
+            const deliveryChargeShown = Number(order.deliveryAmount) || 0;
+            const expressChargeShown = Number(order.expressAmount) || 0;
+            const gstIncluded = Number(order.gstAmount) || 0;
 
             return (
               <div
@@ -727,9 +733,46 @@ export default function OrdersTab({
                             </div>
                           </div>
                         )}
-                        <div className="border-l border-dark-700 pl-3 ml-1">
-                          <div className="text-xs text-dark-500">Total</div>
-                          <div className="text-white font-bold text-lg">{formatPrice(order.totalAmount || 0)}</div>
+                        <div className="border-l border-dark-700 pl-3 ml-1 flex-1 min-w-[200px]">
+                          <div className="text-xs text-dark-500">Breakdown</div>
+                          <div className="mt-1.5 space-y-1 text-xs">
+                            <div className="flex justify-between gap-3">
+                              <span className="text-dark-500">Item Value</span>
+                              <span className="text-white tabular-nums font-medium">{formatPrice(subtotalUsed)}</span>
+                            </div>
+                            {orderDiscount > 0 && (
+                              <div className="flex justify-between gap-3">
+                                <span className="text-dark-500">Card Discount</span>
+                                <span className="text-emerald-400 tabular-nums">- {formatPrice(orderDiscount)}</span>
+                              </div>
+                            )}
+                            {deliveryChargeShown > 0 && (
+                              <div className="flex justify-between gap-3">
+                                <span className="text-dark-500">Delivery</span>
+                                <span className="text-white tabular-nums">{formatPrice(deliveryChargeShown)}</span>
+                              </div>
+                            )}
+                            {expressChargeShown > 0 && (
+                              <div className="flex justify-between gap-3">
+                                <span className="text-dark-500">Express</span>
+                                <span className="text-white tabular-nums">{formatPrice(expressChargeShown)}</span>
+                              </div>
+                            )}
+                            <div className="flex justify-between gap-3 border-t border-dark-700/60 pt-1">
+                              <span className="text-dark-400 font-semibold">Total</span>
+                              <span className="text-white font-bold tabular-nums">{formatPrice(order.totalAmount || 0)}</span>
+                            </div>
+                          </div>
+                          {gstIncluded > 0 ? (
+                            <div className="mt-2 text-[10px] text-gold-400/90 flex justify-between gap-3">
+                              <span>GST included in total paid</span>
+                              <span className="tabular-nums">{formatPrice(gstIncluded)}</span>
+                            </div>
+                          ) : (
+                            <div className="mt-2 text-[10px] text-dark-600 italic">
+                              GST breakdown unavailable for this order
+                            </div>
+                          )}
                         </div>
                         {order.paymentStatus === "PENDING" && order.status !== "cancelled" && onPaymentAction && !["COD", "UPI_DELIVERY"].includes(order.paymentMethod) && (
                           <div className="flex flex-wrap items-center gap-2 sm:border-l sm:border-dark-700 sm:pl-3 sm:ml-1">

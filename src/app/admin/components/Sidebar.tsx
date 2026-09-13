@@ -1,8 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { RefreshCw, LogOut, Shield, Sparkles, LayoutDashboard, Package, Users, MessageSquare, KeyRound, BarChart3, Newspaper, Truck, Store, CreditCard, AlertTriangle, ShoppingCart, Tags, Megaphone, Quote } from "lucide-react";
+import { useState } from "react";
+import { Sparkles, LayoutDashboard, Package, Users, MessageSquare, KeyRound, BarChart3, Newspaper, Truck, Store, CreditCard, IndianRupee, AlertTriangle, ShoppingCart, Tags, Megaphone, Quote, RefreshCw, LogOut, Menu, X } from "lucide-react";
 import { Tab } from "./types";
+import Brand from "@/components/brand/Brand";
+import { cn } from "@/lib/utils";
 
 export const topNavItems: { key: Tab; label: string; icon: any }[] = [
   { key: "overview", label: "Overview", icon: LayoutDashboard },
@@ -16,6 +19,7 @@ export const topNavItems: { key: Tab; label: string; icon: any }[] = [
 ];
 
 export const sideNavItems: { key: Tab; label: string; icon: any }[] = [
+  { key: "money", label: "Money", icon: IndianRupee },
   { key: "categories", label: "Categories", icon: Tags },
   { key: "featured", label: "Featured", icon: Sparkles },
   { key: "testimonials", label: "Testimonials", icon: Quote },
@@ -26,106 +30,162 @@ export const sideNavItems: { key: Tab; label: string; icon: any }[] = [
   { key: "violations", label: "Violations", icon: AlertTriangle },
 ];
 
-export default function Sidebar({ tab, setTab, loading, onRefresh, onSignOut, badges }: {
+/* Site-centre-link typography: small caps, wide tracking, underline on hover. */
+const centreLink = "relative py-2 text-[11px] font-medium uppercase tracking-[0.3em] transition-colors duration-300";
+
+export default function Sidebar({ tab, setTab, loading, onRefresh, onSignOut, badges, collapsed, onToggleCollapsed }: {
   tab: Tab;
   setTab: (t: Tab) => void;
   loading: boolean;
   onRefresh: () => void;
   onSignOut: () => void;
   badges: Partial<Record<Tab, number>>;
+  collapsed: boolean;
+  onToggleCollapsed: () => void;
 }) {
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  const handleOpen = () => {
+    if (window.matchMedia("(min-width: 1024px)").matches) {
+      if (collapsed) onToggleCollapsed();
+    } else {
+      setMobileOpen(true);
+    }
+  };
+
+  const handleClose = () => {
+    setMobileOpen(false);
+    if (window.matchMedia("(min-width: 1024px)").matches && !collapsed) onToggleCollapsed();
+  };
+
+  const goToTab = (key: Tab) => {
+    setTab(key);
+    window.scrollTo(0, 0);
+  };
+
   return (
     <>
-      {/* Top horizontal nav */}
-      <div className="fixed inset-x-0 top-0 z-30 bg-dark-900/85 backdrop-blur-xl border-b border-gold-500/10 shadow-[0_1px_0_0_rgba(0,0,0,0.2)]">
-        <div className="mx-auto flex max-w-[100rem] items-center gap-2 px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-2.5 shrink-0 py-3 pr-1">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-gold-400 to-gold-600 flex items-center justify-center shadow-[0_0_18px_rgba(212,175,55,0.22)]">
-              <Shield size={16} className="text-dark-950" />
-            </div>
-            <div className="hidden sm:block">
-              <p className="text-sm font-display font-bold leading-tight text-white">Owner Dashboard</p>
-              <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-gold-400">
-                <Sparkles size={9} /> BATRAVERSE
-              </p>
-            </div>
-          </div>
-
-          <nav className="flex flex-1 items-center gap-1 overflow-x-auto scrollbar-hide mx-2 sm:mx-4">
-            {topNavItems.map((item) => (
-              <button key={item.key} onClick={() => setTab(item.key)}
-                className={`flex shrink-0 items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition-all whitespace-nowrap ${
-                  tab === item.key
-                    ? "bg-gold-500/10 text-gold-400 border border-gold-500/20"
-                    : "text-dark-400 hover:text-white hover:bg-dark-800/40 border border-transparent"
-                }`}>
-                <item.icon size={15} />
-                <span>{item.label}</span>
-                {badges[item.key] !== undefined && badges[item.key]! > 0 && (
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${tab === item.key ? "bg-gold-500/20 text-gold-400" : "bg-dark-800 text-dark-400"}`}>{badges[item.key]}</span>
-                )}
-              </button>
-            ))}
-          </nav>
-
-          <div className="flex items-center gap-1 shrink-0">
-            <button onClick={onRefresh} title="Refresh data"
-              className="w-9 h-9 rounded-xl text-dark-400 hover:text-gold-400 hover:bg-dark-800/40 flex items-center justify-center transition-colors">
-              <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
-            </button>
-            <button onClick={onSignOut} title="Sign out"
-              className="w-9 h-9 rounded-xl text-dark-400 hover:text-red-400 hover:bg-red-500/10 flex items-center justify-center transition-colors">
-              <LogOut size={16} />
-            </button>
-          </div>
-        </div>
+      {/* Top nav — mirrors the public Navbar floating pill (links only). The
+          sidebar open button is a hamburger with its own dedicated slot in the
+          pill's flex layout (mobile: always; desktop: only while collapsed). */}
+      <div className={cn("pointer-events-none fixed inset-x-0 top-0 z-30 transition-[padding] duration-500 ease-in-out", collapsed ? "lg:pl-0" : "lg:pl-64")}>
+        <nav className="pointer-events-auto relative mx-auto mt-3 flex h-16 w-[calc(100%-1.5rem)] max-w-[1400px] items-center rounded-2xl border px-3 backdrop-blur-2xl border-white/15 bg-black/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_20px_60px_-10px_rgba(0,0,0,0.6)] sm:w-[calc(100%-4rem)] sm:px-4">
+          <button
+            onClick={handleOpen}
+            aria-label="Open sidebar"
+            className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-cream-dim transition-colors hover:bg-white/10 hover:text-cream", collapsed ? "" : "lg:hidden")}
+          >
+            <Menu size={16} />
+          </button>
+          <ul className="flex flex-1 items-center justify-center gap-1 overflow-x-auto scrollbar-hide px-1 sm:gap-9">
+            {topNavItems.map((item) => {
+              const active = tab === item.key;
+              return (
+                <li key={item.key} className="pointer-events-auto shrink-0">
+                  <button
+                    onClick={() => goToTab(item.key)}
+                    className={`group ${centreLink} ${active ? "text-gold-light" : "text-cream-dim hover:text-cream"}`}
+                  >
+                    {item.label}
+                    {badges[item.key] !== undefined && badges[item.key]! > 0 && (
+                      <span className={`ml-2 align-middle text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${active ? "bg-gold/15 text-gold-light border-gold/30" : "bg-white/5 text-cream-dim border-white/10"}`}>
+                        {badges[item.key]}
+                      </span>
+                    )}
+                    <span
+                      className={`absolute bottom-0 left-1/2 h-px -translate-x-1/2 transition-all duration-500 bg-gold ${active ? "w-full" : "w-0 group-hover:w-full"}`}
+                    />
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
       </div>
 
-      {/* Left side nav */}
-      <aside className="fixed left-0 top-16 bottom-0 z-20 w-56 bg-dark-900/60 backdrop-blur-xl border-r border-gold-500/10 hidden lg:flex flex-col">
-        <nav className="flex-1 flex flex-col gap-1 p-3 pt-4">
+      {/* Mobile backdrop — only when the drawer is open */}
+      {mobileOpen && (
+        <div
+          onClick={() => setMobileOpen(false)}
+          className="fixed inset-0 z-30 bg-black/40 backdrop-blur-sm lg:hidden"
+        />
+      )}
+
+      {/* Full-height sidebar — frosted glass, gold hairline. Close button sits
+          inside (top row), open button lives in the top pill. Slides smoothly and
+          the content area padding follows on desktop. */}
+      <aside
+        className={cn(
+          "fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-gold/15 bg-black/40 backdrop-blur-xl shadow-[inset_0_1px_0_rgba(212,175,55,0.12),24px_0_60px_rgba(0,0,0,0.4)] transition-transform duration-500 ease-in-out",
+          mobileOpen ? "translate-x-0" : "-translate-x-full",
+          collapsed ? "lg:-translate-x-full" : "lg:translate-x-0"
+        )}
+      >
+        <div className="flex w-full items-center justify-between gap-3 border-b border-gold/15 p-4">
+          <div className="min-w-0 flex-1">
+            <Brand size="md" />
+          </div>
+          <button
+            onClick={handleClose}
+            aria-label="Close sidebar"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-cream-dim transition-colors hover:bg-white/10 hover:text-cream"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        <nav className="flex-1 space-y-1 overflow-y-auto p-3">
           {sideNavItems.map((item) => {
             const active = tab === item.key;
             return (
-              <button key={item.key} onClick={() => setTab(item.key)}
-                className={`flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-all text-left ${
+              <button
+                key={item.key}
+                onClick={() => goToTab(item.key)}
+                className={cn(
+                  "group relative flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-left transition-all duration-300",
                   active
-                    ? "bg-gold-500/10 text-gold-400 border border-gold-500/20"
-                    : "text-dark-400 hover:text-white hover:bg-dark-800/40 border border-transparent"
-                }`}>
-                <item.icon size={16} />
-                <span className="flex-1">{item.label}</span>
-                {badges[item.key] !== undefined && badges[item.key]! > 0 && (
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${active ? "bg-gold-500/20 text-gold-400" : "bg-dark-800 text-dark-400"}`}>{badges[item.key]}</span>
+                    ? "bg-gold/15 text-gold-light border border-gold/25"
+                    : "border border-transparent text-dark-400 hover:bg-white/5 hover:text-dark-200"
                 )}
+              >
+                <item.icon size={16} strokeWidth={1.5} className={cn("shrink-0", active ? "text-gold-light" : "text-cream-dim group-hover:text-cream")} />
+                <span className={cn("flex-1 truncate text-sm font-medium", active ? "text-gold-light" : "text-cream-dim group-hover:text-cream")}>
+                  {item.label}
+                </span>
+                {badges[item.key] !== undefined && badges[item.key]! > 0 && (
+                  <span className="ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-gold/30 bg-gold/15 text-gold-light">
+                    {badges[item.key]}
+                  </span>
+                )}
+                <span
+                  className={cn(
+                    "absolute inset-y-0 left-0 w-px rounded-full transition-all duration-500",
+                    active ? "bg-gold opacity-100" : "bg-gold/50 opacity-0 group-hover:opacity-70"
+                  )}
+                />
               </button>
             );
           })}
         </nav>
-      </aside>
 
-      {/* Mobile side nav — horizontal bottom bar */}
-      <nav className="fixed inset-x-0 bottom-0 z-30 lg:hidden bg-dark-900/90 backdrop-blur-xl border-t border-gold-500/10">
-        <div className="flex items-center justify-around px-2 py-2">
-          {sideNavItems.map((item) => {
-            const active = tab === item.key;
-            return (
-              <button key={item.key} onClick={() => setTab(item.key)}
-                className={`flex flex-col items-center gap-1 rounded-lg px-2 py-1.5 text-[10px] font-medium transition-all ${
-                  active
-                    ? "text-gold-400"
-                    : "text-dark-500 hover:text-white"
-                }`}>
-                <item.icon size={16} />
-                <span>{item.label.split(" ")[0]}</span>
-                {badges[item.key] !== undefined && badges[item.key]! > 0 && (
-                  <span className="absolute -mt-6 -mr-3 text-[8px] px-1 py-0.5 rounded-full bg-gold-500/20 text-gold-400">{badges[item.key]}</span>
-                )}
-              </button>
-            );
-          })}
+        <div className="border-t border-gold/15 p-3">
+          <button
+            onClick={onRefresh}
+            disabled={loading}
+            className="flex w-full items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-dark-300 transition-all duration-200 hover:bg-white/[0.05] hover:text-white disabled:opacity-50"
+          >
+            <RefreshCw size={18} className={`shrink-0 ${loading ? "animate-spin" : ""}`} />
+            <span className="truncate">{loading ? "Refreshing..." : "Refresh"}</span>
+          </button>
+          <button
+            onClick={onSignOut}
+            className="flex w-full items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-red-400 transition-all duration-200 hover:bg-red-500/10"
+          >
+            <LogOut size={18} className="shrink-0" />
+            <span className="truncate">Sign Out</span>
+          </button>
         </div>
-      </nav>
+      </aside>
     </>
   );
 }

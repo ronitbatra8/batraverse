@@ -15,9 +15,11 @@ import {
   ArrowUpRight,
   History,
   RefreshCw,
+  ShoppingBag,
+  RotateCcw,
 } from "lucide-react";
 
-type Kind = "topup" | "manual_credit" | "manual_debit" | "upgrade";
+type Kind = "topup" | "manual_credit" | "manual_debit" | "upgrade" | "order_payment" | "refund";
 
 interface HistoryEntry {
   id: string;
@@ -31,6 +33,8 @@ interface HistoryEntry {
   levelFrom?: string;
   levelTo?: string;
 }
+
+const DEBIT_KINDS: Kind[] = ["manual_debit", "order_payment"];
 
 const KIND_META: Record<Kind, { label: string; icon: typeof Wallet; badge: string; chip: string }> = {
   topup: {
@@ -56,6 +60,18 @@ const KIND_META: Record<Kind, { label: string; icon: typeof Wallet; badge: strin
     icon: CreditCard,
     badge: "border-gold/30 bg-gold/10 text-gold",
     chip: "text-gold",
+  },
+  order_payment: {
+    label: "Order Payment",
+    icon: ShoppingBag,
+    badge: "border-red-500/30 bg-red-500/10 text-red-500",
+    chip: "text-red-400",
+  },
+  refund: {
+    label: "Order Refund",
+    icon: RotateCcw,
+    badge: "border-emerald-500/30 bg-emerald-500/10 text-emerald-600",
+    chip: "text-emerald-400",
   },
 };
 
@@ -93,8 +109,8 @@ export default function UserWalletHistory() {
   }, [load]);
 
   const filtered = entries.filter((e) => {
-    if (filter === "credit" && e.kind === "manual_debit") return false;
-    if (filter === "debit" && e.kind !== "manual_debit") return false;
+    if (filter === "credit" && DEBIT_KINDS.includes(e.kind)) return false;
+    if (filter === "debit" && !DEBIT_KINDS.includes(e.kind)) return false;
     return true;
   });
 
@@ -133,7 +149,7 @@ export default function UserWalletHistory() {
               Transactions
             </p>
             <p className={cn("mt-1 text-[11px]", light ? "text-onyx/40" : "text-dark-500")}>
-              Top-ups, upgrades &amp; owner adjustments on your wallet
+              Top-ups, order payments, upgrades &amp; owner adjustments on your wallet
             </p>
           </div>
           <button

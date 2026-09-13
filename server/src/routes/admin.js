@@ -599,6 +599,131 @@ router.get("/stats", async (req, res) => {
   }
 });
 
+/* Money management overview: revenue, GST, delivery/express fees, wallet
+   deposits/refunds/outstanding balances, card-upgrade income, seller payouts,
+   and net earnings after seller payouts. All money amounts in INR. */
+router.get("/finance", async (req, res) => {
+  try {
+    const PAID = { paymentStatus: "APPROVED" };
+    const SUCCEEDED = { status: { notIn: ["cancelled", "returned", "return_requested", "return_approved", "return_rejected"] } };
+    const DELIVERED = { status: "delivered" };
+
+    const [
+      delivered,
+      fulfilledOrders,
+      walletAgg,
+      refundsAgg,
+      upgradeAgg,
+      payoutAgg,
+      userAgg,
+      paymentMethodBreakdown,
+      revenueByDay,
+    ] = await Promise.all([
+      // Delivered (completed) orders: all money actually earned
+      prisma.order.aggregate({
+        _sum: { totalAmount: true, gstAmount: true, deliveryAmount: true, expressAmount: true },
+        where: { ...DELIVERED, ...PAID },
+      }),
+      // Non-cancelled/returned orders (booked revenue, includes pending-payment)
+      prisma.order.aggregate({
+        _sum: { totalAmount: true, gstAmount: true },
+        where: SUCCEEDED,
+      }),
+      // Wallet: approved inflows (topups + manual credit) vs outflows (refunds, order spends)
+      prisma.walletTopUp.aggregate({
+        _sum: { amount: true },
+        where: { status: "APPROVED" },
+      }),
+      // Refunds issued to customers (wallet or order refunds)
+      prisma.walletTopUp.aggregate({
+        _sum: { amount: true },
+        where: { status: "APPROVED", paymentMethod: { in: ["REFUND"] } },
+      }),
+      // Card upgrade income (approved upgrades only)
+      prisma.cardUpgradeRequest.aggregate({
+        _sum: { price: true },
+        _count: true,
+        where: { status: "APPROVED" },
+      }),
+      // Seller payouts by status
+      prisma.sellerPayout.groupBy({
+        by: ["status"],
+        _sum: { amount: true },
+        _count: { _all: true },
+      }),
+      // Outstanding wallet liability (sum of customer wallet balances)
+      prisma.user.aggregate({
+        _sum: { walletBalance: true },
+        where: { role: { notIn: ["ADMIN"] } },
+      }),
+      // Delivered revenue split by payment method
+      prisma.order.groupBy({
+        by: ["paymentMethod"],
+        where: { ...DELIVERED, ...PAID },
+        _sum: { totalAmount: true },
+        _count: { _all: true },
+      }),
+      // Delivered revenue per day for the last 14 days
+      prisma.order.groupBy({
+        by: ["deliveredAt"],
+        where: { ...DELIVERED, ...PAID, deliveredAt: { gte: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000) } },
+        _sum: { totalAmount: true },
+      }),
+    ]);
+
+    const byStatus = Object.fromEntries(
+      payoutAgg.map((p) => [p.status, { amount: p._sum.amount || 0, count: p._count._all || 0 }])
+    );
+    const paidPayouts = byStatus.paid?.amount || 0;
+    const pendingPayouts = byStatus.pending?.amount || 0;
+    const grossRevenue = delivered._sum.totalAmount || 0;
+    const netEarnings = grossRevenue - paidPayouts;
+
+    const dayMap = {};
+    revenueByDay.forEach((d) => {
+      const key = d.deliveredAt.toISOString().slice(0, 10);
+      dayMap[key] = d._sum.totalAmount || 0;
+    });
+    const days = [];
+    for (let i = 13; i >= 0; i--) {
+      const date = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
+      const key = date.toISOString().slice(0, 10);
+      days.push({ date: key, amount: dayMap[key] || 0, label: date.toLocaleDateString("en-IN", { weekday: "short", day: "numeric" }) });
+    }
+
+    res.json({
+      grossRevenue,
+      netEarnings,
+      fulfilledGross: fulfilledOrders._sum.totalAmount || 0,
+      fulfilledGst: fulfilledOrders._sum.gstAmount || 0,
+      gstCollected: delivered._sum.gstAmount || 0,
+      deliveryFees: delivered._sum.deliveryAmount || 0,
+      expressFees: delivered._sum.expressAmount || 0,
+      paymentMethods: paymentMethodBreakdown.map((p) => ({
+        method: p.paymentMethod || "UNKNOWN",
+        amount: p._sum.totalAmount || 0,
+        count: p._count._all || 0,
+      })),
+      wallet: {
+        approvedInflow: walletAgg._sum.amount || 0,
+        refundsIssued: refundsAgg._sum.amount || 0,
+        outstandingBalance: userAgg._sum.walletBalance || 0,
+      },
+      upgrades: {
+        total: upgradeAgg._sum.price || 0,
+        count: upgradeAgg._count || 0,
+      },
+      payouts: {
+        paid: { amount: paidPayouts, count: byStatus.paid?.count || 0 },
+        pending: { amount: pendingPayouts, count: byStatus.pending?.count || 0 },
+      },
+      revenueByDay: days,
+    });
+  } catch (err) {
+    res.status(500).json({ error: safeErrorMessage(err) });
+  }
+});
+
 router.get("/password-resets", async (req, res) => {
   try {
     const resets = await prisma.passwordReset.findMany({

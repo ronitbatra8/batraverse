@@ -20,6 +20,7 @@ import AnalyticsTab from "../admin/components/AnalyticsTab";
 import NewsletterTab from "../admin/components/NewsletterTab";
 import DeliveryExecTab from "../admin/components/DeliveryExecTab";
 import CardsWalletTab from "../admin/components/CardsWalletTab";
+import MoneyTab from "../admin/components/MoneyTab";
 import ViolationsTab from "../admin/components/ViolationsTab";
 import ProductsTab from "../admin/components/ProductsTab";
 import ProductCatalogTab from "../admin/components/ProductCatalogTab";
@@ -82,6 +83,7 @@ export default function AdminPage() {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [focusOrderId, setFocusOrderId] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -274,9 +276,9 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-dark-950 page-transition overflow-x-clip">
-      <Sidebar tab={tab} setTab={setTab} loading={loading} onRefresh={handleRefresh} onSignOut={handleSignOut} badges={badges} />
+      <Sidebar tab={tab} setTab={setTab} loading={loading} onRefresh={handleRefresh} onSignOut={handleSignOut} badges={badges} collapsed={sidebarCollapsed} onToggleCollapsed={() => setSidebarCollapsed((c) => !c)} />
 
-      <main className="pt-16 min-h-screen lg:pl-56">
+      <main className={cn("pt-24 min-h-screen origin-left transition-[padding] duration-500 ease-in-out", sidebarCollapsed ? "lg:pl-0" : "lg:pl-64")}>
         <div key={refreshKey} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-24 lg:pb-8">
           {tab === "overview" && <OverviewTab stats={stats} orders={orders} passwordResets={passwordResets} messages={messages} onNavigate={handleNavigateToTab} />}
           {tab === "orders" && <OrdersTab orders={orders} updatingId={updatingId} onStatusUpdate={updateStatus} onItemStatusUpdate={updateItemStatus} onAssign={assignOrder} onPaymentAction={paymentAction} onReturnApprove={returnApprove} focusOrderId={focusOrderId} onFocusHandled={() => setFocusOrderId(null)} adminKey={adminKey} onShipDelhivery={shipViaDelhivery} />}
@@ -288,6 +290,7 @@ export default function AdminPage() {
           {tab === "delivery" && <DeliveryExecTab adminKey={adminKey} />}
           {tab === "sellersystem" && <SellerSystemTab adminKey={adminKey} onCount={setProductApprovalCount} />}
           {tab === "cards" && <CardsWalletTab adminKey={adminKey} />}
+          {tab === "money" && <MoneyTab adminKey={adminKey} />}
           {tab === "violations" && <ViolationsTab adminKey={adminKey} />}
           {tab === "categories" && <ProductsTab adminKey={adminKey} />}
           {tab === "productcatalog" && <ProductCatalogTab adminKey={adminKey} />}

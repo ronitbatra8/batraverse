@@ -120,6 +120,13 @@ model Order {
   items             Json
   totalAmount       Float
   discountAmount    Float    @default(0)
+  /* Price breakdown snapshot at order time. Item prices are GST-inclusive:
+     subtotalAmount - discountAmount + deliveryAmount + expressAmount = totalAmount.
+     gstAmount is the GST embedded inside the item prices (GST-inclusive pricing). */
+  subtotalAmount    Float    @default(0)
+  deliveryAmount    Float    @default(0)
+  expressAmount     Float    @default(0)
+  gstAmount         Float    @default(0)
   status            OrderStatus @default(pending)
   paymentMethod     String?
   paymentStatus     PaymentStatus @default(PENDING)

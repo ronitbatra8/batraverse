@@ -122,10 +122,42 @@ router.post("/", userAuth, customerOnly, async (req, res) => {
         source,
         status: "pending",
         image: item.image || null,
+        gstPct: null,
       };
     });
 
     const subtotal = orderItems.reduce((sum, it) => sum + it.price * it.quantity, 0);
+
+    // Snapshot the GST rate each item is sold under (from its category /
+    // subcategory at order time) and compute the GST embedded in the
+    // GST-inclusive list price: gst = price - price / (1 + gstPct/100).
+    const round2 = (n) => Math.round(n * 100) / 100;
+    const pids = [...new Set(orderItems.map((it) => it.productId).filter(Boolean))];
+    const products = pids.length
+      ? await prisma.product.findMany({ where: { id: { in: pids } }, select: { id: true, category: true, subCategory: true } })
+      : [];
+    const catSlugs = [...new Set(products.map((p) => p.category).filter(Boolean))];
+    const subSlugs = [...new Set(products.map((p) => p.subCategory).filter(Boolean))];
+    const [cats, subs] = await Promise.all([
+      catSlugs.length ? prisma.category.findMany({ where: { slug: { in: catSlugs } }, select: { slug: true, gstPct: true } }) : [],
+      subSlugs.length ? prisma.subcategory.findMany({ where: { slug: { in: subSlugs } }, select: { slug: true, gstPct: true } }) : [],
+    ]);
+    const catGst = Object.fromEntries(cats.map((c) => [c.slug, c.gstPct ?? 18]));
+    const subGst = Object.fromEntries(subs.map((s) => [s.slug, s.gstPct]));
+    const prodGst = new Map(products.map((p) => {
+      let gstPct = 18;
+      if (p.subCategory && typeof subGst[p.subCategory] === "number") gstPct = subGst[p.subCategory];
+      else if (p.category && typeof catGst[p.category] === "number") gstPct = catGst[p.category];
+      return [p.id, gstPct];
+    }));
+
+    let gstOnSubtotal = 0;
+    for (const it of orderItems) {
+      const gstPct = it.productId && prodGst.has(it.productId) ? prodGst.get(it.productId) : 18;
+      it.gstPct = gstPct;
+      gstOnSubtotal += round2(it.price - it.price / (1 + gstPct / 100)) * it.quantity;
+    }
+    gstOnSubtotal = round2(gstOnSubtotal);
 
     // Card-level discount
     const user = await prisma.user.findUnique({ where: { id: req.userId }, select: { cardLevel: true, freeDeliveryUsed: true, freeDeliveryMonth: true, walletBalance: true, peakWalletBalance: true, cardPinHash: true } });
@@ -150,6 +182,13 @@ router.post("/", userAuth, customerOnly, async (req, res) => {
     const deliveryCharge = isOwner || hasFreeDelivery ? 0 : (Number(deliveryAmount) || 0);
 
     const totalAmount = Math.round((discountedSubtotal + deliveryCharge + expressFee) * 100) / 100;
+
+    // GST embedded in what the customer actually pays. Derive the effective
+    // tax rate from the per-item GST on the full subtotal, then apply it to
+    // the final grand total (item value - discount + delivery + express).
+    const baseOnSubtotal = Math.max(0, subtotal - gstOnSubtotal);
+    const effectiveRate = baseOnSubtotal > 0 ? gstOnSubtotal / baseOnSubtotal : 0;
+    const gstAmount = totalAmount > 0 ? round2(totalAmount - totalAmount / (1 + effectiveRate)) : 0;
 
     const isAutoApprove = AUTO_APPROVE_METHODS.includes(paymentMethod);
     const isWalletPay = paymentMethod === "WALLET";
@@ -179,6 +218,10 @@ router.post("/", userAuth, customerOnly, async (req, res) => {
         orderId: generateOrderId(source),
         items: orderItems,
         totalAmount,
+        subtotalAmount: round2(subtotal),
+        deliveryAmount: deliveryCharge,
+        expressAmount: expressFee,
+        gstAmount,
         discountAmount: Math.max(0, Number(discountAmount) || 0),
         status: initialStatus,
         paymentMethod: paymentMethod || "CARD",
@@ -205,12 +248,27 @@ router.post("/", userAuth, customerOnly, async (req, res) => {
       });
     }
 
-    // Deduct from wallet if paying via WALLET
+    // Deduct from wallet if paying via WALLET and record it in the wallet
+    // ledger (negative WalletTopUp row) so order payments appear in history.
     if (isWalletPay) {
-      await prisma.user.update({
-        where: { id: req.userId },
-        data: { walletBalance: { decrement: totalAmount } },
-      });
+      const orderRef = order.orderId || order.id;
+      await prisma.$transaction([
+        prisma.user.update({
+          where: { id: req.userId },
+          data: { walletBalance: { decrement: totalAmount } },
+        }),
+        prisma.walletTopUp.create({
+          data: {
+            userId: req.userId,
+            amount: -totalAmount,
+            paymentMethod: "ORDER",
+            transactionId: `ORDER:${orderRef}`,
+            status: "APPROVED",
+            processedAt: new Date(),
+            adminNote: `Payment for order #${orderRef}`,
+          },
+        }),
+      ]);
     }
 
     const emailUser = await prisma.user.findUnique({ where: { id: req.userId }, select: { name: true, email: true } });

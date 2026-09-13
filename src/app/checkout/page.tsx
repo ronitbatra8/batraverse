@@ -1,17 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Check, ChevronRight, Loader2, Lock, Shield } from "lucide-react";
+import { Banknote, Check, ChevronRight, CreditCard, Crown, Loader2, Lock, Shield, Tag, Truck } from "lucide-react";
 import { cn, formatPrice } from "@/lib/utils";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import { useCart, type CartItem } from "@/components/cart/CartContext";
 import { useAuth, type SavedAddress } from "@/components/auth/AuthContext";
 import SiteLayout from "@/components/layout/SiteLayout";
 import { apiFetch } from "@/lib/api";
-
-type PriceRow = { label: string; amount: number };
+import { getEffectiveLevel, getFlatDiscount, getFreeDeliveries, LEVELS } from "@/lib/levels";
 
 type ShippingForm = {
   name: string;
@@ -34,17 +33,6 @@ const EMPTY_SHIP: ShippingForm = {
   state: "",
   pincode: "",
 };
-
-interface CategoryDto {
-  id: string;
-  name: string;
-  slug: string;
-  source: string;
-  gstPct?: number | null;
-  subcategories?: { id: string; name: string; slug: string; gstPct?: number | null }[];
-}
-
-const round2 = (n: number) => Math.round(n * 100) / 100;
 
 const priceOf = (i: CartItem) => i.colorPrice ?? i.product.price;
 
@@ -80,12 +68,11 @@ export default function CheckoutPage() {
   const { user } = useAuth();
   const [mounted, setMounted] = useState(false);
 
-  const [cats, setCats] = useState<CategoryDto[]>([]);
   const [wallet, setWallet] = useState<number | null>(null);
   const [rzpReady, setRzpReady] = useState(false);
   const [rzpKeyId, setRzpKeyId] = useState("");
 
-  const [payMethod, setPayMethod] = useState<"razorpay" | "wallet">("razorpay");
+  const [payMethod, setPayMethod] = useState<"cod" | "online" | "wallet">("cod");
   const [cardPin, setCardPin] = useState("");
   const [ship, setShip] = useState<ShippingForm>(EMPTY_SHIP);
   const [paying, setPaying] = useState(false);
@@ -94,7 +81,7 @@ export default function CheckoutPage() {
 
   useEffect(() => { setMounted(true); }, []);
 
-  // Prefill shipping + detect payment options once the session loads.
+  // Prefill shipping from the logged-in user once the session loads.
   useEffect(() => {
     if (!user) return;
     const nameParts = (user.name || "").split(" ");
@@ -113,16 +100,6 @@ export default function CheckoutPage() {
     }));
   }, [user]);
 
-  // GST lookup data
-  useEffect(() => {
-    apiFetch("/categories")
-      .then((j: any) => {
-        const list: CategoryDto[] = Array.isArray(j?.all) ? j.all : [];
-        setCats(list);
-      })
-      .catch(() => { /* categories unreachable — GST defaults to 18% */ });
-  }, []);
-
   // Wallet balance
   useEffect(() => {
     apiFetch("/wallet/balance")
@@ -137,56 +114,43 @@ export default function CheckoutPage() {
         const enabled = Boolean(j?.enabled) && Boolean(j?.keyId);
         setRzpKeyId(j?.keyId || "");
         setRzpReady(enabled);
-        if (!enabled) setPayMethod((p) => (p === "razorpay" ? "wallet" : p));
       })
       .catch(() => setRzpReady(false));
   }, []);
-
-  const gstFor = useCallback(
-    (item: CartItem) => {
-      const catName = item.product.category;
-      const cat = cats.find((c) => c.name === catName);
-      const subName = item.product.sub && item.product.sub !== "all" ? item.product.sub : undefined;
-      const sub = cat?.subcategories?.find((s) => s.name === subName);
-      if (sub && sub.gstPct != null) return sub.gstPct;
-      if (cat && cat.gstPct != null) return cat.gstPct;
-      return 18;
-    },
-    [cats]
-  );
-
-  const gstRows = useMemo<PriceRow[]>(() => {
-    const map: Record<string, { pct: number; base: number }> = {};
-    for (const it of items) {
-      const base = priceOf(it) * it.qty;
-      const gst = gstFor(it);
-      const key = String(gst);
-      map[key] = map[key] || { pct: gst, base: 0 };
-      map[key].base += base;
-    }
-    return Object.values(map).map((g) => ({ label: `GST (${g.pct}%)`, amount: round2((g.base * g.pct) / 100) }));
-  }, [items, gstFor]);
-
-  const itemBase = useMemo(() => items.reduce((s, i) => s + priceOf(i) * i.qty, 0), [items]);
-  const gstTotal = gstRows.reduce((s, r) => s + r.amount, 0);
 
   const storeItems = items.filter((it) => it.source !== "mart");
   const martItems = items.filter((it) => it.source === "mart");
   const hasMartItems = martItems.length > 0;
   const storeSubtotal = storeItems.reduce((s, i) => s + priceOf(i) * i.qty, 0);
   const martSubtotal = martItems.reduce((s, i) => s + priceOf(i) * i.qty, 0);
-  const storeDelivery = storeItems.length > 0 ? (storeSubtotal >= 250 ? 0 : 49) : 0;
-  const martDelivery = martItems.length > 0 ? (martSubtotal >= 200 ? 0 : 49) : 0;
+
+  // Listed prices are already GST-inclusive — no tax is added on top.
+  const itemBase = useMemo(() => items.reduce((s, i) => s + priceOf(i) * i.qty, 0), [items]);
+
+  // Card benefits (driven by the card / wallet level). They only apply when
+  // paying via wallet — the server only grants the discount/free slot on wallet orders.
+  const level = getEffectiveLevel(user ?? {});
+  const freeDelLimit = getFreeDeliveries(level);
+  const freeDelUsed = user?.freeDeliveryUsed || 0;
+  const hasFreeDelivery = !!user && freeDelLimit > 0 && freeDelUsed < freeDelLimit;
+  const flatMeta = LEVELS[level]?.discountFlat && LEVELS[level]?.discountFlatMin ? { flat: LEVELS[level].discountFlat as number, min: LEVELS[level].discountFlatMin as number } : null;
+  const qualifiesWalletDiscount = !!flatMeta && itemBase > flatMeta.min;
+  const discountAmount = payMethod === "wallet" ? getFlatDiscount(level, itemBase) : 0;
+  const benefitFreeDelivery = hasFreeDelivery && payMethod === "wallet";
+
+  const storeDelivery = storeItems.length > 0 ? (benefitFreeDelivery ? 0 : (storeSubtotal >= 250 ? 0 : 49)) : 0;
+  const martDelivery = martItems.length > 0 ? (benefitFreeDelivery ? 0 : (martSubtotal >= 200 ? 0 : 49)) : 0;
   const expressFee = hasMartItems && deliveryMode === "express" ? 49 : 0;
   const deliveryCharge = storeDelivery + martDelivery;
 
-  const grandTotal = itemBase + gstTotal + deliveryCharge + expressFee;
+  const grandTotal = itemBase - discountAmount + deliveryCharge + expressFee;
   const walletEnough = typeof wallet === "number" && wallet >= grandTotal;
-  const canWallet = payMethod === "wallet" && typeof wallet === "number" && walletEnough;
+
+  const payEnabled = payMethod === "cod" || (payMethod === "online" && rzpReady) || (payMethod === "wallet" && walletEnough);
 
   const shipValid = Boolean(ship.name.trim() && ship.phone.trim() && ship.address.trim() && ship.city.trim() && ship.state.trim() && ship.pincode.trim());
 
-  const placeOrders = async (paymentMethod: "CARD" | "WALLET") => {
+  const placeOrders = async (method: "COD" | "CARD" | "WALLET") => {
     const shipping = {
       name: ship.name.trim(),
       phone: ship.phone.trim(),
@@ -200,34 +164,38 @@ export default function CheckoutPage() {
     const reqs: any[] = [];
     for (const [srcItems, source] of [[storeItems, "store"], [martItems, "mart"]] as const) {
       if (srcItems.length === 0) continue;
-      const itemsPayload = srcItems.map((it) => {
-        const base = priceOf(it);
-        const gstPct = gstFor(it);
-        return {
-          productId: normPid(it.product.id),
-          name: it.product.name,
-          price: round2(base * (1 + gstPct / 100)),
-          qty: it.qty,
-          color: it.color,
-          colorHex: it.colorHex,
-          size: it.size || null,
-          source,
-          image: it.colorImage || null,
-        };
-      });
+      const itemsPayload = srcItems.map((it) => ({
+        productId: normPid(it.product.id),
+        name: it.product.name,
+        price: round2(priceOf(it)),
+        qty: it.qty,
+        color: it.color,
+        colorHex: it.colorHex,
+        size: it.size || null,
+        source,
+        image: it.colorImage || null,
+      }));
       reqs.push({
         items: itemsPayload,
         shipping,
-        paymentMethod,
+        paymentMethod: method,
         source,
         deliveryMode,
         deliveryAmount: source === "mart" ? martDelivery : storeDelivery,
         expressAmount: source === "mart" ? expressFee : 0,
-        cardPin: paymentMethod === "WALLET" ? cardPin.trim() : undefined,
+        discountAmount,
+        usedFreeDeliverySlot: method === "WALLET" && hasFreeDelivery && source === "store" ? true : undefined,
+        cardPin: method === "WALLET" ? cardPin.trim() : undefined,
       });
     }
     const results = await Promise.all(reqs.map((r) => apiFetch("/orders", { method: "POST", body: JSON.stringify(r) })));
     return results.map((r: any) => r?.orderId || r?.id || "").filter(Boolean).join(", ");
+  };
+
+  const finishSuccess = (ids: string) => {
+    setPlaced(ids || "confirmed");
+    clear();
+    setPaying(false);
   };
 
   const startRazorpay = async () => {
@@ -239,8 +207,8 @@ export default function CheckoutPage() {
     setError("");
     try {
       if (!rzpKeyId || !(await loadRazorpay())) {
-        setError("Razorpay is not configured. Please use your wallet balance or contact support.");
-        setPayMethod("wallet");
+        setError("Online payment is not configured. Please use COD or your wallet instead.");
+        setPayMethod("cod");
         setPaying(false);
         return;
       }
@@ -253,7 +221,7 @@ export default function CheckoutPage() {
         }),
       });
       if (!orderData?.id) {
-        setError("Failed to create Razorpay order. Please try again or pay from wallet.");
+        setError("Failed to create Razorpay order. Please try again or use COD.");
         setPaying(false);
         return;
       }
@@ -276,11 +244,9 @@ export default function CheckoutPage() {
               }),
             });
             const ids = await placeOrders("CARD");
-            setPlaced(ids || "confirmed");
-            clear();
+            finishSuccess(ids);
           } catch (e: any) {
             setError(e?.message || "Payment verification failed");
-          } finally {
             setPaying(false);
           }
         },
@@ -290,7 +256,23 @@ export default function CheckoutPage() {
       });
       rzp.open();
     } catch (e: any) {
-      setError(e?.message || "Razorpay request failed");
+      setError(e?.message || "Online payment request failed");
+      setPaying(false);
+    }
+  };
+
+  const placeCod = async () => {
+    if (!user) {
+      router.push("/login");
+      return;
+    }
+    setPaying(true);
+    setError("");
+    try {
+      const ids = await placeOrders("COD");
+      finishSuccess(ids);
+    } catch (e: any) {
+      setError(e?.message || "Failed to place order");
       setPaying(false);
     }
   };
@@ -300,21 +282,25 @@ export default function CheckoutPage() {
       router.push("/login");
       return;
     }
-    if (!canWallet) {
-      setError(`Insufficient wallet balance. You have ${formatPrice(wallet ?? 0)} but need ${formatPrice(grandTotal)}.`);
+    if (!walletEnough) {
+      setError("Insufficient wallet balance for this order. Please recharge your wallet or choose another method.");
       return;
     }
     setPaying(true);
     setError("");
     try {
       const ids = await placeOrders("WALLET");
-      setPlaced(ids || "confirmed");
-      clear();
+      finishSuccess(ids);
     } catch (e: any) {
       setError(e?.message || "Wallet payment failed");
-    } finally {
       setPaying(false);
     }
+  };
+
+  const handlePay = () => {
+    if (payMethod === "cod") placeCod();
+    else if (payMethod === "wallet") payWithWallet();
+    else startRazorpay();
   };
 
   if (!mounted) {
@@ -368,6 +354,24 @@ export default function CheckoutPage() {
 
   const inputCls = cn("w-full rounded-xl border px-4 py-3 text-sm transition-colors focus:outline-none", light ? "border-dark-200 bg-dark-50/50 text-dark-900 placeholder:text-dark-400 focus:border-sapphire" : "border-white/10 bg-onyx/50 text-cream placeholder:text-cream-dim/30 focus:border-gold");
   const labelCls = cn("mb-2 block text-[10px] font-semibold uppercase tracking-[0.2em]", light ? "text-dark-500" : "text-cream-dim/70");
+
+  const methodBtn = (active: boolean, disabled: boolean) =>
+    cn(
+      "flex items-center gap-3 rounded-xl border-2 p-4 text-left transition-all",
+      active ? (light ? "border-sapphire bg-sapphire/5" : "border-gold bg-gold/5") : (light ? "border-dark-200 hover:border-dark-300" : "border-white/10 hover:border-white/20"),
+      disabled && "opacity-40 cursor-not-allowed"
+    );
+  const methodIcon = (active: boolean, icon: React.ReactNode) => (
+    <span className={cn("grid h-10 w-10 shrink-0 place-items-center rounded-lg", active ? (light ? "bg-sapphire/10 text-sapphire" : "bg-gold/10 text-gold") : (light ? "bg-dark-100 text-dark-400" : "bg-white/5 text-cream-dim/50"))}>
+      {icon}
+    </span>
+  );
+  const methodSub = (sub: React.ReactNode, tone?: "ok" | "warn") => (
+    <p className={cn("text-[10px]", tone === "ok" ? "text-emerald-500" : tone === "warn" ? "text-amber-500" : (light ? "text-dark-400" : "text-cream-dim/50"))}>{sub}</p>
+  );
+  const methodTitle = (title: string) => (
+    <p className={cn("text-xs font-semibold", light ? "text-dark-900" : "text-cream")}>{title}</p>
+  );
 
   return (
     <SiteLayout>
@@ -436,29 +440,109 @@ export default function CheckoutPage() {
                 </div>
               </div>
 
+              {/* Card benefits */}
+              <div className={cn("rounded-2xl border p-6", light ? "border-dark-200/60 bg-white" : "border-white/5 bg-graphite")}>
+                <h2 className={cn("text-[11px] font-semibold uppercase tracking-[0.3em]", light ? "text-dark-400" : "text-cream-dim/60")}>
+                  Card Benefits
+                </h2>
+                {user ? (
+                  <div className="mt-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className={cn("text-sm", light ? "text-dark-500" : "text-cream-dim/60")}>Membership Level</span>
+                      <span className={cn("inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.15em]", "bg-gold-500/10 border border-gold-500/30 text-gold-400")}>
+                        <Crown size={10} /> {((LEVELS[level]?.name || level) as string)}
+                      </span>
+                    </div>
+                    {payMethod === "wallet" ? (
+                      <>
+                        {discountAmount > 0 && (
+                          <div className="flex items-center justify-between">
+                            <span className={cn("flex items-center gap-1.5 text-sm", light ? "text-dark-500" : "text-cream-dim/60")}>
+                              <Tag size={12} /> Card Discount
+                            </span>
+                            <span className="text-sm font-medium text-emerald-500">- {formatPrice(discountAmount)}</span>
+                          </div>
+                        )}
+                        {hasFreeDelivery && (
+                          <div className="flex items-center justify-between">
+                            <span className={cn("flex items-center gap-1.5 text-sm", light ? "text-dark-500" : "text-cream-dim/60")}>
+                              <Truck size={12} /> Free Delivery
+                            </span>
+                            <span className="text-sm font-medium text-emerald-500">
+                              Applied — {Math.max(0, freeDelLimit - freeDelUsed)} slot{Math.max(0, freeDelLimit - freeDelUsed) === 1 ? "" : "s"} left
+                            </span>
+                          </div>
+                        )}
+                        {discountAmount <= 0 && !hasFreeDelivery && (
+                          <p className={cn("text-xs", light ? "text-dark-400" : "text-cream-dim/40")}>
+                            No active card benefits on this checkout.
+                          </p>
+                        )}
+                      </>
+                    ) : (
+                      <div className={cn(
+                        "rounded-xl border p-3 space-y-1.5",
+                        light ? "border-amber-500/30 bg-amber-500/5" : "border-amber-400/20 bg-amber-400/5"
+                      )}>
+                        <p className={cn("text-xs font-semibold leading-snug", light ? "text-amber-700" : "text-amber-300")}>
+                          Unlock your {((LEVELS[level]?.name || level) as string)} card benefits — pay with your wallet:
+                        </p>
+                        {flatMeta && (
+                          <p className={cn("text-[11px] leading-snug", light ? "text-dark-600" : "text-cream-dim/80")}>
+                            <Tag size={10} className="mr-1 inline" />₹{flatMeta.flat} instant discount on orders above ₹{flatMeta.min}.
+                          </p>
+                        )}
+                        {freeDelLimit > 0 && (
+                          <p className={cn("text-[11px] leading-snug", light ? "text-dark-600" : "text-cream-dim/80")}>
+                            <Truck size={10} className="mr-1 inline" />{freeDelLimit} free deliver{freeDelLimit === 1 ? "y" : "ies"} every month.
+                          </p>
+                        )}
+                        {flatMeta && (
+                          <p className="text-[11px] font-semibold text-emerald-500">
+                            {qualifiesWalletDiscount
+                              ? "Your cart qualifies — switch to Wallet to apply!"
+                              : `Add ₹${formatPrice(flatMeta.min - itemBase).replace(/\.00$/, "")} more to qualify.`}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <p className={cn("mt-3 text-xs", light ? "text-dark-400" : "text-cream-dim/40")}>
+                    Sign in to see your card benefits.
+                  </p>
+                )}
+              </div>
+
               {/* Payment method */}
               <div className={cn("rounded-2xl border p-6", light ? "border-dark-200/60 bg-white" : "border-white/5 bg-graphite")}>
                 <h2 className={cn("text-[11px] font-semibold uppercase tracking-[0.3em]", light ? "text-dark-400" : "text-cream-dim/60")}>
                   Payment Method
                 </h2>
-                <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                <div className="mt-5 grid gap-3 sm:grid-cols-3">
                   <button
                     type="button"
-                    onClick={() => setPayMethod("razorpay")}
-                    disabled={!rzpReady}
-                    className={cn(
-                      "flex items-center gap-3 rounded-xl border-2 p-4 text-left transition-all",
-                      payMethod === "razorpay" ? (light ? "border-sapphire bg-sapphire/5" : "border-gold bg-gold/5") : (light ? "border-dark-200 hover:border-dark-300" : "border-white/10 hover:border-white/20"),
-                      !rzpReady && "opacity-40 cursor-not-allowed"
-                    )}
+                    onClick={() => setPayMethod("cod")}
+                    className={methodBtn(payMethod === "cod", false)}
                   >
-                    <span className={cn("grid h-10 w-10 shrink-0 place-items-center rounded-lg", light ? "bg-sapphire/10 text-sapphire" : "bg-gold/10 text-gold")}>
-                      <Lock size={16} />
-                    </span>
+                    {methodIcon(payMethod === "cod", <Banknote size={18} />)}
                     <div>
-                      <p className={cn("text-xs font-semibold", light ? "text-dark-900" : "text-cream")}>Razorpay</p>
+                      {methodTitle("COD")}
+                      {methodSub("Cash on Delivery")}
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setPayMethod("online")}
+                    disabled={!rzpReady}
+                    className={methodBtn(payMethod === "online", !rzpReady)}
+                  >
+                    {methodIcon(payMethod === "online", <CreditCard size={18} />)}
+                    <div>
+                      {methodTitle("Online")}
                       <p className={cn("text-[10px]", light ? "text-dark-400" : "text-cream-dim/50")}>
-                        {rzpReady ? "Card / UPI / NetBanking" : "Not configured"}
+                        {rzpReady ? "Razorpay · Card / UPI" : "Not configured"}
                       </p>
                     </div>
                   </button>
@@ -466,26 +550,25 @@ export default function CheckoutPage() {
                   <button
                     type="button"
                     onClick={() => setPayMethod("wallet")}
-                    className={cn(
-                      "flex items-center gap-3 rounded-xl border-2 p-4 text-left transition-all",
-                      payMethod === "wallet" ? (light ? "border-sapphire bg-sapphire/5" : "border-gold bg-gold/5") : (light ? "border-dark-200 hover:border-dark-300" : "border-white/10 hover:border-white/20")
-                    )}
+                    className={methodBtn(payMethod === "wallet", false)}
                   >
-                    <span className={cn("grid h-10 w-10 shrink-0 place-items-center rounded-lg", light ? "bg-sapphire/10 text-sapphire" : "bg-gold/10 text-gold")}>
-                      <Shield size={16} />
-                    </span>
+                    {methodIcon(payMethod === "wallet", <Shield size={18} />)}
                     <div>
-                      <p className={cn("text-xs font-semibold", light ? "text-dark-900" : "text-cream")}>Wallet</p>
-                      <p className={cn("text-[10px]", walletEnough ? "text-emerald-500" : "text-amber-500")}>
-                        Balance: {formatPrice(wallet ?? 0)}
-                      </p>
+                      {methodTitle("Wallet")}
+                      {methodSub("Pay from card wallet")}
                     </div>
                   </button>
                 </div>
 
+                {payMethod === "online" && !rzpReady && (
+                  <p className="mt-4 text-xs text-amber-500">
+                    Online payment is not configured. Please use COD or your wallet.
+                  </p>
+                )}
+
                 {payMethod === "wallet" && !walletEnough && (
                   <p className="mt-4 text-xs text-amber-500">
-                    Wallet balance is less than the order total ({formatPrice(grandTotal)}). Please recharge your wallet or use Razorpay.
+                    Insufficient wallet balance for this order. Please recharge your wallet or choose another method.
                   </p>
                 )}
 
@@ -538,24 +621,36 @@ export default function CheckoutPage() {
                     <span className={light ? "text-dark-500" : "text-cream-dim/60"}>Item Value</span>
                     <span className="tabular-nums">{formatPrice(itemBase)}</span>
                   </div>
-                  {gstRows.map((r) => (
-                    <div key={r.label} className="flex justify-between">
-                      <span className={light ? "text-dark-500" : "text-cream-dim/60"}>{r.label}</span>
-                      <span className="tabular-nums">{formatPrice(r.amount)}</span>
+                  <div className="flex justify-between">
+                    <span className={light ? "text-dark-500" : "text-cream-dim/60"}>GST</span>
+                    <span className="text-[10px] text-emerald-500">Included</span>
+                  </div>
+                  {discountAmount > 0 && (
+                    <div className="flex justify-between">
+                      <span className={light ? "text-dark-500" : "text-cream-dim/60"}>Card Discount</span>
+                      <span className="tabular-nums text-emerald-500">- {formatPrice(discountAmount)}</span>
                     </div>
-                  ))}
+                  )}
                   <div className="flex justify-between">
                     <span className={light ? "text-dark-500" : "text-cream-dim/60"}>Delivery</span>
                     <span className={cn("tabular-nums", deliveryCharge === 0 && "text-emerald-500")}>
                       {deliveryCharge === 0 ? "Free" : formatPrice(deliveryCharge)}
                     </span>
                   </div>
+                  {benefitFreeDelivery && discountAmount > 0 && (
+                    <p className="text-[10px] text-emerald-500">
+                      Card benefits applied on your total.
+                    </p>
+                  )}
                   <div className="flex justify-between">
                     <span className={light ? "text-dark-500" : "text-cream-dim/60"}>Total ({totalItemsLabel(items)})</span>
                     <span className={cn("text-lg font-bold tabular-nums", light ? "text-dark-900" : "text-cream")}>
                       {formatPrice(grandTotal)}
                     </span>
                   </div>
+                  <p className={cn("text-[10px]", light ? "text-dark-400" : "text-cream-dim/40")}>
+                    All prices are inclusive of GST.
+                  </p>
                 </div>
 
                 {error && (
@@ -566,18 +661,24 @@ export default function CheckoutPage() {
 
                 <button
                   type="button"
-                  onClick={payMethod === "razorpay" ? startRazorpay : payWithWallet}
-                  disabled={paying || !shipValid || !user || (payMethod === "wallet" && !canWallet)}
+                  onClick={handlePay}
+                  disabled={paying || !shipValid || !user || !payEnabled || (payMethod === "wallet" && !cardPin.trim())}
                   className={cn(
                     "mt-6 flex w-full items-center justify-center gap-2.5 rounded-xl px-8 py-3.5 text-[11px] font-bold uppercase tracking-[0.25em] transition-all duration-300",
                     light
                       ? "bg-sapphire text-white hover:bg-sapphire-light hover:shadow-[0_0_30px_rgba(30,58,138,0.3)]"
                       : "bg-gold text-abyss hover:bg-gold-light hover:shadow-[0_0_30px_rgba(212,175,55,0.3)]",
-                    (paying || !shipValid || !user || (payMethod === "wallet" && !canWallet)) && "opacity-50 cursor-not-allowed"
+                    (paying || !shipValid || !user || !payEnabled || (payMethod === "wallet" && !cardPin.trim())) && "opacity-50 cursor-not-allowed"
                   )}
                 >
-                  {paying ? <Loader2 size={14} className="animate-spin" /> : payMethod === "razorpay" ? <Lock size={14} /> : <Shield size={14} />}
-                  {paying ? "Processing…" : payMethod === "razorpay" ? `Pay ${formatPrice(grandTotal)}` : `Pay ${formatPrice(grandTotal)} from Wallet`}
+                  {paying ? <Loader2 size={14} className="animate-spin" /> : payMethod === "wallet" ? <Shield size={14} /> : payMethod === "online" ? <Lock size={14} /> : <Banknote size={14} />}
+                  {paying
+                    ? "Processing…"
+                    : payMethod === "wallet"
+                      ? `Pay ${formatPrice(grandTotal)} from Wallet`
+                      : payMethod === "online"
+                        ? `Pay ${formatPrice(grandTotal)} Online`
+                        : `Place Order · ${formatPrice(grandTotal)}`}
                 </button>
 
                 {!shipValid && user && (
@@ -590,4 +691,8 @@ export default function CheckoutPage() {
       </div>
     </SiteLayout>
   );
+}
+
+function round2(n: number) {
+  return Math.round(n * 100) / 100;
 }
