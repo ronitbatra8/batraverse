@@ -31,7 +31,9 @@ export default function OverviewTab({ stats, orders, passwordResets, messages, s
 }) {
   if (!stats) return null;
 
-  const maxDayCount = Math.max(1, ...orders.length > 0 ? dailyOrderCounts(orders).map((d) => d.count) : [1]);
+  const daily = dailyOrderCounts(orders);
+  const maxDayCount = Math.max(1, ...daily.map((d) => d.count));
+  const dailyTotal = daily.reduce((sum, x) => sum + x.count, 0);
   const stock = stockSummary || { total: 0, inStock: 0, outOfStock: 0, inStockPct: 0, outOfStockPct: 0, byCategory: [] };
   const maxCat = Math.max(1, ...stock.byCategory.map((c: any) => c.total));
 
@@ -69,18 +71,38 @@ export default function OverviewTab({ stats, orders, passwordResets, messages, s
           {orders.length === 0 ? (
             <div className="py-12 text-center"><Package size={32} className="text-dark-700 mx-auto mb-3" /><p className="text-dark-500 text-sm">No orders yet</p></div>
           ) : (
-            <div className="p-6 space-y-3">
-              {dailyOrderCounts(orders).map((d) => (
-                <div key={d.label} className="space-y-1">
-                  <div className="flex justify-between text-xs">
-                    <span className="text-dark-400">{d.label}</span>
-                    <span className="text-white font-medium">{d.count} order{d.count === 1 ? "" : "s"}</span>
+            <div className="p-6">
+              <div className="flex items-end justify-between gap-3 h-44 border-b border-dark-800/40 pb-1">
+                {daily.map((d) => {
+                  return (
+                    <div key={d.label} className="group flex flex-1 flex-col items-center justify-end h-full min-w-0">
+                      <span className={`mb-1.5 text-[11px] font-display font-bold tabular-nums transition-all ${d.count > 0 ? "text-sky-300 opacity-0 group-hover:opacity-100" : "text-dark-600"}`}>
+                        {d.count}
+                      </span>
+                      <div className="relative w-full max-w-[38px]">
+                        <div
+                          className="w-full rounded-t-lg bg-gradient-to-t from-sky-600 via-sky-500 to-sky-400 shadow-[0_0_18px_rgba(56,189,248,0.25)] transition-all duration-500 ease-out"
+                          style={{ height: `${Math.max(d.count > 0 ? 8 : 2, (d.count / maxDayCount) * 150)}px` }}
+                        />
+                        <div className="absolute inset-0 rounded-t-lg bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="flex justify-between gap-3 mt-3">
+                {daily.map((d) => (
+                  <div key={d.label} className="flex-1 text-center min-w-0">
+                    <p className="text-[11px] text-dark-400 font-medium truncate">{d.label}</p>
                   </div>
-                  <div className="h-2 bg-dark-800 rounded-full overflow-hidden">
-                    <div className="h-full bg-gradient-to-r from-sky-500 to-sky-400 rounded-full transition-all duration-500" style={{ width: `${Math.max(d.count > 0 ? 4 : 0, (d.count / maxDayCount) * 100)}%` }} />
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
+              <div className="flex justify-between gap-3 mt-2 pt-3 border-t border-dark-800/30">
+                <p className="text-xs text-dark-500">Total</p>
+                <p className="text-sm font-display font-bold text-sky-300 tabular-nums">
+                  {dailyTotal} order{dailyTotal === 1 ? "" : "s"}
+                </p>
+              </div>
             </div>
           )}
         </div>
