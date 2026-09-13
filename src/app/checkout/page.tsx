@@ -1,341 +1,358 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
-  ChevronRight,
-  CreditCard,
-  Lock,
-  Check,
-  Truck,
-  Shield,
-  MapPin,
-  User,
-  Mail,
-  Phone,
-  Home,
-  Building2,
-  Globe,
-  Hash,
-  Banknote,
-  Smartphone,
-  Wallet,
-  CircleDollarSign,
-  Zap,
-  Clock,
-  Navigation,
-  Loader2,
-} from "lucide-react";
+import { Check, ChevronRight, Loader2, Lock, Shield } from "lucide-react";
 import { cn, formatPrice } from "@/lib/utils";
 import { useTheme } from "@/components/theme/ThemeProvider";
-import { useCart } from "@/components/cart/CartContext";
+import { useCart, type CartItem } from "@/components/cart/CartContext";
 import { useAuth, type SavedAddress } from "@/components/auth/AuthContext";
-import { getDiscountPercent, getFreeDeliveries, getEffectiveLevel } from "@/lib/levels";
-import { apiFetch } from "@/lib/api";
 import SiteLayout from "@/components/layout/SiteLayout";
-import UpiPaymentModal from "@/components/UpiPaymentModal";
-import WalletPinModal from "@/components/WalletPinModal";
-import { resolveImageUrl } from "@/lib/imageUrl";
+import { apiFetch } from "@/lib/api";
 
-type Step = "shipping" | "payment" | "confirm";
-type PaymentMethod = "cod" | "upi_delivery" | "upi" | "wallet_balance";
+type PriceRow = { label: string; amount: number };
 
-interface ShippingForm {
-  firstName: string;
-  lastName: string;
-  email: string;
+type ShippingForm = {
+  name: string;
   phone: string;
-  alternatePhone: string;
+  email: string;
   address: string;
   apartment: string;
   city: string;
   state: string;
   pincode: string;
-  country: string;
+};
+
+const EMPTY_SHIP: ShippingForm = {
+  name: "",
+  phone: "",
+  email: "",
+  address: "",
+  apartment: "",
+  city: "",
+  state: "",
+  pincode: "",
+};
+
+interface CategoryDto {
+  id: string;
+  name: string;
+  slug: string;
+  source: string;
+  gstPct?: number | null;
+  subcategories?: { id: string; name: string; slug: string; gstPct?: number | null }[];
 }
 
-const EMPTY_SHIP: ShippingForm = { firstName: "", lastName: "", email: "", phone: "", alternatePhone: "", address: "", apartment: "", city: "", state: "", pincode: "", country: "India" };
+const round2 = (n: number) => Math.round(n * 100) / 100;
 
-const PAYMENT_METHOD_MAP: Record<PaymentMethod, string> = { cod: "COD", upi_delivery: "UPI_DELIVERY", upi: "UPI", wallet_balance: "WALLET" };
+const priceOf = (i: CartItem) => i.colorPrice ?? i.product.price;
+
+const normPid = (id: string) => (id.startsWith("db-") ? id.slice(3) : id);
+
+const totalItemsLabel = (items: CartItem[]): string => {
+  const n = items.reduce((s, i) => s + i.qty, 0);
+  return `${n} ${n === 1 ? "item" : "items"}`;
+};
+
+let rzpLoadPromise: Promise<boolean> | null = null;
+function loadRazorpay(): Promise<boolean> {
+  if (typeof window === "undefined") return Promise.resolve(false);
+  if ((window as any).Razorpay) return Promise.resolve(true);
+  if (!rzpLoadPromise) {
+    rzpLoadPromise = new Promise<boolean>((resolve) => {
+      const s = document.createElement("script");
+      s.src = "https://checkout.razorpay.com/v1/checkout.js";
+      s.async = true;
+      s.onload = () => resolve(true);
+      s.onerror = () => resolve(false);
+      document.head.appendChild(s);
+    });
+  }
+  return rzpLoadPromise;
+}
 
 export default function CheckoutPage() {
   const { theme } = useTheme();
   const light = theme === "light";
   const router = useRouter();
-  const { items, subtotal, clear, deliveryMode, setDeliveryMode } = useCart();
-  const { user, refreshUser } = useAuth();
+  const { items, clear, deliveryMode, setDeliveryMode } = useCart();
+  const { user } = useAuth();
   const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
-  const [step, setStep] = useState<Step>("shipping");
-  const [placed, setPlaced] = useState(false);
-  const [processing, setProcessing] = useState(false);
-  const [orderId, setOrderId] = useState("");
-  const [error, setError] = useState("");
-  const [upiModal, setUpiModal] = useState(false);
-  const [upiAmount, setUpiAmount] = useState(0);
-  const [walletPinModal, setWalletPinModal] = useState(false);
-  const [pendingOrderData, setPendingOrderData] = useState<any>(null);
-  const [locating, setLocating] = useState(false);
-  const [locationError, setLocationError] = useState("");
 
+  const [cats, setCats] = useState<CategoryDto[]>([]);
+  const [wallet, setWallet] = useState<number | null>(null);
+  const [rzpReady, setRzpReady] = useState(false);
+  const [rzpKeyId, setRzpKeyId] = useState("");
+
+  const [payMethod, setPayMethod] = useState<"razorpay" | "wallet">("razorpay");
+  const [cardPin, setCardPin] = useState("");
   const [ship, setShip] = useState<ShippingForm>(EMPTY_SHIP);
-  const [payMethod, setPayMethod] = useState<PaymentMethod | "">("");
+  const [paying, setPaying] = useState(false);
+  const [error, setError] = useState("");
+  const [placed, setPlaced] = useState<string | null>(null);
 
-  const savedAddresses: SavedAddress[] = (user?.savedAddresses as SavedAddress[]) || [];
+  useEffect(() => { setMounted(true); }, []);
 
-  const applyAddress = (addr: SavedAddress | null | undefined) => {
-    setShip((p) => ({
-      ...p,
-      alternatePhone: addr?.alternatePhone || p.alternatePhone,
-      address: addr?.address || p.address,
-      apartment: addr?.apartment || p.apartment,
-      city: addr?.city || p.city,
-      state: addr?.state || p.state,
-      pincode: addr?.pincode || p.pincode,
-      country: "India",
-    }));
-  };
-
-  useEffect(() => {
-    if (placed) {
-      const t = window.setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 80);
-      return () => window.clearTimeout(t);
-    }
-  }, [placed]);
-
+  // Prefill shipping + detect payment options once the session loads.
   useEffect(() => {
     if (!user) return;
     const nameParts = (user.name || "").split(" ");
-    const firstName = nameParts[0] || "";
-    const lastName = nameParts.slice(1).join(" ") || "";
-    const defaultAddr = user.savedAddresses && user.savedAddresses.length > 0 ? user.savedAddresses[0] : null;
-    setShip({
-      firstName,
-      lastName,
-      email: user.email || "",
-      phone: user.phone || "",
-      alternatePhone: defaultAddr?.alternatePhone || "",
-      address: defaultAddr?.address || "",
-      apartment: defaultAddr?.apartment || "",
-      city: defaultAddr?.city || "",
-      state: defaultAddr?.state || "",
-      pincode: defaultAddr?.pincode || "",
-      country: "India",
-    });
+    const saved: SavedAddress[] = (user.savedAddresses as SavedAddress[]) || [];
+    const addr = saved.find((a) => a.isDefault) || saved[0];
+    setShip((p) => ({
+      ...p,
+      name: p.name || (nameParts[0] ? `${nameParts[0]}${nameParts.slice(1).length ? " " + nameParts.slice(1).join(" ") : ""}` : ""),
+      phone: p.phone || user.phone || "",
+      email: p.email || user.email || "",
+      address: p.address || addr?.address || "",
+      apartment: p.apartment || addr?.apartment || "",
+      city: p.city || addr?.city || "",
+      state: p.state || addr?.state || "",
+      pincode: p.pincode || addr?.pincode || "",
+    }));
   }, [user]);
 
-  // Save/add the address used for this order so it prefills next checkout.
-  const saveShipAddress = async () => {
-    if (!ship.address || !ship.city) return;
-    try {
-      const existing = savedAddresses.find(
-        (a) => a.address === ship.address && a.city === ship.city && (!ship.pincode || a.pincode === ship.pincode)
-      );
-      if (existing) {
-        if (!existing.isDefault) await apiFetch(`/addresses/${existing.id}/default`, { method: "PUT" });
-      } else {
-        await apiFetch("/addresses", {
-          method: "POST",
-          body: JSON.stringify({
-            address: ship.address,
-            apartment: ship.apartment,
-            city: ship.city,
-            state: ship.state,
-            pincode: ship.pincode,
-            alternatePhone: ship.alternatePhone || undefined,
-            isDefault: true,
-          }),
-        });
-      }
-      try { await refreshUser(); } catch {}
-    } catch {}
-  };
+  // GST lookup data
+  useEffect(() => {
+    apiFetch("/categories")
+      .then((j: any) => {
+        const list: CategoryDto[] = Array.isArray(j?.all) ? j.all : [];
+        setCats(list);
+      })
+      .catch(() => { /* categories unreachable — GST defaults to 18% */ });
+  }, []);
 
-  const hasMartItems = items.some((it) => it.source === "mart");
-  const hasStoreItems = items.some((it) => it.source === "store");
-  const storeItems = items.filter((it) => it.source === "store");
-  const martItems = items.filter((it) => it.source === "mart");
-  const hasQuickDeliveryItems = hasMartItems;
-  const expressFee = hasQuickDeliveryItems && deliveryMode === "express" ? 49 : 0;
+  // Wallet balance
+  useEffect(() => {
+    apiFetch("/wallet/balance")
+      .then((j: any) => setWallet(typeof j?.balance === "number" ? j.balance : 0))
+      .catch(() => setWallet(0));
+  }, []);
 
-  const storeSubtotal = storeItems.reduce((s, i) => s + (i.colorPrice ?? i.product.price) * i.qty, 0);
-  const martSubtotal = martItems.reduce((s, i) => s + (i.colorPrice ?? i.product.price) * i.qty, 0);
+  // Razorpay readiness
+  useEffect(() => {
+    apiFetch("/payments/keys")
+      .then((j: any) => {
+        const enabled = Boolean(j?.enabled) && Boolean(j?.keyId);
+        setRzpKeyId(j?.keyId || "");
+        setRzpReady(enabled);
+        if (!enabled) setPayMethod((p) => (p === "razorpay" ? "wallet" : p));
+      })
+      .catch(() => setRzpReady(false));
+  }, []);
 
-  const effectiveLevel = getEffectiveLevel(user ?? {});
-  const discountPct = getDiscountPercent(effectiveLevel);
-  const discountAmount = discountPct > 0 ? Math.round(subtotal * discountPct / 100 * 100) / 100 : 0;
-  const discountedSubtotal = subtotal - discountAmount;
-
-  const freeDelLimit = getFreeDeliveries(effectiveLevel);
-  const freeDeliveryUsed = user?.freeDeliveryUsed || 0;
-  const hasFreeDelivery = freeDelLimit > 0 && freeDeliveryUsed < freeDelLimit;
-
-  const storeDelivery = hasFreeDelivery ? 0 : (hasStoreItems ? (storeSubtotal >= 800 ? 0 : 49) : 0);
-  const martDelivery = hasFreeDelivery ? 0 : (hasMartItems ? (martSubtotal >= 200 ? 0 : 49) : 0);
-  const deliveryCharge = storeDelivery + martDelivery;
-  const total = discountedSubtotal + deliveryCharge + expressFee;
-
-  const steps: { key: Step; label: string; num: number }[] = [
-    { key: "shipping", label: "Shipping", num: 1 },
-    { key: "payment", label: "Payment", num: 2 },
-    { key: "confirm", label: "Review", num: 3 },
-  ];
-  const currentIdx = steps.findIndex((s) => s.key === step);
-
-  const updateShip = (field: keyof ShippingForm, value: string) => setShip((p) => ({ ...p, [field]: value }));
-
-  const useCurrentLocation = () => {
-    if (!("geolocation" in navigator)) {
-      setLocationError("Geolocation is not supported in this browser.");
-      return;
-    }
-    setLocating(true);
-    setLocationError("");
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const { latitude, longitude } = pos.coords;
-        try {
-          const data = await apiFetch(`/location/reverse?lat=${latitude}&lon=${longitude}`);
-          const a = data.address || {};
-          const pincode = a.postcode || "";
-          const city = a.city || a.state_district || a.county || "";
-          let state = a.state || "";
-          if (!state) state = a.state_district || "";
-          const address = [
-            a.house_number,
-            a.road || a.pedestrian || a.footway,
-            a.neighbourhood,
-            a.suburb,
-            a.quarter,
-            a.hamlet,
-            a.village || a.town,
-          ].filter(Boolean).join(", ");
-          setShip((p) => ({
-            ...p,
-            address: address || p.address,
-            city: city || p.city,
-            state: state || p.state,
-            pincode: pincode || p.pincode,
-          }));
-        } catch {
-          setLocationError("Could not fetch your address. Please fill it manually.");
-        } finally {
-          setLocating(false);
-        }
-      },
-      (err) => {
-        setLocating(false);
-        setLocationError(err.message || "Could not get your location.");
-      },
-      { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 }
-    );
-  };
-
-  const shipValid = ship.firstName && ship.email && ship.phone && ship.address && ship.city && ship.state && ship.pincode;
-  const missingShip = [
-    !ship.address && "Address",
-    !ship.city && "City",
-    !ship.state && "State",
-    !ship.pincode && "Pincode",
-  ].filter(Boolean) as string[];
-  const payValid = payMethod !== "" && (
-    payMethod === "cod" || payMethod === "upi_delivery" || payMethod === "upi" || payMethod === "wallet_balance"
+  const gstFor = useCallback(
+    (item: CartItem) => {
+      const catName = item.product.category;
+      const cat = cats.find((c) => c.name === catName);
+      const subName = item.product.sub && item.product.sub !== "all" ? item.product.sub : undefined;
+      const sub = cat?.subcategories?.find((s) => s.name === subName);
+      if (sub && sub.gstPct != null) return sub.gstPct;
+      if (cat && cat.gstPct != null) return cat.gstPct;
+      return 18;
+    },
+    [cats]
   );
 
-  const isUpiPayment = payMethod === "upi";
+  const gstRows = useMemo<PriceRow[]>(() => {
+    const map: Record<string, { pct: number; base: number }> = {};
+    for (const it of items) {
+      const base = priceOf(it) * it.qty;
+      const gst = gstFor(it);
+      const key = String(gst);
+      map[key] = map[key] || { pct: gst, base: 0 };
+      map[key].base += base;
+    }
+    return Object.values(map).map((g) => ({ label: `GST (${g.pct}%)`, amount: round2((g.base * g.pct) / 100) }));
+  }, [items, gstFor]);
 
-  const handlePlaceOrder = async () => {
+  const itemBase = useMemo(() => items.reduce((s, i) => s + priceOf(i) * i.qty, 0), [items]);
+  const gstTotal = gstRows.reduce((s, r) => s + r.amount, 0);
+
+  const storeItems = items.filter((it) => it.source !== "mart");
+  const martItems = items.filter((it) => it.source === "mart");
+  const hasMartItems = martItems.length > 0;
+  const storeSubtotal = storeItems.reduce((s, i) => s + priceOf(i) * i.qty, 0);
+  const martSubtotal = martItems.reduce((s, i) => s + priceOf(i) * i.qty, 0);
+  const storeDelivery = storeItems.length > 0 ? (storeSubtotal >= 250 ? 0 : 49) : 0;
+  const martDelivery = martItems.length > 0 ? (martSubtotal >= 200 ? 0 : 49) : 0;
+  const expressFee = hasMartItems && deliveryMode === "express" ? 49 : 0;
+  const deliveryCharge = storeDelivery + martDelivery;
+
+  const grandTotal = itemBase + gstTotal + deliveryCharge + expressFee;
+  const walletEnough = typeof wallet === "number" && wallet >= grandTotal;
+  const canWallet = payMethod === "wallet" && typeof wallet === "number" && walletEnough;
+
+  const shipValid = Boolean(ship.name.trim() && ship.phone.trim() && ship.address.trim() && ship.city.trim() && ship.state.trim() && ship.pincode.trim());
+
+  const placeOrders = async (paymentMethod: "CARD" | "WALLET") => {
+    const shipping = {
+      name: ship.name.trim(),
+      phone: ship.phone.trim(),
+      alternatePhone: undefined,
+      address: ship.address.trim(),
+      apartment: ship.apartment.trim() || undefined,
+      city: ship.city.trim(),
+      state: ship.state.trim(),
+      pincode: ship.pincode.trim(),
+    };
+    const reqs: any[] = [];
+    for (const [srcItems, source] of [[storeItems, "store"], [martItems, "mart"]] as const) {
+      if (srcItems.length === 0) continue;
+      const itemsPayload = srcItems.map((it) => {
+        const base = priceOf(it);
+        const gstPct = gstFor(it);
+        return {
+          productId: normPid(it.product.id),
+          name: it.product.name,
+          price: round2(base * (1 + gstPct / 100)),
+          qty: it.qty,
+          color: it.color,
+          colorHex: it.colorHex,
+          size: it.size || null,
+          source,
+          image: it.colorImage || null,
+        };
+      });
+      reqs.push({
+        items: itemsPayload,
+        shipping,
+        paymentMethod,
+        source,
+        deliveryMode,
+        deliveryAmount: source === "mart" ? martDelivery : storeDelivery,
+        expressAmount: source === "mart" ? expressFee : 0,
+        cardPin: paymentMethod === "WALLET" ? cardPin.trim() : undefined,
+      });
+    }
+    const results = await Promise.all(reqs.map((r) => apiFetch("/orders", { method: "POST", body: JSON.stringify(r) })));
+    return results.map((r: any) => r?.orderId || r?.id || "").filter(Boolean).join(", ");
+  };
+
+  const startRazorpay = async () => {
     if (!user) {
       router.push("/login");
       return;
     }
-    window.scrollTo({ top: 0, behavior: "smooth" });
-    setProcessing(true);
+    setPaying(true);
     setError("");
     try {
-      const orderItems = items.map((i) => ({
-        productId: i.product.id,
-        name: i.product.name,
-        price: i.colorPrice ?? i.product.price,
-        qty: i.qty,
-        color: i.color,
-        colorHex: i.colorHex,
-        size: i.size || null,
-        source: i.source || "store",
-        image: i.colorImage || null,
-      }));
-
-      const shippingData = {
-        name: `${ship.firstName} ${ship.lastName}`,
-        phone: ship.phone,
-        alternatePhone: ship.alternatePhone || undefined,
-        address: ship.address,
-        apartment: ship.apartment,
-        city: ship.city,
-        state: ship.state,
-        pincode: ship.pincode,
-      };
-      const paymentMethod = PAYMENT_METHOD_MAP[payMethod as PaymentMethod];
-
-      const buildOrderRequests = (sourceItems: typeof orderItems, source: string) => {
-        const srcSubtotal = sourceItems.reduce((s, i) => s + i.price * i.qty, 0);
-        if (srcSubtotal <= 0) return [];
-        const srcDelivery = source === "mart" ? martDelivery : storeDelivery;
-        const srcExpress = source === "mart" ? expressFee : 0;
-        return sourceItems.map((i) => {
-          const itemTotal = i.price * i.qty;
-          const share = itemTotal / srcSubtotal;
-          return {
-            items: [i],
-            shipping: shippingData,
-            paymentMethod,
-            source,
-            deliveryMode,
-            deliveryAmount: srcDelivery > 0 ? Math.round(share * srcDelivery * 100) / 100 : 0,
-            expressAmount: srcExpress > 0 ? Math.round(share * srcExpress * 100) / 100 : 0,
-          };
-        });
-      };
-
-      const orderRequests = [
-        ...buildOrderRequests(orderItems.filter((i) => i.source === "store"), "store"),
-        ...buildOrderRequests(orderItems.filter((i) => i.source === "mart"), "mart"),
-      ];
-
-      if (isUpiPayment) {
-        setPendingOrderData({ orderRequests, total });
-        setUpiAmount(total);
-        setUpiModal(true);
+      if (!rzpKeyId || !(await loadRazorpay())) {
+        setError("Razorpay is not configured. Please use your wallet balance or contact support.");
+        setPayMethod("wallet");
+        setPaying(false);
         return;
       }
-
-      if (payMethod === "wallet_balance") {
-        setPendingOrderData({ orderRequests, total });
-        setWalletPinModal(true);
+      const orderData: any = await apiFetch("/payments/order-create", {
+        method: "POST",
+        body: JSON.stringify({
+          amountPaise: Math.round(grandTotal * 100),
+          currency: "INR",
+          receipt: "checkout_" + Date.now(),
+        }),
+      });
+      if (!orderData?.id) {
+        setError("Failed to create Razorpay order. Please try again or pay from wallet.");
+        setPaying(false);
         return;
       }
-
-      const results = await Promise.all(orderRequests.map((r) => apiFetch("/orders", { method: "POST", body: JSON.stringify(r) })));
-      const createdOrderId = results.map((r: { orderId?: string; id: string }) => r.orderId || r.id).join(", ");
-
-      setOrderId(createdOrderId);
-      setPlaced(true);
-      clear();
-
-      // Save the address used for future orders
-      saveShipAddress();
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to place order");
-    } finally {
-      setProcessing(false);
+      const RZP: any = (window as any).Razorpay;
+      const rzp = new RZP({
+        key_id: rzpKeyId,
+        amount: orderData.amount || Math.round(grandTotal * 100),
+        currency: orderData.currency || "INR",
+        order_id: orderData.id,
+        name: "Batraverse",
+        description: "Order checkout",
+        handler: async (resp: any) => {
+          try {
+            await apiFetch("/payments/verify", {
+              method: "POST",
+              body: JSON.stringify({
+                razorpayOrderId: orderData.id,
+                razorpayPaymentId: resp.razorpay_payment_id,
+                razorpaySignature: resp.razorpay_signature,
+              }),
+            });
+            const ids = await placeOrders("CARD");
+            setPlaced(ids || "confirmed");
+            clear();
+          } catch (e: any) {
+            setError(e?.message || "Payment verification failed");
+          } finally {
+            setPaying(false);
+          }
+        },
+        modal: {
+          ondismiss: () => setPaying(false),
+        },
+      });
+      rzp.open();
+    } catch (e: any) {
+      setError(e?.message || "Razorpay request failed");
+      setPaying(false);
     }
   };
 
-  if (items.length === 0 && !placed && !upiModal && !walletPinModal) {
+  const payWithWallet = async () => {
+    if (!user) {
+      router.push("/login");
+      return;
+    }
+    if (!canWallet) {
+      setError(`Insufficient wallet balance. You have ${formatPrice(wallet ?? 0)} but need ${formatPrice(grandTotal)}.`);
+      return;
+    }
+    setPaying(true);
+    setError("");
+    try {
+      const ids = await placeOrders("WALLET");
+      setPlaced(ids || "confirmed");
+      clear();
+    } catch (e: any) {
+      setError(e?.message || "Wallet payment failed");
+    } finally {
+      setPaying(false);
+    }
+  };
+
+  if (!mounted) {
+    return <SiteLayout><div className="min-h-screen" /></SiteLayout>;
+  }
+
+  if (placed) {
     return (
       <SiteLayout>
-        <div className="flex min-h-screen items-center justify-center">
+        <div className="flex min-h-[70vh] items-center justify-center px-5">
+          <div className="text-center">
+            <div className={cn("mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full", light ? "bg-emerald-50" : "bg-emerald-500/10")}>
+              <Check size={32} className="text-emerald-500" />
+            </div>
+            <h1 className={cn("font-display text-3xl font-medium tracking-wide", light ? "text-dark-900" : "text-cream")}>
+              Order Confirmed
+            </h1>
+            <p className={cn("mt-3 text-sm leading-relaxed max-w-md mx-auto", light ? "text-dark-500" : "text-cream-dim/60")}>
+              Your order <span className={cn("font-semibold", light ? "text-dark-900" : "text-cream")}>#{placed.toUpperCase()}</span> has been placed successfully.
+            </p>
+            <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+              <Link href="/store" className={cn("rounded-xl px-8 py-3.5 text-[11px] font-bold uppercase tracking-[0.25em] transition-all", light ? "bg-sapphire text-white hover:bg-sapphire-light" : "bg-gold text-abyss hover:bg-gold-light")}>
+                Continue Shopping
+              </Link>
+              <Link href="/orders" className={cn("rounded-xl border px-8 py-3.5 text-[11px] font-bold uppercase tracking-[0.25em] transition-all", light ? "border-dark-200 text-dark-500 hover:border-sapphire hover:text-sapphire" : "border-white/10 text-cream-dim hover:border-gold hover:text-gold-light")}>
+                View Orders
+              </Link>
+            </div>
+          </div>
+        </div>
+      </SiteLayout>
+    );
+  }
+
+  if (items.length === 0) {
+    return (
+      <SiteLayout>
+        <div className="flex min-h-[70vh] items-center justify-center">
           <div className="text-center">
             <p className={cn("text-sm uppercase tracking-[0.3em]", light ? "text-dark-400" : "text-cream-dim/50")}>
               Your cart is empty
@@ -349,44 +366,12 @@ export default function CheckoutPage() {
     );
   }
 
-  if (placed) {
-    return (
-      <SiteLayout>
-        <div className="flex min-h-screen items-center justify-center px-5">
-          <div className="text-center">
-            <div className={cn("mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full", light ? "bg-emerald-50" : "bg-emerald-500/10")}>
-              <Check size={32} className="text-emerald-500" />
-            </div>
-            <h1 className={cn("font-display text-3xl font-medium tracking-wide", light ? "text-dark-900" : "text-cream")}>
-              Order Confirmed
-            </h1>
-            <p className={cn("mt-3 text-sm leading-relaxed max-w-md mx-auto", light ? "text-dark-500" : "text-cream-dim/60")}>
-              Thank you for your purchase. Your order <span className={cn("font-semibold", light ? "text-dark-900" : "text-cream")}>#{orderId.toUpperCase()}</span> has been placed successfully.
-            </p>
-            <p className={cn("mt-2 text-xs", light ? "text-dark-400" : "text-cream-dim/40")}>
-              A confirmation email will be sent shortly.
-            </p>
-            <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
-              <Link href="/store" className={cn("rounded-xl px-8 py-3.5 text-[11px] font-bold uppercase tracking-[0.25em] transition-all duration-300", light ? "bg-sapphire text-white hover:bg-sapphire-light hover:shadow-[0_0_30px_rgba(30,58,138,0.3)]" : "bg-gold text-abyss hover:bg-gold-light hover:shadow-[0_0_30px_rgba(212,175,55,0.3)]")}>
-                Continue Shopping
-              </Link>
-              <Link href="/orders" className={cn("rounded-xl border px-8 py-3.5 text-[11px] font-bold uppercase tracking-[0.25em] transition-all duration-300", light ? "border-dark-200 text-dark-500 hover:border-sapphire hover:text-sapphire" : "border-white/10 text-cream-dim hover:border-gold hover:text-gold-light")}>
-                View Orders
-              </Link>
-            </div>
-          </div>
-        </div>
-      </SiteLayout>
-    );
-  }
-
   const inputCls = cn("w-full rounded-xl border px-4 py-3 text-sm transition-colors focus:outline-none", light ? "border-dark-200 bg-dark-50/50 text-dark-900 placeholder:text-dark-400 focus:border-sapphire" : "border-white/10 bg-onyx/50 text-cream placeholder:text-cream-dim/30 focus:border-gold");
   const labelCls = cn("mb-2 block text-[10px] font-semibold uppercase tracking-[0.2em]", light ? "text-dark-500" : "text-cream-dim/70");
 
   return (
     <SiteLayout>
-      <div className="min-h-screen pb-20">
-        {/* Breadcrumb */}
+      <div className="min-h-screen pb-20 overflow-x-hidden">
         <div className="mx-auto max-w-[100rem] px-5 pt-6 sm:px-10">
           <nav className="flex items-center gap-2 text-[10px] uppercase tracking-[0.2em]">
             <Link href="/store" className={cn("transition-colors", light ? "text-dark-400 hover:text-sapphire" : "text-cream-dim/50 hover:text-gold-light")}>Store</Link>
@@ -398,635 +383,211 @@ export default function CheckoutPage() {
         </div>
 
         <div className="mx-auto mt-8 max-w-[100rem] px-5 sm:px-10">
-          <h1 className={cn("font-display text-3xl font-medium tracking-wide", light ? "text-dark-900" : "text-cream")}>Checkout</h1>
-        </div>
+          <h1 className={cn("font-display text-3xl font-medium tracking-wide", light ? "text-dark-900" : "text-cream")}>
+            Checkout
+          </h1>
 
-        {/* Step indicator */}
-        <div className="mx-auto mt-8 max-w-[100rem] px-5 sm:px-10">
-          <div className="flex items-center justify-center gap-2 sm:gap-4">
-            {steps.map((s, i) => (
-              <div key={s.key} className="flex items-center gap-2 sm:gap-4">
-                <button type="button" onClick={() => { if (i < currentIdx) setStep(s.key); }} disabled={i > currentIdx}
-                  className={cn("flex items-center gap-2 rounded-full px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.2em] transition-all duration-300",
-                    s.key === step ? (light ? "bg-sapphire text-white" : "bg-gold text-abyss")
-                    : i < currentIdx ? (light ? "bg-sapphire/10 text-sapphire cursor-pointer" : "bg-gold/10 text-gold-light cursor-pointer")
-                    : (light ? "bg-dark-100 text-dark-400" : "bg-graphite text-cream-dim/40")
-                  )}>
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-bold">
-                    {i < currentIdx ? <Check size={12} /> : s.num}
-                  </span>
-                  <span className="hidden sm:inline">{s.label}</span>
-                </button>
-                {i < steps.length - 1 && <div className={cn("h-px w-8 sm:w-16", i < currentIdx ? (light ? "bg-sapphire" : "bg-gold") : (light ? "bg-dark-200" : "bg-white/10"))} />}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {error && (
-          <div className={cn("mx-auto mt-4 max-w-[100rem] rounded-xl border px-5 py-3 text-xs sm:px-10", light ? "border-red-300 bg-red-50 text-red-600" : "border-red-500/30 bg-red-500/10 text-red-300")}>
-            {error}
-          </div>
-        )}
-
-        {/* Guest lock: cover entire checkout section when not signed in */}
-        {mounted && !user && (
-          <div className="relative mx-auto mt-10 grid max-w-[100rem] gap-10 px-5 sm:px-10 lg:grid-cols-3">
-            {/* Dummy grid to preserve layout height */}
-            <div className="lg:col-span-2 invisible" aria-hidden>
-              <div className="rounded-2xl border p-6 sm:p-8" style={{ minHeight: 500 }}>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  {Array.from({ length: 9 }).map((_, i) => <div key={i} className="h-14 rounded-xl bg-black/5" />)}
-                </div>
-              </div>
-            </div>
-            <div className="invisible" aria-hidden>
-              <div className="rounded-2xl border p-6 sm:p-8" style={{ minHeight: 300 }} />
-            </div>
-
-            {/* Sign-in overlay */}
-            <div className="absolute inset-0 z-10 flex items-center justify-center">
-              <div className={cn(
-                "w-full max-w-md rounded-2xl border px-8 py-10 text-center backdrop-blur-sm",
-                light
-                  ? "border-dark-200/60 bg-white/95 shadow-[0_24px_80px_rgba(0,0,0,0.08)]"
-                  : "border-white/10 bg-graphite/95 shadow-[0_24px_80px_rgba(0,0,0,0.5)]"
-              )}>
-                <div className={cn("mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full border", light ? "border-sapphire/20 bg-sapphire/5 text-sapphire" : "border-gold/20 bg-gold/5 text-gold")}>
-                  <Lock size={22} strokeWidth={1.5} />
-                </div>
-                <h3 className={cn("text-lg font-semibold", light ? "text-onyx" : "text-cream")}>Sign in required</h3>
-                <p className={cn("mt-2 text-sm", light ? "text-onyx/60" : "text-cream-dim/60")}>
-                  You need to sign in to place your order and track deliveries.
-                </p>
-                <Link
-                  href="/login"
-                  className={cn(
-                    "mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full px-8 py-3.5 text-[11px] font-semibold uppercase tracking-[0.3em] transition-all duration-500",
-                    light
-                      ? "bg-sapphire text-white hover:shadow-[0_0_40px_rgba(30,58,138,0.35)]"
-                      : "bg-gold text-abyss hover:shadow-[0_0_40px_rgba(212,175,55,0.45)]"
-                  )}
-                >
-                  Sign In
-                </Link>
-                <p className={cn("mt-4 text-xs", light ? "text-onyx/40" : "text-cream-dim/40")}>
-                  Don&apos;t have an account?{" "}
-                  <Link href="/register" className={cn("font-medium transition-colors", light ? "text-sapphire hover:text-sapphire-light" : "text-gold hover:text-gold-light")}>
-                    Create one
-                  </Link>
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Checkout content — only rendered when signed in */}
-        {(!mounted || user) && (
-        <div className="mx-auto mt-10 grid max-w-[100rem] gap-6 px-5 sm:gap-10 sm:px-10 lg:grid-cols-3">
-          {/* Form area */}
-          <div className="lg:col-span-2">
-            {/* Step 1: Shipping */}
-            {step === "shipping" && (
-              <div className={cn("rounded-2xl border p-6 sm:p-8", light ? "border-dark-200/60 bg-white" : "border-white/5 bg-graphite")}>
-                <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex items-center gap-2">
-                    <MapPin size={16} className={light ? "text-sapphire" : "text-gold"} />
-                    <h2 className={cn("text-[11px] font-semibold uppercase tracking-[0.3em]", light ? "text-dark-400" : "text-cream-dim/60")}>Shipping Address</h2>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={useCurrentLocation}
-                    disabled={locating}
-                    className={cn("inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-[10px] font-semibold uppercase tracking-wider transition-all duration-300 disabled:opacity-60", light ? "border-sapphire/30 text-sapphire hover:bg-sapphire/10" : "border-gold/30 text-gold hover:bg-gold/10")}
-                  >
-                    {locating ? <Loader2 size={13} className="animate-spin" /> : <Navigation size={13} />}
-                    {locating ? "Detecting..." : "Use Current Location"}
-                  </button>
-                </div>
-                {locationError && (
-                  <p className="mb-4 flex items-center gap-1.5 text-[11px] text-amber-500">
-                    <Navigation size={11} /> {locationError}
+          <div className="mt-8 grid gap-6 lg:grid-cols-3 sm:gap-10">
+            {/* Left column — shipping + payment */}
+            <div className="lg:col-span-2 space-y-6">
+              {/* Shipping details */}
+              <div className={cn("rounded-2xl border p-6", light ? "border-dark-200/60 bg-white" : "border-white/5 bg-graphite")}>
+                <h2 className={cn("text-[11px] font-semibold uppercase tracking-[0.3em]", light ? "text-dark-400" : "text-cream-dim/60")}>
+                  Shipping Details
+                </h2>
+                {!user && (
+                  <p className="mt-3 text-xs text-amber-500">
+                    Please <Link href="/login" className="underline">sign in</Link> to place your order.
                   </p>
                 )}
-                {savedAddresses.length > 0 && (
-                  <div className="mb-6">
-                    <p className={cn("mb-2 text-[10px] font-semibold uppercase tracking-[0.2em]", light ? "text-dark-400" : "text-cream-dim/50")}>
-                      Saved Addresses
-                    </p>
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      {savedAddresses.map((a) => {
-                        const active = ship.address === a.address && ship.city === a.city;
-                        return (
-                          <button
-                            type="button"
-                            key={a.id}
-                            onClick={() => applyAddress(a)}
-                            className={cn(
-                              "rounded-xl border px-3.5 py-3 text-left transition-all duration-300",
-                              active
-                                ? light ? "border-sapphire bg-sapphire/5 shadow-[0_0_16px_rgba(30,58,138,0.08)]" : "border-gold bg-gold/5 shadow-[0_0_16px_rgba(212,175,55,0.08)]"
-                                : light ? "border-dark-200/60 bg-dark-50/30 hover:border-dark-300" : "border-white/10 bg-graphite hover:border-white/20"
-                            )}
-                          >
-                            <span className="flex items-start justify-between gap-2">
-                              <span className={cn("line-clamp-1 text-xs font-medium", active ? (light ? "text-dark-900" : "text-cream") : (light ? "text-dark-700" : "text-cream-dim/80"))}>
-                                {a.address}
-                              </span>
-                              {a.isDefault && (
-                                <span className={cn("shrink-0 rounded-full border px-1.5 py-0.5 text-[8px] font-bold tracking-wider", light ? "border-sapphire/25 bg-sapphire/10 text-sapphire" : "border-gold/25 bg-gold/10 text-gold")}>
-                                  DEFAULT
-                                </span>
-                              )}
-                            </span>
-                            <span className={cn("mt-0.5 block text-[10px]", light ? "text-dark-400" : "text-cream-dim/40")}>
-                              {a.city}
-                              {a.state ? `, ${a.state}` : ""}
-                              {a.pincode ? ` — ${a.pincode}` : ""}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
-                    <label className={labelCls}>First Name</label>
-                    <div className="relative">
-                      <User size={14} className={cn("absolute left-3.5 top-1/2 -translate-y-1/2", light ? "text-dark-400" : "text-cream-dim/30")} />
-                      <input type="text" value={ship.firstName} readOnly className={cn(inputCls, "pl-10 opacity-70 cursor-not-allowed")} />
-                    </div>
+                    <label className={labelCls}>Full Name</label>
+                    <input value={ship.name} onChange={(e) => setShip((p) => ({ ...p, name: e.target.value }))} placeholder="Your name" className={inputCls} />
                   </div>
                   <div>
-                    <label className={labelCls}>Last Name</label>
-                    <input type="text" value={ship.lastName} readOnly placeholder="Optional" className={cn(inputCls, "opacity-70 cursor-not-allowed")} />
+                    <label className={labelCls}>Phone</label>
+                    <input value={ship.phone} onChange={(e) => setShip((p) => ({ ...p, phone: e.target.value }))} placeholder="10-digit phone" className={inputCls} inputMode="tel" />
                   </div>
                   <div className="sm:col-span-2">
                     <label className={labelCls}>Email</label>
-                    <div className="relative">
-                      <Mail size={14} className={cn("absolute left-3.5 top-1/2 -translate-y-1/2", light ? "text-dark-400" : "text-cream-dim/30")} />
-                      <input type="email" value={ship.email} readOnly className={cn(inputCls, "pl-10 opacity-70 cursor-not-allowed")} />
-                    </div>
+                    <input value={ship.email} onChange={(e) => setShip((p) => ({ ...p, email: e.target.value }))} placeholder="you@example.com" className={inputCls} type="email" />
                   </div>
                   <div className="sm:col-span-2">
-                    <label className={labelCls}>Phone *</label>
-                    <div className="relative">
-                      <Phone size={14} className={cn("absolute left-3.5 top-1/2 -translate-y-1/2", light ? "text-dark-400" : "text-cream-dim/30")} />
-                      <input type="tel" value={ship.phone} readOnly className={cn(inputCls, "pl-10 opacity-70 cursor-not-allowed")} />
-                    </div>
+                    <label className={labelCls}>Address</label>
+                    <input value={ship.address} onChange={(e) => setShip((p) => ({ ...p, address: e.target.value }))} placeholder="House no, street, area" className={inputCls} />
                   </div>
                   <div className="sm:col-span-2">
-                    <label className={cn(labelCls, "!mb-1")}>Alternate Phone <span className={cn("font-normal", light ? "text-dark-400" : "text-cream-dim/40")}>(optional)</span></label>
-                    <div className="relative">
-                      <Phone size={14} className={cn("absolute left-3.5 top-1/2 -translate-y-1/2", light ? "text-dark-400" : "text-cream-dim/30")} />
-                      <input type="tel" placeholder="Alternate number" value={ship.alternatePhone} onChange={(e) => updateShip("alternatePhone", e.target.value)} className={cn(inputCls, "pl-10")} />
-                    </div>
+                    <label className={labelCls}>Apartment / Landmark (optional)</label>
+                    <input value={ship.apartment} onChange={(e) => setShip((p) => ({ ...p, apartment: e.target.value }))} placeholder="Apartment, landmark" className={inputCls} />
+                  </div>
+                  <div>
+                    <label className={labelCls}>City</label>
+                    <input value={ship.city} onChange={(e) => setShip((p) => ({ ...p, city: e.target.value }))} placeholder="City" className={inputCls} />
+                  </div>
+                  <div>
+                    <label className={labelCls}>State</label>
+                    <input value={ship.state} onChange={(e) => setShip((p) => ({ ...p, state: e.target.value }))} placeholder="State" className={inputCls} />
                   </div>
                   <div className="sm:col-span-2">
-                    <label className={labelCls}>Address *</label>
-                    <div className="relative">
-                      <Home size={14} className={cn("absolute left-3.5 top-1/2 -translate-y-1/2", light ? "text-dark-400" : "text-cream-dim/30")} />
-                      <input type="text" placeholder="123 Main Street" value={ship.address} onChange={(e) => updateShip("address", e.target.value)} className={cn(inputCls, "pl-10")} />
-                    </div>
+                    <label className={labelCls}>Pincode</label>
+                    <input value={ship.pincode} onChange={(e) => setShip((p) => ({ ...p, pincode: e.target.value }))} placeholder="6-digit pincode" className={inputCls} inputMode="numeric" />
                   </div>
-                  <div>
-                    <label className={labelCls}>Apartment / Suite</label>
-                    <div className="relative">
-                      <Building2 size={14} className={cn("absolute left-3.5 top-1/2 -translate-y-1/2", light ? "text-dark-400" : "text-cream-dim/30")} />
-                      <input type="text" placeholder="Apt 4B" value={ship.apartment} onChange={(e) => updateShip("apartment", e.target.value)} className={cn(inputCls, "pl-10")} />
-                    </div>
-                  </div>
-                  <div>
-                    <label className={labelCls}>City *</label>
-                    <input type="text" placeholder="New Delhi" value={ship.city} onChange={(e) => updateShip("city", e.target.value)} className={inputCls} />
-                  </div>
-                  <div>
-                    <label className={labelCls}>State *</label>
-                    <input type="text" placeholder="Delhi" value={ship.state} onChange={(e) => updateShip("state", e.target.value)} className={inputCls} />
-                  </div>
-                  <div>
-                    <label className={labelCls}>Pincode *</label>
-                    <div className="relative">
-                      <Hash size={14} className={cn("absolute left-3.5 top-1/2 -translate-y-1/2", light ? "text-dark-400" : "text-cream-dim/30")} />
-                      <input type="text" placeholder="110001" value={ship.pincode} onChange={(e) => updateShip("pincode", e.target.value)} className={cn(inputCls, "pl-10")} />
-                    </div>
-                  </div>
-                  <div className="sm:col-span-2">
-                    <label className={labelCls}>Country</label>
-                    <div className="relative">
-                      <Globe size={14} className={cn("absolute left-3.5 top-1/2 -translate-y-1/2", light ? "text-dark-400" : "text-cream-dim/30")} />
-                      <input type="text" value="India" readOnly className={cn(inputCls, "pl-10 opacity-70 cursor-not-allowed")} />
-                    </div>
-                  </div>
-                </div>
-                <div className="mt-6 flex flex-col items-end gap-3">
-                  {!shipValid && missingShip.length > 0 && (
-                    <p className={cn("text-[11px]", light ? "text-amber-600" : "text-amber-400")}>
-                      Please fill: {missingShip.join(", ")}
-                    </p>
-                  )}
-                  <button type="button" onClick={() => { setStep("payment"); window.scrollTo({ top: 0, behavior: "smooth" }); }} disabled={!shipValid}
-                    className={cn("rounded-xl px-8 py-3.5 text-[11px] font-bold uppercase tracking-[0.25em] transition-all duration-300", !shipValid ? "opacity-40 cursor-not-allowed" : "", light ? "bg-sapphire text-white hover:bg-sapphire-light hover:shadow-[0_0_30px_rgba(30,58,138,0.3)]" : "bg-gold text-abyss hover:bg-gold-light hover:shadow-[0_0_30px_rgba(212,175,55,0.3)]")}>
-                    Continue to Payment
-                  </button>
                 </div>
               </div>
-            )}
 
-            {/* Step 2: Payment */}
-            {step === "payment" && (
-              <div className={cn("rounded-2xl border p-6 sm:p-8", light ? "border-dark-200/60 bg-white" : "border-white/5 bg-graphite")}>
-                <div className="flex items-center gap-2 mb-6">
-                  <CreditCard size={16} className={light ? "text-sapphire" : "text-gold"} />
-                  <h2 className={cn("text-[11px] font-semibold uppercase tracking-[0.3em]", light ? "text-dark-400" : "text-cream-dim/60")}>Payment Method</h2>
+              {/* Payment method */}
+              <div className={cn("rounded-2xl border p-6", light ? "border-dark-200/60 bg-white" : "border-white/5 bg-graphite")}>
+                <h2 className={cn("text-[11px] font-semibold uppercase tracking-[0.3em]", light ? "text-dark-400" : "text-cream-dim/60")}>
+                  Payment Method
+                </h2>
+                <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={() => setPayMethod("razorpay")}
+                    disabled={!rzpReady}
+                    className={cn(
+                      "flex items-center gap-3 rounded-xl border-2 p-4 text-left transition-all",
+                      payMethod === "razorpay" ? (light ? "border-sapphire bg-sapphire/5" : "border-gold bg-gold/5") : (light ? "border-dark-200 hover:border-dark-300" : "border-white/10 hover:border-white/20"),
+                      !rzpReady && "opacity-40 cursor-not-allowed"
+                    )}
+                  >
+                    <span className={cn("grid h-10 w-10 shrink-0 place-items-center rounded-lg", light ? "bg-sapphire/10 text-sapphire" : "bg-gold/10 text-gold")}>
+                      <Lock size={16} />
+                    </span>
+                    <div>
+                      <p className={cn("text-xs font-semibold", light ? "text-dark-900" : "text-cream")}>Razorpay</p>
+                      <p className={cn("text-[10px]", light ? "text-dark-400" : "text-cream-dim/50")}>
+                        {rzpReady ? "Card / UPI / NetBanking" : "Not configured"}
+                      </p>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setPayMethod("wallet")}
+                    className={cn(
+                      "flex items-center gap-3 rounded-xl border-2 p-4 text-left transition-all",
+                      payMethod === "wallet" ? (light ? "border-sapphire bg-sapphire/5" : "border-gold bg-gold/5") : (light ? "border-dark-200 hover:border-dark-300" : "border-white/10 hover:border-white/20")
+                    )}
+                  >
+                    <span className={cn("grid h-10 w-10 shrink-0 place-items-center rounded-lg", light ? "bg-sapphire/10 text-sapphire" : "bg-gold/10 text-gold")}>
+                      <Shield size={16} />
+                    </span>
+                    <div>
+                      <p className={cn("text-xs font-semibold", light ? "text-dark-900" : "text-cream")}>Wallet</p>
+                      <p className={cn("text-[10px]", walletEnough ? "text-emerald-500" : "text-amber-500")}>
+                        Balance: {formatPrice(wallet ?? 0)}
+                      </p>
+                    </div>
+                  </button>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                  {[
-                    { key: "cod" as PaymentMethod, icon: <Banknote size={20} />, label: "Cash on Delivery", desc: "Pay when you receive" },
-                    { key: "upi_delivery" as PaymentMethod, icon: <Smartphone size={20} />, label: "UPI on Delivery", desc: "Scan & pay at delivery" },
-                    { key: "upi" as PaymentMethod, icon: <CircleDollarSign size={20} />, label: "Online UPI", desc: "QR / Transaction ID" },
-                    { key: "wallet_balance" as PaymentMethod, icon: <Wallet size={20} />, label: "Pay via Wallet", desc: "Pay from your card wallet" },
-                  ].map((m) => (
-                    <button type="button" key={m.key} onClick={() => setPayMethod(m.key)}
-                      className={cn("group relative flex flex-col items-center gap-3 rounded-2xl border-2 p-5 sm:p-6 transition-all duration-300 text-center",
-                        payMethod === m.key
-                          ? (light ? "border-sapphire bg-sapphire/5 shadow-[0_0_20px_rgba(30,58,138,0.08)]" : "border-gold bg-gold/5 shadow-[0_0_20px_rgba(212,175,55,0.08)]")
-                          : (light ? "border-dark-200/60 bg-dark-50/30 hover:border-dark-300" : "border-white/10 bg-graphite hover:border-white/20")
-                      )}>
-                      <span className={cn("transition-colors duration-300", payMethod === m.key ? (light ? "text-sapphire" : "text-gold") : (light ? "text-dark-400" : "text-cream-dim/50"))}>{m.icon}</span>
+                {payMethod === "wallet" && !walletEnough && (
+                  <p className="mt-4 text-xs text-amber-500">
+                    Wallet balance is less than the order total ({formatPrice(grandTotal)}). Please recharge your wallet or use Razorpay.
+                  </p>
+                )}
+
+                {payMethod === "wallet" && walletEnough && (
+                  <div className="mt-4">
+                    <label className={labelCls}>Card PIN (6 digits) to pay from wallet</label>
+                    <input
+                      value={cardPin}
+                      onChange={(e) => setCardPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                      placeholder="••••••"
+                      className={cn(inputCls, "max-w-xs")}
+                      type="password"
+                      inputMode="numeric"
+                    />
+                    <p className="mt-2 text-[10px] text-dark-400">
+                      Set or manage your card PIN on the <Link href="/cards" className="underline">Cards</Link> page.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Right column — order summary */}
+            <div>
+              <div className={cn("rounded-2xl border p-6", light ? "border-dark-200/60 bg-white" : "border-white/5 bg-graphite")}>
+                <h2 className={cn("text-[11px] font-semibold uppercase tracking-[0.3em]", light ? "text-dark-400" : "text-cream-dim/60")}>
+                  Order Summary
+                </h2>
+
+                <div className="mt-5 space-y-3">
+                  {items.map((it) => (
+                    <div key={`${it.product.id}::${it.color}::${it.size ?? ""}`} className="flex items-center justify-between gap-3">
                       <div>
-                        <p className={cn("text-xs font-semibold", payMethod === m.key ? (light ? "text-dark-900" : "text-cream") : (light ? "text-dark-600" : "text-cream-dim/80"))}>{m.label}</p>
-                        <p className={cn("text-[9px] mt-0.5", light ? "text-dark-400" : "text-cream-dim/40")}>{m.desc}</p>
+                        <p className={cn("text-sm font-medium", light ? "text-dark-900" : "text-cream")}>{it.product.name}</p>
+                        <p className={cn("text-[10px]", light ? "text-dark-400" : "text-cream-dim/50")}>
+                          {it.color}{it.size ? ` · ${it.size}` : ""} × {it.qty}
+                        </p>
                       </div>
-                      {payMethod === m.key && <span className={cn("absolute top-3 right-3 flex h-5 w-5 items-center justify-center rounded-full", light ? "bg-sapphire text-white" : "bg-gold text-abyss")}><Check size={10} /></span>}
-                    </button>
+                      <p className={cn("text-sm font-medium tabular-nums", light ? "text-dark-900" : "text-cream")}>
+                        {formatPrice(priceOf(it) * it.qty)}
+                      </p>
+                    </div>
                   ))}
                 </div>
 
-                {/* Online UPI (QR / Transaction ID) */}
-                {payMethod === "upi" && (
-                  <div className="mt-5">
-                    <p className={cn("mb-3 text-[10px] font-semibold uppercase tracking-[0.2em]", light ? "text-dark-400" : "text-cream-dim/50")}>Online UPI</p>
-                    <div className="mt-1 rounded-xl border p-4 sm:p-5" style={{ borderColor: light ? "rgb(229 231 235 / 0.6)" : "rgb(255 255 255 / 0.1)" }}>
-                      <div className="mb-3 flex items-center gap-2">
-                        <Smartphone size={13} className={light ? "text-sapphire" : "text-gold"} />
-                        <p className={cn("text-[10px] font-semibold uppercase tracking-[0.2em]", light ? "text-dark-400" : "text-cream-dim/50")}>Pay via UPI</p>
-                      </div>
-                      <p className={cn("text-xs leading-relaxed", light ? "text-dark-500" : "text-cream-dim/60")}>
-                        After placing your order, a QR code will appear to complete payment of <span className="font-bold">{formatPrice(total)}</span>. Enter the transaction ID after payment.
-                      </p>
-                    </div>
-                  </div>
-                )}
+                <div className={cn("my-5 h-px", light ? "bg-dark-200" : "bg-white/10")} />
 
-                {/* COD info */}
-                {payMethod === "cod" && (
-                  <div className={cn("mt-5 rounded-xl border p-4 text-xs leading-relaxed", light ? "border-dark-200/60 bg-dark-50/30 text-dark-500" : "border-white/10 bg-graphite text-cream-dim/50")}>
-                    Pay with cash when your order is delivered. Please keep exact change ready.
-                  </div>
-                )}
-
-                {/* UPI on Delivery info */}
-                {payMethod === "upi_delivery" && (
-                  <div className={cn("mt-5 rounded-xl border p-4 text-xs leading-relaxed", light ? "border-dark-200/60 bg-dark-50/30 text-dark-500" : "border-white/10 bg-graphite text-cream-dim/50")}>
-                    Our delivery partner will share a UPI QR code at the time of delivery. Scan and pay to complete your purchase.
-                  </div>
-                )}
-
-                {/* Wallet balance info */}
-                {payMethod === "wallet_balance" && (
-                  <div className={cn("mt-5 rounded-xl border p-4 text-xs leading-relaxed", light ? "border-sapphire/20 bg-sapphire/5 text-sapphire" : "border-gold/20 bg-gold/5 text-gold-light")}>
-                    <div className="flex items-center gap-2 mb-1">
-                      <Wallet size={14} />
-                      <span className="font-semibold">Wallet Payment</span>
-                    </div>
-                    <p>₹{(subtotal + deliveryCharge + expressFee - discountAmount).toFixed(2)} will be deducted from your card wallet at the time of placing the order.</p>
-                    {(user?.walletBalance ?? 0) < (subtotal + deliveryCharge + expressFee - discountAmount) && (
-                      <p className="mt-2 text-red-500 font-semibold">Insufficient wallet balance. Please recharge your wallet first.</p>
-                    )}
-                  </div>
-                )}
-
-                <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
-                  <button type="button" onClick={() => setStep("shipping")} className={cn("rounded-xl border px-6 py-3.5 text-[11px] font-bold uppercase tracking-[0.25em] transition-all duration-300", light ? "border-dark-200 text-dark-500 hover:border-sapphire hover:text-sapphire" : "border-white/10 text-cream-dim hover:border-gold hover:text-gold-light")}>Back</button>
-                  <button type="button" onClick={() => { setStep("confirm"); window.scrollTo({ top: 0, behavior: "smooth" }); }} disabled={!payValid}
-                    className={cn("rounded-xl px-8 py-3.5 text-[11px] font-bold uppercase tracking-[0.25em] transition-all duration-300", !payValid ? "opacity-40 cursor-not-allowed" : "", light ? "bg-sapphire text-white hover:bg-sapphire-light hover:shadow-[0_0_30px_rgba(30,58,138,0.3)]" : "bg-gold text-abyss hover:bg-gold-light hover:shadow-[0_0_30px_rgba(212,175,55,0.3)]")}>Review Order</button>
-                </div>
-              </div>
-            )}
-
-            {/* Step 3: Review */}
-            {step === "confirm" && (
-              <div className="space-y-4">
-                <div className={cn("rounded-2xl border p-6 sm:p-8", light ? "border-dark-200/60 bg-white" : "border-white/5 bg-graphite")}>
-                  <div className="flex items-center gap-2 mb-6">
-                    <Check size={16} className={light ? "text-sapphire" : "text-gold"} />
-                    <h2 className={cn("text-[11px] font-semibold uppercase tracking-[0.3em]", light ? "text-dark-400" : "text-cream-dim/60")}>Order Review</h2>
-                  </div>
-                  <div className="space-y-4">
-                    {items.map((item) => {
-                      const key = `${item.product.id}::${item.color}::${item.size ?? ""}`;
-                      const isMart = item.source === "mart";
-                      const itemPrice = item.colorPrice ?? item.product.price;
-                      return (
-                        <div key={key} className="flex gap-4">
-                          <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl">
-                            {item.colorImage ? (
-                              <img
-src={resolveImageUrl(item.colorImage) || ""}
-                                alt=""
-                                className="absolute inset-0 w-full h-full object-cover"
-                              />
-                            ) : (
-                              <>
-                                <div className="absolute inset-0 bg-gradient-to-br from-zinc-800 to-zinc-950" />
-                                <div className="absolute inset-0 opacity-40" style={{ background: `radial-gradient(circle at 30% 40%, ${item.colorHex}88, transparent 70%)` }} />
-                              </>
-                            )}
-                            <span className={cn("absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full text-[8px] font-bold", light ? "bg-dark-900 text-white" : "bg-gold text-abyss")}>{item.qty}</span>
-                          </div>
-                          <div className="flex flex-1 justify-between">
-                            <div>
-                              <p className={cn("text-sm font-medium", light ? "text-dark-900" : "text-cream")}>{item.product.name}</p>
-                              <p className={cn("text-[10px] mt-0.5 flex items-center gap-1.5", light ? "text-dark-400" : "text-cream-dim/50")}>
-                                {item.color}{item.size ? ` · ${item.size}` : ""}
-                                {isMart && deliveryMode === "express" && (
-                                  <span className={cn("inline-flex items-center gap-0.5 rounded-full px-1 py-0.5 text-[7px] font-bold uppercase", light ? "bg-sapphire/10 text-sapphire" : "bg-gold/10 text-gold")}>
-                                    <Zap size={7} /> 20 Min
-                                  </span>
-                                )}
-                              </p>
-                            </div>
-                            <div className="text-right">
-                              <p className={cn("text-sm font-semibold tabular-nums", light ? "text-dark-900" : "text-cream")}>{formatPrice(itemPrice * item.qty)}</p>
-                              {isMart && deliveryMode === "express" && (
-                                <p className={cn("text-[9px] font-medium", light ? "text-sapphire" : "text-gold")}>+{formatPrice(49)} express</p>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div className={cn("rounded-2xl border p-6", light ? "border-dark-200/60 bg-white" : "border-white/5 bg-graphite")}>
-                  <div className="grid gap-6 sm:grid-cols-2">
-                    <div>
-                      <p className={cn("text-[9px] font-semibold uppercase tracking-[0.2em] mb-2", light ? "text-dark-400" : "text-cream-dim/50")}>Shipping To</p>
-                      <p className={cn("text-sm", light ? "text-dark-700" : "text-cream-dim")}>{ship.firstName} {ship.lastName}</p>
-                      <p className={cn("text-xs mt-0.5", light ? "text-dark-400" : "text-cream-dim/40")}>{ship.address}{ship.apartment ? `, ${ship.apartment}` : ""}</p>
-                      <p className={cn("text-xs", light ? "text-dark-400" : "text-cream-dim/40")}>{ship.city}{ship.state ? `, ${ship.state}` : ""} {ship.pincode}</p>
-                    </div>
-                    <div>
-                      <p className={cn("text-[9px] font-semibold uppercase tracking-[0.2em] mb-2", light ? "text-dark-400" : "text-cream-dim/50")}>Payment</p>
-                      <p className={cn("text-sm", light ? "text-dark-700" : "text-cream-dim")}>
-                        {payMethod === "cod" && "Cash on Delivery"}
-                        {payMethod === "upi_delivery" && "UPI on Delivery"}
-                        {payMethod === "upi" && "Online UPI"}
-                        {payMethod === "wallet_balance" && `Wallet (Balance: ₹${(user?.walletBalance ?? 0).toFixed(2)})`}
-                      </p>
-                      {hasMartItems && (
-                        <p className={cn("text-xs mt-1 flex items-center gap-1", light ? "text-dark-400" : "text-cream-dim/40")}>
-                          {deliveryMode === "express" ? <Zap size={10} /> : deliveryMode === "standard" ? <Truck size={10} /> : <Clock size={10} />}
-                          Mart: {deliveryMode === "express" ? "Express (20 Min)" : deliveryMode === "standard" ? "Standard (1 Hour)" : "Standard (1 Hour)"}
-                        </p>
-                      )}
-                      <p className={cn("text-xs mt-0.5", light ? "text-dark-400" : "text-cream-dim/40")}>{ship.email}</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
-                  <button type="button" onClick={() => setStep("payment")} className={cn("rounded-xl border px-6 py-3.5 text-[11px] font-bold uppercase tracking-[0.25em] transition-all duration-300", light ? "border-dark-200 text-dark-500 hover:border-sapphire hover:text-sapphire" : "border-white/10 text-cream-dim hover:border-gold hover:text-gold-light")}>Back</button>
-                  <button type="button" onClick={handlePlaceOrder} disabled={processing}
-                    className={cn("flex items-center justify-center gap-2 rounded-xl px-6 py-3.5 text-[11px] font-bold uppercase tracking-[0.25em] transition-all duration-300", processing ? "opacity-60 cursor-not-allowed" : "", light ? "bg-dark-900 text-white hover:bg-dark-800 hover:shadow-[0_0_30px_rgba(0,0,0,0.25)]" : "bg-gold text-abyss hover:bg-gold-light hover:shadow-[0_0_30px_rgba(212,175,55,0.35)]")}>
-                    {processing ? (<><svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>Processing...</>) : (<><Lock size={12} /> Place Order — {formatPrice(total)}</>)}
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Order Summary sidebar */}
-          <div className="lg:col-span-1">
-            <div className={cn("sticky top-28 rounded-2xl border p-6", light ? "border-dark-200/60 bg-white" : "border-white/5 bg-graphite")}>
-              <h2 className={cn("text-[11px] font-semibold uppercase tracking-[0.3em]", light ? "text-dark-400" : "text-cream-dim/60")}>Order Summary</h2>
-              <div className="mt-4 max-h-48 space-y-3 overflow-y-auto">
-                {items.map((item) => {
-                  const key = `${item.product.id}::${item.color}::${item.size ?? ""}`;
-                  const isMart = item.source === "mart";
-                  return (
-                    <div key={key} className="flex items-center gap-3">
-                      <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg">
-                        {item.colorImage ? (
-                          <img
-                            src={resolveImageUrl(item.colorImage) || ""}
-                            alt=""
-                            className="absolute inset-0 w-full h-full object-cover"
-                          />
-                        ) : (
-                          <>
-                            <div className="absolute inset-0 bg-gradient-to-br from-zinc-800 to-zinc-950" />
-                            <div className="absolute inset-0 opacity-40" style={{ background: `radial-gradient(circle at 30% 40%, ${item.colorHex}88, transparent 70%)` }} />
-                          </>
-                        )}
-                        <span className={cn("absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full text-[7px] font-bold", light ? "bg-dark-900 text-white" : "bg-gold text-abyss")}>{item.qty}</span>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className={cn("text-xs font-medium truncate", light ? "text-dark-900" : "text-cream")}>{item.product.name}</p>
-                        <p className={cn("text-[9px] flex items-center gap-1", light ? "text-dark-400" : "text-cream-dim/40")}>
-                          {item.color}{item.size ? ` · ${item.size}` : ""}
-                          {isMart && deliveryMode === "express" && (
-                            <span className={cn("inline-flex items-center gap-0.5 rounded-full px-1 py-0.5 text-[6px] font-bold uppercase", light ? "bg-sapphire/10 text-sapphire" : "bg-gold/10 text-gold")}>
-                              <Zap size={6} /> 20 Min
-                            </span>
-                          )}
-                        </p>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <p className={cn("text-xs font-medium tabular-nums", light ? "text-dark-900" : "text-cream")}>{formatPrice((item.colorPrice ?? item.product.price) * item.qty)}</p>
-                        {isMart && deliveryMode === "express" && (
-                          <p className={cn("text-[8px] font-medium", light ? "text-sapphire" : "text-gold")}>+₹49</p>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-              <div className={cn("my-5 h-px", light ? "bg-dark-200" : "bg-white/10")} />
-              <div className="space-y-2.5">
-                <div className="flex justify-between">
-                  <span className={cn("text-xs", light ? "text-dark-500" : "text-cream-dim/60")}>Subtotal</span>
-                  <span className={cn("text-xs font-medium tabular-nums", light ? "text-dark-900" : "text-cream")}>{formatPrice(subtotal)}</span>
-                </div>
-                {discountAmount > 0 && (
+                <div className="space-y-3 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-xs text-emerald-500">Card Payment Discount</span>
-                    <span className="text-xs font-medium tabular-nums text-emerald-500">-{formatPrice(discountAmount)}</span>
+                    <span className={light ? "text-dark-500" : "text-cream-dim/60"}>Item Value</span>
+                    <span className="tabular-nums">{formatPrice(itemBase)}</span>
                   </div>
-                )}
-                {hasStoreItems && (
-                  <div>
-                    <div className="flex justify-between">
-                      <span className={cn("text-xs", light ? "text-dark-500" : "text-cream-dim/60")}>Store Delivery</span>
-                      <span className={cn("text-xs font-medium tabular-nums", (hasFreeDelivery || storeSubtotal >= 800) ? "text-emerald-500" : "", light ? "text-dark-900" : "text-cream")}>
-                        {(hasFreeDelivery || storeSubtotal >= 800) ? "Free" : formatPrice(49)}
-                      </span>
+                  {gstRows.map((r) => (
+                    <div key={r.label} className="flex justify-between">
+                      <span className={light ? "text-dark-500" : "text-cream-dim/60"}>{r.label}</span>
+                      <span className="tabular-nums">{formatPrice(r.amount)}</span>
                     </div>
-                    {hasFreeDelivery ? (
-                      <p className="text-[9px] text-emerald-500">Free via card benefit</p>
-                    ) : storeSubtotal >= 800 ? (
-                      <p className="text-[9px] text-emerald-500">Free store delivery above ₹800</p>
-                    ) : (
-                      <p className="text-[9px] text-amber-500">Add {formatPrice(800 - storeSubtotal)} more to get free store delivery</p>
-                    )}
-                  </div>
-                )}
-                {hasMartItems && (
-                  <div>
-                    <div className="flex justify-between">
-                      <span className={cn("text-xs", light ? "text-dark-500" : "text-cream-dim/60")}>Mart Delivery</span>
-                      <span className={cn("text-xs font-medium tabular-nums", (hasFreeDelivery || martSubtotal >= 200) ? "text-emerald-500" : "", light ? "text-dark-900" : "text-cream")}>
-                        {(hasFreeDelivery || martSubtotal >= 200) ? "Free" : formatPrice(49)}
-                      </span>
-                    </div>
-                    {hasFreeDelivery ? (
-                      <p className="text-[9px] text-emerald-500">Free via card benefit</p>
-                    ) : martSubtotal >= 200 ? (
-                      <p className="text-[9px] text-emerald-500">Free mart delivery above ₹200</p>
-                    ) : (
-                      <p className="text-[9px] text-amber-500">Add {formatPrice(200 - martSubtotal)} more to get free mart delivery</p>
-                    )}
-                  </div>
-                )}
-                {hasQuickDeliveryItems && (
-                  <div className={cn("rounded-lg border p-3", light ? "border-dark-100 bg-dark-50/50" : "border-white/5 bg-onyx/50")}>
-                    <p className={cn("text-[9px] font-semibold uppercase tracking-[0.2em] mb-2", light ? "text-dark-500" : "text-cream-dim/60")}>
-                      Mart Delivery
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setDeliveryMode("standard")}
-                        className={cn(
-                          "flex flex-1 items-center gap-2 rounded-xl border-2 px-3 py-3 transition-all duration-300",
-                          deliveryMode === "standard"
-                            ? light ? "border-sapphire bg-sapphire/5" : "border-gold bg-gold/5"
-                            : light ? "border-dark-200 hover:border-dark-300" : "border-white/10 hover:border-white/20"
-                        )}
-                      >
-                        <Clock size={14} className={deliveryMode === "standard" ? (light ? "text-sapphire" : "text-gold") : (light ? "text-dark-400" : "text-cream-dim/50")} />
-                        <div className="text-left">
-                          <p className={cn("text-[10px] font-semibold", deliveryMode === "standard" ? (light ? "text-dark-900" : "text-cream") : (light ? "text-dark-500" : "text-cream-dim/60"))}>
-                            1 Hour
-                          </p>
-                          <p className={cn("text-[8px]", light ? "text-dark-400" : "text-cream-dim/40")}>Standard</p>
-                        </div>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setDeliveryMode("express")}
-                        className={cn(
-                          "flex flex-1 items-center gap-2 rounded-xl border-2 px-3 py-3 transition-all duration-300",
-                          deliveryMode === "express"
-                            ? light ? "border-sapphire bg-sapphire/5" : "border-gold bg-gold/5"
-                            : light ? "border-dark-200 hover:border-dark-300" : "border-white/10 hover:border-white/20"
-                        )}
-                      >
-                        <Zap size={14} className={deliveryMode === "express" ? (light ? "text-sapphire" : "text-gold") : (light ? "text-dark-400" : "text-cream-dim/50")} />
-                        <div className="text-left">
-                          <p className={cn("text-[10px] font-semibold", deliveryMode === "express" ? (light ? "text-dark-900" : "text-cream") : (light ? "text-dark-500" : "text-cream-dim/60"))}>
-                            20 Min
-                          </p>
-                          <p className={cn("text-[8px]", deliveryMode === "express" ? (light ? "text-sapphire font-medium" : "text-gold-light font-medium") : (light ? "text-dark-400" : "text-cream-dim/40"))}>
-                            Express +₹49
-                          </p>
-                        </div>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setDeliveryMode("standard")}
-                        className={cn(
-                          "flex flex-1 items-center gap-2 rounded-xl border-2 px-3 py-3 transition-all duration-300",
-                          deliveryMode === "standard"
-                            ? light ? "border-sapphire bg-sapphire/5" : "border-gold bg-gold/5"
-                            : light ? "border-dark-200 hover:border-dark-300" : "border-white/10 hover:border-white/20"
-                        )}
-                      >
-                        <Truck size={14} className={deliveryMode === "standard" ? (light ? "text-sapphire" : "text-gold") : (light ? "text-dark-400" : "text-cream-dim/50")} />
-                        <div className="text-left">
-                          <p className={cn("text-[10px] font-semibold", deliveryMode === "standard" ? (light ? "text-dark-900" : "text-cream") : (light ? "text-dark-500" : "text-cream-dim/60"))}>
-                            3-5 Days
-                          </p>
-                          <p className={cn("text-[8px]", deliveryMode === "standard" ? (light ? "text-sapphire font-medium" : "text-gold-light font-medium") : (light ? "text-dark-400" : "text-cream-dim/40"))}>
-                            Regular
-                          </p>
-                        </div>
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-              <div className={cn("my-4 h-px", light ? "bg-dark-200" : "bg-white/10")} />
-                              {expressFee > 0 && (
-                  <div className="flex items-center justify-between">
-                    <span className={cn("flex items-center gap-1 text-xs", light ? "text-dark-500" : "text-cream-dim/60")}>
-                      <Zap size={11} className={light ? "text-sapphire" : "text-gold"} /> Express Surcharge
-                    </span>
-                    <span className={cn("text-xs font-medium tabular-nums", light ? "text-dark-900" : "text-cream")}>{formatPrice(expressFee)}</span>
-                  </div>
-                )}
-                {expressFee > 0 && (
-                  <div className="flex items-center justify-between">
-                    <span className={cn("flex items-center gap-1 text-xs", light ? "text-dark-500" : "text-cream-dim/60")}>
-                      <Zap size={11} className={light ? "text-sapphire" : "text-gold"} /> Express Surcharge
-                    </span>
-                    <span className={cn("text-xs font-medium tabular-nums", light ? "text-dark-900" : "text-cream")}>{formatPrice(expressFee)}</span>
-                  </div>
-                )}
-                {hasMartItems && deliveryMode === "express" && (
-                  <div className="mb-3 flex items-center gap-1.5">
-                    <Zap size={10} className={light ? "text-sapphire" : "text-gold"} />
-                    <span className={cn("text-[9px] font-medium", light ? "text-sapphire" : "text-gold")}>
-                      Express for mart items — +{formatPrice(49)}
+                  ))}
+                  <div className="flex justify-between">
+                    <span className={light ? "text-dark-500" : "text-cream-dim/60"}>Delivery</span>
+                    <span className={cn("tabular-nums", deliveryCharge === 0 && "text-emerald-500")}>
+                      {deliveryCharge === 0 ? "Free" : formatPrice(deliveryCharge)}
                     </span>
                   </div>
-                )}
-              <div className="flex items-baseline justify-between">
-                <span className={cn("text-xs font-semibold uppercase tracking-[0.2em]", light ? "text-dark-700" : "text-cream-dim")}>Total</span>
-                <span className={cn("text-lg font-bold tabular-nums", light ? "text-dark-900" : "text-cream")}>{formatPrice(total)}</span>
-              </div>
-              <div className={cn("mt-5 grid grid-cols-3 gap-2 rounded-xl border p-3", light ? "border-dark-100 bg-dark-50/50" : "border-white/5 bg-onyx/50")}>
-                {[{ icon: <Lock size={13} />, label: "Secure" }, { icon: <Truck size={13} />, label: "Free Del ₹800+ / ₹200+" }, { icon: <Shield size={13} />, label: "Protected" }].map((b) => (
-                  <div key={b.label} className="flex flex-col items-center gap-1.5 text-center">
-                    <span className={cn(light ? "text-sapphire" : "text-gold")}>{b.icon}</span>
-                    <span className={cn("text-[7px] font-semibold uppercase tracking-[0.15em]", light ? "text-dark-500" : "text-cream-dim/60")}>{b.label}</span>
+                  <div className="flex justify-between">
+                    <span className={light ? "text-dark-500" : "text-cream-dim/60"}>Total ({totalItemsLabel(items)})</span>
+                    <span className={cn("text-lg font-bold tabular-nums", light ? "text-dark-900" : "text-cream")}>
+                      {formatPrice(grandTotal)}
+                    </span>
                   </div>
-                ))}
+                </div>
+
+                {error && (
+                  <div className={cn("mt-4 rounded-lg px-4 py-3 text-xs", light ? "bg-red-50 text-red-700" : "bg-red-500/10 text-red-400")}>
+                    {error}
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={payMethod === "razorpay" ? startRazorpay : payWithWallet}
+                  disabled={paying || !shipValid || !user || (payMethod === "wallet" && !canWallet)}
+                  className={cn(
+                    "mt-6 flex w-full items-center justify-center gap-2.5 rounded-xl px-8 py-3.5 text-[11px] font-bold uppercase tracking-[0.25em] transition-all duration-300",
+                    light
+                      ? "bg-sapphire text-white hover:bg-sapphire-light hover:shadow-[0_0_30px_rgba(30,58,138,0.3)]"
+                      : "bg-gold text-abyss hover:bg-gold-light hover:shadow-[0_0_30px_rgba(212,175,55,0.3)]",
+                    (paying || !shipValid || !user || (payMethod === "wallet" && !canWallet)) && "opacity-50 cursor-not-allowed"
+                  )}
+                >
+                  {paying ? <Loader2 size={14} className="animate-spin" /> : payMethod === "razorpay" ? <Lock size={14} /> : <Shield size={14} />}
+                  {paying ? "Processing…" : payMethod === "razorpay" ? `Pay ${formatPrice(grandTotal)}` : `Pay ${formatPrice(grandTotal)} from Wallet`}
+                </button>
+
+                {!shipValid && user && (
+                  <p className="mt-3 text-center text-[10px] text-amber-500">Complete shipping details to continue.</p>
+                )}
               </div>
             </div>
           </div>
         </div>
-        )}
       </div>
-
-      <UpiPaymentModal
-        open={upiModal}
-        onClose={() => setUpiModal(false)}
-        amount={upiAmount}
-        pendingOrderData={pendingOrderData!}
-        onSuccess={(createdIds: string) => { setOrderId(createdIds); setUpiModal(false); clear(); setPlaced(true); saveShipAddress(); }}
-      />
-      <WalletPinModal
-        open={walletPinModal}
-        onClose={() => setWalletPinModal(false)}
-        amount={total}
-        pendingOrderData={pendingOrderData!}
-        onSuccess={(createdIds: string) => { setOrderId(createdIds); setWalletPinModal(false); clear(); setPlaced(true); saveShipAddress(); }}
-      />
     </SiteLayout>
   );
 }

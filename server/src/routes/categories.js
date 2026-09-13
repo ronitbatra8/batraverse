@@ -36,15 +36,16 @@ router.get("/all", adminAuth, async (_req, res) => {
 
 router.post("/", adminAuth, async (req, res) => {
   try {
-    const { name, source, icon } = req.body;
+    const { name, source, icon, gstPct } = req.body;
     if (!name || !source) return res.status(400).json({ error: "Name and source are required" });
     if (!["store", "mart"].includes(source)) return res.status(400).json({ error: "Source must be store or mart" });
     const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
     const existing = await prisma.category.findFirst({ where: { slug, source } });
     if (existing) return res.status(400).json({ error: "Category already exists" });
     const maxOrder = await prisma.category.aggregate({ where: { source }, _max: { sortOrder: true } });
+    const gstVal = gstPct === undefined || gstPct === null ? 18 : Number(gstPct);
     const category = await prisma.category.create({
-      data: { name, slug, source, icon: icon || null, sortOrder: (maxOrder._max.sortOrder || 0) + 1 },
+      data: { name, slug, source, gstPct: gstVal, icon: icon || null, sortOrder: (maxOrder._max.sortOrder || 0) + 1 },
     });
     res.status(201).json(category);
   } catch (err) {
@@ -54,12 +55,13 @@ router.post("/", adminAuth, async (req, res) => {
 
 router.put("/:id", adminAuth, async (req, res) => {
   try {
-    const { name, icon, active, sortOrder } = req.body;
+    const { name, icon, active, sortOrder, gstPct } = req.body;
     const data = {};
     if (name !== undefined) { data.name = name; data.slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, ""); }
     if (icon !== undefined) data.icon = icon;
     if (active !== undefined) data.active = active;
     if (sortOrder !== undefined) data.sortOrder = sortOrder;
+    if (gstPct !== undefined) data.gstPct = gstPct == null ? 0 : Number(gstPct);
     const category = await prisma.category.update({ where: { id: req.params.id }, data });
     res.json(category);
   } catch (err) {
@@ -78,7 +80,7 @@ router.delete("/:id", adminAuth, async (req, res) => {
 
 router.post("/:id/subcategories", adminAuth, async (req, res) => {
   try {
-    const { name, icon } = req.body;
+    const { name, icon, gstPct } = req.body;
     if (!name) return res.status(400).json({ error: "Subcategory name is required" });
     const parent = await prisma.category.findUnique({ where: { id: req.params.id } });
     if (!parent) return res.status(404).json({ error: "Category not found" });
@@ -87,7 +89,7 @@ router.post("/:id/subcategories", adminAuth, async (req, res) => {
     if (existing) return res.status(400).json({ error: "Subcategory already exists" });
     const maxOrder = await prisma.subcategory.aggregate({ where: { categoryId: parent.id }, _max: { sortOrder: true } });
     const sub = await prisma.subcategory.create({
-      data: { name, slug, icon: icon || null, categoryId: parent.id, sortOrder: (maxOrder._max.sortOrder || 0) + 1 },
+      data: { name, slug, icon: icon || null, gstPct: gstPct ?? null, categoryId: parent.id, sortOrder: (maxOrder._max.sortOrder || 0) + 1 },
     });
     res.status(201).json(sub);
   } catch (err) {
@@ -97,12 +99,14 @@ router.post("/:id/subcategories", adminAuth, async (req, res) => {
 
 router.put("/subcategories/:subId", adminAuth, async (req, res) => {
   try {
-    const { name, icon, active, sortOrder } = req.body;
+    const { name, icon, active, sortOrder, gstPct } = req.body;
     const data = {};
     if (name !== undefined) { data.name = name; data.slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, ""); }
     if (icon !== undefined) data.icon = icon;
     if (active !== undefined) data.active = active;
     if (sortOrder !== undefined) data.sortOrder = sortOrder;
+    if (gstPct !== undefined && gstPct !== null && gstPct !== "") data.gstPct = Number(gstPct);
+    if (gstPct !== null && gstPct === null) data.gstPct = null;
     const sub = await prisma.subcategory.update({ where: { id: req.params.subId }, data });
     res.json(sub);
   } catch (err) {

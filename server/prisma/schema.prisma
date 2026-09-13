@@ -227,6 +227,7 @@ model Category {
   slug      String   @unique
   source    String
   icon      String?
+  gstPct    Float    @default(18)
   sortOrder Int      @default(0)
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
@@ -239,6 +240,7 @@ model Subcategory {
   name       String
   slug       String
   icon       String?
+  gstPct     Float?
   sortOrder  Int      @default(0)
   active     Boolean  @default(true)
   categoryId String
