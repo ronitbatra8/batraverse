@@ -84,6 +84,7 @@ export default function OrdersTab({
   onFocusHandled,
   adminKey,
   onShipDelhivery,
+  initialStatusFilter,
 }: {
   orders: any[];
   updatingId: string | null;
@@ -96,6 +97,7 @@ export default function OrdersTab({
   onFocusHandled?: () => void;
   adminKey?: string;
   onShipDelhivery?: (orderId: string) => Promise<void>;
+  initialStatusFilter?: string;
 }) {
   const [shippingOrderId, setShippingOrderId] = useState<string | null>(null);
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
@@ -107,6 +109,7 @@ export default function OrdersTab({
   const [assigningId, setAssigningId] = useState<string | null>(null);
   const [pendingStatusAction, setPendingStatusAction] = useState<{ orderId: string; status: string } | null>(null);
   const [pendingPaymentAction, setPendingPaymentAction] = useState<{ orderId: string; action: "approve" | "reject" } | null>(null);
+  const [visibleCount, setVisibleCount] = useState(20);
   const lastFocusRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -124,6 +127,7 @@ export default function OrdersTab({
       setExpandedOrder(focusOrderId);
       setOrderFilter("all");
       setOrderSearch("");
+      setVisibleCount(20);
       setTimeout(() => {
         const el = document.getElementById(`order-${focusOrderId}`);
         if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -131,6 +135,16 @@ export default function OrdersTab({
       }, 100);
     }
   }, [focusOrderId, onFocusHandled]);
+
+  useEffect(() => {
+    if (initialStatusFilter && initialStatusFilter !== "all") {
+      setOrderFilter(initialStatusFilter);
+    }
+  }, [initialStatusFilter]);
+
+  useEffect(() => {
+    setVisibleCount(20);
+  }, [orderSearch, orderFilter, sourceFilter]);
 
   const filteredOrders = orders.filter((order) => {
     const matchesSearch =
@@ -150,6 +164,8 @@ export default function OrdersTab({
 
     return matchesSearch && matchesFilter && matchesSource;
   });
+
+  const visibleOrders = filteredOrders.slice(0, visibleCount);
 
   const statuses = ["pending", "confirmed", "packed", "out_for_delivery", "delivered", "cancelled", "return_requested", "return_approved", "return_rejected", "returned"];
 
@@ -191,86 +207,83 @@ export default function OrdersTab({
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <h2 className="text-2xl font-bold text-white">Orders</h2>
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-dark-400" />
-            <input
-              type="text"
-              placeholder="Search by name, email, phone..."
-              value={orderSearch}
-              onChange={(e) => setOrderSearch(e.target.value)}
-              className="pl-10 pr-4 py-2.5 bg-dark-800/60 border border-dark-700/50 rounded-xl text-white text-sm placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50 w-full sm:w-72"
-            />
-          </div>
-          <select
-            value={orderFilter}
-            onChange={(e) => setOrderFilter(e.target.value)}
-            className="px-4 py-2.5 bg-dark-800/60 border border-dark-700/50 rounded-xl text-white text-sm focus:outline-none focus:border-gold-500/50 appearance-none cursor-pointer"
-          >
-            <option value="all">All Status</option>
-            {statuses.map((s) => (
-              <option key={s} value={s}>
-                {s.charAt(0).toUpperCase() + s.slice(1)}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
+      <h2 className="text-2xl font-bold text-white">Orders</h2>
 
-      {/* Source filter: Store / Mart */}
-      <div className="flex items-center gap-2 p-1 bg-dark-900/80 border border-dark-800/50 rounded-xl w-fit">
-        {(["all", "store", "mart"] as const).map((s) => (
-          <button
-            key={s}
-            onClick={() => setSourceFilter(s)}
-            className={`relative px-5 py-2 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all duration-300 ${
-              sourceFilter === s
-                ? s === "mart"
-                  ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
-                  : "bg-gold/15 text-gold border border-gold/30"
-                : "text-dark-400 hover:text-dark-200 border border-transparent"
-            }`}
-          >
-            <span className="flex items-center gap-2">
-              {s === "all" ? "All Orders" : s === "store" ? "Store" : "Mart"}
-              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
-                sourceFilter === s
-                  ? s === "mart"
-                    ? "bg-emerald-500/20 text-emerald-300"
-                    : "bg-gold/20 text-gold-light"
-                  : "bg-dark-800 text-dark-500"
-              }`}>
-                {sourceCounts[s]}
-              </span>
-            </span>
-          </button>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
-        {statuses.map((status) => (
-          <button
-            key={status}
-            onClick={() =>
-              setOrderFilter(orderFilter === status ? "all" : status)
-            }
-            className={`p-3 rounded-xl border text-center transition-all bg-gradient-to-br ${
-              orderFilter === status
-                ? `${statusGradients[status]} border-${status === "pending" ? "amber" : status === "confirmed" ? "sky" : status === "packed" ? "violet" : status === "out_for_delivery" ? "orange" : status === "delivered" ? "emerald" : "red"}-500/30`
-                : "border-dark-800/50 from-dark-900/40 to-dark-900/20 hover:from-dark-800/30 hover:to-dark-800/10"
-            }`}
-          >
-            <div
-              className="text-lg font-bold"
-              style={{ color: statusColors[status as keyof typeof statusColors] }}
+      {/* Status cards — compact, before source navs */}
+      <div className="grid grid-cols-5 sm:grid-cols-10 gap-2">
+        {statuses.map((status) => {
+          const active = orderFilter === status;
+          return (
+            <button
+              key={status}
+              onClick={() => setOrderFilter(active ? "all" : status)}
+              className={`flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg border transition-all ${
+                active
+                  ? "bg-white/10 border-white/25"
+                  : "border-dark-800/50 bg-dark-900/40 hover:border-dark-700"
+              }`}
             >
-              {statusCounts[status] || 0}
-            </div>
-            <div className="text-xs text-dark-400 capitalize">{status}</div>
-          </button>
-        ))}
+              <span
+                className="text-sm font-bold tabular-nums shrink-0"
+                style={{ color: statusColors[status as keyof typeof statusColors] }}
+              >
+                {statusCounts[status] || 0}
+              </span>
+              <span className={`text-[10px] capitalize truncate ${active ? "text-white" : "text-dark-400"}`}>
+                {status.replace(/_/g, " ")}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Source navs + search in one row — navs left, search right */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-2 p-1 bg-dark-900/80 border border-dark-800/50 rounded-xl w-fit">
+          {(["all", "store", "mart"] as const).map((s) => {
+            const active = sourceFilter === s;
+            return (
+              <button
+                key={s}
+                onClick={() => setSourceFilter(s)}
+                className={`relative px-4 py-1.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all duration-300 ${
+                  active
+                    ? s === "mart"
+                      ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
+                      : s === "store"
+                      ? "bg-sky-500/15 text-sky-400 border border-sky-500/30"
+                      : "bg-gold/15 text-gold border border-gold/30"
+                    : "text-dark-400 hover:text-dark-200 border border-transparent"
+                }`}
+              >
+                <span className="flex items-center gap-1.5">
+                  {s === "all" ? "All Orders" : s === "store" ? "Store" : "Mart"}
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+                    active
+                      ? s === "mart"
+                        ? "bg-emerald-500/20 text-emerald-300"
+                        : s === "store"
+                        ? "bg-sky-500/20 text-sky-300"
+                        : "bg-gold/20 text-gold-light"
+                      : "bg-dark-800 text-dark-500"
+                  }`}>
+                    {sourceCounts[s]}
+                  </span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        <div className="relative w-full sm:w-72">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-dark-400" />
+          <input
+            type="text"
+            placeholder="Search by name, email, phone..."
+            value={orderSearch}
+            onChange={(e) => setOrderSearch(e.target.value)}
+            className="pl-10 pr-4 py-2 bg-dark-800/60 border border-dark-700/50 rounded-xl text-white text-sm placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50 w-full"
+          />
+        </div>
       </div>
 
       {filteredOrders.length === 0 ? (
@@ -280,7 +293,7 @@ export default function OrdersTab({
         </div>
       ) : (
         <div className="space-y-3">
-          {filteredOrders.map((order) => {
+          {visibleOrders.map((order) => {
             const isExpanded = expandedOrder === order.id;
             const sc = statusColors[order.status as keyof typeof statusColors] || "";
             const storeItemCount = (order.items || []).filter((it: any) => it.source !== "mart").length;
@@ -837,6 +850,17 @@ export default function OrdersTab({
               </div>
             );
           })}
+        </div>
+      )}
+
+      {filteredOrders.length > visibleOrders.length && (
+        <div className="flex justify-center pt-2">
+          <button
+            onClick={() => setVisibleCount((c) => c + 20)}
+            className="flex items-center gap-2 px-6 py-2.5 rounded-xl border border-dark-700 text-dark-300 text-sm hover:border-gold-500/40 hover:text-gold-400 transition-all"
+          >
+            Show more ({filteredOrders.length - visibleOrders.length} more)
+          </button>
         </div>
       )}
 

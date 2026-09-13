@@ -10,6 +10,8 @@ const {
   sendOrderStatusEmail,
   sendDeliveryAssignedEmail,
   sendReturnApprovedEmail,
+  sendMail,
+  escapeHtml,
 } = require("../utils/email");
 const {
   config: delhiveryConfig,
@@ -936,9 +938,17 @@ router.post("/users/:id/email", async (req, res) => {
     if (!subject || !message) return res.status(400).json({ error: "Subject and message are required" });
     const user = await prisma.user.findUnique({ where: { id: req.params.id }, select: { id: true, name: true, email: true } });
     if (!user) return res.status(404).json({ error: "User not found" });
-    console.log(`[email] To: ${user.email} | Subject: ${subject} | Body: ${message}`);
-    res.json({ success: true, message: `Email queued for ${user.name}` });
+    const html = `
+      <div style="max-width:480px;margin:0 auto;font-family:Arial,sans-serif;background:#0a0a0a;color:#fff;padding:40px;border-radius:16px;">
+        <p style="color:#999;font-size:14px;margin:0 0 8px;">Hello ${escapeHtml(user.name || "there")},</p>
+        <p style="color:#fff;font-size:14px;margin:0 0 20px;white-space:pre-wrap;">${escapeHtml(message)}</p>
+        <p style="color:#666;font-size:12px;margin:24px 0 0;text-align:center;">BATRAVERSE — luxury, curated.</p>
+      </div>
+    `;
+    await sendMail({ to: user.email, subject: String(subject).slice(0, 200), html });
+    res.json({ success: true, message: `Email sent to ${user.name}` });
   } catch (err) {
+    console.error("[email] Admin send failed:", err.message);
     res.status(500).json({ error: "Failed to send email. Please try again." });
   }
 });

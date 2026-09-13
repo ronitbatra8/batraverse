@@ -10,22 +10,62 @@ function escapeHtml(str) {
     .replace(/'/g, "&#39;");
 }
 
+function htmlToText(html) {
+  let t = String(html || "")
+    .replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(p|div|tr|li|h1|h2|h3|table)>/gi, "\n")
+    .replace(/<[^>]+>/g, "");
+  t = t
+    .replace(/&nbsp;/g, "\u00A0")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&mdash;/g, "\u2014")
+    .replace(/&ndash;/g, "\u2013")
+    .replace(/&rsquo;/g, "\u2019")
+    .replace(/&lsquo;/g, "\u2018")
+    .replace(/&rdquo;/g, "\u201D")
+    .replace(/&ldquo;/g, "\u201C")
+    .replace(/&eacute;/g, "e")
+    .replace(/&hellip;/g, "\u2026")
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)));
+  t = t.replace(/[ \t]{2,}/g, " ").replace(/\n[ ]+/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+  return t;
+}
+
 function generateOTP() {
   return crypto.randomInt(100000, 999999).toString();
 }
 
+let cachedTransporter = null;
+
 function makeTransporter() {
+  if (cachedTransporter) return cachedTransporter;
   if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) return null;
-  return nodemailer.createTransport({
+  cachedTransporter = nodemailer.createTransport({
     service: "gmail",
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS,
     },
+    pool: true,
+    maxConnections: 2,
+    maxMessages: 100,
   });
+  return cachedTransporter;
 }
 
-async function sendMail({ to, subject, html, codeForConsole }) {
+function resetTransporter() {
+  if (cachedTransporter) {
+    cachedTransporter.close();
+    cachedTransporter = null;
+  }
+}
+
+async function sendMail({ to, subject, html, text, replyTo, codeForConsole }) {
   const transporter = makeTransporter();
   if (!transporter || process.env.EMAIL_DISABLED === "true") {
     // Dev/test fallback — email disabled (log instead of SMTP).
@@ -36,12 +76,17 @@ async function sendMail({ to, subject, html, codeForConsole }) {
     await transporter.sendMail({
       from: `"BATRAVERSE" <${process.env.EMAIL_USER}>`,
       to,
+      replyTo: replyTo || process.env.EMAIL_USER,
       subject,
+      priority: "normal",
       html,
+      text: text || htmlToText(html),
+      headers: { "X-Mailer": "BATRAVERSE", "X-Entity-Ref-ID": `BV-${Date.now()}` },
     });
   } catch (err) {
     console.error("[email] Send failed:", err.message);
     if (codeForConsole) console.log(`[email] OTP fallback for ${to}: ${codeForConsole}`);
+    resetTransporter();
     throw err;
   }
 }
@@ -53,7 +98,12 @@ const HEADER = `
   </div>`;
 
 const FOOTER = `
-  <p style="color:#666;font-size:12px;margin:24px 0 0;text-align:center;">BATRAVERSE — luxury, curated.</p>`;
+  <p style="color:#666;font-size:12px;margin:24px 0 0;text-align:center;">BATRAVERSE — luxury, curated.</p>
+  <p style="color:#555;font-size:11px;margin:16px 0 0;text-align:center;">You are receiving this email because it relates to your BATRAVERSE account or an order you placed.</p>`;
+
+const PLAIN_FOOTER = `
+BATRAVERSE — luxury, curated.
+You are receiving this email because it relates to your BATRAVERSE account or an order you placed.`;
 
 const CODE_BLOCK = (code) => `
   <p style="font-size:28px;font-weight:bold;letter-spacing:6px;margin:12px 0;">${escapeHtml(code)}</p>`;
@@ -331,6 +381,8 @@ module.exports = {
   generateOTP,
   sendMail,
   escapeHtml,
+  htmlToText,
+  resetTransporter,
   sendOTPEmail,
   sendResetPasswordEmail,
   sendCardPinResetEmail,

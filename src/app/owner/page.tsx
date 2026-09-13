@@ -84,6 +84,7 @@ export default function AdminPage() {
 
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [focusOrderId, setFocusOrderId] = useState<string | null>(null);
+  const [orderStatusFilter, setOrderStatusFilter] = useState("all");
   const [refreshKey, setRefreshKey] = useState(0);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
@@ -211,10 +212,11 @@ export default function AdminPage() {
     setTab("overview");
   }, []);
 
-  const handleNavigateToTab = useCallback((targetTab: Tab, focusId?: string) => {
+  const handleNavigateToTab = useCallback((targetTab: Tab, focusId?: string, orderFilter?: string) => {
     setTab(targetTab);
-    if (focusId && targetTab === "orders") {
-      setFocusOrderId(focusId);
+    if (targetTab === "orders") {
+      if (orderFilter) setOrderStatusFilter(orderFilter);
+      if (focusId) setFocusOrderId(focusId);
     }
   }, []);
 
@@ -285,7 +287,7 @@ export default function AdminPage() {
       <main className={cn("pt-24 min-h-screen origin-left transition-[padding] duration-500 ease-in-out", sidebarCollapsed ? "lg:pl-0" : "lg:pl-64")}>
         <div key={refreshKey} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-24 lg:pb-8">
           {tab === "overview" && <OverviewTab stats={stats} orders={orders} passwordResets={passwordResets} messages={messages} stockSummary={stockSummary} onNavigate={handleNavigateToTab} />}
-          {tab === "orders" && <OrdersTab orders={orders} updatingId={updatingId} onStatusUpdate={updateStatus} onItemStatusUpdate={updateItemStatus} onAssign={assignOrder} onPaymentAction={paymentAction} onReturnApprove={returnApprove} focusOrderId={focusOrderId} onFocusHandled={() => setFocusOrderId(null)} adminKey={adminKey} onShipDelhivery={shipViaDelhivery} />}
+          {tab === "orders" && <OrdersTab orders={orders} updatingId={updatingId} onStatusUpdate={updateStatus} onItemStatusUpdate={updateItemStatus} onAssign={assignOrder} onPaymentAction={paymentAction} onReturnApprove={returnApprove} focusOrderId={focusOrderId} onFocusHandled={() => setFocusOrderId(null)} adminKey={adminKey} onShipDelhivery={shipViaDelhivery} initialStatusFilter={orderStatusFilter} />}
           {tab === "users" && <UsersTab users={users} adminKey={adminKey} onNavigate={handleNavigateToTab} />}
           {tab === "messages" && <MessagesTab messages={messages} adminKey={adminKey} setMessages={setMessages} />}
           {tab === "security" && <SecurityTab />}

@@ -147,6 +147,7 @@ export default function UsersTab({
   const [userSearch, setUserSearch] = useState("");
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
   const [userFilter, setUserFilter] = useState("all");
+  const [roleFilter, setRoleFilter] = useState("all");
   const [visibleCount, setVisibleCount] = useState(50);
   const [detailCache, setDetailCache] = useState<Record<string, any>>({});
   const [detailLoading, setDetailLoading] = useState<string | null>(null);
@@ -157,7 +158,7 @@ export default function UsersTab({
   const [emailSent, setEmailSent] = useState(false);
   const [emailError, setEmailError] = useState("");
 
-  useEffect(() => { setVisibleCount(50); }, [userSearch, userFilter]);
+  useEffect(() => { setVisibleCount(50); }, [userSearch, userFilter, roleFilter]);
 
   const now = new Date();
   const thisMonth = users.filter((u) => {
@@ -176,12 +177,22 @@ export default function UsersTab({
     { key: "inactive", label: "No Orders", count: users.length - withOrders, color: "text-dark-400" },
   ];
 
+  const roleTabs = [
+    { key: "all", label: "All", count: users.length, color: "text-gold-400" },
+    { key: "USER", label: "Customers", count: users.filter((u) => u.role === "USER").length, color: "text-sky-400" },
+    { key: "SELLER", label: "Sellers", count: users.filter((u) => u.role === "SELLER").length, color: "text-violet-400" },
+    { key: "DELIVERY", label: "Delivery", count: users.filter((u) => u.role === "DELIVERY").length, color: "text-emerald-400" },
+  ];
+
   const filteredUsers = users.filter((user) => {
     const matchesSearch =
       userSearch === "" ||
       user.name?.toLowerCase().includes(userSearch.toLowerCase()) ||
       user.email?.toLowerCase().includes(userSearch.toLowerCase()) ||
       user.phone?.includes(userSearch);
+
+    const matchesRole =
+      roleFilter === "all" || user.role === roleFilter;
 
     const matchesFilter =
       userFilter === "all" ||
@@ -192,7 +203,7 @@ export default function UsersTab({
       (userFilter === "reviewers" && (user._count?.reviews ?? 0) > 0) ||
       (userFilter === "inactive" && (user._count?.orders ?? 0) === 0);
 
-    return matchesSearch && matchesFilter;
+    return matchesSearch && matchesFilter && matchesRole;
   });
 
   const visibleUsers = filteredUsers.slice(0, visibleCount);
@@ -275,19 +286,58 @@ export default function UsersTab({
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <h2 className="text-2xl font-bold text-white">Users</h2>
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-dark-400" />
-            <input
-              type="text"
-              placeholder="Search by name, email, phone..."
-              value={userSearch}
-              onChange={(e) => setUserSearch(e.target.value)}
-              className="pl-10 pr-4 py-2.5 bg-dark-800/60 border border-dark-700/50 rounded-xl text-white text-sm placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50 w-full sm:w-72"
-            />
-          </div>
+      <h2 className="text-2xl font-bold text-white">Users</h2>
+
+      {/* Role navs (left) + search (right) in one row — mirrors Orders tab */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-2 p-1 bg-dark-900/80 border border-dark-800/50 rounded-xl w-fit">
+          {roleTabs.map((r) => {
+            const active = roleFilter === r.key;
+            return (
+              <button
+                key={r.key}
+                onClick={() => setRoleFilter(active ? "all" : r.key)}
+                className={`relative px-4 py-1.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all duration-300 ${
+                  active
+                    ? r.key === "SELLER"
+                      ? "bg-violet-500/15 text-violet-400 border border-violet-500/30"
+                      : r.key === "USER"
+                      ? "bg-sky-500/15 text-sky-400 border border-sky-500/30"
+                      : r.key === "DELIVERY"
+                      ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
+                      : "bg-gold/15 text-gold border border-gold/30"
+                    : "text-dark-400 hover:text-dark-200 border border-transparent"
+                }`}
+              >
+                <span className="flex items-center gap-1.5">
+                  {r.label}
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+                    active
+                      ? r.key === "SELLER"
+                        ? "bg-violet-500/20 text-violet-300"
+                        : r.key === "USER"
+                        ? "bg-sky-500/20 text-sky-300"
+                        : r.key === "DELIVERY"
+                        ? "bg-emerald-500/20 text-emerald-300"
+                        : "bg-gold/20 text-gold-light"
+                      : "bg-dark-800 text-dark-500"
+                  }`}>
+                    {r.count}
+                  </span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        <div className="relative w-full sm:w-72">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-dark-400" />
+          <input
+            type="text"
+            placeholder="Search by name, email, phone..."
+            value={userSearch}
+            onChange={(e) => setUserSearch(e.target.value)}
+            className="pl-10 pr-4 py-2 bg-dark-800/60 border border-dark-700/50 rounded-xl text-white text-sm placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50 w-full"
+          />
         </div>
       </div>
 
@@ -385,13 +435,6 @@ export default function UsersTab({
                       </div>
                     </div>
                   </button>
-                  <div
-                    onClick={(e) => { e.stopPropagation(); if (user.email) openEmailModal(user); }}
-                    className={`shrink-0 p-2 rounded-lg transition-colors ${user.email ? "text-dark-400 hover:text-gold-400 hover:bg-dark-800 cursor-pointer" : "text-dark-700 cursor-not-allowed"}`}
-                    title={user.email ? `Email ${user.name}` : "No email"}
-                  >
-                    <Send className="w-4 h-4" />
-                  </div>
                   <span onClick={(e) => { e.stopPropagation(); handleAccess(user.id, user.role); }} role="button" className="shrink-0 p-2 rounded-lg text-violet-400 hover:text-violet-300 hover:bg-dark-800 transition-colors cursor-pointer" title="Access Account">
                     <LogIn className="w-4 h-4" />
                   </span>

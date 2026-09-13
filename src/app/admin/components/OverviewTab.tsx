@@ -27,7 +27,7 @@ export default function OverviewTab({ stats, orders, passwordResets, messages, s
   passwordResets: any[];
   messages: any;
   stockSummary: any;
-  onNavigate: (tab: Tab, focusId?: string) => void;
+  onNavigate: (tab: Tab, focusId?: string, orderFilter?: string) => void;
 }) {
   if (!stats) return null;
 
@@ -44,7 +44,7 @@ export default function OverviewTab({ stats, orders, passwordResets, messages, s
           { label: "Total Revenue", value: formatPrice(stats.totalRevenue), icon: TrendingUp, color: "text-gold-400", bg: "from-gold-500/20 to-gold-500/10", border: "border-gold-500/30", onClick: () => onNavigate("money") },
           { label: "Total Orders", value: stats.totalOrders, icon: Package, color: "text-sky-400", bg: "from-sky-500/20 to-sky-500/10", border: "border-sky-500/30", sub: `${stats.pendingOrders || 0} pending, ${stats.outForDeliveryOrders || 0} out for delivery`, onClick: () => onNavigate("orders") },
           { label: "Total Users", value: stats.totalUsers, icon: Users, color: "text-violet-400", bg: "from-violet-500/20 to-violet-500/10", border: "border-violet-500/30", onClick: () => onNavigate("users") },
-          { label: "Delivered", value: stats.deliveredOrders, icon: CheckCircle2, color: "text-emerald-400", bg: "from-emerald-500/20 to-emerald-500/10", border: "border-emerald-500/30", sub: `${stats.totalOrders > 0 ? Math.round((stats.deliveredOrders / stats.totalOrders) * 100) : 0}% rate`, onClick: () => onNavigate("orders") },
+          { label: "Delivered", value: stats.deliveredOrders, icon: CheckCircle2, color: "text-emerald-400", bg: "from-emerald-500/20 to-emerald-500/10", border: "border-emerald-500/30", sub: `${stats.totalOrders > 0 ? Math.round((stats.deliveredOrders / stats.totalOrders) * 100) : 0}% rate`, onClick: () => onNavigate("orders", undefined, "delivered") },
         ].map((s) => (
           <div
             key={s.label}
