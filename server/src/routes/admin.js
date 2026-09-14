@@ -15,6 +15,7 @@ const {
   sendReturnApprovedEmail,
   sendMail,
   escapeHtml,
+  CARD_TEMPLATE,
 } = require("../utils/email");
 const {
   config: delhiveryConfig,
@@ -270,7 +271,9 @@ router.put("/orders/:id/status", async (req, res) => {
       const order = await prisma.order.update({ where: { id: req.params.id }, data });
       await resolveOrderItemSellerPrices([order]);
       const user = await prisma.user.findUnique({ where: { id: existing.userId }, select: { name: true, email: true } });
-      sendOrderStatusEmail(user.email, user.name, existing.id, status, existing.source).catch(() => {});
+if (status !== "return_approved" && status !== "return_rejected") {
+        sendOrderStatusEmail(user.email, user.name, existing.id, status, existing.source, updatedItems).catch(() => {});
+      }
       return res.json(order);
     }
 
@@ -304,7 +307,9 @@ router.put("/orders/:id/status", async (req, res) => {
     await resolveOrderItemSellerPrices([order]);
 
     const user = await prisma.user.findUnique({ where: { id: existing.userId }, select: { name: true, email: true } });
-    sendOrderStatusEmail(user.email, user.name, existing.id, status, existing.source).catch(() => {});
+    if (status !== "return_approved" && status !== "return_rejected") {
+      sendOrderStatusEmail(user.email, user.name, existing.id, status, existing.source, data.items).catch(() => {});
+    }
 
     res.json(order);
   } catch (err) {
@@ -362,7 +367,7 @@ router.put("/orders/:id/items/:itemIdx/status", async (req, res) => {
     await resolveOrderItemSellerPrices([updated]);
 
     const user = await prisma.user.findUnique({ where: { id: order.userId }, select: { name: true, email: true } });
-    sendOrderStatusEmail(user.email, user.name, id, status, order.source).catch(() => {});
+    sendOrderStatusEmail(user.email, user.name, id, status, order.source, updatedItems).catch(() => {});
 
     res.json(updated);
   } catch (err) {
@@ -401,7 +406,7 @@ router.put("/orders/:id/payment", async (req, res) => {
       });
 
       const user = await prisma.user.findUnique({ where: { id: order.userId }, select: { name: true, email: true } });
-      sendOrderStatusEmail(user.email, user.name, order.orderId || order.id, "confirmed").catch(() => {});
+      sendOrderStatusEmail(user.email, user.name, order.orderId || order.id, "confirmed", order.source, updatedItems).catch(() => {});
 
       return res.json(updated);
     }
@@ -417,7 +422,7 @@ router.put("/orders/:id/payment", async (req, res) => {
     });
 
     const user = await prisma.user.findUnique({ where: { id: order.userId }, select: { name: true, email: true } });
-    sendOrderStatusEmail(user.email, user.name, order.orderId || order.id, "cancelled").catch(() => {});
+    sendOrderStatusEmail(user.email, user.name, order.orderId || order.id, "cancelled", order.source, order.items).catch(() => {});
 
     res.json(updated);
   } catch (err) {
@@ -447,7 +452,7 @@ router.put("/orders/:id/assign", async (req, res) => {
 
     await prisma.order.update({ where: { id: req.params.id }, data: { assignedTo: deliveryId, assignedAt: new Date() } });
 
-    sendDeliveryAssignedEmail(exec.email, exec.name, order.orderId || order.id, order.source).catch(() => {});
+    sendDeliveryAssignedEmail(exec.email, exec.name, order.orderId || order.id, order.source, order).catch(() => {});
 
     res.json({ message: "Order assigned" });
   } catch (err) {
@@ -1121,18 +1126,69 @@ router.post("/users/:id/email", async (req, res) => {
     if (!subject || !message) return res.status(400).json({ error: "Subject and message are required" });
     const user = await prisma.user.findUnique({ where: { id: req.params.id }, select: { id: true, name: true, email: true } });
     if (!user) return res.status(404).json({ error: "User not found" });
-    const html = `
-      <div style="max-width:480px;margin:0 auto;font-family:Arial,sans-serif;background:#0a0a0a;color:#fff;padding:40px;border-radius:16px;">
-        <p style="color:#999;font-size:14px;margin:0 0 8px;">Hello ${escapeHtml(user.name || "there")},</p>
-        <p style="color:#fff;font-size:14px;margin:0 0 20px;white-space:pre-wrap;">${escapeHtml(message)}</p>
-        <p style="color:#666;font-size:12px;margin:24px 0 0;text-align:center;">BATRAVERSE — luxury, curated.</p>
-      </div>
-    `;
+    const html = CARD_TEMPLATE(
+      '<p style="margin:0 0 8px;">Hello ' + escapeHtml(user.name || "there") + ',</p>'
+      + '<p style="margin:0;white-space:pre-wrap;">' + escapeHtml(message) + '</p>'
+    );
     await sendMail({ to: user.email, subject: String(subject).slice(0, 200), html });
     res.json({ success: true, message: `Email sent to ${user.name}` });
   } catch (err) {
     console.error("[email] Admin send failed:", err.message);
     res.status(500).json({ error: "Failed to send email. Please try again." });
+  }
+});
+
+const MAIL_GROUPS = {
+  all: ["USER", "SELLER", "DELIVERY", "ADMIN"],
+  USER: ["USER", "ADMIN"],
+  SELLER: ["SELLER", "ADMIN"],
+  DELIVERY: ["DELIVERY", "ADMIN"],
+};
+
+router.get("/mail/recipients", async (req, res) => {
+  try {
+    const { role = "all" } = req.query;
+    const roles = MAIL_GROUPS[role] || MAIL_GROUPS.all;
+    const users = await prisma.user.findMany({
+      where: { role: { in: roles }, approved: true },
+      select: { id: true, name: true, email: true, role: true },
+      orderBy: { createdAt: "asc" },
+    });
+    res.json({ total: users.length, users });
+  } catch (err) {
+    res.status(500).json({ error: safeErrorMessage(err) });
+  }
+});
+
+router.post("/mail/send", async (req, res) => {
+  try {
+    const { role = "all", subject = "", message = "" } = req.body;
+    const subj = String(subject).trim();
+    const body = String(message).trim();
+    if (subj.length < 2) return res.status(400).json({ error: "Subject must be at least 2 characters" });
+    if (body.length < 3) return res.status(400).json({ error: "Message must be at least 3 characters" });
+    const roles = MAIL_GROUPS[role] || MAIL_GROUPS.all;
+    const users = await prisma.user.findMany({
+      where: { role: { in: roles }, approved: true },
+      select: { name: true, email: true },
+    });
+    let sent = 0;
+    let failed = 0;
+    for (const u of users) {
+      try {
+        const html = CARD_TEMPLATE(
+          '<p style="margin:0 0 8px;">Hello ' + escapeHtml(u.name || "there") + ',</p>'
+          + '<p style="margin:0;white-space:pre-wrap;">' + escapeHtml(body) + '</p>'
+        );
+        await sendMail({ to: u.email, subject: String(subj).slice(0, 200), html });
+        sent++;
+      } catch (err) {
+        failed++;
+      }
+    }
+    res.json({ total: users.length, sent, failed });
+  } catch (err) {
+    res.status(500).json({ error: safeErrorMessage(err) });
   }
 });
 

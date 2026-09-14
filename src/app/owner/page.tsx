@@ -14,6 +14,7 @@ import Sidebar from "../admin/components/Sidebar";
 import OverviewTab from "../admin/components/OverviewTab";
 import OrdersTab from "../admin/components/OrdersTab";
 import UsersTab from "../admin/components/UsersTab";
+import MailTab from "../admin/components/MailTab";
 import MessagesTab from "../admin/components/MessagesTab";
 import SecurityTab from "../admin/components/SecurityTab";
 import AnalyticsTab from "../admin/components/AnalyticsTab";
@@ -288,6 +289,7 @@ export default function AdminPage() {
           {tab === "overview" && <OverviewTab stats={stats} orders={orders} passwordResets={passwordResets} messages={messages} stockSummary={stockSummary} onNavigate={handleNavigateToTab} />}
           {tab === "orders" && <OrdersTab orders={orders} updatingId={updatingId} onStatusUpdate={updateStatus} onItemStatusUpdate={updateItemStatus} onAssign={assignOrder} onPaymentAction={paymentAction} onReturnApprove={returnApprove} focusOrderId={focusOrderId} onFocusHandled={() => setFocusOrderId(null)} adminKey={adminKey} onShipDelhivery={shipViaDelhivery} initialStatusFilter={orderStatusFilter} />}
           {tab === "users" && <UsersTab users={users} adminKey={adminKey} onNavigate={handleNavigateToTab} />}
+          {tab === "mail" && <MailTab adminKey={adminKey} />}
           {tab === "messages" && <MessagesTab messages={messages} adminKey={adminKey} setMessages={setMessages} />}
           {tab === "security" && <SecurityTab adminKey={adminKey} />}
           {tab === "analytics" && <AnalyticsTab analytics={analytics} />}

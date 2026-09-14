@@ -108,42 +108,51 @@ You are receiving this email because it relates to your BATRAVERSE account or an
 const CODE_BLOCK = (code) => `
   <p style="font-size:28px;font-weight:bold;letter-spacing:6px;margin:12px 0;">${escapeHtml(code)}</p>`;
 
+const CARD_TEMPLATE = (body) => `
+  <table role="presentation" align="center" cellpadding="0" cellspacing="0" style="width:100%;max-width:440px;border:1px solid #eaddc3;border-radius:12px;background:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5;color:#000;">
+    <tr>
+      <td style="padding:20px 24px 2px;text-align:center;">
+        <p style="font-size:20px;font-weight:bold;letter-spacing:4px;color:#b08a3e;margin:0;">BATRA<span style="color:#000;">VERSE</span></p>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:12px 24px 20px;text-align:center;">
+        ${body}
+      </td>
+    </tr>
+  </table>`;
+
+const ACCENT_LINE = (word, color) => `
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+    <tr>
+      <td style="border-left:2px solid ${color};border-right:2px solid ${color};padding:8px 0;text-align:center;">
+        <span style="font-weight:bold;color:${color};font-size:15px;">${escapeHtml(word)}</span>
+      </td>
+    </tr>
+  </table>`;
+
 async function sendOTPEmail(to, code, name) {
   await sendMail({
     to,
     subject: "Your BATRAVERSE verification code",
     codeForConsole: code,
     html: `
-      <div style="background:#f7f5f0;padding:0;margin:0;">
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f7f5f0;">
-          <tr>
-            <td align="center" style="padding:40px 16px;">
-              <table role="presentation" cellpadding="0" cellspacing="0" style="max-width:480px;width:100%;border:2px solid #eaddc3;border-radius:16px;background:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:#111;">
-                <tr>
-                  <td style="padding:28px 32px 18px;text-align:center;border-bottom:1px solid #eee6d6;">
-                    <p style="font-size:20px;font-weight:bold;letter-spacing:4px;color:#b08a3e;margin:0;">BATRA<span style="color:#111;">VERSE</span></p>
-                    <p style="color:#999;font-size:10px;margin:4px 0 0;text-transform:uppercase;letter-spacing:3px;">Luxury Marketplace</p>
-                  </td>
-                </tr>
-                <tr>
-                  <td style="padding:28px 32px;text-align:center;">
-                    <p style="margin:0 0 10px;font-size:16px;font-weight:600;color:#222;">Hello ${escapeHtml(name || "there")},</p>
-                    <p style="margin:0 0 6px;color:#555;">Your verification code is:</p>
-                    ${CODE_BLOCK(code)}
-                    <p style="color:#444;font-size:13px;margin:14px 0 0;">This code expires in <span style="font-weight:700;color:#b08a3e;">5 minutes</span>.</p>
-                    <p style="color:#888;font-size:12px;margin:6px 0 0;">If you did not request this, you can safely ignore this email.</p>
-                  </td>
-                </tr>
-                <tr>
-                  <td style="padding:16px 32px 24px;text-align:center;border-top:1px solid #eee6d6;">
-                    <p style="margin:0;color:#aaa;font-size:11px;letter-spacing:1px;">BATRAVERSE &mdash; luxury, curated.</p>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-        </table>
-      </div>
+      <table role="presentation" align="center" cellpadding="0" cellspacing="0" style="width:100%;max-width:440px;border:1px solid #eaddc3;border-radius:12px;background:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5;color:#000;">
+        <tr>
+          <td style="padding:20px 24px 2px;text-align:center;">
+            <p style="font-size:20px;font-weight:bold;letter-spacing:4px;color:#b08a3e;margin:0;">BATRA<span style="color:#000;">VERSE</span></p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:10px 24px 20px;text-align:center;">
+            <p style="margin:0 0 6px;">Hello ${escapeHtml(name || "there")},</p>
+            <p style="margin:0 0 2px;">Your verification code is:</p>
+            ${CODE_BLOCK(code)}
+            <p style="margin:8px 0 0;">This code expires in 5 minutes.</p>
+            <p style="margin:0;">If you did not request this, you can ignore this email.</p>
+          </td>
+        </tr>
+      </table>
     `,
   });
 }
@@ -154,14 +163,23 @@ async function sendResetPasswordEmail(to, code, name) {
     subject: "Reset your BATRAVERSE password",
     codeForConsole: code,
     html: `
-      <div style="margin:0 auto;max-width:480px;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:#111;">
-        <p style="font-size:18px;font-weight:bold;margin:0 0 16px;">BATRAVERSE</p>
-        <p style="margin:0 0 8px;">Hello ${escapeHtml(name || "there")},</p>
-        <p style="margin:0 0 8px;">We received a request to reset your password. Use the following code to proceed:</p>
-        ${CODE_BLOCK(code)}
-        <p style="color:#555;font-size:12px;margin:12px 0 0;">This code expires in 5 minutes. If you did not request a password reset, you can ignore this email and your password will stay the same.</p>
-        <p style="color:#555;font-size:12px;margin:16px 0 0;">BATRAVERSE — luxury, curated.</p>
-      </div>
+      <table role="presentation" align="center" cellpadding="0" cellspacing="0" style="width:100%;max-width:440px;border:1px solid #eaddc3;border-radius:12px;background:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5;color:#000;">
+        <tr>
+          <td style="padding:20px 24px 2px;text-align:center;">
+            <p style="font-size:20px;font-weight:bold;letter-spacing:4px;color:#b08a3e;margin:0;">BATRA<span style="color:#000;">VERSE</span></p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:10px 24px 20px;text-align:center;">
+            <p style="margin:0 0 6px;">Hello ${escapeHtml(name || "there")},</p>
+            <p style="margin:0 0 2px;">We received a request to reset your password.</p>
+            <p style="margin:0 0 2px;">Use the following code to proceed:</p>
+            ${CODE_BLOCK(code)}
+            <p style="margin:8px 0 0;">This code expires in 5 minutes.</p>
+            <p style="margin:0;">If you did not request a password reset, you can ignore this email and your password will stay the same.</p>
+          </td>
+        </tr>
+      </table>
     `,
   });
 }
@@ -172,14 +190,23 @@ async function sendCardPinResetEmail(to, code, name) {
     subject: "Reset your BATRAVERSE card PIN",
     codeForConsole: code,
     html: `
-      <div style="margin:0 auto;max-width:480px;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:#111;">
-        <p style="font-size:18px;font-weight:bold;margin:0 0 16px;">BATRAVERSE</p>
-        <p style="margin:0 0 8px;">Hello ${escapeHtml(name || "there")},</p>
-        <p style="margin:0 0 8px;">We received a request to reset the PIN for your card. Use the following code to set a new card PIN:</p>
-        ${CODE_BLOCK(code)}
-        <p style="color:#555;font-size:12px;margin:12px 0 0;">This code expires in 5 minutes. If you did not request a card PIN reset, you can ignore this email and your PIN will stay the same.</p>
-        <p style="color:#555;font-size:12px;margin:16px 0 0;">BATRAVERSE — luxury, curated.</p>
-      </div>
+      <table role="presentation" align="center" cellpadding="0" cellspacing="0" style="width:100%;max-width:440px;border:1px solid #eaddc3;border-radius:12px;background:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5;color:#000;">
+        <tr>
+          <td style="padding:20px 24px 2px;text-align:center;">
+            <p style="font-size:20px;font-weight:bold;letter-spacing:4px;color:#b08a3e;margin:0;">BATRA<span style="color:#000;">VERSE</span></p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:10px 24px 20px;text-align:center;">
+            <p style="margin:0 0 6px;">Hello ${escapeHtml(name || "there")},</p>
+            <p style="margin:0 0 2px;">We received a request to reset the PIN for your card.</p>
+            <p style="margin:0 0 2px;">Use the following code to set a new card PIN:</p>
+            ${CODE_BLOCK(code)}
+            <p style="margin:8px 0 0;">This code expires in 5 minutes.</p>
+            <p style="margin:0;">If you did not request a card PIN reset, you can ignore this email and your PIN will stay the same.</p>
+          </td>
+        </tr>
+      </table>
     `,
   });
 }
@@ -189,32 +216,25 @@ async function sendPasswordChangedEmail(to, name, method, ipAddress) {
     to,
     subject: "Your Password Was Changed — BATRAVERSE",
     html: `
-      <div style="max-width:480px;margin:0 auto;font-family:Arial,sans-serif;background:#0a0a0a;color:#fff;padding:40px;border-radius:16px;">
-        ${HEADER}
-        <p style="color:#999;font-size:14px;margin:0 0 8px;">Hello ${escapeHtml(name || "there")},</p>
-        <p style="color:#fff;font-size:14px;margin:0 0 20px;">Your password has been successfully changed.</p>
-        <div style="background:#111;border:1px solid #222;border-radius:12px;padding:16px;margin-bottom:20px;">
-          <p style="color:#666;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin:0 0 10px;">Change Details</p>
-          <div style="margin-bottom:8px;">
-            <span style="color:#666;font-size:12px;">Method: </span>
-            <span style="color:#d4a853;font-size:12px;font-weight:bold;">${escapeHtml(method)}</span>
-          </div>
-          ${ipAddress ? `<div style="margin-bottom:8px;">
-            <span style="color:#666;font-size:12px;">IP Address: </span>
-            <span style="color:#fff;font-size:12px;">${escapeHtml(ipAddress)}</span>
-          </div>` : ""}
-          <div>
-            <span style="color:#666;font-size:12px;">Time: </span>
-            <span style="color:#fff;font-size:12px;">${new Date().toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}</span>
-          </div>
-        </div>
-        <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:12px;padding:16px;margin-bottom:20px;">
-          <p style="color:#ef4444;font-size:13px;font-weight:bold;margin:0 0 6px;">Was this you?</p>
-          <p style="color:#999;font-size:12px;margin:0;line-height:1.6;">If you did NOT change your password, your account may be compromised. Contact us immediately.</p>
-        </div>
-        <p style="color:#666;font-size:12px;margin:0;">If this was you, no further action is needed.</p>
-        ${FOOTER}
-      </div>
+      <table role="presentation" align="center" cellpadding="0" cellspacing="0" style="width:100%;max-width:440px;border:1px solid #eaddc3;border-radius:12px;background:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5;color:#000;">
+        <tr>
+          <td style="padding:20px 24px 2px;text-align:center;">
+            <p style="font-size:20px;font-weight:bold;letter-spacing:4px;color:#b08a3e;margin:0;">BATRA<span style="color:#000;">VERSE</span></p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:10px 24px 20px;text-align:center;">
+            <p style="margin:0 0 6px;">Hello ${escapeHtml(name || "there")},</p>
+            <p style="margin:0 0 2px;">Your password has been successfully changed.</p>
+            <p style="margin:14px 0 0;">Method: <span style="font-weight:bold;">${escapeHtml(method)}</span></p>
+            ${ipAddress ? `<p style="margin:0;">IP Address: <span style="font-weight:bold;">${escapeHtml(ipAddress)}</span></p>` : ""}
+            <p style="margin:0;">Time: <span style="font-weight:bold;">${escapeHtml(new Date().toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }))}</span></p>
+            <p style="margin:18px 0 0;font-weight:bold;">Was this you?</p>
+            <p style="margin:0 0 2px;">If you did not change your password, your account may be compromised. Contact us immediately at <span style="font-weight:bold;">batraverse.shopeverything@gmail.com</span>.</p>
+            <p style="margin:8px 0 0;">If this was you, no further action is needed.</p>
+          </td>
+        </tr>
+      </table>
     `,
   });
 }
@@ -233,97 +253,160 @@ const STATUS_LABELS = {
   payment_approved: "Payment Approved",
 };
 
+const STATUS_WORDS = {
+  pending: { pre: "is", word: "pending" },
+  confirmed: { pre: "has been", word: "confirmed" },
+  packed: { pre: "has been", word: "packed" },
+  out_for_delivery: { pre: "is", word: "out for delivery" },
+  delivered: { pre: "has been", word: "delivered" },
+  cancelled: { pre: "has been", word: "cancelled" },
+  return_requested: { pre: "has been", word: "submitted for return" },
+  return_approved: { pre: "has been", word: "approved for return" },
+  return_rejected: { pre: "has been", word: "rejected for return" },
+  returned: { pre: "has been", word: "returned" },
+};
+
+const STATUS_COLORS = {
+  delivered: "#16a34a",
+  cancelled: "#dc2626",
+  return_rejected: "#dc2626",
+  returned: "#dc2626",
+  return_approved: "#16a34a",
+  return_requested: "#b08a3e",
+  out_for_delivery: "#b08a3e",
+};
+
 const SOURCE_LABELS = {
   store: "Store",
   mart: "Grocery/Mart",
 };
 
-async function sendOrderStatusEmail(to, name, orderId, status, source) {
-  let label = STATUS_LABELS[status] || status;
-  if (status === "packed" && source !== "mart") label = "Shipped";
-  const isCancel = status === "cancelled";
-  const isDelivered = status === "delivered";
-  const accent = isCancel ? "#ef4444" : isDelivered ? "#22c55e" : "#d4a853";
+async function sendOrderStatusEmail(to, name, orderId, status, source, items) {
+  const label = STATUS_LABELS[status] || status;
+  const word = STATUS_WORDS[status]?.word || "updated";
+  const pre = STATUS_WORDS[status]?.pre || "has been";
+  const color = STATUS_COLORS[status] || "#b08a3e";
+  const singleItem = Array.isArray(items) ? items.find((it) => it && it.name) : null;
+  const productName = singleItem ? singleItem.name : "";
   await sendMail({
     to,
     subject: `Order ${label} — BATRAVERSE`,
     html: `
-      <div style="max-width:480px;margin:0 auto;font-family:Arial,sans-serif;background:#0a0a0a;color:#fff;padding:40px;border-radius:16px;">
-        ${HEADER}
-        <p style="color:#999;font-size:14px;margin:0 0 8px;">Hello ${escapeHtml(name || "there")},</p>
-        <p style="color:#fff;font-size:14px;margin:0 0 20px;">Your order status has been updated.</p>
-        <div style="background:#111;border:1px solid #222;border-radius:12px;padding:16px;margin-bottom:20px;">
-          <div style="margin-bottom:8px;">
-            <span style="color:#666;font-size:12px;">Order ID: </span>
-            <span style="color:#d4a853;font-size:12px;font-weight:bold;">#${escapeHtml(String(orderId).toUpperCase())}</span>
-          </div>
-          <div>
-            <span style="color:#666;font-size:12px;">Status: </span>
-            <span style="color:${accent};font-size:14px;font-weight:bold;">${escapeHtml(label)}</span>
-          </div>
-        </div>
-        ${isCancel ? `<p style="color:#999;font-size:13px;margin:0 0 12px;">If you did not request this cancellation, please contact support immediately.</p>` : ""}
-        ${isDelivered ? `<p style="color:#999;font-size:13px;margin:0 0 12px;">Please verify your delivery in the orders section to confirm receipt.</p>` : ""}
-        ${FOOTER}
-      </div>
+      <table role="presentation" align="center" cellpadding="0" cellspacing="0" style="width:100%;max-width:440px;border:1px solid #eaddc3;border-radius:12px;background:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5;color:#000;">
+        <tr>
+          <td style="padding:20px 24px 2px;text-align:center;">
+            <p style="font-size:20px;font-weight:bold;letter-spacing:4px;color:#b08a3e;margin:0;">BATRA<span style="color:#000;">VERSE</span></p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:12px 24px 20px;text-align:center;">
+            <p style="margin:0 0 8px;">Hello ${escapeHtml(name || "there")},</p>
+            <p style="margin:0 0 6px;font-size:15px;">
+              Your order for
+              ${productName ? ` ${escapeHtml(productName)}` : ""}
+              (#${escapeHtml(String(orderId).toUpperCase())})
+              ${pre}
+            </p>
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+              <tr>
+                <td style="border-left:2px solid ${color};border-right:2px solid ${color};padding:8px 0;text-align:center;">
+                  <span style="font-weight:bold;color:${color};font-size:15px;">${escapeHtml(word)}</span>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
     `,
   });
 }
 
-async function sendOrderConfirmationEmail(to, name, orderId, totalAmount, source) {
+async function sendOrderConfirmationEmail(to, name, orderId, totalAmount, source, items) {
   const sourceLabel = SOURCE_LABELS[source] || "Store";
+  const singleItem = Array.isArray(items) ? items.find((it) => it && it.name) : null;
+  const productName = singleItem ? singleItem.name : "";
+  const formattedAmount = Number(totalAmount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   await sendMail({
     to,
     subject: "Order Confirmed — BATRAVERSE",
     html: `
-      <div style="max-width:480px;margin:0 auto;font-family:Arial,sans-serif;background:#0a0a0a;color:#fff;padding:40px;border-radius:16px;">
-        ${HEADER}
-        <p style="color:#999;font-size:14px;margin:0 0 8px;">Hello ${escapeHtml(name || "there")},</p>
-        <p style="color:#fff;font-size:14px;margin:0 0 20px;">Your ${escapeHtml(sourceLabel)} order has been placed successfully.</p>
-        <div style="background:#111;border:1px solid #222;border-radius:12px;padding:16px;margin-bottom:20px;">
-          <div style="margin-bottom:8px;">
-            <span style="color:#666;font-size:12px;">Order ID: </span>
-            <span style="color:#d4a853;font-size:12px;font-weight:bold;">#${escapeHtml(String(orderId).toUpperCase())}</span>
-          </div>
-          <div style="margin-bottom:8px;">
-            <span style="color:#666;font-size:12px;">Type: </span>
-            <span style="color:#fff;font-size:12px;">${escapeHtml(sourceLabel)}</span>
-          </div>
-          <div>
-            <span style="color:#666;font-size:12px;">Total: </span>
-            <span style="color:#d4a853;font-size:14px;font-weight:bold;">₹${escapeHtml(String(totalAmount.toFixed(2)))}</span>
-          </div>
-        </div>
-        <p style="color:#999;font-size:13px;margin:0 0 12px;">We'll notify you as your order progresses.</p>
-        ${FOOTER}
-      </div>
+      <table role="presentation" align="center" cellpadding="0" cellspacing="0" style="width:100%;max-width:440px;border:1px solid #eaddc3;border-radius:12px;background:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5;color:#000;">
+        <tr>
+          <td style="padding:20px 24px 2px;text-align:center;">
+            <p style="font-size:20px;font-weight:bold;letter-spacing:4px;color:#b08a3e;margin:0;">BATRA<span style="color:#000;">VERSE</span></p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:12px 24px 20px;text-align:center;">
+            <p style="margin:0 0 8px;">Hello ${escapeHtml(name || "there")},</p>
+            <p style="margin:0;font-size:15px;">
+              Your order for
+              ${productName ? ` ${escapeHtml(productName)}` : ""}
+              (#${escapeHtml(String(orderId).toUpperCase())})
+              has been
+            </p>
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+              <tr>
+                <td style="border-left:2px solid #16a34a;border-right:2px solid #16a34a;padding:8px 0;text-align:center;">
+                  <span style="font-weight:bold;color:#16a34a;font-size:15px;">confirmed</span>
+                </td>
+              </tr>
+            </table>
+            <p style="margin:14px 0 0;">Order Total: <span style="font-weight:bold;">₹${escapeHtml(formattedAmount)}</span></p>
+            <p style="margin:16px 0 0;">We'll notify you as your order progresses.</p>
+          </td>
+        </tr>
+      </table>
     `,
   });
 }
 
-async function sendDeliveryAssignedEmail(to, name, orderId, orderSource) {
+async function sendDeliveryAssignedEmail(to, name, orderId, orderSource, details) {
   const sourceLabel = SOURCE_LABELS[orderSource] || "Store";
+  const singleItem = Array.isArray(details && details.items) ? details.items.find((it) => it && it.name) : null;
+  const productName = singleItem ? singleItem.name : "";
+  const deliverTo = details && details.shippingName ? `${details.shippingName}${details.shippingPhone ? ` · ${details.shippingPhone}` : ""}` : "";
+  const addressLine = [details && details.shippingAddress, details && details.shippingCity, details && details.shippingState, details && details.shippingPincode].filter((x) => x).join(", ");
   await sendMail({
     to,
-    subject: "New Delivery Assignment — BATRAVERSE",
+    subject: "New Delivery Assigned — BATRAVERSE",
     html: `
-      <div style="max-width:480px;margin:0 auto;font-family:Arial,sans-serif;background:#0a0a0a;color:#fff;padding:40px;border-radius:16px;">
-        ${HEADER}
-        <p style="color:#999;font-size:14px;margin:0 0 8px;">Hello ${escapeHtml(name || "there")},</p>
-        <p style="color:#fff;font-size:14px;margin:0 0 20px;">You have been assigned a new delivery.</p>
-        <div style="background:#111;border:1px solid #222;border-radius:12px;padding:16px;margin-bottom:20px;">
-          <div style="margin-bottom:8px;">
-            <span style="color:#666;font-size:12px;">Order ID: </span>
-            <span style="color:#d4a853;font-size:12px;font-weight:bold;">#${escapeHtml(String(orderId).toUpperCase())}</span>
-          </div>
-          <div>
-            <span style="color:#666;font-size:12px;">Type: </span>
-            <span style="color:#fff;font-size:12px;">${escapeHtml(sourceLabel)}</span>
-          </div>
-        </div>
-        <p style="color:#999;font-size:13px;margin:0 0 12px;">Please review the order details in your delivery dashboard.</p>
-        ${FOOTER}
-      </div>
+      <table role="presentation" align="center" cellpadding="0" cellspacing="0" style="width:100%;max-width:440px;border:1px solid #eaddc3;border-radius:12px;background:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5;color:#000;">
+        <tr>
+          <td style="padding:20px 24px 2px;text-align:center;">
+            <p style="font-size:20px;font-weight:bold;letter-spacing:4px;color:#b08a3e;margin:0;">BATRA<span style="color:#000;">VERSE</span></p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:12px 24px 20px;text-align:center;">
+            <p style="margin:0 0 8px;">Hello ${escapeHtml(name || "there")},</p>
+            <p style="margin:0 0 6px;font-size:15px;">You have been assigned a new delivery.</p>
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+              <tr>
+                <td style="border-left:2px solid #b08a3e;border-right:2px solid #b08a3e;padding:8px 0;text-align:center;">
+                  <span style="font-weight:bold;color:#b08a3e;font-size:15px;">Delivery Assigned</span>
+                </td>
+              </tr>
+            </table>
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:14px;">
+              <tr>
+                <td style="text-align:left;padding:4px 0;color:#000;"><span style="font-weight:bold;">Product:</span> ${productName ? escapeHtml(productName) : "—"}</td>
+              </tr>
+              <tr>
+                <td style="text-align:left;padding:4px 0;color:#000;"><span style="font-weight:bold;">Order ID:</span> #${escapeHtml(String(orderId).toUpperCase())}</td>
+              </tr>
+              <tr>
+                <td style="text-align:left;padding:4px 0;color:#000;"><span style="font-weight:bold;">Type:</span> ${escapeHtml(sourceLabel)}</td>
+              </tr>
+              <tr>
+                <td style="text-align:left;padding:4px 0;color:#000;"><span style="font-weight:bold;">Deliver to:</span> ${deliverTo ? escapeHtml(deliverTo) : "—"}</td>
+              </tr>
+              ${addressLine ? `<tr><td style="text-align:left;padding:4px 0;color:#000;"><span style="font-weight:bold;">Address:</span> ${escapeHtml(addressLine)}</td></tr>` : ""}
+            </table>
+            <p style="margin:16px 0 0;">Please review the order details in your delivery dashboard.</p>
+          </td>
+        </tr>
+      </table>
     `,
   });
 }
@@ -333,26 +416,34 @@ async function sendDeliveryWarningEmail(to, name, orderId, reason) {
     to,
     subject: "Delivery Warning — BATRAVERSE",
     html: `
-      <div style="max-width:480px;margin:0 auto;font-family:Arial,sans-serif;background:#0a0a0a;color:#fff;padding:40px;border-radius:16px;">
-        ${HEADER}
-        <p style="color:#999;font-size:14px;margin:0 0 8px;">Hello ${escapeHtml(name || "there")},</p>
-        <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:12px;padding:16px;margin-bottom:20px;">
-          <p style="color:#ef4444;font-size:14px;font-weight:bold;margin:0 0 8px;">Warning</p>
-          <p style="color:#999;font-size:13px;margin:0;">You have cancelled/unassigned an order outside the allowed time window.</p>
-        </div>
-        <div style="background:#111;border:1px solid #222;border-radius:12px;padding:16px;margin-bottom:20px;">
-          <div style="margin-bottom:8px;">
-            <span style="color:#666;font-size:12px;">Order ID: </span>
-            <span style="color:#d4a853;font-size:12px;font-weight:bold;">#${escapeHtml(String(orderId).toUpperCase())}</span>
-          </div>
-          <div>
-            <span style="color:#666;font-size:12px;">Reason: </span>
-            <span style="color:#fff;font-size:12px;">${escapeHtml(reason || "Late cancellation/unassignment")}</span>
-          </div>
-        </div>
-        <p style="color:#ef4444;font-size:12px;margin:0;">This incident has been recorded. Repeated violations may result in account suspension.</p>
-        ${FOOTER}
-      </div>
+      <table role="presentation" align="center" cellpadding="0" cellspacing="0" style="width:100%;max-width:440px;border:1px solid #eaddc3;border-radius:12px;background:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5;color:#000;">
+        <tr>
+          <td style="padding:20px 24px 2px;text-align:center;">
+            <p style="font-size:20px;font-weight:bold;letter-spacing:4px;color:#b08a3e;margin:0;">BATRA<span style="color:#000;">VERSE</span></p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:12px 24px 20px;text-align:center;">
+            <p style="margin:0 0 8px;">Hello ${escapeHtml(name || "there")},</p>
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+              <tr>
+                <td style="border-left:2px solid #dc2626;border-right:2px solid #dc2626;padding:8px 0;text-align:center;">
+                  <span style="font-weight:bold;color:#dc2626;font-size:15px;">Warning</span>
+                </td>
+              </tr>
+            </table>
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:14px;">
+              <tr>
+                <td style="text-align:left;padding:4px 0;color:#000;"><span style="font-weight:bold;">Order ID:</span> #${escapeHtml(String(orderId).toUpperCase())}</td>
+              </tr>
+              <tr>
+                <td style="text-align:left;padding:4px 0;color:#000;"><span style="font-weight:bold;">Reason:</span> ${escapeHtml(reason || "Late cancellation/unassignment")}</td>
+              </tr>
+            </table>
+            <p style="color:#dc2626;margin:16px 0 0;">This incident has been recorded. Repeated violations may result in account suspension.</p>
+          </td>
+        </tr>
+      </table>
     `,
   });
 }
@@ -363,38 +454,58 @@ async function sendDeliveryVerificationEmail(to, name, orderId, code) {
     subject: "Verify Your Delivery — BATRAVERSE",
     codeForConsole: code,
     html: `
-      <div style="max-width:480px;margin:0 auto;font-family:Arial,sans-serif;background:#0a0a0a;color:#fff;padding:40px;border-radius:16px;">
-        ${HEADER}
-        <p style="color:#999;font-size:14px;margin:0 0 8px;">Hello ${escapeHtml(name || "there")},</p>
-        <p style="color:#fff;font-size:14px;margin:0 0 20px;">Your delivery executive has marked your order as delivered. Please verify by entering the OTP below:</p>
-        ${CODE_BLOCK(code)}
-        <p style="color:#666;font-size:12px;margin:24px 0 0;">This OTP expires in 15 minutes. Enter it in the orders section to confirm delivery.</p>
-        ${FOOTER}
-      </div>
+      <table role="presentation" align="center" cellpadding="0" cellspacing="0" style="width:100%;max-width:440px;border:1px solid #eaddc3;border-radius:12px;background:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5;color:#000;">
+        <tr>
+          <td style="padding:20px 24px 2px;text-align:center;">
+            <p style="font-size:20px;font-weight:bold;letter-spacing:4px;color:#b08a3e;margin:0;">BATRA<span style="color:#000;">VERSE</span></p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:12px 24px 20px;text-align:center;">
+            <p style="margin:0 0 8px;">Hello ${escapeHtml(name || "there")},</p>
+            <p style="margin:0 0 10px;">Your delivery executive has marked order #${escapeHtml(String(orderId).toUpperCase())} as delivered. Please verify by entering the OTP below:</p>
+            ${CODE_BLOCK(code)}
+            <p style="margin:16px 0 0;">This OTP expires in 15 minutes. Enter it in the orders section to confirm delivery.</p>
+          </td>
+        </tr>
+      </table>
     `,
   });
 }
 
 async function sendReturnApprovedEmail(to, name, orderId, approved) {
-  const accent = approved ? "#22c55e" : "#ef4444";
-  const text = approved ? "Your return request has been approved." : "Your return request has been rejected.";
+  const accent = approved ? "#16a34a" : "#dc2626";
+  const word = approved ? "approved" : "rejected";
   await sendMail({
     to,
     subject: `Return ${approved ? "Approved" : "Rejected"} — BATRAVERSE`,
     html: `
-      <div style="max-width:480px;margin:0 auto;font-family:Arial,sans-serif;background:#0a0a0a;color:#fff;padding:40px;border-radius:16px;">
-        ${HEADER}
-        <p style="color:#999;font-size:14px;margin:0 0 8px;">Hello ${escapeHtml(name || "there")},</p>
-        <p style="color:${accent};font-size:14px;font-weight:bold;margin:0 0 20px;">${escapeHtml(text)}</p>
-        <div style="background:#111;border:1px solid #222;border-radius:12px;padding:16px;margin-bottom:20px;">
-          <div>
-            <span style="color:#666;font-size:12px;">Order ID: </span>
-            <span style="color:#d4a853;font-size:12px;font-weight:bold;">#${escapeHtml(String(orderId).toUpperCase())}</span>
-          </div>
-        </div>
-        ${approved ? `<p style="color:#999;font-size:13px;margin:0 0 12px;">A delivery executive will be assigned to pick up the return.</p>` : ""}
-        ${FOOTER}
-      </div>
+      <table role="presentation" align="center" cellpadding="0" cellspacing="0" style="width:100%;max-width:440px;border:1px solid #eaddc3;border-radius:12px;background:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5;color:#000;">
+        <tr>
+          <td style="padding:20px 24px 2px;text-align:center;">
+            <p style="font-size:20px;font-weight:bold;letter-spacing:4px;color:#b08a3e;margin:0;">BATRA<span style="color:#000;">VERSE</span></p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:12px 24px 20px;text-align:center;">
+            <p style="margin:0 0 8px;">Hello ${escapeHtml(name || "there")},</p>
+            <p style="margin:0 0 6px;font-size:15px;">Your return request has been</p>
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+              <tr>
+                <td style="border-left:2px solid ${accent};border-right:2px solid ${accent};padding:8px 0;text-align:center;">
+                  <span style="font-weight:bold;color:${accent};font-size:15px;">${escapeHtml(word)}</span>
+                </td>
+              </tr>
+            </table>
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:14px;">
+              <tr>
+                <td style="text-align:left;padding:4px 0;color:#000;"><span style="font-weight:bold;">Order ID:</span> #${escapeHtml(String(orderId).toUpperCase())}</td>
+              </tr>
+            </table>
+            ${approved ? `<p style="margin:16px 0 0;">A delivery executive will be assigned to pick up the return.</p>` : `<p style="color:#dc2626;margin:16px 0 0;">If you believe this is a mistake, please contact our support team.</p>`}
+          </td>
+        </tr>
+      </table>
     `,
   });
 }
@@ -405,6 +516,8 @@ module.exports = {
   escapeHtml,
   htmlToText,
   resetTransporter,
+  CARD_TEMPLATE,
+  ACCENT_LINE,
   sendOTPEmail,
   sendResetPasswordEmail,
   sendCardPinResetEmail,

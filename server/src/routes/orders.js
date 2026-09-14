@@ -272,7 +272,7 @@ router.post("/", userAuth, customerOnly, async (req, res) => {
     }
 
     const emailUser = await prisma.user.findUnique({ where: { id: req.userId }, select: { name: true, email: true } });
-    sendOrderConfirmationEmail(emailUser.email, emailUser.name, order.orderId || order.id, totalAmount, source).catch(() => {});
+    sendOrderConfirmationEmail(emailUser.email, emailUser.name, order.orderId || order.id, totalAmount, source, order.items).catch(() => {});
 
     res.status(201).json({ ...order, discount: discountAmount, freeDelivery: hasFreeDelivery });
   } catch (err) {
@@ -302,7 +302,7 @@ router.put("/:id/cancel", userAuth, customerOnly, async (req, res) => {
     await refundToWallet(order, order.totalAmount, order.userId);
 
     const user = await prisma.user.findUnique({ where: { id: req.userId }, select: { name: true, email: true } });
-    sendOrderStatusEmail(user.email, user.name, order.orderId || order.id, "cancelled").catch(() => {});
+    sendOrderStatusEmail(user.email, user.name, order.orderId || order.id, "cancelled", order.source, updatedItems).catch(() => {});
 
     res.json(updated);
   } catch (err) {
@@ -345,7 +345,7 @@ router.put("/:id/items/:itemIdx/cancel", userAuth, customerOnly, async (req, res
     const updatedOrder = await prisma.order.findUnique({ where: { id } });
 
     const user = await prisma.user.findUnique({ where: { id: req.userId }, select: { name: true, email: true } });
-    sendOrderStatusEmail(user.email, user.name, id, "cancelled").catch(() => {});
+    sendOrderStatusEmail(user.email, user.name, id, "cancelled", order.source, updatedOrder.items).catch(() => {});
 
     res.json(updatedOrder);
   } catch (err) {
@@ -390,7 +390,7 @@ router.post("/:id/return-request", userAuth, customerOnly, async (req, res) => {
     });
 
     const user = await prisma.user.findUnique({ where: { id: req.userId }, select: { name: true, email: true } });
-    sendOrderStatusEmail(user.email, user.name, order.orderId || order.id, "return_requested").catch(() => {});
+    sendOrderStatusEmail(user.email, user.name, order.orderId || order.id, "return_requested", order.source, updatedItems).catch(() => {});
 
     res.json(updated);
   } catch (err) {
@@ -431,7 +431,7 @@ router.post("/:id/verify-delivery", userAuth, async (req, res) => {
     });
 
     const user = await prisma.user.findUnique({ where: { id: req.userId }, select: { name: true, email: true } });
-    sendOrderStatusEmail(user.email, user.name, order.orderId || order.id, "delivered").catch(() => {});
+    sendOrderStatusEmail(user.email, user.name, order.orderId || order.id, "delivered", order.source, updatedItems).catch(() => {});
 
     res.json(updated);
   } catch (err) {

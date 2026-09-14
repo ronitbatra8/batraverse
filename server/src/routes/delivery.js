@@ -91,7 +91,7 @@ router.put("/orders/:id/status", userAuth, async (req, res) => {
         where: { id: order.userId },
         select: { name: true, email: true },
       });
-      sendOrderStatusEmail(customer.email, customer.name, order.orderId || order.id, "out_for_delivery").catch(() => {});
+      sendOrderStatusEmail(customer.email, customer.name, order.orderId || order.id, "out_for_delivery", order.source, updatedItems).catch(() => {});
       return res.json(updated);
     }
   } catch (err) {
@@ -209,7 +209,7 @@ router.post("/orders/:id/verify-otp", userAuth, async (req, res) => {
       where: { id: order.userId },
       select: { name: true, email: true },
     });
-    sendOrderStatusEmail(customer.email, customer.name, order.orderId || order.id, "delivered").catch(() => {});
+    sendOrderStatusEmail(customer.email, customer.name, order.orderId || order.id, "delivered", order.source, updatedItems).catch(() => {});
 
     res.json(updated);
   } catch (err) {

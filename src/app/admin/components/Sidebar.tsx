@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from "react";
-import { Sparkles, LayoutDashboard, Package, Users, MessageSquare, KeyRound, BarChart3, Newspaper, Truck, Store, CreditCard, IndianRupee, AlertTriangle, ShoppingCart, Megaphone, Quote, RefreshCw, LogOut, Menu, X } from "lucide-react";
+import { Sparkles, LayoutDashboard, Package, Users, Mail, MessageSquare, KeyRound, BarChart3, Newspaper, Truck, Store, CreditCard, IndianRupee, AlertTriangle, ShoppingCart, Megaphone, Quote, RefreshCw, LogOut, Menu, X } from "lucide-react";
 import { Tab } from "./types";
 import Brand from "@/components/brand/Brand";
 import { cn } from "@/lib/utils";
@@ -11,6 +11,7 @@ export const topNavItems: { key: Tab; label: string; icon: any }[] = [
   { key: "overview", label: "Overview", icon: LayoutDashboard },
   { key: "orders", label: "Orders", icon: Package },
   { key: "users", label: "Users", icon: Users },
+  { key: "mail", label: "Mail", icon: Mail },
   { key: "cards", label: "Cards & Wallet", icon: CreditCard },
   { key: "sellersystem", label: "Seller System", icon: Store },
   { key: "analytics", label: "Analytics", icon: BarChart3 },

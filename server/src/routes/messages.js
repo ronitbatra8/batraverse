@@ -3,7 +3,7 @@ const prisma = require("../db");
 const { adminAuth } = require("../middleware/auth");
 const { userAuth } = require("../middleware/userAuth");
 const { safeErrorMessage, MESSAGE_STATUSES } = require("../utils/helpers");
-const { sendMail, escapeHtml } = require("../utils/email");
+const { sendMail, escapeHtml, CARD_TEMPLATE, ACCENT_LINE } = require("../utils/email");
 
 const router = express.Router();
 
@@ -106,24 +106,13 @@ router.put("/:id/status", adminAuth, async (req, res) => {
     if (!existing) return res.status(404).json({ error: "Message not found" });
     await prisma.message.update({ where: { id: req.params.id }, data: { status: status, read: true } });
     var statusLabel = STATUS_LABELS[status] || status;
-    var statusHtml = '<div style="max-width:480px;margin:0 auto;font-family:Arial,sans-serif;background:#0a0a0a;color:#fff;padding:40px;border-radius:16px;">'
-      + '<div style="text-align:center;margin-bottom:32px;">'
-      + '<h1 style="color:#d4a853;font-size:22px;margin:0;letter-spacing:4px;">BATRA<span style="color:#fff;">VERSE</span></h1>'
-      + '<p style="color:#666;font-size:11px;margin:4px 0 0;text-transform:uppercase;letter-spacing:3px;">Luxury Marketplace</p>'
-      + '</div>'
-      + '<p style="color:#999;font-size:14px;margin:0 0 8px;">Hello ' + escapeHtml(existing.name || "there") + ',</p>'
-      + '<p style="color:#999;font-size:14px;margin:0 0 16px;">The status of your message has been updated.</p>'
-      + '<div style="background:#111;border:1px solid #222;border-radius:12px;padding:16px;margin-bottom:20px;">'
-      + '<p style="color:#666;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin:0 0 10px;">Message</p>'
-      + '<p style="color:#d4a853;font-size:14px;font-weight:bold;margin:0 0 6px;">' + escapeHtml(existing.subject || "Your Query") + '</p>'
-      + '</div>'
-      + '<div style="background:#111;border:1px solid #222;border-radius:12px;padding:16px;margin-bottom:20px;">'
-      + '<p style="color:#666;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin:0 0 10px;">New Status</p>'
-      + '<p style="color:#d4a853;font-size:16px;font-weight:bold;margin:0;">' + escapeHtml(statusLabel) + '</p>'
-      + '</div>'
-      + '<p style="color:#666;font-size:12px;margin:0;">If you have further questions, reply to this email or visit our contact page.</p>'
-      + '<p style="color:#666;font-size:12px;margin:24px 0 0;text-align:center;">BATRAVERSE \u2014 luxury, curated.</p>'
-      + '</div>';
+    var statusHtml = CARD_TEMPLATE(
+      '<p style="margin:0 0 8px;">Hello ' + escapeHtml(existing.name || "there") + ',</p>'
+      + '<p style="margin:0 0 6px;">The status of your message has been updated.</p>'
+      + ACCENT_LINE(String(statusLabel), "#b08a3e")
+      + '<p style="margin:14px 0 0;"><span style="font-weight:bold;">Your message:</span> ' + escapeHtml(existing.subject || "Your Query") + '</p>'
+      + '<p style="margin:16px 0 0;">If you have further questions, reply to this email or visit our contact page.</p>'
+    );
     notifyEmails(existing, "Message Status Updated \u2014 BATRAVERSE", statusHtml);
     res.json({ ok: true });
   } catch (err) {
@@ -156,24 +145,15 @@ router.post("/:id/reply", adminAuth, async (req, res) => {
       data: { replyMessage: replyMessage.trim(), repliedAt: new Date(), status: "replied", read: true },
     });
 
-    var replyHtml = '<div style="max-width:480px;margin:0 auto;font-family:Arial,sans-serif;background:#0a0a0a;color:#fff;padding:40px;border-radius:16px;">'
-      + '<div style="text-align:center;margin-bottom:32px;">'
-      + '<h1 style="color:#d4a853;font-size:22px;margin:0;letter-spacing:4px;">BATRA<span style="color:#fff;">VERSE</span></h1>'
-      + '<p style="color:#666;font-size:11px;margin:4px 0 0;text-transform:uppercase;letter-spacing:3px;">Luxury Marketplace</p>'
-      + '</div>'
-      + '<p style="color:#999;font-size:14px;margin:0 0 8px;">Hello ' + escapeHtml(msg.name || "there") + ',</p>'
-      + '<p style="color:#999;font-size:14px;margin:0 0 16px;">We\'ve replied to your message:</p>'
-      + '<div style="background:#111;border:1px solid #222;border-radius:12px;padding:16px;margin-bottom:20px;">'
-      + '<p style="color:#666;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin:0 0 10px;">Your Message</p>'
-      + '<p style="color:#999;font-size:13px;margin:0 0 12px;">' + escapeHtml(msg.message) + '</p>'
-      + '</div>'
-      + '<div style="background:#111;border:1px solid #222;border-radius:12px;padding:16px;margin-bottom:20px;">'
-      + '<p style="color:#666;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin:0 0 10px;">Our Reply</p>'
-      + '<p style="color:#fff;font-size:14px;margin:0;white-space:pre-wrap;">' + escapeHtml(replyMessage.trim()) + '</p>'
-      + '</div>'
-      + '<p style="color:#666;font-size:12px;margin:0;">If you have further questions, reply to this email or visit our contact page.</p>'
-      + '<p style="color:#666;font-size:12px;margin:24px 0 0;text-align:center;">BATRAVERSE \u2014 luxury, curated.</p>'
-      + '</div>';
+    var replyHtml = CARD_TEMPLATE(
+      '<p style="margin:0 0 8px;">Hello ' + escapeHtml(msg.name || "there") + ',</p>'
+      + '<p style="margin:0 0 6px;">We\'ve replied to your message:</p>'
+      + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:8px;">'
+      + '<tr><td style="text-align:left;padding:8px 0;"><p style="margin:0;font-size:12px;font-weight:bold;">Your Message</p><p style="margin:2px 0 0;">' + escapeHtml(msg.message) + '</p></td></tr>'
+      + '<tr><td style="text-align:left;padding:8px 0;border-top:1px solid #eaddc3;"><p style="margin:0;font-size:12px;font-weight:bold;">Our Reply</p><p style="margin:2px 0 0;white-space:pre-wrap;">' + escapeHtml(replyMessage.trim()) + '</p></td></tr>'
+      + '</table>'
+      + '<p style="margin:16px 0 0;">If you have further questions, reply to this email or visit our contact page.</p>'
+    );
 
     notifyEmails(msg, "Re: " + (msg.subject || "Your Query") + " \u2014 BATRAVERSE", replyHtml);
     res.json({ ok: true });
