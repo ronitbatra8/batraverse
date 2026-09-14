@@ -34,7 +34,7 @@ function redirectFor(user: { role?: string; email?: string; phone?: string }) {
 
 function LoginContent() {
   const router = useRouter();
-  const { login, loginWithOtp, loginWithGoogleToken, enterAsGuest } = useAuth();
+  const { login, loginWithOtp, loginWithGoogleToken, enterAsGuest, updateUser } = useAuth();
   const searchParams = useSearchParams();
   const light = useLight();
 
@@ -51,6 +51,10 @@ function LoginContent() {
   const [googleHandling, setGoogleHandling] = useState(false);
   const [googleEnabled, setGoogleEnabled] = useState(false);
   const [resendIn, setResendIn] = useState(0);
+  const [needPhone, setNeedPhone] = useState(false);
+  const [newPhone, setNewPhone] = useState("");
+  const [phoneError, setPhoneError] = useState("");
+  const [savingPhone, setSavingPhone] = useState(false);
   const resendTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const isEmailLike = (v: string) => /@/.test(v.trim());
@@ -77,10 +81,18 @@ function LoginContent() {
 
   useEffect(() => {
     const gToken = searchParams.get("g_token");
+    const gNew = searchParams.get("g_new");
     if (gToken) {
       setGoogleHandling(true);
       loginWithGoogleToken(gToken)
-        .then((user) => router.push(redirectFor(user)))
+        .then((user) => {
+          if (gNew === "1") {
+            setNeedPhone(true);
+            setGoogleHandling(false);
+          } else {
+            router.push(redirectFor(user));
+          }
+        })
         .catch((err) => {
           setGoogleError(errMessage(err));
           setGoogleHandling(false);
@@ -89,6 +101,24 @@ function LoginContent() {
     return clearResendTimer;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
+
+  const handleSavePhone = async () => {
+    setPhoneError("");
+    const phone = newPhone.replace(/[^0-9]/g, "").slice(0, 10);
+    if (phone.length !== 10) {
+      setPhoneError("Enter your 10-digit phone number");
+      return;
+    }
+    setSavingPhone(true);
+    try {
+      const user = await updateUser({ phone });
+      router.push(redirectFor(user));
+    } catch (err) {
+      setPhoneError(errMessage(err));
+    } finally {
+      setSavingPhone(false);
+    }
+  };
 
   useEffect(() => {
     if (resendIn <= 0) {
@@ -220,7 +250,57 @@ function LoginContent() {
 
       <AuthCard>
         <ErrorBanner error={error} />
-        {googleError && (
+        {needPhone ? (
+          <div
+            className={cn(
+              "rounded-xl border px-4 py-4",
+              light ? "border-gold/40 bg-gold/5" : "border-gold/40 bg-gold/10"
+            )}
+          >
+            <p className={cn("mb-1 text-sm font-semibold", light ? "text-onyx" : "text-cream")}>
+              Almost done! ✳
+            </p>
+            <p className={cn("mb-3 text-xs", light ? "text-onyx/60" : "text-cream-dim")}>
+              You're signed in with Google for the first time. Add your phone number for deliveries:
+            </p>
+            <input
+              type="tel"
+              inputMode="numeric"
+              value={newPhone}
+              onChange={(e) => {
+                setNewPhone(e.target.value.replace(/[^0-9]/g, "").slice(0, 10));
+                setPhoneError("");
+              }}
+              placeholder="10-digit phone number"
+              className={inputCls(light)}
+            />
+            {phoneError && (
+              <p
+                className={cn(
+                  "mt-2 rounded-lg border px-3 py-2 text-xs",
+                  light
+                    ? "border-rose-500/30 bg-rose-500/5 text-rose-700"
+                    : "border-rose-400/25 bg-rose-400/5 text-rose-300"
+                )}
+              >
+                {phoneError}
+              </p>
+            )}
+            <button
+              type="button"
+              disabled={savingPhone}
+              onClick={handleSavePhone}
+              className={cn(
+                "mt-3 inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-3 text-[11px] font-semibold uppercase tracking-[0.3em] transition-all duration-300 disabled:opacity-50",
+                light
+                  ? "bg-gold text-onyx hover:shadow-[0_0_30px_rgba(212,175,55,0.4)]"
+                  : "bg-gold text-abyss hover:shadow-[0_0_30px_rgba(212,175,55,0.5)]"
+              )}
+            >
+              {savingPhone ? "Saving..." : "Save & Continue"}
+            </button>
+          </div>
+        ) : googleError ? (
           <div
             className={cn(
               "mb-5 rounded-xl border px-4 py-3 text-sm",
@@ -229,7 +309,8 @@ function LoginContent() {
           >
             {googleError}
           </div>
-        )}
+        ) : null}
+
         {noAccount && (
           <div
             className={cn(

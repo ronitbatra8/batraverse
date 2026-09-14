@@ -347,6 +347,7 @@ router.get("/google/callback", async (req, res) => {
     }
 
     let user = await prisma.user.findUnique({ where: { email } });
+    let createdNew = false;
     if (!user) {
       const gmailDomain = email.split("@")[1] || "";
       if (DISPOSABLE_DOMAINS.has(gmailDomain)) {
@@ -364,12 +365,14 @@ router.get("/google/callback", async (req, res) => {
       }
       const isOwner = email === OWNER_EMAIL || phone === OWNER_PHONE;
       user = await prisma.user.create({
-        data: { name, email, phone, passwordHash: hashed, role: "USER", approved: true, cardNumber, cardLevel: isOwner ? "owner" : null },
+        data: { name, email, phone, passwordHash: hashed, role: "USER", approved: true, cardNumber, cardLevel: isOwner ? "owner" : null, googleCreated: true },
       });
+      createdNew = true;
     }
 
     const token = signToken(user.id);
-    res.redirect(`${FRONTEND_URL}/login?g_token=${encodeURIComponent(token)}`);
+    const isGooglePending = createdNew || user.googleCreated === true;
+    res.redirect(`${FRONTEND_URL}/login?g_token=${encodeURIComponent(token)}${isGooglePending ? "&g_new=1" : ""}`);
   } catch (err) {
     console.error("Google callback error:", err.message);
     res.redirect(googleErrorRedirect("Google sign-in failed. Please try again."));
@@ -419,6 +422,7 @@ router.put("/me", userAuth, async (req, res) => {
       const dup = await prisma.user.findFirst({ where: { phone: normalizedPhone, NOT: { id: req.userId } } });
       if (dup) return res.status(400).json({ error: "Phone number already registered" });
       data.phone = normalizedPhone;
+      data.googleCreated = false;
     }
     const user = await prisma.user.update({
       where: { id: req.userId },

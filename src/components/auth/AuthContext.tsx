@@ -60,7 +60,7 @@ interface AuthContextType {
   loginWithGoogleToken: (token: string) => Promise<User>;
   enterAsGuest: () => void;
   logout: () => void;
-  updateUser: (data: Partial<User>) => Promise<void>;
+  updateUser: (data: Partial<User>) => Promise<User>;
   refreshUser: () => Promise<void>;
 }
 
@@ -246,6 +246,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       saveAccounts(stored);
       setAccounts(stored);
     }
+    return updated;
   };
 
   const refreshUser = async () => {

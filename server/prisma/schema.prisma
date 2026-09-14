@@ -94,6 +94,7 @@ model User {
   peakWalletBalance Float    @default(0) // highest balance ever reached — level never downgrades
   freeDeliveryUsed Int   @default(0) // free deliveries used this month
   freeDeliveryMonth String? // "YYYY-MM" — resets when month changes
+  googleCreated Boolean @default(false) // true = account auto-created via Google sign-in (prompt for a real phone)
   createdAt     DateTime @default(now())
 
   orders           Order[]      @relation("PlacedOrders")
