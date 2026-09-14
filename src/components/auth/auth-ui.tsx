@@ -40,13 +40,17 @@ export const headingGradCls = (light: boolean) =>
 export function AuthShell({
   children,
   maxW = "max-w-md",
+  topPad = "pt-8 sm:pt-10",
+  className = "",
 }: {
   children: React.ReactNode;
   maxW?: string;
+  topPad?: string;
+  className?: string;
 }) {
   const light = useLight();
   return (
-    <div className="relative flex min-h-[calc(100vh-4rem)] items-center justify-center overflow-hidden px-6 pb-16 pt-8 sm:pt-10">
+    <div className={`relative flex min-h-[calc(100vh-4rem)] items-center justify-center overflow-hidden px-6 pb-16 ${topPad} ${className}`}>
       <div
         aria-hidden
         className="pointer-events-none absolute left-1/2 top-0 h-[40rem] w-[70rem] -translate-x-1/2 -translate-y-1/3 rounded-full blur-3xl"
@@ -65,18 +69,25 @@ export function AuthHeading({
   eyebrow,
   title,
   subtitle,
+  titleClassName = "",
+  headingGap = "mb-6",
 }: {
-  eyebrow: string;
+  eyebrow?: string;
   title: React.ReactNode;
   subtitle?: string;
+  titleClassName?: string;
+  headingGap?: string;
 }) {
   const light = useLight();
   return (
-    <div className="mb-6 text-center">
-      <p className={cn("text-[9px] uppercase tracking-[0.5em]", light ? "text-sapphire" : "text-gold/80")}>{eyebrow}</p>
+    <div className={`text-center ${headingGap}`}>
+      {eyebrow && (
+        <p className={cn("text-[9px] uppercase tracking-[0.5em]", light ? "text-sapphire" : "text-gold/80")}>{eyebrow}</p>
+      )}
       <h1
         className={cn(
           "mt-4 font-display text-4xl font-medium tracking-wide sm:text-5xl",
+          titleClassName,
           textCls(light)
         )}
       >
@@ -229,7 +240,7 @@ export function SubmitBtn({
       onClick={onClick}
       disabled={loading}
       className={cn(
-        "group mt-4 inline-flex w-full items-center justify-center gap-3 rounded-full px-8 py-3.5 text-[11px] font-semibold uppercase tracking-[0.3em] transition-all duration-500 disabled:cursor-not-allowed disabled:opacity-50",
+        "group mt-4 inline-flex w-full items-center justify-center gap-3 rounded-xl px-8 py-3.5 text-[11px] font-semibold uppercase tracking-[0.3em] transition-all duration-500 disabled:cursor-not-allowed disabled:opacity-50",
         light
           ? "bg-sapphire text-white hover:shadow-[0_0_40px_rgba(30,58,138,0.35)]"
           : "bg-gold text-abyss hover:shadow-[0_0_40px_rgba(212,175,55,0.45)]"

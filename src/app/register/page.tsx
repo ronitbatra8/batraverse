@@ -1,9 +1,10 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { KeyRound, Mail, Phone, Store, Truck, User as UserIcon } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthContext";
+import { useToast } from "@/components/Toast";
 import {
   AuthShell,
   AuthHeading,
@@ -12,7 +13,6 @@ import {
   Field,
   PasswordField,
   SubmitBtn,
-  ErrorBanner,
   Spinner,
   inputCls,
   labelCls,
@@ -25,12 +25,40 @@ import { errMessage } from "@/lib/utils";
 import { apiFetch } from "@/lib/api";
 
 const ROLES = [
-  { value: "CUSTOMER", label: "Customer", desc: "Browse and shop", icon: UserIcon },
-  { value: "SELLER", label: "Seller", desc: "List your products", icon: Store },
-  { value: "DELIVERY", label: "Delivery", desc: "Deliver orders", icon: Truck },
+  {
+    value: "CUSTOMER",
+    label: "Customer",
+    desc: "Browse and shop",
+    icon: UserIcon,
+    card: {
+      active: "border-sky-500/50 bg-sky-500/10 text-sky-600",
+      chip: "bg-sky-500 text-white",
+      text: "text-sky-600",
+    },
+  },
+  {
+    value: "SELLER",
+    label: "Seller",
+    desc: "List your products",
+    icon: Store,
+    card: {
+      active: "border-amber-500/50 bg-amber-500/10 text-amber-600",
+      chip: "bg-amber-500 text-white",
+      text: "text-amber-600",
+    },
+  },
+  {
+    value: "DELIVERY",
+    label: "Delivery",
+    desc: "Deliver orders",
+    icon: Truck,
+    card: {
+      active: "border-emerald-500/50 bg-emerald-500/10 text-emerald-600",
+      chip: "bg-emerald-600 text-white",
+      text: "text-emerald-600",
+    },
+  },
 ] as const;
-
-const maskEmail = (e: string) => e.replace(/^(.)(.*)(@.*)$/, "$1***$3");
 
 function RegisterContent() {
   const router = useRouter();
@@ -41,14 +69,23 @@ function RegisterContent() {
   const light = useLight();
 
   const [step, setStep] = useState<"form" | "otp">("form");
-  const [role, setRole] = useState<"CUSTOMER" | "SELLER" | "DELIVERY">("CUSTOMER");
+  const [role, setRole] = useState<"CUSTOMER" | "SELLER" | "DELIVERY">(() => {
+    const r = searchParams.get("role");
+    return r === "SELLER" || r === "DELIVERY" ? r : "CUSTOMER";
+  });
   const [name, setName] = useState("");
   const [email, setEmail] = useState(() => (prefillIsEmail ? prefill : ""));
   const [phone, setPhone] = useState(() => (prefillIsEmail ? "" : prefill));
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const { toast } = useToast();
+  useEffect(() => {
+    if (error) toast(error, "error");
+  }, [error, toast]);
 
   const phoneOk = (v: string) => {
     const cleaned = v.replace(/[\s\-()+.]+/g, "");
@@ -64,6 +101,7 @@ function RegisterContent() {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return "Enter a valid email address";
     if (!phoneOk(phone)) return "Enter a valid 10-digit Indian phone number";
     if (password.length < 6) return "Password must be at least 6 characters";
+    if (confirmPassword !== password) return "Passwords do not match";
     return "";
   };
 
@@ -147,7 +185,7 @@ function RegisterContent() {
 
   if (step === "otp") {
     return (
-      <AuthShell>
+      <AuthShell maxW="max-w-md sm:max-w-xl">
         <AuthHeading
           eyebrow="Verify your email"
           title={
@@ -155,10 +193,10 @@ function RegisterContent() {
               Enter <span className={headingGradCls(light)}>Code</span>
             </>
           }
-          subtitle={`A 6-digit verification code was sent to ${maskEmail(email.trim())}. We need to confirm your email before creating the account.`}
+          titleClassName="text-3xl sm:text-5xl"
+          headingGap="mb-3"
         />
         <AuthCard>
-          <ErrorBanner error={error} />
           <form onSubmit={handleVerify} className="space-y-5">
             <Field label="6-digit code" icon={<KeyRound size={16} strokeWidth={1.5} />}>
               <input
@@ -173,7 +211,7 @@ function RegisterContent() {
               />
             </Field>
             <SubmitBtn loading={loading} loadingText="Verifying...">
-              Verify &amp; Create Account
+              Verify
             </SubmitBtn>
           </form>
           <div className="mt-5 flex items-center justify-between text-xs">
@@ -209,7 +247,7 @@ function RegisterContent() {
   }
 
   return (
-    <AuthShell>
+    <AuthShell maxW="max-w-md sm:max-w-xl">
       <AuthHeading
         eyebrow="Join the Verse"
         title={
@@ -217,17 +255,16 @@ function RegisterContent() {
             Create <span className={headingGradCls(light)}>Account</span>
           </>
         }
-        subtitle="Open your Batra Verse account. A one-time code will be sent to your email to confirm it."
+        titleClassName="text-3xl sm:text-5xl"
+        headingGap="mb-3"
       />
 
       <AuthCard>
-        <ErrorBanner error={error} />
-
         <form onSubmit={handleDetails} className="space-y-5">
           <div>
             <label className={labelCls(light)}>I want to join as</label>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-              {ROLES.map((r) => {
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {ROLES.map((r, i) => {
                 const Icon = r.icon;
                 const active = role === r.value;
                 return (
@@ -236,20 +273,33 @@ function RegisterContent() {
                     key={r.value}
                     onClick={() => setRole(r.value)}
                     className={cn(
-                      "flex flex-col items-center gap-1.5 rounded-xl border px-2 py-3 text-xs transition-all",
+                      "flex flex-col gap-1 rounded-xl border px-3 py-2 text-xs transition-all duration-300 sm:gap-1.5 sm:py-3",
+                      i === 0 && "sm:col-span-2",
                       active
-                        ? light
-                          ? "border-sapphire/40 bg-sapphire/10 text-sapphire"
-                          : "border-gold/40 bg-gold/10 text-gold-light"
+                        ? cn("border-transparent shadow-lg", r.card.active)
                         : light
-                          ? "border-onyx/15 bg-onyx/[0.03] text-onyx/60 hover:border-onyx/30"
-                          : "border-dark-700 bg-dark-800/50 text-dark-400 hover:border-dark-600"
+                          ? "border-onyx/15 bg-onyx/[0.03] hover:border-onyx/30 hover:-translate-y-0.5"
+                          : "border-dark-700 bg-dark-800/50 hover:border-dark-600 hover:-translate-y-0.5"
                     )}
                   >
-                    <Icon size={18} strokeWidth={1.5} />
-                    <span className="font-medium">{r.label}</span>
+                    <span className="flex w-full items-center justify-between gap-2 sm:justify-between">
+                      <span className={cn("font-semibold", active && r.card.text)}>{r.label}</span>
+                      <span
+                        className={cn(
+                          "flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors duration-300 sm:h-9 sm:w-9",
+                          active ? r.card.chip : light ? "bg-dark-100 text-onyx/50" : "bg-dark-800 text-dark-400"
+                        )}
+                      >
+                        <Icon size={16} strokeWidth={1.75} />
+                      </span>
+                    </span>
                     <span
-                      className={cn("text-[9px]", light ? "text-onyx/40" : "text-dark-500")}
+                      className={cn(
+                        "text-center text-[9px] font-medium lowercase",
+                        active
+                          ? r.card.text
+                          : cn("opacity-70", light ? "text-onyx/50" : "text-dark-500")
+                      )}
                     >
                       {r.desc}
                     </span>
@@ -300,9 +350,33 @@ function RegisterContent() {
             autoComplete="new-password"
           />
 
-          <SubmitBtn loading={loading} loadingText="Sending code...">
-            Send Verification Code
-          </SubmitBtn>
+          <PasswordField
+            label="Confirm Password"
+            value={confirmPassword}
+            onChange={setConfirmPassword}
+            placeholder="Repeat your password"
+            autoComplete="new-password"
+          />
+
+          <button
+            type="submit"
+            disabled={loading}
+            className={cn(
+              "group relative mt-4 inline-flex w-full items-center rounded-xl p-[2px] transition-all duration-400 disabled:cursor-not-allowed",
+              light
+                ? "bg-gradient-to-r from-sapphire-deep via-sapphire-light to-sapphire-deep"
+                : "bg-gradient-to-r from-gold-deep via-gold-light to-gold-deep"
+            )}
+          >
+            <span
+              className={cn(
+                "relative flex w-full items-center justify-center gap-3 whitespace-nowrap rounded-[10px] py-3.5 text-[11px] font-semibold uppercase tracking-[0.3em] transition-colors duration-300 group-hover:bg-gold group-hover:text-white disabled:opacity-50",
+                light ? "bg-white text-sapphire" : "bg-abyss text-gold-light"
+              )}
+            >
+              {loading ? "Sending code..." : "Send Verification Code"}
+            </span>
+          </button>
         </form>
         <p className={cn("mt-4 text-center text-[10px]", light ? "text-onyx/40" : "text-dark-500")}>
           Your account opens only after the email code is verified.

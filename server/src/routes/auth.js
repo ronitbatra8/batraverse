@@ -1,6 +1,7 @@
 const express = require("express");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
+const dns = require("dns");
 const jwt = require("jsonwebtoken");
 const prisma = require("../db");
 const { userAuth, customerOnly } = require("../middleware/userAuth");
@@ -31,9 +32,75 @@ const DISPOSABLE_DOMAINS = new Set([
   "inbox.testmail.app","tmpmail.nocbeer.org","tmpmail.yobi34.com"
 ]);
 
-// Owner accounts are auto-trusted (their own SELLER/DELIVERY accounts skip manual approval).
+/* Owner accounts are auto-trusted (their own SELLER/DELIVERY accounts skip manual approval). */
 const OWNER_EMAIL = (process.env.OWNER_EMAIL || "ronit_batra_08_11@gmail.com").toLowerCase();
 const OWNER_PHONE = process.env.OWNER_PHONE ? String(process.env.OWNER_PHONE).replace(/[\s\-()+.]+/g, "") : "9000000001";
+
+/* Highly-trafficked email providers. When an entered domain is within 1–2 edits of
+   one of these (gmail.cmo, gnaail.com, outlok.com…) we reject it as a typo even if
+   the domain happens to have an MX record, so misspelled addresses never cause a
+   bounce to the account's own mailbox. */
+const KNOWN_DOMAINS = [
+  "gmail.com", "googlemail.com", "outlook.com", "hotmail.com", "live.com",
+  "yahoo.com", "yahoo.co.in", "yahoo.in", "icloud.com", "me.com", "mac.com",
+  "aol.com", "proton.me", "protonmail.com", "zoho.com", "rediffmail.com",
+  "rediff.com", "fastmail.com", "gmx.com", "mail.com", "iCloud.com",
+  "booking.com", "office365.com",
+];
+
+function editDistance(a, b) {
+  const m = a.length;
+  const n = b.length;
+  if (m === 0) return n;
+  if (n === 0) return m;
+  const dp = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] = Math.min(
+        dp[i - 1][j] + 1,
+        dp[i][j - 1] + 1,
+        dp[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
+      );
+    }
+  }
+  return dp[m][n];
+}
+
+/* Returns the closest known provider if the domain is a near-miss typo, else null.
+   Exact matches (gmail.com, yahoo.com…) are never treated as typos even when some
+   other provider is a 1-edit neighbor (e.g. mail.com vs gmail.com). */
+function domainTypo(domain) {
+  const d0 = String(domain).toLowerCase();
+  if (KNOWN_DOMAINS.includes(d0)) return null;
+  let best = null;
+  let bestDist = 2; // allow up to 2 edits (e.g. "gmailll.com")
+  for (const k of KNOWN_DOMAINS) {
+    const d = editDistance(d0, k);
+    if (d > 0 && d < bestDist) {
+      bestDist = d;
+      best = k;
+    }
+  }
+  return best;
+}
+
+/* Resolve the domain's MX records to confirm the address can actually receive
+   mail. Emails with no mail server (typos like "gmail.cmo") are rejected before
+   sending so they don't bounce and spam the sender. */
+function hasMailServer(domain) {
+  return new Promise((resolve) => {
+    if (!domain || !/^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(domain)) return resolve(false);
+    dns.resolveMx(domain, (err, addresses) => {
+      resolve(!err && Array.isArray(addresses) && addresses.length > 0);
+    });
+  });
+}
+
+/* Full mailbox check via SMTP was removed — port 25 is blocked on most hosts,
+   so probing always timed out into "unknown" (~12s) and never blocked anyone.
+   The MX check above catches dead domains. */
 
 function generateCardNumber(name) {
   const parts = (name || "").trim().split(/\s+/);
@@ -235,6 +302,20 @@ router.post("/login", async (req, res) => {
   }
 });
 
+router.post("/check", async (req, res) => {
+  try {
+    const { identifier } = req.body;
+    const id = String(identifier || "").trim();
+    if (!id) {
+      return res.status(400).json({ error: "Enter your email, phone number, or card number" });
+    }
+    const user = await findUserByIdentifier(id);
+    res.json({ exists: !!user });
+  } catch (err) {
+    res.status(500).json({ error: safeErrorMessage(err) });
+  }
+});
+
 router.post("/login/send-otp", async (req, res) => {
   try {
     const { identifier } = req.body;
@@ -253,7 +334,9 @@ router.post("/login/send-otp", async (req, res) => {
       update: { code, name: user.name, password: "LOGIN", expiresAt, createdAt: new Date() },
       create: { email: user.email, code, name: user.name, password: "LOGIN", expiresAt },
     });
-    await sendOTPEmail(user.email, code, user.name);
+    sendOTPEmail(user.email, code, user.name).catch((err) => {
+      console.error(`[login/send-otp] background email failed for ${user.email}:`, err.message);
+    });
     const maskedEmail = user.email.replace(/(.{2})(.*)(@.*)/, "$1***$3");
     res.json({ message: `OTP sent to ${maskedEmail}`, maskedEmail });
   } catch (err) {
@@ -680,7 +763,9 @@ router.post("/forgot-password", async (req, res) => {
       },
     });
 
-    await sendResetPasswordEmail(user.email, code, user.name);
+    sendResetPasswordEmail(user.email, code, user.name).catch((err) => {
+      console.error(`[forgot-password] background email failed for ${user.email}:`, err.message);
+    });
 
     const maskedEmail = user.email.replace(/(.{2})(.*)(@.*)/, "$1***$3");
     res.json({ message: `OTP sent to ${maskedEmail}`, maskedEmail, identifier: maskedEmail });
@@ -791,6 +876,24 @@ router.post("/send-otp", async (req, res) => {
     const { email, name } = req.body;
     if (!email || !validateEmail(email)) return res.status(400).json({ error: "A valid email is required" });
     const normalized = String(email).trim().toLowerCase();
+    const existing = await prisma.user.findUnique({ where: { email: normalized } });
+    if (existing) return res.status(400).json({ error: "An account with this email already exists. Please sign in instead." });
+    const domain = normalized.split("@")[1];
+    if (DISPOSABLE_DOMAINS.has(domain)) {
+      return res.status(400).json({ error: "Please use a permanent email address" });
+    }
+    const typo = domainTypo(domain);
+    if (typo) {
+      return res.status(400).json({ error: `Did you mean ${typo}? Please check your email address.` });
+    }
+    const reachable = await hasMailServer(domain);
+    if (!reachable) {
+      return res.status(400).json({ error: "This email address doesn't exist. Please check and try again." });
+    }
+    /* NOTE: a full SMTP RCPT probe used to run here but added ~12s of latency
+       (port 25 is blocked from most hosting/env setups, so it always timed out
+       into "unknown" and never actually blocked anything). The MX check above
+       already rejects dead domains. */
     const code = generateOTP();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
     await prisma.otp.upsert({
@@ -798,7 +901,12 @@ router.post("/send-otp", async (req, res) => {
       update: { code, name: name || null, password: null, expiresAt, createdAt: new Date() },
       create: { email: normalized, code, name: name || null, password: null, expiresAt },
     });
-    await sendOTPEmail(normalized, code, name);
+    /* Fire-and-forget: the SMTP round-trip to Gmail takes ~5s. Respond first so
+       the user isn't left staring at "Sending code..." — the mail goes out in
+       the background and any failure is logged (user can just resend). */
+    sendOTPEmail(normalized, code, name).catch((err) => {
+      console.error(`[send-otp] background email failed for ${normalized}:`, err.message);
+    });
     res.json({ message: `OTP sent to ${normalized}` });
   } catch (err) {
     res.status(500).json({ error: safeErrorMessage(err) });

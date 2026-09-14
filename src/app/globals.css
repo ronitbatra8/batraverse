@@ -428,3 +428,15 @@ html.light {
   100% { opacity: 1; transform: rotate(0); }
 }
 
+/* Login page — smaller inputs on phones */
+@media (max-width: 640px) {
+  .login-ui input {
+    padding-top: 0.65rem;
+    padding-bottom: 0.65rem;
+    padding-left: 2.4rem;
+    padding-right: 0.65rem;
+    font-size: 13px;
+    border-radius: 0.6rem;
+  }
+}
+

@@ -487,6 +487,8 @@ export default function Navbar() {
       <div
         className={cn(
           "fixed inset-x-3 bottom-3 z-[50] h-16 rounded-2xl border backdrop-blur-2xl transition-[translate,transform,background-color,border-color,box-shadow] duration-500 ease-[cubic-bezier(0.33,1,0.68,1)] lg:hidden sm:h-[4.5rem]",
+          pathname.startsWith("/login") && "!hidden",
+          pathname.startsWith("/register") && "!hidden",
           pillFloating(lightNav),
           sliderOpen && "hidden",
           tabHidden && "translate-y-[calc(100%+0.75rem)]"
