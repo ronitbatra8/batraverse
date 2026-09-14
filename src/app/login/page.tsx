@@ -20,7 +20,7 @@ import {
   useLight,
 } from "@/components/auth/auth-ui";
 import { cn, errCode, errMessage } from "@/lib/utils";
-import { apiUrl } from "@/lib/api";
+import { apiUrl, apiFetch } from "@/lib/api";
 
 const OWNER_EMAIL = "ronit_batra_08_11@gmail.com";
 const OWNER_PHONE = "+91 90000 00001";
@@ -70,8 +70,7 @@ function LoginContent() {
   };
 
   useEffect(() => {
-    fetch(apiUrl("/auth/google/config"))
-      .then((r) => r.json())
+    apiFetch("/auth/google/config")
       .then((d) => setGoogleEnabled(!!d.enabled))
       .catch(() => setGoogleEnabled(false));
   }, []);
@@ -157,11 +156,11 @@ function LoginContent() {
     setOtpCode("");
     setOtpInfo("");
     try {
-      const res = await (await fetch(apiUrl("/auth/login/send-otp"), {
+      const res = await apiFetch("/auth/login/send-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ identifier: id }),
-      })).json();
+      });
       if (!res.maskedEmail) {
         throw Object.assign(new Error(res.error || "Could not send OTP"), { code: res.code });
       }
