@@ -114,13 +114,35 @@ async function sendOTPEmail(to, code, name) {
     subject: "Your BATRAVERSE verification code",
     codeForConsole: code,
     html: `
-      <div style="margin:0 auto;max-width:480px;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:#111;">
-        <p style="font-size:18px;font-weight:bold;margin:0 0 16px;">BATRAVERSE</p>
-        <p style="margin:0 0 8px;">Hello ${escapeHtml(name || "there")},</p>
-        <p style="margin:0 0 8px;">Your verification code is:</p>
-        ${CODE_BLOCK(code)}
-        <p style="color:#555;font-size:12px;margin:12px 0 0;">This code expires in 5 minutes. If you did not request this, you can ignore this email.</p>
-        <p style="color:#555;font-size:12px;margin:16px 0 0;">BATRAVERSE — luxury, curated.</p>
+      <div style="background:#f7f5f0;padding:0;margin:0;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f7f5f0;">
+          <tr>
+            <td align="center" style="padding:40px 16px;">
+              <table role="presentation" cellpadding="0" cellspacing="0" style="max-width:480px;width:100%;border:2px solid #eaddc3;border-radius:16px;background:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:#111;">
+                <tr>
+                  <td style="padding:28px 32px 18px;text-align:center;border-bottom:1px solid #eee6d6;">
+                    <p style="font-size:20px;font-weight:bold;letter-spacing:4px;color:#b08a3e;margin:0;">BATRA<span style="color:#111;">VERSE</span></p>
+                    <p style="color:#999;font-size:10px;margin:4px 0 0;text-transform:uppercase;letter-spacing:3px;">Luxury Marketplace</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:28px 32px;text-align:center;">
+                    <p style="margin:0 0 10px;font-size:16px;font-weight:600;color:#222;">Hello ${escapeHtml(name || "there")},</p>
+                    <p style="margin:0 0 6px;color:#555;">Your verification code is:</p>
+                    ${CODE_BLOCK(code)}
+                    <p style="color:#444;font-size:13px;margin:14px 0 0;">This code expires in <span style="font-weight:700;color:#b08a3e;">5 minutes</span>.</p>
+                    <p style="color:#888;font-size:12px;margin:6px 0 0;">If you did not request this, you can safely ignore this email.</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:16px 32px 24px;text-align:center;border-top:1px solid #eee6d6;">
+                    <p style="margin:0;color:#aaa;font-size:11px;letter-spacing:1px;">BATRAVERSE &mdash; luxury, curated.</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
       </div>
     `,
   });
