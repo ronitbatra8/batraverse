@@ -56,6 +56,8 @@ interface AuthContextType {
     verifyToken?: string;
   }) => Promise<User>;
   login: (identifier: string, password: string) => Promise<User>;
+  loginWithOtp: (identifier: string, code: string) => Promise<User>;
+  loginWithGoogleToken: (token: string) => Promise<User>;
   enterAsGuest: () => void;
   logout: () => void;
   updateUser: (data: Partial<User>) => Promise<void>;
@@ -181,6 +183,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
      To use another account you must sign out first. */
   const login = async (identifier: string, password: string) => {
     const res = await apiFetch("/auth/login", { method: "POST", body: JSON.stringify({ identifier, password }) });
+    applySession(res);
+    return res.user;
+  };
+
+  const loginWithOtp = async (identifier: string, code: string) => {
+    const res = await apiFetch("/auth/login/verify-otp", { method: "POST", body: JSON.stringify({ identifier, code }) });
+    applySession(res);
+    return res.user;
+  };
+
+  const loginWithGoogleToken = async (token: string) => {
+    const data = await apiFetch("/auth/me", { headers: { Authorization: `Bearer ${token}` } });
+    const res = { token, user: data };
+    applySession(res);
+    return res.user;
+  };
+
+  /** Persist a freshly-issued token+user as the single active session. */
+  const applySession = (res: { token: string; user: User }) => {
     const updated = [{ token: res.token, user: res.user }];
     saveAccounts(updated);
     saveCurrentIndex(0);
@@ -193,7 +214,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsGuest(false);
     setUser(res.user);
     window.dispatchEvent(new Event("bt-account-switch"));
-    return res.user;
   };
 
   const enterAsGuest = () => {
@@ -241,8 +261,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const value = useMemo(
-    () => ({ user, loading, isGuest, register, login, enterAsGuest, logout, updateUser, refreshUser }),
-    [user, loading, isGuest, register, login, enterAsGuest, logout, updateUser, refreshUser]
+    () => ({ user, loading, isGuest, register, login, loginWithOtp, loginWithGoogleToken, enterAsGuest, logout, updateUser, refreshUser }),
+    [user, loading, isGuest, register, login, loginWithOtp, loginWithGoogleToken, enterAsGuest, logout, updateUser, refreshUser]
   );
 
   return (

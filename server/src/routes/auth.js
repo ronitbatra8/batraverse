@@ -1,5 +1,6 @@
 const express = require("express");
 const bcrypt = require("bcryptjs");
+const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const prisma = require("../db");
 const { userAuth, customerOnly } = require("../middleware/userAuth");
@@ -65,7 +66,24 @@ function findUserByIdentifier(identifier) {
   if (isPhone(identifier)) {
     return prisma.user.findFirst({ where: { phone: normalizePhone(identifier) } });
   }
-  return null;
+  return prisma.user.findFirst({ where: { cardNumber: { equals: identifier.trim(), mode: "insensitive" } } });
+}
+
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "";
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || "";
+const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
+
+function googleRedirectUri(req) {
+  return process.env.GOOGLE_REDIRECT_URI || `${req.protocol}://${req.get("host")}/api/auth/google/callback`;
+}
+
+async function generatePlaceholderPhone() {
+  for (let i = 0; i < 10; i++) {
+    const phone = "9" + Array.from({ length: 9 }, () => Math.floor(Math.random() * 10)).join("");
+    const exists = await prisma.user.findFirst({ where: { phone } });
+    if (!exists) return phone;
+  }
+  throw new Error("Could not allocate a phone number");
 }
 
 function signToken(userId) {
@@ -214,6 +232,147 @@ router.post("/login", async (req, res) => {
   } catch (err) {
     console.error("Login error:", err);
     res.status(500).json({ error: safeErrorMessage(err) });
+  }
+});
+
+router.post("/login/send-otp", async (req, res) => {
+  try {
+    const { identifier } = req.body;
+    const id = String(identifier || "").trim();
+    if (!id) {
+      return res.status(400).json({ error: "Email, phone, or card number is required" });
+    }
+    const user = await findUserByIdentifier(id);
+    if (!user) {
+      return res.status(401).json({ error: "No account found with these details", code: "NOT_FOUND" });
+    }
+    const code = generateOTP();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+    await prisma.otp.upsert({
+      where: { email: user.email },
+      update: { code, name: user.name, password: "LOGIN", expiresAt, createdAt: new Date() },
+      create: { email: user.email, code, name: user.name, password: "LOGIN", expiresAt },
+    });
+    await sendOTPEmail(user.email, code, user.name);
+    const maskedEmail = user.email.replace(/(.{2})(.*)(@.*)/, "$1***$3");
+    res.json({ message: `OTP sent to ${maskedEmail}`, maskedEmail });
+  } catch (err) {
+    res.status(500).json({ error: safeErrorMessage(err) });
+  }
+});
+
+router.post("/login/verify-otp", async (req, res) => {
+  try {
+    const { identifier, code } = req.body;
+    const id = String(identifier || "").trim();
+    if (!id || !code) {
+      return res.status(400).json({ error: "Email, phone, or card number and the OTP are required" });
+    }
+    const user = await findUserByIdentifier(id);
+    if (!user) {
+      return res.status(401).json({ error: "No account found with these details", code: "NOT_FOUND" });
+    }
+    const record = await prisma.otp.findUnique({ where: { email: user.email } });
+    if (!record || record.password !== "LOGIN") {
+      return res.status(400).json({ error: "No sign-in request found. Please request a new OTP." });
+    }
+    if (new Date() > record.expiresAt) {
+      await prisma.otp.delete({ where: { email: user.email } });
+      return res.status(400).json({ error: "OTP has expired. Please request a new one." });
+    }
+    if (record.code !== String(code).trim()) {
+      return res.status(400).json({ error: "Incorrect OTP. Please try again." });
+    }
+    await prisma.otp.delete({ where: { email: user.email } });
+    const token = signToken(user.id);
+    res.json({ token, user: publicUser(user) });
+  } catch (err) {
+    res.status(500).json({ error: safeErrorMessage(err) });
+  }
+});
+
+router.get("/google/config", (req, res) => {
+  res.json({ enabled: !!(GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) });
+});
+
+router.get("/google", (req, res) => {
+  if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
+    return res.status(400).json({ error: "Google sign-in is not configured. Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to the server environment." });
+  }
+  const url = new URL("https://accounts.google.com/o/oauth2/v2/auth");
+  url.searchParams.set("client_id", GOOGLE_CLIENT_ID);
+  url.searchParams.set("redirect_uri", googleRedirectUri(req));
+  url.searchParams.set("response_type", "code");
+  url.searchParams.set("scope", "openid email profile");
+  url.searchParams.set("access_type", "online");
+  url.searchParams.set("prompt", "select_account");
+  res.redirect(url.toString());
+});
+
+function googleErrorRedirect(message) {
+  return `${FRONTEND_URL}/login?g_error=${encodeURIComponent(message)}`;
+}
+
+router.get("/google/callback", async (req, res) => {
+  try {
+    const { code, error } = req.query;
+    if (error || !code) {
+      return res.redirect(googleErrorRedirect(error === "access_denied" ? "Google sign-in was cancelled." : "Google sign-in failed. Please try again."));
+    }
+    if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
+      return res.redirect(googleErrorRedirect("Google sign-in is not configured. Please try again later."));
+    }
+    const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        code: String(code),
+        client_id: GOOGLE_CLIENT_ID,
+        client_secret: GOOGLE_CLIENT_SECRET,
+        redirect_uri: googleRedirectUri(req),
+        grant_type: "authorization_code",
+      }),
+    });
+    const tokens = await tokenRes.json();
+    if (!tokens.access_token) {
+      return res.redirect(googleErrorRedirect("Google authentication failed. Please try again."));
+    }
+    const infoRes = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
+      headers: { Authorization: `Bearer ${tokens.access_token}` },
+    });
+    const profile = await infoRes.json();
+    const email = String(profile.email || "").trim().toLowerCase();
+    if (!email) {
+      return res.redirect(googleErrorRedirect("Your Google account has no email address."));
+    }
+
+    let user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      const gmailDomain = email.split("@")[1] || "";
+      if (DISPOSABLE_DOMAINS.has(gmailDomain)) {
+        return res.redirect(googleErrorRedirect("Please use a permanent email address."));
+      }
+      const name = String(profile.name || email.split("@")[0] || "BATRAVERSE User").trim();
+      const phone = await generatePlaceholderPhone();
+      const hashed = await bcrypt.hash(crypto.randomBytes(18).toString("hex"), 10);
+      let cardNumber;
+      let cardUnique = false;
+      while (!cardUnique) {
+        cardNumber = generateCardNumber(name);
+        const existing = await prisma.user.findUnique({ where: { cardNumber } });
+        if (!existing) cardUnique = true;
+      }
+      const isOwner = email === OWNER_EMAIL || phone === OWNER_PHONE;
+      user = await prisma.user.create({
+        data: { name, email, phone, passwordHash: hashed, role: "USER", approved: true, cardNumber, cardLevel: isOwner ? "owner" : null },
+      });
+    }
+
+    const token = signToken(user.id);
+    res.redirect(`${FRONTEND_URL}/login?g_token=${encodeURIComponent(token)}`);
+  } catch (err) {
+    console.error("Google callback error:", err.message);
+    res.redirect(googleErrorRedirect("Google sign-in failed. Please try again."));
   }
 });
 
