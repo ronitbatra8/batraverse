@@ -321,9 +321,9 @@ export default function ProductPage() {
         </div>
 
         {/* Main product */}
-        <div className="mx-auto mt-8 grid max-w-[100rem] gap-8 px-5 sm:px-10 lg:grid-cols-2 lg:gap-14">
+        <div className="mx-auto mt-8 grid max-w-[100rem] gap-8 px-5 sm:px-10 lg:grid-cols-[5fr_6fr] lg:gap-14">
           {/* Gallery */}
-          <div className="flex flex-col gap-3 lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:self-start lg:pr-1">
+          <div className="flex flex-col gap-3 lg:sticky lg:top-24 lg:max-h-[calc(100vh-3.5rem)] lg:overflow-y-auto lg:self-start lg:pr-1">
             {/* Main image */}
             <div className={cn("relative aspect-square overflow-hidden rounded-2xl", light ? "bg-dark-100" : "bg-graphite")}>
               {hasImages ? (
