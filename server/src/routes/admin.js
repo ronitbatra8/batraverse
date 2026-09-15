@@ -22,6 +22,7 @@ const {
   createShipment: delhiveryCreateShipment,
   trackShipment: delhiveryTrackShipment,
 } = require("../services/delhivery");
+const { buildInvoicePdf } = require("../utils/invoicePdf");
 
 const router = express.Router();
 
@@ -271,9 +272,7 @@ router.put("/orders/:id/status", async (req, res) => {
       const order = await prisma.order.update({ where: { id: req.params.id }, data });
       await resolveOrderItemSellerPrices([order]);
       const user = await prisma.user.findUnique({ where: { id: existing.userId }, select: { name: true, email: true } });
-if (status !== "return_approved" && status !== "return_rejected") {
-        sendOrderStatusEmail(user.email, user.name, existing.id, status, existing.source, updatedItems).catch(() => {});
-      }
+      sendOrderStatusEmail(user.email, user.name, existing.orderId || existing.id, status, existing.source, updatedItems).catch(() => {});
       return res.json(order);
     }
 
@@ -307,9 +306,7 @@ if (status !== "return_approved" && status !== "return_rejected") {
     await resolveOrderItemSellerPrices([order]);
 
     const user = await prisma.user.findUnique({ where: { id: existing.userId }, select: { name: true, email: true } });
-    if (status !== "return_approved" && status !== "return_rejected") {
-      sendOrderStatusEmail(user.email, user.name, existing.id, status, existing.source, data.items).catch(() => {});
-    }
+    sendOrderStatusEmail(user.email, user.name, existing.orderId || existing.id, status, existing.source, data.items).catch(() => {});
 
     res.json(order);
   } catch (err) {
@@ -2098,5 +2095,180 @@ router.delete("/testimonials/:id", async (req, res) => {
   }
 });
 
+/* ------------------------------------------------------------------ *
+ *  Invoices / bills
+ * ------------------------------------------------------------------ */
+
+// Invoice number format: BV-XXXX-XXXX (each part is 4 alphanumeric chars).
+const INVOICE_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+function genInvoiceRef() {
+  const part = () =>
+    Array.from({ length: 4 }, () => INVOICE_CHARS[Math.floor(Math.random() * INVOICE_CHARS.length)]).join("");
+  return `BV-${part()}-${part()}`;
+}
+
+async function uniqueInvoiceRef() {
+  for (let i = 0; i < 10; i++) {
+    const ref = genInvoiceRef();
+    const hit = await prisma.invoice.findUnique({ where: { invoiceNo: ref } });
+    if (!hit) return ref;
+  }
+  throw new Error("Could not allocate a unique invoice number");
+}
+
+const round2 = (n) => Math.round(n * 100) / 100;
+
+async function resolveSoldBy(order) {
+  const items = Array.isArray(order.items) ? order.items : [];
+  const pids = [...new Set(items.map((it) => it.productId).filter(Boolean))];
+  if (pids.length) {
+    const products = await prisma.product.findMany({ where: { id: { in: pids }, sellerId: { not: null } }, select: { sellerId: true } });
+    const sids = [...new Set(products.map((p) => p.sellerId).filter(Boolean))];
+    if (sids.length) {
+      const sellers = await prisma.user.findMany({ where: { id: { in: sids } }, select: { shopName: true } });
+      const names = sellers.map((s) => (s.shopName || "").trim()).filter(Boolean);
+      if (names.length) return names.length === 1 ? names[0] : names.join(" & ");
+    }
+  }
+  const owner = await prisma.user.findFirst({ where: { role: "ADMIN" }, select: { shopName: true } });
+  return (owner && owner.shopName && owner.shopName.trim()) || "BATRAVERSE";
+}
+
+// Builds the printable bill payload for an order.
+function buildBillPayload(invoice, order) {
+  const items = Array.isArray(order.items) ? order.items : [];
+  const subtotal = Number(order.subtotalAmount) > 0 ? Number(order.subtotalAmount) : items.reduce((s, it) => s + (it.price || 0) * (it.quantity || 1), 0);
+  const discount = Math.max(0, Number(order.discountAmount) || 0);
+  const shipping = (Number(order.deliveryAmount) || 0) + (Number(order.expressAmount) || 0);
+  const total = Number(order.totalAmount) || round2(subtotal - discount + shipping);
+
+  const billItems = items.map((it, idx) => {
+    const unitPrice = Number(it.price) || 0;
+    const qty = Number(it.quantity) || 1;
+    const lineSubtotal = round2(unitPrice * qty);
+    const share = subtotal > 0 ? lineSubtotal / subtotal : 0;
+    const lineDiscount = round2(discount * share);
+    const fallbackLabel = String(it.name || "Item").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
+    const rawId = String(it.productId || it.product || "").replace(/^db-/, "");
+    const sku = rawId ? `BV-${rawId.slice(0, 6).toUpperCase()}` : fallbackLabel;
+    return {
+      idx: idx + 1,
+      name: String(it.name || "Item"),
+      sku,
+      qty,
+      color: it.color || null,
+      size: it.size || null,
+      unitPrice: round2(unitPrice),
+      discount: lineDiscount,
+      amount: round2(lineSubtotal - lineDiscount),
+    };
+  });
+
+  const qtySum = items.reduce((s, it) => s + (Number(it.quantity) || 1), 0);
+  const isCod = String(order.paymentMethod || "").toUpperCase() === "COD";
+  const fullyPaid = order.paymentStatus === "APPROVED";
+  const paidLevel = isCod ? false : fullyPaid;
+  const methodLabels = { CARD: "Card / Online", WALLET: "Card Wallet / UPI", COD: "Cash on Delivery" };
+  const method = methodLabels[order.paymentMethod] || order.paymentMethod || "N/A";
+
+  return {
+    invoiceNo: invoice.invoiceNo,
+    storeName: invoice.storeName,
+    order: {
+      orderId: order.orderId || order.id,
+      orderDate: order.createdAt,
+      source: order.source,
+      status: order.status,
+      totalAmount: total,
+      subtotalAmount: subtotal,
+      discountAmount: discount,
+      shippingAmount: shipping,
+      paymentMethod: order.paymentMethod,
+      paymentStatus: order.paymentStatus,
+      shippingName: order.shippingName,
+      shippingPhone: order.shippingPhone,
+      shippingAddress: order.shippingAddress,
+      shippingCity: order.shippingCity,
+      shippingState: order.shippingState,
+      shippingPincode: order.shippingPincode,
+    },
+    items: billItems,
+    summary: {
+      itemsTotal: round2(subtotal),
+      discountAmount: round2(discount),
+      shippingAmount: round2(shipping),
+      grandTotal: round2(total),
+      qtyCount: qtySum,
+      itemCount: billItems.length,
+    },
+    payment: {
+      method,
+      status: paidLevel ? "PAID" : "PENDING",
+      amountPaid: paidLevel ? round2(total) : 0,
+      collectCash: isCod,
+    },
+  };
+}
+
+router.post("/orders/:id/bill", async (req, res) => {
+  try {
+    const order = await prisma.order.findUnique({ where: { id: req.params.id } });
+    if (!order) return res.status(404).json({ error: "Order not found" });
+
+    const existing = await prisma.invoice.findFirst({ where: { orderId: order.id } });
+    if (existing) return res.json({ invoiceNo: existing.invoiceNo });
+
+    const storeName = await resolveSoldBy(order);
+    const invoiceNo = await uniqueInvoiceRef();
+    const invoice = await prisma.invoice.create({
+      data: {
+        invoiceNo,
+        orderId: order.id,
+        storeName,
+        total: Number(order.totalAmount) || 0,
+      },
+    });
+    res.json({ invoiceNo: invoice.invoiceNo });
+  } catch (err) {
+    res.status(500).json({ error: safeErrorMessage(err) });
+  }
+});
+
+router.get("/bills/:invoiceNo", async (req, res) => {
+  try {
+    const bill = await loadBillPayload(req.params.invoiceNo);
+    if (!bill) return res.status(404).json({ error: "Invoice not found" });
+    res.json(bill);
+  } catch (err) {
+    res.status(500).json({ error: safeErrorMessage(err) });
+  }
+});
+
+async function loadBillPayload(rawInvoiceNo) {
+  const invoiceNo = String(rawInvoiceNo).toUpperCase();
+  const invoice = await prisma.invoice.findUnique({ where: { invoiceNo } });
+  if (!invoice) return null;
+  const order = await prisma.order.findUnique({ where: { id: invoice.orderId } });
+  if (!order) return null;
+  return buildBillPayload(invoice, order);
+}
+
+router.get("/bills/:invoiceNo/pdf", async (req, res) => {
+  try {
+    const bill = await loadBillPayload(req.params.invoiceNo);
+    if (!bill) return res.status(404).json({ error: "Invoice not found" });
+    const pdf = await buildInvoicePdf(bill);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="${bill.invoiceNo}.pdf"`);
+    res.send(pdf);
+  } catch (err) {
+    res.status(500).json({ error: safeErrorMessage(err) });
+  }
+});
+
 module.exports = router;
 module.exports.resolveOrderItemImages = resolveOrderItemImages;
+module.exports.buildBillPayload = buildBillPayload;
+module.exports.resolveSoldBy = resolveSoldBy;
+module.exports.uniqueInvoiceRef = uniqueInvoiceRef;
+module.exports.round2 = round2;

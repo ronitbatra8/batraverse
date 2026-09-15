@@ -19,11 +19,13 @@ import {
   Hash,
   Truck,
   Wallet,
+  FileText,
 } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
 import { resolveImageUrl } from "@/lib/imageUrl";
 import { statusColors, API, adminHeaders } from "./types";
 import ConfirmModal from "@/components/ConfirmModal";
+import { useToast } from "@/components/Toast";
 
 const statusGradients: Record<string, string> = {
   pending: "from-amber-500/15 to-amber-500/5",
@@ -110,7 +112,9 @@ export default function OrdersTab({
   const [pendingStatusAction, setPendingStatusAction] = useState<{ orderId: string; status: string } | null>(null);
   const [pendingPaymentAction, setPendingPaymentAction] = useState<{ orderId: string; action: "approve" | "reject" } | null>(null);
   const [visibleCount, setVisibleCount] = useState(20);
+  const [billLoadingId, setBillLoadingId] = useState<string | null>(null);
   const lastFocusRef = useRef<string | null>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     if (adminKey) {
@@ -202,6 +206,40 @@ export default function OrdersTab({
       alert(msg);
     } finally {
       setShippingOrderId(null);
+    }
+  }
+
+  async function generateBill(order: any) {
+    if (billLoadingId) return;
+    setBillLoadingId(order.id);
+    try {
+      const res = await fetch(`${API}/api/admin/orders/${order.id}/bill`, {
+        method: "POST",
+        headers: adminHeaders(adminKey),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.invoiceNo) throw new Error(data?.error || "Failed to generate bill");
+
+      const pdfRes = await fetch(`${API}/api/admin/bills/${data.invoiceNo}/pdf`, {
+        headers: adminHeaders(adminKey),
+      });
+      if (!pdfRes.ok) {
+        const err = await pdfRes.json().catch(() => ({}));
+        throw new Error(err?.error || "Failed to download bill");
+      }
+      const blob = await pdfRes.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${data.invoiceNo}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e: any) {
+      toast(e?.message || "Failed to generate bill", "error");
+    } finally {
+      setBillLoadingId(null);
     }
   }
 
@@ -345,6 +383,19 @@ export default function OrdersTab({
                       <div className="text-white font-bold text-base sm:text-lg">{formatPrice(order.totalAmount || 0)}</div>
                       <div className="text-[10px] text-dark-500 mt-0.5">Total</div>
                     </div>
+                  </button>
+                  <button
+                    onClick={() => generateBill(order)}
+                    disabled={billLoadingId === order.id}
+                    title="Generate Bill"
+                    className="shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-gold-500/30 bg-gold-500/10 text-gold-300 text-xs font-semibold hover:bg-gold-500/20 transition-colors disabled:opacity-50 disabled:cursor-wait"
+                  >
+                    {billLoadingId === order.id ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <FileText className="w-3.5 h-3.5" />
+                    )}
+                    <span className="hidden md:inline">Bill</span>
                   </button>
                   <span className="shrink-0">
                     {isExpanded ? (

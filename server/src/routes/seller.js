@@ -6,6 +6,8 @@ const prisma = require("../db");
 const { safeErrorMessage } = require("../utils/helpers");
 const { sellerAuth, requireSeller } = require("../middleware/sellerAuth");
 const { buildSellerPricing, buildSellerDetails, effectiveSellerPrice } = require("../utils/products");
+const { buildInvoicePdf } = require("../utils/invoicePdf");
+const { buildBillPayload, resolveSoldBy, uniqueInvoiceRef } = require("./admin");
 
 const router = express.Router();
 
@@ -644,6 +646,64 @@ router.delete("/ad-requests/:id", async (req, res) => {
     }
     await prisma.adRequest.delete({ where: { id: req.params.id } });
     res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: safeErrorMessage(err) });
+  }
+});
+
+// ---- Bill / invoice (same per-order invoice as admin; generated once, reused after) ----
+
+async function sellerProductIds(userId) {
+  const products = await prisma.product.findMany({ where: { sellerId: userId }, select: { id: true } });
+  return new Set(products.map((p) => p.id));
+}
+
+async function sellerOwnsOrder(userId, orderId) {
+  const order = await prisma.order.findUnique({ where: { id: orderId } });
+  if (!order) return null;
+  const items = Array.isArray(order.items) ? order.items : [];
+  const pids = await sellerProductIds(userId);
+  const owns = items.some((it) => {
+    if (!it.productId) return false;
+    const pid = it.productId.startsWith("db-") ? it.productId.slice(3) : it.productId;
+    return pids.has(pid);
+  });
+  return owns ? order : null;
+}
+
+// Creates the invoice once (admin/seller whichever clicks first), then reuses it.
+router.post("/orders/:id/bill", async (req, res) => {
+  try {
+    const order = await sellerOwnsOrder(req.userId, req.params.id);
+    if (!order) return res.status(404).json({ error: "Order not found" });
+
+    const existing = await prisma.invoice.findFirst({ where: { orderId: order.id } });
+    if (existing) return res.json({ invoiceNo: existing.invoiceNo });
+
+    const storeName = await resolveSoldBy(order);
+    const invoiceNo = await uniqueInvoiceRef();
+    const invoice = await prisma.invoice.create({
+      data: { invoiceNo, orderId: order.id, storeName, total: Number(order.totalAmount) || 0 },
+    });
+    res.json({ invoiceNo: invoice.invoiceNo });
+  } catch (err) {
+    res.status(500).json({ error: safeErrorMessage(err) });
+  }
+});
+
+router.get("/bills/:invoiceNo/pdf", async (req, res) => {
+  try {
+    const invoiceNo = String(req.params.invoiceNo).toUpperCase();
+    const invoice = await prisma.invoice.findUnique({ where: { invoiceNo } });
+    if (!invoice) return res.status(404).json({ error: "Invoice not found" });
+    const order = await sellerOwnsOrder(req.userId, invoice.orderId);
+    if (!order) return res.status(404).json({ error: "Invoice not found" });
+
+    const bill = buildBillPayload(invoice, order);
+    const pdf = await buildInvoicePdf(bill);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="${bill.invoiceNo}.pdf"`);
+    res.send(pdf);
   } catch (err) {
     res.status(500).json({ error: safeErrorMessage(err) });
   }

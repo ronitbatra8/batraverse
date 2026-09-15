@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Banknote, Check, ChevronRight, CreditCard, Crown, Loader2, Lock, Shield, Tag, Truck } from "lucide-react";
+import { Banknote, Check, ChevronRight, CreditCard, Crown, Loader2, Lock, Shield, Tag, Truck, Wallet } from "lucide-react";
 import { cn, formatPrice } from "@/lib/utils";
 import { useTheme } from "@/components/theme/ThemeProvider";
+import { useToast } from "@/components/Toast";
 import { useCart, type CartItem } from "@/components/cart/CartContext";
 import { useAuth, type SavedAddress } from "@/components/auth/AuthContext";
 import SiteLayout from "@/components/layout/SiteLayout";
@@ -63,6 +64,7 @@ function loadRazorpay(): Promise<boolean> {
 export default function CheckoutPage() {
   const { theme } = useTheme();
   const light = theme === "light";
+  const { toast } = useToast();
   const router = useRouter();
   const { items, clear, deliveryMode, setDeliveryMode } = useCart();
   const { user } = useAuth();
@@ -78,6 +80,7 @@ export default function CheckoutPage() {
   const [paying, setPaying] = useState(false);
   const [error, setError] = useState("");
   const [placed, setPlaced] = useState<string | null>(null);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -148,7 +151,15 @@ export default function CheckoutPage() {
 
   const payEnabled = payMethod === "cod" || (payMethod === "online" && rzpReady) || (payMethod === "wallet" && walletEnough);
 
-  const shipValid = Boolean(ship.name.trim() && ship.phone.trim() && ship.address.trim() && ship.city.trim() && ship.state.trim() && ship.pincode.trim());
+  const shipValid = Boolean(ship.name.trim() && ship.phone.trim() && ship.email.trim() && ship.address.trim() && ship.apartment.trim() && ship.city.trim() && ship.state.trim() && ship.pincode.trim());
+
+  const stepOneOk = Boolean(user && ship.name.trim() && ship.phone.trim() && ship.email.trim());
+  const stepTwoOk = Boolean(stepOneOk && ship.address.trim() && ship.apartment.trim() && ship.city.trim() && ship.state.trim() && ship.pincode.trim());
+
+  const goStep = (n: 1 | 2 | 3) => {
+    setStep(n);
+    window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+  };
 
   const placeOrders = async (method: "COD" | "CARD" | "WALLET") => {
     const shipping = {
@@ -196,6 +207,7 @@ export default function CheckoutPage() {
     setPlaced(ids || "confirmed");
     clear();
     setPaying(false);
+    window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
   };
 
   const startRazorpay = async () => {
@@ -316,7 +328,7 @@ export default function CheckoutPage() {
               <Check size={32} className="text-emerald-500" />
             </div>
             <h1 className={cn("font-display text-3xl font-medium tracking-wide", light ? "text-dark-900" : "text-cream")}>
-              Order Confirmed
+              Order Placed
             </h1>
             <p className={cn("mt-3 text-sm leading-relaxed max-w-md mx-auto", light ? "text-dark-500" : "text-cream-dim/60")}>
               Your order <span className={cn("font-semibold", light ? "text-dark-900" : "text-cream")}>#{placed.toUpperCase()}</span> has been placed successfully.
@@ -375,7 +387,7 @@ export default function CheckoutPage() {
 
   return (
     <SiteLayout>
-      <div className="min-h-screen pb-20 overflow-x-hidden">
+      <div className="min-h-screen pb-20 overflow-x-clip">
         <div className="mx-auto max-w-[100rem] px-5 pt-6 sm:px-10">
           <nav className="flex items-center gap-2 text-[10px] uppercase tracking-[0.2em]">
             <Link href="/store" className={cn("transition-colors", light ? "text-dark-400 hover:text-sapphire" : "text-cream-dim/50 hover:text-gold-light")}>Store</Link>
@@ -391,54 +403,133 @@ export default function CheckoutPage() {
             Checkout
           </h1>
 
+          <div className="mt-8 flex flex-wrap items-center gap-x-3 gap-y-3">
+            {[
+              { n: 1, label: "Contact" },
+              { n: 2, label: "Address" },
+              { n: 3, label: "Payment" },
+            ].map((s, i) => (
+              <Fragment key={s.n}>
+                {i > 0 && (
+                  <div className={cn("h-px w-8 sm:w-14", step >= s.n ? (light ? "bg-sapphire" : "bg-gold") : (light ? "bg-dark-200" : "bg-white/10"))} />
+                )}
+                <button
+                  type="button"
+                  onClick={() => (s.n < step ? goStep(s.n as 1 | 2 | 3) : undefined)}
+                  className={cn("flex items-center gap-2", s.n < step && "cursor-pointer")}
+                >
+                  <span className={cn(
+                    "grid h-8 w-8 place-items-center rounded-full text-[11px] font-bold transition-colors",
+                    step >= s.n
+                      ? (light ? "bg-sapphire text-white" : "bg-gold text-abyss")
+                      : (light ? "bg-dark-100 text-dark-400" : "bg-white/10 text-cream-dim/50")
+                  )}>
+                    {s.n < step ? <Check size={12} /> : s.n}
+                  </span>
+                  <span className={cn("text-[10px] font-semibold uppercase tracking-[0.15em]", step >= s.n ? (light ? "text-dark-900" : "text-cream") : (light ? "text-dark-400" : "text-cream-dim/40"))}>
+                    {s.label}
+                  </span>
+                </button>
+              </Fragment>
+            ))}
+          </div>
+
           <div className="mt-8 grid gap-6 lg:grid-cols-3 sm:gap-10">
             {/* Left column — shipping + payment */}
             <div className="lg:col-span-2 space-y-6">
-              {/* Shipping details */}
-              <div className={cn("rounded-2xl border p-6", light ? "border-dark-200/60 bg-white" : "border-white/5 bg-graphite")}>
-                <h2 className={cn("text-[11px] font-semibold uppercase tracking-[0.3em]", light ? "text-dark-400" : "text-cream-dim/60")}>
-                  Shipping Details
-                </h2>
-                {!user && (
-                  <p className="mt-3 text-xs text-amber-500">
-                    Please <Link href="/login" className="underline">sign in</Link> to place your order.
-                  </p>
-                )}
-                <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div>
-                    <label className={labelCls}>Full Name</label>
-                    <input value={ship.name} onChange={(e) => setShip((p) => ({ ...p, name: e.target.value }))} placeholder="Your name" className={inputCls} />
+              {/* Step 1 — Contact */}
+              {step === 1 && (
+                <div className={cn("rounded-2xl border p-6", light ? "border-dark-200/60 bg-white" : "border-white/5 bg-graphite")}>
+                  <h2 className={cn("text-[11px] font-semibold uppercase tracking-[0.3em]", light ? "text-dark-400" : "text-cream-dim/60")}>
+                    1 — Contact Details
+                  </h2>
+                  {!user && (
+                    <p className="mt-3 text-xs text-amber-500">
+                      Please <Link href="/login" className="underline">sign in</Link> to place your order.
+                    </p>
+                  )}
+                  <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div>
+                      <label className={labelCls}>Full Name <span className="text-red-500">*</span></label>
+                      <input value={ship.name} onChange={(e) => setShip((p) => ({ ...p, name: e.target.value }))} placeholder="Your name" className={inputCls} required />
+                    </div>
+                    <div>
+                      <label className={labelCls}>Phone <span className="text-red-500">*</span></label>
+                      <input value={ship.phone} onChange={(e) => setShip((p) => ({ ...p, phone: e.target.value }))} placeholder="10-digit phone" className={inputCls} inputMode="tel" required />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className={labelCls}>Email <span className="text-red-500">*</span></label>
+                      <input value={ship.email} readOnly className={cn(inputCls, "cursor-not-allowed opacity-60")} />
+                    </div>
                   </div>
-                  <div>
-                    <label className={labelCls}>Phone</label>
-                    <input value={ship.phone} onChange={(e) => setShip((p) => ({ ...p, phone: e.target.value }))} placeholder="10-digit phone" className={inputCls} inputMode="tel" />
-                  </div>
-                  <div className="sm:col-span-2">
-                    <label className={labelCls}>Email</label>
-                    <input value={ship.email} onChange={(e) => setShip((p) => ({ ...p, email: e.target.value }))} placeholder="you@example.com" className={inputCls} type="email" />
-                  </div>
-                  <div className="sm:col-span-2">
-                    <label className={labelCls}>Address</label>
-                    <input value={ship.address} onChange={(e) => setShip((p) => ({ ...p, address: e.target.value }))} placeholder="House no, street, area" className={inputCls} />
-                  </div>
-                  <div className="sm:col-span-2">
-                    <label className={labelCls}>Apartment / Landmark (optional)</label>
-                    <input value={ship.apartment} onChange={(e) => setShip((p) => ({ ...p, apartment: e.target.value }))} placeholder="Apartment, landmark" className={inputCls} />
-                  </div>
-                  <div>
-                    <label className={labelCls}>City</label>
-                    <input value={ship.city} onChange={(e) => setShip((p) => ({ ...p, city: e.target.value }))} placeholder="City" className={inputCls} />
-                  </div>
-                  <div>
-                    <label className={labelCls}>State</label>
-                    <input value={ship.state} onChange={(e) => setShip((p) => ({ ...p, state: e.target.value }))} placeholder="State" className={inputCls} />
-                  </div>
-                  <div className="sm:col-span-2">
-                    <label className={labelCls}>Pincode</label>
-                    <input value={ship.pincode} onChange={(e) => setShip((p) => ({ ...p, pincode: e.target.value }))} placeholder="6-digit pincode" className={inputCls} inputMode="numeric" />
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => goStep(2)}
+                    disabled={!stepOneOk}
+                    className={cn(
+                      "mt-6 flex w-full items-center justify-center gap-2.5 rounded-xl px-8 py-3.5 text-[11px] font-bold uppercase tracking-[0.25em] transition-all duration-300",
+                      light ? "bg-sapphire text-white hover:bg-sapphire-light" : "bg-gold text-abyss hover:bg-gold-light",
+                      !stepOneOk && "opacity-50 cursor-not-allowed"
+                    )}
+                  >
+                    Fill Address <ChevronRight size={14} />
+                  </button>
+                  {user && !stepOneOk && (
+                    <p className="mt-3 text-center text-[10px] text-amber-500">Fill in your name and phone to continue.</p>
+                  )}
                 </div>
-              </div>
+              )}
+
+              {/* Step 2 — Address */}
+              {step === 2 && (
+                <div className={cn("rounded-2xl border p-6", light ? "border-dark-200/60 bg-white" : "border-white/5 bg-graphite")}>
+                  <div className="flex items-center justify-between gap-4">
+                    <h2 className={cn("text-[11px] font-semibold uppercase tracking-[0.3em]", light ? "text-dark-400" : "text-cream-dim/60")}>
+                      2 — Shipping Address
+                    </h2>
+                    <button type="button" onClick={() => goStep(1)} className={cn("text-[10px] font-semibold uppercase tracking-[0.2em]", light ? "text-sapphire hover:text-sapphire-light" : "text-gold hover:text-gold-light")}>
+                      ← Edit Contact
+                    </button>
+                  </div>
+                  <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div className="sm:col-span-2">
+                      <label className={labelCls}>Address <span className="text-red-500">*</span></label>
+                      <input value={ship.address} onChange={(e) => setShip((p) => ({ ...p, address: e.target.value }))} placeholder="House no, street, area" className={inputCls} required />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className={labelCls}>Apartment / Landmark <span className="text-red-500">*</span></label>
+                      <input value={ship.apartment} onChange={(e) => setShip((p) => ({ ...p, apartment: e.target.value }))} placeholder="Apartment, landmark" className={inputCls} required />
+                    </div>
+                    <div>
+                      <label className={labelCls}>City <span className="text-red-500">*</span></label>
+                      <input value={ship.city} onChange={(e) => setShip((p) => ({ ...p, city: e.target.value }))} placeholder="City" className={inputCls} required />
+                    </div>
+                    <div>
+                      <label className={labelCls}>State <span className="text-red-500">*</span></label>
+                      <input value={ship.state} onChange={(e) => setShip((p) => ({ ...p, state: e.target.value }))} placeholder="State" className={inputCls} required />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className={labelCls}>Pincode <span className="text-red-500">*</span></label>
+                      <input value={ship.pincode} onChange={(e) => setShip((p) => ({ ...p, pincode: e.target.value }))} placeholder="6-digit pincode" className={inputCls} inputMode="numeric" required />
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => goStep(3)}
+                    disabled={!stepTwoOk}
+                    className={cn(
+                      "mt-6 flex w-full items-center justify-center gap-2.5 rounded-xl px-8 py-3.5 text-[11px] font-bold uppercase tracking-[0.25em] transition-all duration-300",
+                      light ? "bg-sapphire text-white hover:bg-sapphire-light" : "bg-gold text-abyss hover:bg-gold-light",
+                      !stepTwoOk && "opacity-50 cursor-not-allowed"
+                    )}
+                  >
+                    Pay <ChevronRight size={14} />
+                  </button>
+                  {!stepTwoOk && (
+                    <p className="mt-3 text-center text-[10px] text-amber-500">Fill in your complete address to continue.</p>
+                  )}
+                </div>
+              )}
 
               {/* Card benefits */}
               <div className={cn("rounded-2xl border p-6", light ? "border-dark-200/60 bg-white" : "border-white/5 bg-graphite")}>
@@ -452,6 +543,12 @@ export default function CheckoutPage() {
                       <span className={cn("inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.15em]", "bg-gold-500/10 border border-gold-500/30 text-gold-400")}>
                         <Crown size={10} /> {((LEVELS[level]?.name || level) as string)}
                       </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className={cn("flex items-center gap-1.5 text-sm", light ? "text-dark-500" : "text-cream-dim/60")}>
+                        <Wallet size={12} /> Wallet Balance
+                      </span>
+                      <span className="text-sm font-semibold tabular-nums">{formatPrice(wallet ?? 0)}</span>
                     </div>
                     {payMethod === "wallet" ? (
                       <>
@@ -514,10 +611,11 @@ export default function CheckoutPage() {
                 )}
               </div>
 
-              {/* Payment method */}
+              {/* Step 3 — Payment method */}
+              {step === 3 && (
               <div className={cn("rounded-2xl border p-6", light ? "border-dark-200/60 bg-white" : "border-white/5 bg-graphite")}>
                 <h2 className={cn("text-[11px] font-semibold uppercase tracking-[0.3em]", light ? "text-dark-400" : "text-cream-dim/60")}>
-                  Payment Method
+                  3 — Payment Method
                 </h2>
                 <div className="mt-5 grid gap-3 sm:grid-cols-3">
                   <button
@@ -534,15 +632,14 @@ export default function CheckoutPage() {
 
                   <button
                     type="button"
-                    onClick={() => setPayMethod("online")}
-                    disabled={!rzpReady}
-                    className={methodBtn(payMethod === "online", !rzpReady)}
+                    onClick={() => toast("Online payment is currently unavailable — it will be added soon.", "info")}
+                    className={methodBtn(payMethod === "online", false)}
                   >
                     {methodIcon(payMethod === "online", <CreditCard size={18} />)}
                     <div>
                       {methodTitle("Online")}
                       <p className={cn("text-[10px]", light ? "text-dark-400" : "text-cream-dim/50")}>
-                        {rzpReady ? "Razorpay · Card / UPI" : "Not configured"}
+                        Coming soon
                       </p>
                     </div>
                   </button>
@@ -559,12 +656,6 @@ export default function CheckoutPage() {
                     </div>
                   </button>
                 </div>
-
-                {payMethod === "online" && !rzpReady && (
-                  <p className="mt-4 text-xs text-amber-500">
-                    Online payment is not configured. Please use COD or your wallet.
-                  </p>
-                )}
 
                 {payMethod === "wallet" && !walletEnough && (
                   <p className="mt-4 text-xs text-amber-500">
@@ -588,11 +679,44 @@ export default function CheckoutPage() {
                     </p>
                   </div>
                 )}
+
+                {error && (
+                  <div className={cn("mt-6 rounded-lg px-4 py-3 text-xs", light ? "bg-red-50 text-red-700" : "bg-red-500/10 text-red-400")}>
+                    {error}
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handlePay}
+                  disabled={paying || !shipValid || !user || !payEnabled || (payMethod === "wallet" && !cardPin.trim())}
+                  className={cn(
+                    "mt-6 flex w-full items-center justify-center gap-2.5 rounded-xl px-8 py-3.5 text-[11px] font-bold uppercase tracking-[0.25em] transition-all duration-300",
+                    light
+                      ? "bg-sapphire text-white hover:bg-sapphire-light hover:shadow-[0_0_30px_rgba(30,58,138,0.3)]"
+                      : "bg-gold text-abyss hover:bg-gold-light hover:shadow-[0_0_30px_rgba(212,175,55,0.3)]",
+                    (paying || !shipValid || !user || !payEnabled || (payMethod === "wallet" && !cardPin.trim())) && "opacity-50 cursor-not-allowed"
+                  )}
+                >
+                  {paying ? <Loader2 size={14} className="animate-spin" /> : payMethod === "wallet" ? <Shield size={14} /> : payMethod === "online" ? <Lock size={14} /> : <Banknote size={14} />}
+                  {paying
+                    ? "Processing…"
+                    : payMethod === "wallet"
+                      ? `Pay ${formatPrice(grandTotal)} from Wallet`
+                      : payMethod === "online"
+                        ? `Pay ${formatPrice(grandTotal)} Online`
+                        : `Place Order · ${formatPrice(grandTotal)}`}
+                </button>
+
+                {(!shipValid || (payMethod === "wallet" && !cardPin.trim())) && user && (
+                  <p className="mt-3 text-center text-[10px] text-amber-500">Complete your details to place the order.</p>
+                )}
               </div>
+              )}
             </div>
 
             {/* Right column — order summary */}
-            <div>
+            <div className="space-y-6 sticky top-24 self-start">
               <div className={cn("rounded-2xl border p-6", light ? "border-dark-200/60 bg-white" : "border-white/5 bg-graphite")}>
                 <h2 className={cn("text-[11px] font-semibold uppercase tracking-[0.3em]", light ? "text-dark-400" : "text-cream-dim/60")}>
                   Order Summary
@@ -652,38 +776,6 @@ export default function CheckoutPage() {
                     All prices are inclusive of GST.
                   </p>
                 </div>
-
-                {error && (
-                  <div className={cn("mt-4 rounded-lg px-4 py-3 text-xs", light ? "bg-red-50 text-red-700" : "bg-red-500/10 text-red-400")}>
-                    {error}
-                  </div>
-                )}
-
-                <button
-                  type="button"
-                  onClick={handlePay}
-                  disabled={paying || !shipValid || !user || !payEnabled || (payMethod === "wallet" && !cardPin.trim())}
-                  className={cn(
-                    "mt-6 flex w-full items-center justify-center gap-2.5 rounded-xl px-8 py-3.5 text-[11px] font-bold uppercase tracking-[0.25em] transition-all duration-300",
-                    light
-                      ? "bg-sapphire text-white hover:bg-sapphire-light hover:shadow-[0_0_30px_rgba(30,58,138,0.3)]"
-                      : "bg-gold text-abyss hover:bg-gold-light hover:shadow-[0_0_30px_rgba(212,175,55,0.3)]",
-                    (paying || !shipValid || !user || !payEnabled || (payMethod === "wallet" && !cardPin.trim())) && "opacity-50 cursor-not-allowed"
-                  )}
-                >
-                  {paying ? <Loader2 size={14} className="animate-spin" /> : payMethod === "wallet" ? <Shield size={14} /> : payMethod === "online" ? <Lock size={14} /> : <Banknote size={14} />}
-                  {paying
-                    ? "Processing…"
-                    : payMethod === "wallet"
-                      ? `Pay ${formatPrice(grandTotal)} from Wallet`
-                      : payMethod === "online"
-                        ? `Pay ${formatPrice(grandTotal)} Online`
-                        : `Place Order · ${formatPrice(grandTotal)}`}
-                </button>
-
-                {!shipValid && user && (
-                  <p className="mt-3 text-center text-[10px] text-amber-500">Complete shipping details to continue.</p>
-                )}
               </div>
             </div>
           </div>

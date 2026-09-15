@@ -44,7 +44,8 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthContext";
 import { useToast } from "@/components/Toast";
-import { apiFetch, apiUpload } from "@/lib/api";
+import { apiFetch, apiUpload, apiUrl } from "@/lib/api";
+import { getAuth } from "@/lib/authStorage";
 import { resolveImageUrl } from "@/lib/imageUrl";
 import { cn, formatPrice } from "@/lib/utils";
 import SiteLayout from "@/components/layout/SiteLayout";
@@ -1581,8 +1582,44 @@ function OrdersTab({
   onToggle: (id: string | null) => void;
 }) {
   const [filter, setFilter] = useState("all");
+  const [billLoadingId, setBillLoadingId] = useState<string | null>(null);
+  const { toast } = useToast();
   const sorted = [...orders].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   const filtered = filter === "all" ? sorted : sorted.filter((o) => o.status === filter);
+
+  async function generateBill(order: { id: string }) {
+    if (billLoadingId) return;
+    setBillLoadingId(order.id);
+    try {
+      const data = await apiFetch(`/seller/orders/${order.id}/bill`, { method: "POST" });
+      if (!data.invoiceNo) throw new Error("Failed to generate bill");
+      const token = getAuth("bt-token");
+      const pdfRes = await fetch(apiUrl(`/seller/bills/${data.invoiceNo}/pdf`), {
+        headers: {
+          "ngrok-skip-browser-warning": "true",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+      if (!pdfRes.ok) {
+        const err = await pdfRes.json().catch(() => ({}));
+        throw new Error(err?.error || "Failed to download bill");
+      }
+      const blob = await pdfRes.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.rel = "noopener";
+      a.download = `${data.invoiceNo}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.setTimeout(() => URL.revokeObjectURL(url), 5000);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Failed to generate bill", "error");
+    } finally {
+      setBillLoadingId(null);
+    }
+  }
 
   const ORDER_GRADIENTS: Record<string, string> = {
     pending: "from-amber-500/15 to-amber-500/5",
@@ -1690,17 +1727,15 @@ function OrdersTab({
                     </div>
                   </button>
                   <div className="flex items-center gap-2 shrink-0">
-                    {["confirmed", "shipped", "packed", "out_for_delivery"].includes(order.status) && (
-                      <a
-                        href="#"
-                        onClick={(e) => {
-                          e.preventDefault();
-                        }}
-                        className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 transition-all"
+                    {order.status === "confirmed" && (
+                      <button
+                        onClick={() => generateBill(order)}
+                        disabled={billLoadingId === order.id}
+                        className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 transition-all disabled:opacity-60"
                         title="Download bill"
                       >
-                        <Download size={13} /> Bill
-                      </a>
+                        {billLoadingId === order.id ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />} Bill
+                      </button>
                     )}
                     <button
                       onClick={() => onToggle(isExpanded ? null : order.id)}

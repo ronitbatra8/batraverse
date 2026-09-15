@@ -167,10 +167,24 @@ model Order {
   carrierOrderId String?
   trackingUrl String?
 
+  invoices Invoice[]
+
   @@index([status])
   @@index([paymentStatus])
   @@index([userId])
   @@index([assignedTo])
+}
+
+model Invoice {
+  id        String   @id @default(cuid())
+  invoiceNo String   @unique
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId   String
+  storeName String   @default("BATRAVERSE")
+  total     Float    @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([orderId])
 }
 
 model Product {

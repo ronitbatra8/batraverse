@@ -8,6 +8,7 @@ import { ShieldAlert, LogIn, ArrowLeft } from "lucide-react";
 import { Tab, API, adminHeaders } from "../admin/components/types";
 import AuthGate from "../admin/components/AuthGate";
 import { useAuth } from "@/components/auth/AuthContext";
+import { setAuth, removeAuth } from "@/lib/authStorage";
 import { Spinner } from "@/components/auth/auth-ui";
 import { cn } from "@/lib/utils";
 import Sidebar from "../admin/components/Sidebar";
@@ -123,6 +124,7 @@ export default function AdminPage() {
       setProductApprovalCount(Array.isArray(appr) ? appr.length : 0);
       setStockSummary(ss && typeof ss === "object" && !Array.isArray(ss) ? ss : EMPTY_DATA.stockSummary);
       setAuthenticated(true);
+      setAuth("bt-admin-key", adminKey);
     } catch { setAuthError("Cannot connect to server"); }
     setLoading(false);
   }, [adminKey]);
@@ -209,6 +211,7 @@ export default function AdminPage() {
 
   const handleSignOut = useCallback(() => {
     setAuthenticated(false);
+    removeAuth("bt-admin-key");
     setTab("overview");
   }, []);
 

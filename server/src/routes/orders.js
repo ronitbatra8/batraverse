@@ -345,7 +345,7 @@ router.put("/:id/items/:itemIdx/cancel", userAuth, customerOnly, async (req, res
     const updatedOrder = await prisma.order.findUnique({ where: { id } });
 
     const user = await prisma.user.findUnique({ where: { id: req.userId }, select: { name: true, email: true } });
-    sendOrderStatusEmail(user.email, user.name, id, "cancelled", order.source, updatedOrder.items).catch(() => {});
+    sendOrderStatusEmail(user.email, user.name, order.orderId || order.id, "cancelled", order.source, updatedOrder.items).catch(() => {});
 
     res.json(updatedOrder);
   } catch (err) {

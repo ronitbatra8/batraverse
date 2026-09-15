@@ -1,4 +1,4 @@
-const AUTH_KEYS = ["bt-token", "bt-accounts", "bt-current", "bt-current-user-id"] as const;
+const AUTH_KEYS = ["bt-token", "bt-accounts", "bt-current", "bt-current-user-id", "bt-admin-key"] as const;
 
 export type AuthKey = (typeof AUTH_KEYS)[number];
 
