@@ -27,17 +27,15 @@ export default function AnalyticsTracker() {
         duration,
       });
       const url = `${API}/api/analytics/track`;
-      const blob = new Blob([body], { type: "application/json" });
-      if (typeof navigator.sendBeacon === "function") {
-        navigator.sendBeacon(url, blob);
-      } else {
-        fetch(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body,
-          keepalive: true,
-        }).catch(() => {});
-      }
+      fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "ngrok-skip-browser-warning": "true",
+        },
+        body,
+        keepalive: true,
+      }).catch(() => {});
     } catch {}
   }, []);
 
