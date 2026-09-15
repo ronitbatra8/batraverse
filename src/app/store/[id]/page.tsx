@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter, useParams } from "next/navigation";
-import { Star, Heart, ShoppingBag, ChevronRight, Check, Truck, Shield, RotateCcw, Zap, ThumbsUp, MessageSquare, Loader2 } from "lucide-react";
+import { Star, Heart, ShoppingBag, ChevronRight, Check, Truck, RotateCcw, Zap, ThumbsUp } from "lucide-react";
 import { cn, formatPrice } from "@/lib/utils";
 import { useTheme, detailQuery } from "@/components/theme/ThemeProvider";
 import { useCart } from "@/components/cart/CartContext";
@@ -148,12 +148,6 @@ export default function ProductPage() {
   const [showAllReviews, setShowAllReviews] = useState(false);
   const [realReviews, setRealReviews] = useState<{ id: string; rating: number; comment: string | null; createdAt: string; user: { id: string; name: string; email: string } }[]>([]);
   const [realStats, setRealStats] = useState<{ total: number; avg: number; dist: number[] }>({ total: 0, avg: 0, dist: [0, 0, 0, 0, 0] });
-  const [reviewRating, setReviewRating] = useState(0);
-  const [reviewTitle, setReviewTitle] = useState("");
-  const [reviewBody, setReviewBody] = useState("");
-  const [reviewSubmitting, setReviewSubmitting] = useState(false);
-  const [reviewError, setReviewError] = useState("");
-  const [reviewSuccess, setReviewSuccess] = useState(false);
 
   useEffect(() => {
     if (!product) return;
@@ -244,40 +238,6 @@ export default function ProductPage() {
     dist: realStats.dist,
   };
 
-  async function handleSubmitReview() {
-    if (reviewRating === 0) { setReviewError("Please select a rating"); return; }
-    setReviewSubmitting(true);
-    setReviewError("");
-    setReviewSuccess(false);
-    try {
-      const pid = product?.id.startsWith("db-") ? product.id.replace("db-", "") : product?.id;
-      const newReview = await apiFetch("/reviews", {
-        method: "POST",
-        body: JSON.stringify({ productId: pid, rating: reviewRating, title: reviewTitle, body: reviewBody }),
-      });
-      if (newReview && newReview.id) {
-        setRealReviews((prev) => [newReview, ...prev]);
-        setRealStats((prev) => {
-          const newDist = [...prev.dist];
-          newDist[reviewRating - 1]++;
-          return {
-            total: prev.total + 1,
-            avg: (prev.avg * prev.total + reviewRating) / (prev.total + 1),
-            dist: newDist,
-          };
-        });
-        setReviewRating(0);
-        setReviewTitle("");
-        setReviewBody("");
-        setReviewSuccess(true);
-      }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to submit review";
-      setReviewError(msg.includes("already reviewed") ? "You have already reviewed this product" : msg);
-    } finally {
-      setReviewSubmitting(false);
-    }
-  }
   const selectedColorData = product.colors[selectedColor];
   const selectedColorName = selectedColorData.name;
 
@@ -653,11 +613,10 @@ export default function ProductPage() {
             )}
 
             {/* Trust badges */}
-            <div className={cn("mt-8 grid grid-cols-3 gap-3 rounded-2xl border p-4", light ? "border-dark-100 bg-dark-50/50" : "border-white/5 bg-graphite/50")}>
+            <div className={cn("mt-8 grid grid-cols-2 gap-3 rounded-2xl border p-4", light ? "border-dark-100 bg-dark-50/50" : "border-white/5 bg-graphite/50")}>
               {[
-                { icon: <Truck size={16} />, label: "Free Shipping\nAbove ₹800" },
+                { icon: <Truck size={16} />, label: "Free Shipping\nAbove ₹250" },
                 { icon: <RotateCcw size={16} />, label: "12-Hour Returns" },
-                { icon: <Shield size={16} />, label: "No Warranty\nBuyer Verified" },
               ].map((b) => (
                 <div key={b.label} className="flex flex-col items-center gap-2 text-center">
                   <span className={cn(light ? "text-sapphire" : "text-gold")}>{b.icon}</span>
@@ -864,79 +823,6 @@ export default function ProductPage() {
             </div>
           )}
 
-          {/* Write a review */}
-          <div className={cn("mt-8 rounded-2xl border p-6 sm:p-8", light ? "border-dark-200/60 bg-white" : "border-white/5 bg-graphite")}>
-            <div className="flex items-center gap-2">
-              <MessageSquare size={16} className={light ? "text-sapphire" : "text-gold"} />
-              <h3 className={cn("text-[11px] font-semibold uppercase tracking-[0.3em]", light ? "text-dark-400" : "text-cream-dim/60")}>
-                Write a Review
-              </h3>
-            </div>
-            {reviewSuccess && (
-              <p className="mt-3 text-[11px] text-emerald-500 font-medium">Review submitted successfully!</p>
-            )}
-            {reviewError && (
-              <p className="mt-3 text-[11px] text-red-500 font-medium">{reviewError}</p>
-            )}
-            <div className="mt-4 flex flex-col gap-4">
-              <div>
-                <label className={cn("mb-2 block text-[10px] font-semibold uppercase tracking-[0.2em]", light ? "text-dark-500" : "text-cream-dim/70")}>
-                  Rating
-                </label>
-                <div className="flex gap-1">
-                  {[1, 2, 3, 4, 5].map((s) => (
-                    <button key={s} type="button" onClick={() => setReviewRating(s)} className="transition-transform hover:scale-125">
-                      <Star
-                        size={20}
-                        className={cn(
-                          s <= reviewRating
-                            ? light ? "fill-sapphire text-sapphire" : "fill-gold text-gold"
-                            : light ? "fill-dark-200 text-dark-200" : "fill-white/10 text-white/10"
-                        )}
-                      />
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <label className={cn("mb-2 block text-[10px] font-semibold uppercase tracking-[0.2em]", light ? "text-dark-500" : "text-cream-dim/70")}>
-                  Title
-                </label>
-                <input
-                  type="text"
-                  value={reviewTitle}
-                  onChange={(e) => setReviewTitle(e.target.value)}
-                  placeholder="Summarize your experience"
-                  className={cn("w-full rounded-xl border px-4 py-3 text-sm transition-colors focus:outline-none", light ? "border-dark-200 bg-dark-50/50 text-dark-900 placeholder:text-dark-400 focus:border-sapphire" : "border-white/10 bg-onyx/50 text-cream placeholder:text-cream-dim/30 focus:border-gold")}
-                />
-              </div>
-              <div>
-                <label className={cn("mb-2 block text-[10px] font-semibold uppercase tracking-[0.2em]", light ? "text-dark-500" : "text-cream-dim/70")}>
-                  Review
-                </label>
-                <textarea
-                  rows={4}
-                  value={reviewBody}
-                  onChange={(e) => setReviewBody(e.target.value)}
-                  placeholder="Tell others about your experience..."
-                  className={cn("w-full rounded-xl border px-4 py-3 text-sm transition-colors focus:outline-none resize-none", light ? "border-dark-200 bg-dark-50/50 text-dark-900 placeholder:text-dark-400 focus:border-sapphire" : "border-white/10 bg-onyx/50 text-cream placeholder:text-cream-dim/30 focus:border-gold")}
-                />
-              </div>
-              <button
-                type="button"
-                onClick={handleSubmitReview}
-                disabled={reviewSubmitting}
-                className={cn(
-                  "self-start rounded-xl px-8 py-3 text-[11px] font-bold uppercase tracking-[0.25em] transition-all duration-300 disabled:opacity-50",
-                  light
-                    ? "bg-sapphire text-white hover:bg-sapphire-light hover:shadow-[0_0_30px_rgba(30,58,138,0.3)]"
-                    : "bg-gold text-abyss hover:bg-gold-light hover:shadow-[0_0_30px_rgba(212,175,55,0.3)]"
-                )}
-              >
-                {reviewSubmitting ? <Loader2 size={14} className="animate-spin" /> : "Submit Review"}
-              </button>
-            </div>
-          </div>
         </div>
 
         {/* Related */}

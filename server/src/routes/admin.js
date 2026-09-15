@@ -654,7 +654,6 @@ router.get("/finance", async (req, res) => {
     const PAID = { paymentStatus: "APPROVED" };
     const SUCCEEDED = { status: { notIn: ["cancelled", "returned", "return_requested", "return_approved", "return_rejected"] } };
     const DELIVERED = { status: "delivered" };
-    const SHIPPED = { status: { in: ["packed", "out_for_delivery", "delivered"] } };
     const SHIPPING_FEE = 60;
     const RAZORPAY_FEE_PCT = 0.02;
     const RAZORPAY_GST_PCT = 0.18;
@@ -671,7 +670,6 @@ router.get("/finance", async (req, res) => {
       userAgg,
       paymentMethodBreakdown,
       revenueByDay,
-      shippedCount,
       returnsOrders,
       razorpayAgg,
       walletCreditAgg,
@@ -679,10 +677,12 @@ router.get("/finance", async (req, res) => {
       walletRecent,
       upgradeRecent,
       payoutRecent,
+      deliveryChargeAgg,
     ] = await Promise.all([
       // Delivered (completed) orders: all money actually earned
       prisma.order.aggregate({
         _sum: { totalAmount: true, gstAmount: true, deliveryAmount: true, expressAmount: true },
+        _count: { _all: true },
         where: { ...DELIVERED, ...PAID },
       }),
       // Non-cancelled/returned orders (booked revenue, includes pending-payment)
@@ -738,9 +738,6 @@ router.get("/finance", async (req, res) => {
         where: { ...DELIVERED, ...PAID, deliveredAt: { gte: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000) } },
         _sum: { totalAmount: true },
       }),
-      // Orders that actually shipped (packed → out for delivery → delivered):
-      // a flat shipping fee is charged per shipped order.
-      prisma.order.count({ where: SHIPPED }),
       // Paid orders whose items carry a "returned" status → return money
       prisma.order.findMany({
         where: PAID,
@@ -797,6 +794,14 @@ router.get("/finance", async (req, res) => {
           seller: { select: { name: true } },
         },
       }),
+      // Delivered + paid orders that actually collected a delivery/express
+      // charge: the real shipping money, one number (not a flat per-order
+      // estimate), so an order with a delivery charge is never counted twice.
+      prisma.order.aggregate({
+        _count: { _all: true },
+        _sum: { deliveryAmount: true, expressAmount: true },
+        where: { ...DELIVERED, ...PAID, OR: [{ deliveryAmount: { gt: 0 } }, { expressAmount: { gt: 0 } }] },
+      }),
     ]);
 
     const byStatus = Object.fromEntries(
@@ -837,15 +842,19 @@ router.get("/finance", async (req, res) => {
     const razorpayPaid = razorpayAgg._sum.totalAmount || 0;
     const razorpayFees = Math.round(razorpayPaid * RAZORPAY_FEE_PCT * (1 + RAZORPAY_GST_PCT) * 100) / 100;
 
-    // Net earnings = total delivered revenue minus everything BATRAVERSE only
-    // passes through or pays out: GST collected, flat shipping charges,
-    // Razorpay processing fees, delivery + express fees, and seller payouts.
-    const shippingFees = shippedCount * SHIPPING_FEE;
+    // Net earnings = total delivered revenue minus everything that is only
+    // passed through or paid out: GST collected, Razorpay processing fees,
+    // the single mandatory delivery/shipping charge per order, and seller
+    // payouts owed (paid or pending).
     const gstCollected = delivered._sum.gstAmount || 0;
-    const deliveryFees = delivered._sum.deliveryAmount || 0;
-    const expressFees = delivered._sum.expressAmount || 0;
+    // One charge per order: the delivery charge when one was collected,
+    // otherwise the flat ₹60 shipping charge on free-delivery orders.
+    const deliveryChargedSum = Math.round(((deliveryChargeAgg._sum.deliveryAmount || 0) + (deliveryChargeAgg._sum.expressAmount || 0)) * 100) / 100;
+    const freeDeliveryCount = Math.max(0, (delivered._count._all || 0) - (deliveryChargeAgg._count._all || 0));
+    const shippingFees = Math.round((deliveryChargedSum + freeDeliveryCount * SHIPPING_FEE) * 100) / 100;
+    const payoutOwed = paidPayouts + pendingPayouts;
     const netEarnings = Math.round(
-      (grossRevenue - gstCollected - shippingFees - razorpayFees - deliveryFees - expressFees - paidPayouts) * 100
+      (grossRevenue - gstCollected - razorpayFees - shippingFees - payoutOwed) * 100
     ) / 100;
 
     // Whole-wallet picture: everything that flows INTO and OUT of customer
@@ -864,7 +873,8 @@ router.get("/finance", async (req, res) => {
       deliveryFees: delivered._sum.deliveryAmount || 0,
       expressFees: delivered._sum.expressAmount || 0,
       shippingFees,
-      shippingCount: shippedCount,
+      shippingCount: delivered._count._all || 0,
+      shippingFreeCount: freeDeliveryCount,
       returnsTotal,
       returnedItemCount,
       razorpayPaid,

@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { TrendingUp, Wallet, ArrowDownLeft, ArrowUpRight, Percent, Truck, Zap, Layers, BadgeCheck, Store, RefreshCw, CreditCard, Undo2 } from "lucide-react";
+import { TrendingUp, Wallet, ArrowDownLeft, ArrowUpRight, Percent, Truck, Layers, BadgeCheck, Store, RefreshCw, CreditCard, Undo2, Package } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
 import { API, adminHeaders } from "./types";
 
@@ -198,10 +198,11 @@ export default function MoneyTab({ adminKey }: { adminKey: string }) {
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         {[
           { label: "Gross Revenue", value: formatPrice(data.grossRevenue), icon: TrendingUp, color: "text-gold-400", bg: "from-gold-500/20 to-gold-500/10", border: "border-gold-500/30", sub: "Delivered sales" },
-          { label: "Net Earnings", value: formatPrice(data.netEarnings), icon: BadgeCheck, color: "text-emerald-400", bg: "from-emerald-500/20 to-emerald-500/10", border: "border-emerald-500/30", sub: "Minus GST, shipping, RZ fees, delivery & payouts" },
+          { label: "Net Earnings", value: formatPrice(data.netEarnings), icon: BadgeCheck, color: "text-emerald-400", bg: "from-emerald-500/20 to-emerald-500/10", border: "border-emerald-500/30", sub: "Minus GST, RZ fees, delivery/shipping & payouts" },
           { label: "GST Collected", value: formatPrice(data.gstCollected), icon: Percent, color: "text-sky-400", bg: "from-sky-500/20 to-sky-500/10", border: "border-sky-500/30", sub: "On delivered orders" },
-          { label: "Shipping", value: formatPrice(data.shippingFees || 0), icon: Truck, color: "text-teal-400", bg: "from-teal-500/20 to-teal-500/10", border: "border-teal-500/30", sub: `${data.shippingCount || 0} shipped × ₹60` },
-          { label: "Delivery + Express", value: formatPrice((data.deliveryFees || 0) + (data.expressFees || 0)), icon: Zap, color: "text-violet-400", bg: "from-violet-500/20 to-violet-500/10", border: "border-violet-500/30", sub: `${formatPrice(data.deliveryFees || 0)} + ${formatPrice(data.expressFees || 0)}` },
+          { label: "Delivery Charges", value: formatPrice((data.deliveryFees || 0) + (data.expressFees || 0)), icon: Truck, color: "text-teal-400", bg: "from-teal-500/20 to-teal-500/10", border: "border-teal-500/30", sub: `${formatPrice(data.deliveryFees || 0)} std + ${formatPrice(data.expressFees || 0)} exp` },
+          { label: "Shipping Charges", value: formatPrice(Math.max(0, (data.shippingFees || 0) - (data.deliveryFees || 0) - (data.expressFees || 0))), icon: Package, color: "text-violet-400", bg: "from-violet-500/20 to-violet-500/10", border: "border-violet-500/30", sub: `${data.shippingFreeCount || 0} free-delivery orders × ₹60` },
+          { label: "Seller Payouts", value: formatPrice((payouts.paid.amount || 0) + (payouts.pending.amount || 0)), icon: Store, color: "text-fuchsia-400", bg: "from-fuchsia-500/20 to-fuchsia-500/10", border: "border-fuchsia-500/30", sub: `${payouts.paid.count || 0} paid + ${payouts.pending.count || 0} pending` },
           { label: "Returns", value: formatPrice(data.returnsTotal || 0), icon: RefreshCw, color: "text-rose-400", bg: "from-rose-500/20 to-rose-500/10", border: "border-rose-500/30", sub: `${data.returnedItemCount || 0} items returned` },
           { label: "Razorpay Fees", value: formatPrice(data.razorpayFees || 0), icon: CreditCard, color: "text-blue-400", bg: "from-blue-500/20 to-blue-500/10", border: "border-blue-500/30", sub: `2% +18% GST on ${formatPrice(data.razorpayPaid || 0)}` },
         ].map((s) => (

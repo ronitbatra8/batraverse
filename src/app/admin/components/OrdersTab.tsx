@@ -675,7 +675,7 @@ export default function OrdersTab({
                           {splitItems.map((item: any, idx: number) => {
                             const qty = item.quantity || 1;
                             const share = splitSubtotal > 0 ? (item.price || 0) * qty / splitSubtotal : 1;
-                            const customer = ((item.price || 0) * qty) - (orderDiscount * share);
+                            const customer = ((item.price || 0) * qty) - (orderDiscount * share) + (deliveryChargeShown + expressChargeShown) * share;
                             const seller = item.sellerPrice * qty;
                             const diff = customer - seller;
                             return (
