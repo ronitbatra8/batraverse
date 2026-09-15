@@ -323,7 +323,7 @@ export default function ProductPage() {
         {/* Main product */}
         <div className="mx-auto mt-8 grid max-w-[100rem] gap-8 px-5 sm:px-10 lg:grid-cols-2 lg:gap-14">
           {/* Gallery */}
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-3 lg:sticky lg:top-24 lg:self-start">
             {/* Main image */}
             <div className={cn("relative aspect-square overflow-hidden rounded-2xl", light ? "bg-dark-100" : "bg-graphite")}>
               {hasImages ? (
@@ -371,26 +371,6 @@ export default function ProductPage() {
                   <div className={cn("h-full w-full bg-gradient-to-br transition-all duration-500", mainGradient, "opacity-20")} />
                 </div>
               ))}
-            </div>
-
-            {/* Store name section */}
-            <div className={cn("rounded-2xl border p-4", light ? "border-dark-200/60 bg-white" : "border-white/5 bg-graphite")}>
-              <div className="flex items-center gap-3">
-                <div className={cn("flex h-10 w-10 items-center justify-center rounded-full text-[10px] font-bold uppercase tracking-wider", light ? "bg-sapphire/10 text-sapphire" : "bg-gold/10 text-gold")}>
-                  {product.seller?.shopName ? product.seller.shopName.charAt(0).toUpperCase() : "BV"}
-                </div>
-                <div className="flex-1">
-                  <p className={cn("text-xs font-semibold", light ? "text-dark-900" : "text-cream")}>
-                    {product.seller?.shopName || product.seller?.name || "BATRAVERSE Store"}
-                  </p>
-                  <p className={cn("text-[10px]", light ? "text-dark-400" : "text-cream-dim/50")}>
-                    {product.seller?.shopName ? product.seller.shopName : product.seller ? "Seller" : "Premium Lifestyle & Design"}
-                  </p>
-                </div>
-                <span className={cn("rounded-full px-2.5 py-1 text-[8px] font-bold uppercase tracking-wider", light ? "bg-sapphire/10 text-sapphire" : "bg-gold/10 text-gold")}>
-                  {product.seller ? "Seller" : "Official"}
-                </span>
-              </div>
             </div>
           </div>
 
@@ -647,26 +627,48 @@ export default function ProductPage() {
                 </div>
               </div>
             )}
-          </div>
-        </div>
 
-        {/* Features */}
-        <div className="mx-auto mt-16 max-w-[100rem] px-5 sm:px-10">
-          <h2 className={cn("mb-6 text-[11px] font-semibold uppercase tracking-[0.35em]", light ? "text-dark-400" : "text-cream-dim/60")}>
-            Key Features
-          </h2>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-            {colorFeatures.map((f) => (
-              <div
-                key={f}
-                className={cn(
-                  "rounded-xl border px-4 py-4 text-center",
-                  light ? "border-dark-200/60 bg-white" : "border-white/5 bg-graphite"
-                )}
-              >
-                <p className={cn("text-xs font-medium", light ? "text-dark-700" : "text-cream")}>{f}</p>
+            {/* Key Features */}
+            {colorFeatures.length > 0 && (
+              <div className="mt-6">
+                <p className={cn("mb-3 text-[10px] font-semibold uppercase tracking-[0.25em]", light ? "text-dark-500" : "text-cream-dim/70")}>
+                  Key Features
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {colorFeatures.map((f) => (
+                    <span
+                      key={f}
+                      className={cn(
+                        "rounded-xl border px-3.5 py-2.5 text-xs font-medium",
+                        light ? "border-dark-200/60 bg-white text-dark-700" : "border-white/5 bg-graphite text-cream"
+                      )}
+                    >
+                      {f}
+                    </span>
+                  ))}
+                </div>
               </div>
-            ))}
+            )}
+
+            {/* Store name */}
+            <div className={cn("mt-6 rounded-2xl border p-4", light ? "border-dark-200/60 bg-white" : "border-white/5 bg-graphite")}>
+              <div className="flex items-center gap-3">
+                <div className={cn("flex h-10 w-10 items-center justify-center rounded-full text-[10px] font-bold uppercase tracking-wider", light ? "bg-sapphire/10 text-sapphire" : "bg-gold/10 text-gold")}>
+                  {product.seller?.shopName ? product.seller.shopName.charAt(0).toUpperCase() : "BV"}
+                </div>
+                <div className="flex-1">
+                  <p className={cn("text-xs font-semibold", light ? "text-dark-900" : "text-cream")}>
+                    {product.seller?.shopName || product.seller?.name || "BATRAVERSE Store"}
+                  </p>
+                  <p className={cn("text-[10px]", light ? "text-dark-400" : "text-cream-dim/50")}>
+                    {product.seller?.shopName ? product.seller.shopName : product.seller ? "Seller" : "Premium Lifestyle & Design"}
+                  </p>
+                </div>
+                <span className={cn("rounded-full px-2.5 py-1 text-[8px] font-bold uppercase tracking-wider", light ? "bg-sapphire/10 text-sapphire" : "bg-gold/10 text-gold")}>
+                  {product.seller ? "Seller" : "Official"}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
 
