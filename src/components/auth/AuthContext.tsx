@@ -33,6 +33,7 @@ export interface User {
   hasCardPin?: boolean;
   freeDeliveryUsed?: number;
   freeDeliveryMonth?: string | null;
+  googleCreated?: boolean;
   createdAt?: string;
   orderCount?: number;
   savedAddresses?: SavedAddress[];

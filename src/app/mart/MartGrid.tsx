@@ -69,17 +69,6 @@ interface MartGridProps {
   searchQuery: string;
 }
 
-const CATEGORY_LABELS: Record<string, string> = {
-  fruits: "Fruits & Vegetables",
-  dairy: "Dairy & Bakery",
-  snacks: "Snacks & Munchies",
-  beverages: "Cold Drinks & Juices",
-  instant: "Instant & Frozen Food",
-  personal: "Personal Care",
-  cleaning: "Cleaning Essentials",
-  bakery: "Bakery & Biscuits",
-};
-
 export default function MartGrid({ category, subCategories, searchQuery }: MartGridProps) {
   const { theme } = useTheme();
   const light = theme === "light";
@@ -165,20 +154,13 @@ export default function MartGrid({ category, subCategories, searchQuery }: MartG
         </div>
       ) : (
         <>
-          {Array.from(grouped.entries()).map(([cat, products]) => (
-            <div key={cat} className="mb-14 last:mb-0">
-              {category === "all" && (
-                <h2 className={cn("mb-6 text-[11px] font-semibold uppercase tracking-[0.35em]", light ? "text-dark-400" : "text-cream-dim/60")}>
-                  {CATEGORY_LABELS[cat] || cat}
-                </h2>
-              )}
-              <div className="grid grid-cols-2 gap-px sm:gap-5 md:grid-cols-3 lg:grid-cols-4">
-                {products.map((product) => (
-                  <MartProductCard key={product.id} product={product} light={light} />
-                ))}
-              </div>
-            </div>
-          ))}
+          <div className="grid grid-cols-2 gap-px sm:gap-5 md:grid-cols-3 lg:grid-cols-4">
+            {Array.from(grouped.entries()).map(([cat, products]) =>
+              products.map((product) => (
+                <MartProductCard key={product.id} product={product} light={light} />
+              ))
+            )}
+          </div>
           {filtered.length > visibleCount && (
             <div ref={sentinelRef} className="flex items-center justify-center py-12">
               <span className={cn("text-[10px] uppercase tracking-[0.3em]", light ? "text-dark-400" : "text-cream-dim/40")}>

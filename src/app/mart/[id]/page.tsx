@@ -224,15 +224,16 @@ export default function MartProductPage() {
         </div>
 
         {/* Main product */}
-        <div className="mx-auto mt-8 grid max-w-[100rem] gap-8 px-5 sm:px-10 lg:grid-cols-2 lg:gap-14">
-          {/* Image */}
-          <div className="flex flex-col gap-3">
-            <div className={cn("relative aspect-square overflow-hidden rounded-2xl", light ? "bg-dark-100" : "bg-graphite")}>
+        <div className="mx-auto mt-8 grid max-w-[100rem] gap-8 px-5 sm:px-10 lg:grid-cols-[4fr_6fr] lg:gap-14">
+          {/* Gallery */}
+          <div className="flex flex-col gap-5 lg:flex-row lg:gap-3 lg:sticky lg:top-24 lg:self-start lg:pr-1">
+            {/* Image */}
+            <div className={cn("relative w-full lg:w-auto lg:flex-1 lg:min-w-0 aspect-[4/5] overflow-hidden rounded-2xl order-1", light ? "bg-dark-100" : "bg-graphite")}>
               {hasImages ? (
                 <img
                   src={resolveImageUrl(product.dbImages![0])}
                   alt={product.name}
-                  className="absolute inset-0 w-full h-full object-cover"
+                  className="absolute inset-0 w-full h-full object-cover object-top"
                 />
               ) : (
                 <div className={cn("absolute inset-0 bg-gradient-to-br transition-all duration-700", product.gradient)} />
@@ -245,26 +246,6 @@ export default function MartProductPage() {
               <span className={cn("absolute bottom-4 right-4 rounded-full px-3 py-1.5 text-[9px] font-medium uppercase tracking-[0.2em]", light ? "bg-white/80 text-dark-700 backdrop-blur-sm" : "bg-abyss/60 text-cream-dim/80 backdrop-blur-sm")}>
                 {product.unit}
               </span>
-            </div>
-
-            {/* Store name section */}
-            <div className={cn("rounded-2xl border p-4", light ? "border-dark-200/60 bg-white" : "border-white/5 bg-graphite")}>
-              <div className="flex items-center gap-3">
-                <div className={cn("flex h-10 w-10 items-center justify-center rounded-full text-[10px] font-bold uppercase tracking-wider", light ? "bg-sapphire/10 text-sapphire" : "bg-gold/10 text-gold")}>
-                  {product.seller?.shopName ? product.seller.shopName.charAt(0).toUpperCase() : "BV"}
-                </div>
-                <div className="flex-1">
-                  <p className={cn("text-xs font-semibold", light ? "text-dark-900" : "text-cream")}>
-                    {product.seller?.shopName || product.seller?.name || "BATRAVERSE Mart"}
-                  </p>
-                  <p className={cn("text-[10px]", light ? "text-dark-400" : "text-cream-dim/50")}>
-                    {product.seller?.shopName ? product.seller.shopName : product.seller ? "Seller" : `Quick Commerce · ${product.brand}`}
-                  </p>
-                </div>
-                <span className={cn("rounded-full px-2.5 py-1 text-[8px] font-bold uppercase tracking-wider", light ? "bg-emerald-100 text-emerald-700" : "bg-emerald-500/10 text-emerald-400")}>
-                  {product.seller ? "Seller" : "Official"}
-                </span>
-              </div>
             </div>
           </div>
 
@@ -446,11 +427,10 @@ export default function MartProductPage() {
             )}
 
             {/* Trust badges */}
-            <div className={cn("mt-8 grid grid-cols-3 gap-3 rounded-2xl border p-4", light ? "border-dark-100 bg-dark-50/50" : "border-white/5 bg-graphite/50")}>
+            <div className={cn("mt-8 grid grid-cols-2 gap-3 rounded-2xl border p-4", light ? "border-dark-100 bg-dark-50/50" : "border-white/5 bg-graphite/50")}>
               {[
-                { icon: <Clock size={16} />, label: deliveryMode === "express" ? "20 Min Delivery" : "1 Hour Delivery" },
+                { icon: <Clock size={16} />, label: "20 Min Express Delivery" },
                 { icon: <Shield size={16} />, label: "Quality Checked" },
-                { icon: <RotateCcw size={16} />, label: "Easy Returns" },
               ].map((b) => (
                 <div key={b.label} className="flex flex-col items-center gap-2 text-center">
                   <span className={cn(light ? "text-sapphire" : "text-gold")}>{b.icon}</span>
@@ -459,6 +439,26 @@ export default function MartProductPage() {
                   </span>
                 </div>
               ))}
+            </div>
+
+            {/* Store name */}
+            <div className={cn("mt-6 rounded-2xl border p-4", light ? "border-dark-200/60 bg-white" : "border-white/5 bg-graphite")}>
+              <div className="flex items-center gap-3">
+                <div className={cn("flex h-10 w-10 items-center justify-center rounded-full text-[10px] font-bold uppercase tracking-wider", light ? "bg-sapphire/10 text-sapphire" : "bg-gold/10 text-gold")}>
+                  {product.seller?.shopName ? product.seller.shopName.charAt(0).toUpperCase() : "BV"}
+                </div>
+                <div className="flex-1">
+                  <p className={cn("text-xs font-semibold", light ? "text-dark-900" : "text-cream")}>
+                    {product.seller?.shopName || product.seller?.name || "BATRAVERSE Mart"}
+                  </p>
+                  <p className={cn("text-[10px]", light ? "text-dark-400" : "text-cream-dim/50")}>
+                    {product.seller?.shopName ? product.seller.shopName : product.seller ? "Seller" : `Quick Commerce · ${product.brand}`}
+                  </p>
+                </div>
+                <span className={cn("rounded-full px-2.5 py-1 text-[8px] font-bold uppercase tracking-wider", light ? "bg-emerald-100 text-emerald-700" : "bg-emerald-500/10 text-emerald-400")}>
+                  {product.seller ? "Seller" : "Official"}
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -481,13 +481,13 @@ export default function MartProductPage() {
                         target="_blank"
                         onMouseEnter={() => warmProduct(rp.id)}
                         className={cn(
-                          "group w-[calc(50%-6px)] shrink-0 snap-start overflow-hidden rounded-none border-0 transition-all duration-500 sm:w-[calc(33.333%-17px)] md:w-[calc(25%-18px)] md:shrink-0 md:rounded-2xl md:border",
+                          "group relative w-[calc(50%-6px)] shrink-0 snap-start overflow-hidden rounded-none border-0 transition-all duration-500 sm:w-[calc(33.333%-17px)] md:w-[calc(25%-18px)] md:shrink-0 md:rounded-2xl md:border",
                           light
                             ? "md:border-dark-200/60 md:bg-white md:hover:border-sapphire/30 md:hover:shadow-[0_8px_40px_rgba(30,58,138,0.1)]"
                             : "md:border-white/5 md:bg-graphite md:hover:border-gold/20 md:hover:shadow-[0_8px_40px_rgba(212,175,55,0.08)]"
                         )}
                       >
-                        <div className="relative aspect-[4/5] sm:aspect-[4/3] overflow-hidden">
+                        <div className="relative aspect-[4/5] sm:aspect-[4/3.5] overflow-hidden">
                           {img ? (
                             <img
                               src={resolveImageUrl(img)}
@@ -509,6 +509,59 @@ export default function MartProductPage() {
                             >
                               {rp.badge}
                             </span>
+                          )}
+                          {!rp.inStock && (
+                            <>
+                              <span className="absolute left-3 top-3 rounded-full px-3 py-1 text-[8px] font-bold uppercase tracking-[0.2em] bg-red-500/90 text-white backdrop-blur-sm">
+                                Out of Stock
+                              </span>
+                              <span className="absolute inset-x-0 bottom-0 flex items-center justify-center bg-gradient-to-t from-red-900/60 to-transparent py-8 text-[9px] font-bold uppercase tracking-[0.25em] text-white/80">
+                                Out of Stock
+                              </span>
+                            </>
+                          )}
+                          {rp.inStock && (
+                            <div className={cn("absolute inset-x-0 bottom-0 flex translate-y-full items-center justify-center gap-2 bg-gradient-to-t from-black/60 to-transparent py-6 transition-transform duration-500 group-hover:translate-y-0")}>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  addItem(
+                                    {
+                                      id: rp.id,
+                                      name: rp.name,
+                                      price: rp.price,
+                                      gradient: rp.gradient,
+                                      category: rp.category,
+                                      sub: rp.sub,
+                                      badge: rp.badge,
+                                      rating: rp.rating,
+                                      reviews: rp.reviews,
+                                      originalPrice: rp.originalPrice,
+                                      brand: rp.brand,
+                                      unit: rp.unit,
+                                      colors: [{ name: "Default", value: "#0a0a0a" }],
+                                      sizes: [],
+                                      description: "",
+                                      features: [],
+                                      sku: rp.id,
+                                      inStock: rp.inStock,
+                                      dbImages: rp.dbImages,
+                                    },
+                                    { color: "Default", colorHex: "#0a0a0a", colorImage: rp.dbImages?.[0], qty: 1, source: "mart" }
+                                  );
+                                }}
+                                className={cn(
+                                  "flex items-center gap-1.5 rounded-full px-5 py-2 text-[9px] font-bold uppercase tracking-[0.25em] backdrop-blur-md transition-all duration-300",
+                                  light
+                                    ? "bg-white text-dark-900 hover:bg-sapphire hover:text-white"
+                                    : "bg-abyss/80 text-gold-light hover:bg-gold hover:text-abyss"
+                                )}
+                              >
+                                <ShoppingBag size={11} /> Quick Add
+                              </button>
+                            </div>
                           )}
                         </div>
                         <div className="p-4">

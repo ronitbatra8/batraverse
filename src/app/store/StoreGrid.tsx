@@ -183,16 +183,6 @@ export default function StoreGrid({ category, subCategories }: StoreGridProps) {
     for (const p of filtered) seedSlimProduct(p.id, p);
   }, [filtered]);
 
-  const categoryLabels: Record<string, string> = {
-    watches: "Watches",
-    fashion: "Fashion",
-    accessories: "Accessories",
-    footwear: "Footwear",
-    tech: "Tech",
-    lifestyle: "Lifestyle",
-    limited: "Limited Editions",
-  };
-
   return (
     <div className="mx-auto max-w-[100rem] px-0 py-10 sm:px-5 md:px-10">
       {loading && dbProducts.length === 0 ? (
@@ -210,29 +200,17 @@ export default function StoreGrid({ category, subCategories }: StoreGridProps) {
         </div>
       ) : (
         <>
-          {Array.from(grouped.entries()).map(([cat, products]) => (
-            <div key={cat} className="mb-14 last:mb-0">
-              {category === "all" && (
-                <h2
-                  className={cn(
-                    "mb-6 scroll-mt-32 text-[11px] font-semibold uppercase tracking-[0.35em]",
-                    light ? "text-dark-400" : "text-cream-dim/60"
-                  )}
-                >
-                  {categoryLabels[cat] || cat}
-                </h2>
-              )}
-              <div className="grid grid-cols-2 gap-px sm:gap-5 md:grid-cols-3 lg:grid-cols-4">
-                {products.map((product) => (
-                  <ProductCard
-                    key={product.id}
-                    product={product}
-                    light={light}
-                  />
-                ))}
-              </div>
-            </div>
-          ))}
+          <div className="grid grid-cols-2 gap-px sm:gap-5 md:grid-cols-3 lg:grid-cols-4">
+            {Array.from(grouped.entries()).map(([cat, products]) =>
+              products.map((product) => (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  light={light}
+                />
+              ))
+            )}
+          </div>
           {filtered.length > visibleCount && (
             <div ref={sentinelRef} className="flex items-center justify-center py-12">
               <span

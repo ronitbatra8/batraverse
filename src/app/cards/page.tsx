@@ -76,7 +76,10 @@ function CardsContent() {
   useEffect(() => {
     if (loading) return;
     if (!user) { router.replace("/login"); return; }
-  }, [loading, user, router]);
+    // Google-created accounts have no real password — offer the email-OTP
+    // path for setting the card PIN instead of the password form.
+    if (user.googleCreated && !pinForgot) setPinForgot(true);
+  }, [loading, user, router, pinForgot]);
 
   const handleSaveCardNumber = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -115,6 +118,7 @@ function CardsContent() {
   };
 
   const hasPin = !!user?.hasCardPin;
+  const googleAccount = !!user?.googleCreated;
 
   const handleRevealBalance = () => {
     if (balanceRevealed) return;
@@ -607,7 +611,9 @@ function CardsContent() {
               <p className={cn("text-[10px]", light ? "text-onyx/40" : "text-dark-500")}>
                   {hasPin
                     ? "Your 6-digit PIN is used to log in with your card number and to verify wallet payments. Enter your current PIN to change it, or use Forgot PIN? below."
-                    : "Your 6-digit PIN is used to log in with your card number and to verify wallet payments. You can also use your account password."}
+                    : googleAccount
+                      ? "Since you signed in with Google, verify your card PIN using the OTP sent to your email."
+                      : "Your 6-digit PIN is used to log in with your card number and to verify wallet payments. You can also use your account password."}
                 </p>
 
               {pinMsg && (
@@ -622,10 +628,14 @@ function CardsContent() {
                 <div className={cn("rounded-xl border p-3 space-y-2", light ? "bg-amber-500/5 border-amber-500/20" : "bg-amber-500/5 border-amber-500/20")}>
                   <div className="flex items-center gap-2">
                     <KeyRound size={13} className={light ? "text-sapphire" : "text-gold"} />
-                    <p className={cn("text-[10px] font-bold uppercase tracking-wider", light ? "text-onyx/50" : "text-white/50")}>Forgot card PIN</p>
+                    <p className={cn("text-[10px] font-bold uppercase tracking-wider", light ? "text-onyx/50" : "text-white/50")}>
+                      {googleAccount ? "Verify with email OTP" : "Forgot card PIN"}
+                    </p>
                   </div>
                   <p className={cn("text-[10px]", light ? "text-onyx/40" : "text-dark-500")}>
-                    An OTP will be sent to your registered email to verify your identity — same as the forgot password process.
+                    {googleAccount
+                      ? "An OTP will be sent to your registered email to verify your identity and set your card PIN."
+                      : "An OTP will be sent to your registered email to verify your identity — same as the forgot password process."}
                   </p>
 
                   {pinOtpMsg && <p className="text-emerald-400 text-xs">{pinOtpMsg}</p>}

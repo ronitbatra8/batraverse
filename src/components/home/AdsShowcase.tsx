@@ -26,9 +26,7 @@ export default function AdsShowcase({ page = "home", hideHeader = false }: { pag
 
   const [billboards, setBillboards] = useState<Billboard[]>([]);
   const [index, setIndex] = useState(0);
-  const [hovered, setHovered] = useState(false);
   const [progress, setProgress] = useState(0);
-  const speedRef = useRef(1);
   const elapsedRef = useRef(0);
   const lastTickRef = useRef(0);
 
@@ -52,22 +50,17 @@ export default function AdsShowcase({ page = "home", hideHeader = false }: { pag
   }, [page]);
 
   useEffect(() => {
-    speedRef.current = hovered ? 0.5 : 1;
-  }, [hovered]);
-
-  useEffect(() => {
     if (billboards.length === 0) return;
     const base = (billboards[index]?.duration || DEFAULT_DURATION) * 1000;
     elapsedRef.current = 0;
     lastTickRef.current = performance.now();
-    speedRef.current = hovered ? 0.5 : 1;
     let raf: number;
 
     const tick = () => {
       const now = performance.now();
       const dt = now - lastTickRef.current;
       lastTickRef.current = now;
-      elapsedRef.current += dt * speedRef.current;
+      elapsedRef.current += dt;
       const p = Math.min(1, elapsedRef.current / base);
       setProgress(p);
       if (elapsedRef.current >= base) {
@@ -191,8 +184,6 @@ export default function AdsShowcase({ page = "home", hideHeader = false }: { pag
           viewport={{ once: true, margin: "-80px" }}
           transition={{ duration: 1, delay: 0.15, ease: EASE }}
           className={cn("relative overflow-hidden", !hideHeader && "mt-12")}
-          onMouseEnter={() => setHovered(true)}
-          onMouseLeave={() => setHovered(false)}
         >
           <div className="relative aspect-[21/9] w-full overflow-hidden">
             <AnimatePresence mode="popLayout">
@@ -339,8 +330,6 @@ export default function AdsShowcase({ page = "home", hideHeader = false }: { pag
           viewport={{ once: true, margin: "-40px" }}
           transition={{ duration: 0.8, ease: EASE }}
           className="relative w-full overflow-hidden"
-          onMouseEnter={() => setHovered(true)}
-          onMouseLeave={() => setHovered(false)}
         >
           <div className="relative aspect-[16/9] w-full overflow-hidden">
             <AnimatePresence mode="popLayout">

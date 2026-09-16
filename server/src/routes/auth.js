@@ -173,6 +173,7 @@ function publicUser(user) {
     walletBalance: user.walletBalance || 0,
     peakWalletBalance: user.peakWalletBalance || 0,
     hasCardPin: !!user.cardPinHash,
+    googleCreated: !!user.googleCreated,
     createdAt: user.createdAt,
   };
 }
@@ -505,7 +506,6 @@ router.put("/me", userAuth, async (req, res) => {
       const dup = await prisma.user.findFirst({ where: { phone: normalizedPhone, NOT: { id: req.userId } } });
       if (dup) return res.status(400).json({ error: "Phone number already registered" });
       data.phone = normalizedPhone;
-      data.googleCreated = false;
     }
     const user = await prisma.user.update({
       where: { id: req.userId },

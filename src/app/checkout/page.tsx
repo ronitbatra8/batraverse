@@ -76,6 +76,7 @@ export default function CheckoutPage() {
 
   const [payMethod, setPayMethod] = useState<"cod" | "online" | "wallet">("cod");
   const [cardPin, setCardPin] = useState("");
+  const [showPinModal, setShowPinModal] = useState(false);
   const [ship, setShip] = useState<ShippingForm>(EMPTY_SHIP);
   const [paying, setPaying] = useState(false);
   const [error, setError] = useState("");
@@ -295,13 +296,19 @@ export default function CheckoutPage() {
       return;
     }
     if (!walletEnough) {
+      setShowPinModal(false);
       setError("Insufficient wallet balance for this order. Please recharge your wallet or choose another method.");
+      return;
+    }
+    if (!cardPin.trim()) {
+      setError("Enter your card PIN to pay from wallet.");
       return;
     }
     setPaying(true);
     setError("");
     try {
       const ids = await placeOrders("WALLET");
+      setShowPinModal(false);
       finishSuccess(ids);
     } catch (e: any) {
       setError(e?.message || "Wallet payment failed");
@@ -544,12 +551,6 @@ export default function CheckoutPage() {
                         <Crown size={10} /> {((LEVELS[level]?.name || level) as string)}
                       </span>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span className={cn("flex items-center gap-1.5 text-sm", light ? "text-dark-500" : "text-cream-dim/60")}>
-                        <Wallet size={12} /> Wallet Balance
-                      </span>
-                      <span className="text-sm font-semibold tabular-nums">{formatPrice(wallet ?? 0)}</span>
-                    </div>
                     {payMethod === "wallet" ? (
                       <>
                         {discountAmount > 0 && (
@@ -663,23 +664,6 @@ export default function CheckoutPage() {
                   </p>
                 )}
 
-                {payMethod === "wallet" && walletEnough && (
-                  <div className="mt-4">
-                    <label className={labelCls}>Card PIN (6 digits) to pay from wallet</label>
-                    <input
-                      value={cardPin}
-                      onChange={(e) => setCardPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                      placeholder="••••••"
-                      className={cn(inputCls, "max-w-xs")}
-                      type="password"
-                      inputMode="numeric"
-                    />
-                    <p className="mt-2 text-[10px] text-dark-400">
-                      Set or manage your card PIN on the <Link href="/cards" className="underline">Cards</Link> page.
-                    </p>
-                  </div>
-                )}
-
                 {error && (
                   <div className={cn("mt-6 rounded-lg px-4 py-3 text-xs", light ? "bg-red-50 text-red-700" : "bg-red-500/10 text-red-400")}>
                     {error}
@@ -688,28 +672,37 @@ export default function CheckoutPage() {
 
                 <button
                   type="button"
-                  onClick={handlePay}
-                  disabled={paying || !shipValid || !user || !payEnabled || (payMethod === "wallet" && !cardPin.trim())}
+                  onClick={() => {
+                    if (payMethod === "wallet") {
+                      setCardPin("");
+                      setShowPinModal(true);
+                    } else {
+                      handlePay();
+                    }
+                  }}
+                  disabled={paying || !shipValid || !user || !payEnabled}
                   className={cn(
                     "mt-6 flex w-full items-center justify-center gap-2.5 rounded-xl px-8 py-3.5 text-[11px] font-bold uppercase tracking-[0.25em] transition-all duration-300",
                     light
                       ? "bg-sapphire text-white hover:bg-sapphire-light hover:shadow-[0_0_30px_rgba(30,58,138,0.3)]"
                       : "bg-gold text-abyss hover:bg-gold-light hover:shadow-[0_0_30px_rgba(212,175,55,0.3)]",
-                    (paying || !shipValid || !user || !payEnabled || (payMethod === "wallet" && !cardPin.trim())) && "opacity-50 cursor-not-allowed"
+                    (paying || !shipValid || !user || !payEnabled) && "opacity-50 cursor-not-allowed"
                   )}
                 >
                   {paying ? <Loader2 size={14} className="animate-spin" /> : payMethod === "wallet" ? <Shield size={14} /> : payMethod === "online" ? <Lock size={14} /> : <Banknote size={14} />}
                   {paying
                     ? "Processing…"
                     : payMethod === "wallet"
-                      ? `Pay ${formatPrice(grandTotal)} from Wallet`
+                      ? `Pay via Wallet · ${formatPrice(grandTotal)}`
                       : payMethod === "online"
                         ? `Pay ${formatPrice(grandTotal)} Online`
                         : `Place Order · ${formatPrice(grandTotal)}`}
                 </button>
 
-                {(!shipValid || (payMethod === "wallet" && !cardPin.trim())) && user && (
-                  <p className="mt-3 text-center text-[10px] text-amber-500">Complete your details to place the order.</p>
+                {(!shipValid || (payMethod === "wallet" && !walletEnough)) && user && (
+                  <p className="mt-3 text-center text-[10px] text-amber-500">
+                    {payMethod === "wallet" ? "Please recharge your wallet or choose another payment method." : "Complete your details to place the order."}
+                  </p>
                 )}
               </div>
               )}
@@ -780,6 +773,63 @@ export default function CheckoutPage() {
             </div>
           </div>
         </div>
+
+        {/* Card PIN modal */}
+        {showPinModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={() => !paying && setShowPinModal(false)} />
+            <div className={cn("relative w-full max-w-sm rounded-2xl border p-6 shadow-2xl", light ? "border-dark-200/60 bg-white" : "border-white/10 bg-abyss")}>
+              <p className={cn("text-[11px] font-semibold uppercase tracking-[0.3em]", light ? "text-dark-400" : "text-cream-dim/60")}>
+                Confirm Wallet Payment
+              </p>
+              <p className={cn("mt-1 flex items-center gap-2 text-xl font-semibold", light ? "text-dark-900" : "text-cream")}>
+                <Shield size={18} className={light ? "text-sapphire" : "text-gold"} />
+                {formatPrice(grandTotal)}
+              </p>
+
+              <label className={cn(labelCls, "mt-5 block")}>Card PIN (6 digits)</label>
+              <input
+                autoFocus
+                value={cardPin}
+                onChange={(e) => setCardPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                placeholder="••••••"
+                className={cn(inputCls, "w-full")}
+                type="password"
+                inputMode="numeric"
+                onKeyDown={(e) => { if (e.key === "Enter" && cardPin.trim().length === 6 && !paying) payWithWallet(); }}
+              />
+              <p className="mt-2 text-[10px] text-dark-400">
+                Set or manage your card PIN on the <Link href="/cards" onClick={() => setShowPinModal(false)} className="underline">Cards</Link> page.
+              </p>
+
+              <button
+                type="button"
+                onClick={() => payWithWallet()}
+                disabled={paying || cardPin.trim().length !== 6}
+                className={cn(
+                  "mt-5 flex w-full items-center justify-center gap-2.5 rounded-xl px-8 py-3.5 text-[11px] font-bold uppercase tracking-[0.25em] transition-all duration-300",
+                  light
+                    ? "bg-sapphire text-white hover:bg-sapphire-light hover:shadow-[0_0_30px_rgba(30,58,138,0.3)]"
+                    : "bg-gold text-abyss hover:bg-gold-light hover:shadow-[0_0_30px_rgba(212,175,55,0.3)]",
+                  (paying || cardPin.trim().length !== 6) && "opacity-50 cursor-not-allowed"
+                )}
+              >
+                {paying ? <Loader2 size={14} className="animate-spin" /> : <Shield size={14} />}
+                {paying ? "Processing…" : "Pay Now"}
+              </button>
+
+              {!paying && (
+                <button
+                  type="button"
+                  onClick={() => setShowPinModal(false)}
+                  className={cn("mt-3 w-full text-center text-[10px] uppercase tracking-[0.2em]", light ? "text-dark-400 hover:text-dark-900" : "text-cream-dim/50 hover:text-cream")}
+                >
+                  Cancel
+                </button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </SiteLayout>
   );

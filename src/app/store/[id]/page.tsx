@@ -323,14 +323,14 @@ export default function ProductPage() {
         {/* Main product */}
         <div className="mx-auto mt-8 grid max-w-[100rem] gap-8 px-5 sm:px-10 lg:grid-cols-[4fr_6fr] lg:gap-14">
           {/* Gallery */}
-          <div className="flex flex-col gap-3 lg:sticky lg:top-24 lg:max-h-[calc(100vh-1rem)] lg:overflow-y-auto lg:self-start lg:pr-1">
+          <div className="flex flex-col gap-5 lg:flex-row lg:gap-3 lg:sticky lg:top-24 lg:self-start lg:pr-1">
             {/* Main image */}
-            <div className={cn("relative aspect-square overflow-hidden rounded-2xl", light ? "bg-dark-100" : "bg-graphite")}>
+            <div className={cn("relative w-full lg:w-auto lg:flex-1 lg:min-w-0 aspect-[4/5] overflow-hidden rounded-2xl order-1", light ? "bg-dark-100" : "bg-graphite")}>
               {hasImages ? (
                 <img
                   src={resolveImageUrl(colorImages[selectedImage] || colorImages[0])}
                   alt={product.name}
-                  className="absolute inset-0 w-full h-full object-cover"
+                  className="absolute inset-0 w-full h-full object-cover object-top"
                 />
               ) : (
                 <>
@@ -351,11 +351,11 @@ export default function ProductPage() {
               )}
             </div>
             {/* Thumbnail row */}
-            <div className="flex gap-3">
+            <div className="flex gap-3 order-2 lg:order-first lg:flex-col lg:gap-2 lg:w-20">
               {colorImages.slice(0, 4).map((img, i) => (
                 <div key={i}
                   onClick={() => setSelectedImage(i)}
-                  className={cn("aspect-square w-1/4 cursor-pointer overflow-hidden rounded-xl border-2 transition-all",
+                  className={cn("aspect-square w-1/4 lg:w-full cursor-pointer overflow-hidden rounded-xl border-2 transition-all",
                     i === selectedImage ? (light ? "border-sapphire" : "border-gold") : (light ? "border-dark-200 hover:border-dark-400" : "border-white/5 hover:border-white/20")
                   )}>
                   {img ? (
@@ -367,7 +367,7 @@ export default function ProductPage() {
               ))}
               {colorImages.length < 4 && Array.from({ length: 4 - colorImages.length }).map((_, i) => (
                 <div key={`empty-${i}`}
-                  className="aspect-square w-1/4 overflow-hidden rounded-xl border-2 border-dashed border-dark-700/30">
+                  className="aspect-square w-1/4 lg:w-full overflow-hidden rounded-xl border-2 border-dashed border-dark-700/30">
                   <div className={cn("h-full w-full bg-gradient-to-br transition-all duration-500", mainGradient, "opacity-20")} />
                 </div>
               ))}
@@ -656,17 +656,20 @@ export default function ProductPage() {
                 <p className={cn("mb-3 text-xs font-semibold uppercase tracking-[0.25em]", light ? "text-dark-500" : "text-cream-dim/70")}>
                   Key Features
                 </p>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-col gap-2">
                   {colorFeatures.map((f) => (
-                    <span
+                    <div
                       key={f}
                       className={cn(
-                        "rounded-xl border px-4 py-3 text-sm font-medium",
-                        light ? "border-dark-200/60 bg-white text-dark-700" : "border-white/5 bg-graphite text-cream"
+                        "flex items-center gap-3 rounded-xl border px-4 py-3",
+                        light ? "border-dark-200/60 bg-white" : "border-white/5 bg-graphite"
                       )}
                     >
-                      {f}
-                    </span>
+                      <Check size={14} className={cn("shrink-0", light ? "text-dark-400" : "text-cream-dim/50")} />
+                      <span className={cn("text-sm font-medium", light ? "text-dark-700" : "text-cream")}>
+                        {f}
+                      </span>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -867,13 +870,13 @@ export default function ProductPage() {
                         target="_blank"
                         onMouseEnter={() => warmProduct(p.id)}
                         className={cn(
-                          "group w-[calc(50%-6px)] shrink-0 snap-start overflow-hidden rounded-none border-0 transition-all duration-500 sm:w-[calc(33.333%-17px)] md:w-[calc(25%-18px)] md:shrink-0 md:rounded-2xl md:border",
+                          "group relative w-[calc(50%-6px)] shrink-0 snap-start overflow-hidden rounded-none border-0 transition-all duration-500 sm:w-[calc(33.333%-17px)] md:w-[calc(25%-18px)] md:shrink-0 md:rounded-2xl md:border",
                           light
                             ? "md:border-dark-200/60 md:bg-white md:hover:border-sapphire/30 md:hover:shadow-[0_8px_40px_rgba(30,58,138,0.1)]"
                             : "md:border-white/5 md:bg-graphite md:hover:border-gold/20 md:hover:shadow-[0_8px_40px_rgba(212,175,55,0.08)]"
                         )}
                       >
-                        <div className="relative aspect-[4/5] sm:aspect-[4/3] overflow-hidden">
+                        <div className="relative aspect-[4/5] sm:aspect-[4/3.5] overflow-hidden">
                           {img ? (
                             <img
                               src={resolveImageUrl(img)}
@@ -895,6 +898,43 @@ export default function ProductPage() {
                             >
                               {p.badge}
                             </span>
+                          )}
+                          {!p.inStock && (
+                            <>
+                              <span className="absolute left-3 top-3 rounded-full px-3 py-1 text-[8px] font-bold uppercase tracking-[0.2em] bg-red-500/90 text-white backdrop-blur-sm">
+                                Out of Stock
+                              </span>
+                              <span className="absolute inset-x-0 bottom-0 flex items-center justify-center bg-gradient-to-t from-red-900/60 to-transparent py-8 text-[9px] font-bold uppercase tracking-[0.25em] text-white/80">
+                                Out of Stock
+                              </span>
+                            </>
+                          )}
+                          {p.inStock && (
+                            <div className={cn("absolute inset-x-0 bottom-0 flex translate-y-full items-center justify-center gap-2 bg-gradient-to-t from-black/60 to-transparent py-6 transition-transform duration-500 group-hover:translate-y-0")}>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  addItem(p, {
+                                    color: p.colors?.[0]?.name || "Black",
+                                    colorHex: p.colors?.[0]?.value || "#18181b",
+                                    colorImage: p.dbImages?.[0] || p.colors?.[0]?.images?.[0],
+                                    colorPrice: p.price,
+                                    size: p.sizes?.[0],
+                                    qty: 1,
+                                  });
+                                }}
+                                className={cn(
+                                  "flex items-center gap-1.5 rounded-full px-5 py-2 text-[9px] font-bold uppercase tracking-[0.25em] backdrop-blur-md transition-all duration-300",
+                                  light
+                                    ? "bg-white text-dark-900 hover:bg-sapphire hover:text-white"
+                                    : "bg-abyss/80 text-gold-light hover:bg-gold hover:text-abyss"
+                                )}
+                              >
+                                <ShoppingBag size={11} /> Quick Add
+                              </button>
+                            </div>
                           )}
                         </div>
                         <div className="p-4">
