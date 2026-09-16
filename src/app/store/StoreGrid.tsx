@@ -290,7 +290,7 @@ function ProductCard({
       )}
     >
       {/* Image */}
-      <div className="relative aspect-[4/5] sm:aspect-[4/3] overflow-hidden">
+      <div className="relative aspect-[4/5] sm:aspect-[4/3.5] overflow-hidden">
         {product.dbImages && product.dbImages.length > 0 ? (
           <img
             src={resolveImageUrl(product.dbImages[0])}

@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter, useParams } from "next/navigation";
-import { Star, Heart, ShoppingBag, ChevronRight, Check, Truck, RotateCcw, Zap, ThumbsUp } from "lucide-react";
+import { Star, Heart, ShoppingBag, ChevronRight, Check, Truck, RotateCcw, Zap, ThumbsUp, Wallet } from "lucide-react";
 import { cn, formatPrice } from "@/lib/utils";
 import { useTheme, detailQuery } from "@/components/theme/ThemeProvider";
 import { useCart } from "@/components/cart/CartContext";
@@ -238,7 +238,7 @@ export default function ProductPage() {
     dist: realStats.dist,
   };
 
-  const selectedColorData = product.colors[selectedColor];
+  const selectedColorData = product.colors[selectedColor] || { name: "Default", value: "#18181b", images: [], specifications: [], keyFeatures: [], price: product.price, originalPrice: product.originalPrice };
   const selectedColorName = selectedColorData.name;
 
   const colorImages = selectedColorData.images && selectedColorData.images.length > 0 ? selectedColorData.images : product.dbImages || [];
@@ -321,9 +321,9 @@ export default function ProductPage() {
         </div>
 
         {/* Main product */}
-        <div className="mx-auto mt-8 grid max-w-[100rem] gap-8 px-5 sm:px-10 lg:grid-cols-[5fr_6fr] lg:gap-14">
+        <div className="mx-auto mt-8 grid max-w-[100rem] gap-8 px-5 sm:px-10 lg:grid-cols-[4fr_6fr] lg:gap-14">
           {/* Gallery */}
-          <div className="flex flex-col gap-3 lg:sticky lg:top-24 lg:max-h-[calc(100vh-3.5rem)] lg:overflow-y-auto lg:self-start lg:pr-1">
+          <div className="flex flex-col gap-3 lg:sticky lg:top-24 lg:max-h-[calc(100vh-1rem)] lg:overflow-y-auto lg:self-start lg:pr-1">
             {/* Main image */}
             <div className={cn("relative aspect-square overflow-hidden rounded-2xl", light ? "bg-dark-100" : "bg-graphite")}>
               {hasImages ? (
@@ -344,7 +344,7 @@ export default function ProductPage() {
                   {product.badge}
                 </span>
               )}
-              {hasImages && (
+              {hasImages && (product.colors.length > 1 || product.colors[0].name !== "Default") && (
                 <span className={cn("absolute bottom-4 right-4 rounded-full px-3 py-1.5 text-[9px] font-medium uppercase tracking-[0.2em]", light ? "bg-white/80 text-dark-700 backdrop-blur-sm" : "bg-abyss/60 text-cream-dim/80 backdrop-blur-sm")}>
                   {selectedColorData.name}
                 </span>
@@ -429,6 +429,7 @@ export default function ProductPage() {
             </p>
 
             {/* Colors */}
+            {product.colors.length > 1 || product.colors[0].name !== "Default" ? (
             <div className="mt-6">
               <p className={cn("mb-3 text-[10px] font-semibold uppercase tracking-[0.25em]", light ? "text-dark-500" : "text-cream-dim/70")}>
                 Color — <span className={cn("font-normal", light ? "text-dark-900" : "text-cream")}>{product.colors[selectedColor].name}</span>
@@ -473,6 +474,7 @@ export default function ProductPage() {
                 })}
               </div>
             </div>
+            ) : null}
 
             {/* Sizes — per color */}
             {currentSizes.length > 0 && (
@@ -592,6 +594,26 @@ export default function ProductPage() {
             </div>
             )}
 
+            {/* Wallet perks */}
+            <div className={cn("mt-6 rounded-xl border px-4 py-3", light ? "border-emerald-500/20 bg-emerald-50/60" : "border-emerald-500/20 bg-emerald-500/5")}>
+              {(() => {
+                const hasDiscount = effectivePrice > 300;
+                const tier = effectivePrice > 3000 ? { threshold: 5000, discount: "₹500" } : { threshold: 3000, discount: "₹300" };
+                return (
+                  <div className="flex flex-col gap-0.5">
+                    <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.15em] text-emerald-600 dark:text-emerald-400">
+                      <Wallet size={12} /> Pay via Wallet — Free Delivery above ₹150
+                    </p>
+                    {hasDiscount && (
+                      <p className="text-[10px] font-medium text-emerald-600/70 dark:text-emerald-400/60">
+                        Get {tier.discount} off on orders above ₹{tier.threshold.toLocaleString("en-IN")}
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+
             {/* Trust badges */}
             <div className={cn("mt-8 grid grid-cols-2 gap-3 rounded-2xl border p-4", light ? "border-dark-100 bg-dark-50/50" : "border-white/5 bg-graphite/50")}>
               {[
@@ -610,16 +632,16 @@ export default function ProductPage() {
             {/* Specifications */}
             {colorSpecs && colorSpecs.length > 0 && (
               <div className="mt-6">
-                <p className={cn("mb-3 text-[10px] font-semibold uppercase tracking-[0.25em]", light ? "text-dark-500" : "text-cream-dim/70")}>
+                <p className={cn("mb-3 text-xs font-semibold uppercase tracking-[0.25em]", light ? "text-dark-500" : "text-cream-dim/70")}>
                   Specifications
                 </p>
                 <div className={cn("rounded-xl border divide-y", light ? "border-dark-200/60 divide-dark-100" : "border-white/5 divide-white/5")}>
-                  {colorSpecs!.map((s) => (
-                    <div key={s.label} className="flex items-center justify-between gap-4 px-4 py-2.5">
-                      <span className={cn("min-w-0 shrink-0 text-[11px] font-medium", light ? "text-dark-500" : "text-cream-dim/60")}>
+                  {colorSpecs!.map((s, i) => (
+                    <div key={i} className="flex items-center justify-between gap-4 px-4 py-3">
+                      <span className={cn("min-w-0 shrink-0 text-sm font-medium", light ? "text-dark-500" : "text-cream-dim/60")}>
                         {s.label}
                       </span>
-                      <span className={cn("min-w-0 text-right text-[11px] font-medium tabular-nums", light ? "text-dark-900" : "text-cream")}>
+                      <span className={cn("min-w-0 text-right text-sm font-medium tabular-nums", light ? "text-dark-900" : "text-cream")}>
                         {s.value}
                       </span>
                     </div>
@@ -631,7 +653,7 @@ export default function ProductPage() {
             {/* Key Features */}
             {colorFeatures.length > 0 && (
               <div className="mt-6">
-                <p className={cn("mb-3 text-[10px] font-semibold uppercase tracking-[0.25em]", light ? "text-dark-500" : "text-cream-dim/70")}>
+                <p className={cn("mb-3 text-xs font-semibold uppercase tracking-[0.25em]", light ? "text-dark-500" : "text-cream-dim/70")}>
                   Key Features
                 </p>
                 <div className="flex flex-wrap gap-2">
@@ -639,7 +661,7 @@ export default function ProductPage() {
                     <span
                       key={f}
                       className={cn(
-                        "rounded-xl border px-3.5 py-2.5 text-xs font-medium",
+                        "rounded-xl border px-4 py-3 text-sm font-medium",
                         light ? "border-dark-200/60 bg-white text-dark-700" : "border-white/5 bg-graphite text-cream"
                       )}
                     >
