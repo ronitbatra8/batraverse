@@ -8,7 +8,6 @@ import { cn, formatPrice } from "@/lib/utils";
 import { useTheme, detailQuery } from "@/components/theme/ThemeProvider";
 import { useCart } from "@/components/cart/CartContext";
 import { trackRecentlyViewed } from "@/lib/recentlyViewed";
-import { getAuth } from "@/lib/authStorage";
 import { getMartProduct } from "../products";
 import SiteLayout from "@/components/layout/SiteLayout";
 import ProductDetailSkeleton from "@/components/ui/ProductDetailSkeleton";
@@ -121,26 +120,6 @@ export default function MartProductPage() {
       img,
       href: `/mart/${product.id}`,
     });
-
-    /* Feed personalisation — record this product view (deduped server-side). */
-    try {
-      let userId = "";
-      let visitorId = "";
-      try { userId = getAuth("bt-current-user-id") || ""; } catch {}
-      try { visitorId = localStorage.getItem("bv_visitor") || ""; } catch {}
-      if (userId || visitorId) {
-        const pid = product.id.startsWith("db-") ? product.id.replace("db-", "") : product.id;
-        fetch(`${API_BASE}/api/recommendations/track`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
-          body: JSON.stringify({
-            productId: pid,
-            userId: userId || undefined,
-            visitorId: visitorId || undefined,
-          }),
-        }).catch(() => {});
-      }
-    } catch {}
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product?.id]);
 

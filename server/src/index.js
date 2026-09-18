@@ -24,8 +24,6 @@ const testimonialRoutes = require("./routes/testimonials");
 const walletRoutes = require("./routes/wallet");
 const paymentRoutes = require("./routes/payments");
 const productRoutes = require("./routes/products");
-const searchRoutes = require("./routes/search");
-const recommendationRoutes = require("./routes/recommendations");
 
 const app = express();
 
@@ -145,8 +143,6 @@ app.use("/api/reviews", reviewRoutes);
 app.use("/api/testimonials", testimonialRoutes);
 app.use("/api/wallet", walletRoutes);
 app.use("/api/payments", paymentRoutes);
-app.use("/api/search", searchRoutes);
-app.use("/api/recommendations", recommendationRoutes);
 
 app.use((req, res) => res.status(404).json({ error: "Not found" }));
 

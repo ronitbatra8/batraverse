@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/components/theme/ThemeProvider";
-import { getAuth } from "@/lib/authStorage";
+import { useCart } from "@/components/cart/CartContext";
 import { resolveImageUrl } from "@/lib/imageUrl";
 import { formatPrice } from "@/lib/utils";
 import { Shuffle, ChevronRight } from "lucide-react";
@@ -61,40 +61,11 @@ export default function RandomPicks({ source }: RandomPicksProps) {
   const light = theme === "light";
   const [all, setAll] = useState<PickProduct[]>([]);
   const [loaded, setLoaded] = useState(false);
-  const [shuffleKey, setShuffleKey] = useState(0);
 
   useEffect(() => {
     let active = true;
     (async () => {
       try {
-        let userId = "";
-        let visitorId = "";
-        try { userId = getAuth("bt-current-user-id") || ""; } catch {}
-        try { visitorId = localStorage.getItem("bv_visitor") || ""; } catch {}
-
-        /* Personalised first — hybrid backend recommendations (content +
-           co-purchase + popularity). Falls back to a random catalog batch. */
-        if (userId || visitorId) {
-          const params = new URLSearchParams();
-          params.set("source", source);
-          params.set("limit", "10");
-          if (userId) params.set("userId", userId);
-          if (visitorId) params.set("visitorId", visitorId);
-          const recRes = await fetch(`${API_BASE}/recommendations?${params}`, {
-            headers: { "ngrok-skip-browser-warning": "true" },
-            cache: "no-store",
-          });
-          if (recRes.ok) {
-            const data = await recRes.json();
-            const list = (Array.isArray(data) ? data : []).map(toPickProduct).filter((p: PickProduct) => p.id && p.name);
-            if (active && list.length > 0) {
-              setAll(list);
-              setLoaded(true);
-              return;
-            }
-          }
-        }
-
         const res = await fetch(`${API_BASE}/categories/products/${source}`, {
           headers: { "ngrok-skip-browser-warning": "true" },
         });
@@ -115,7 +86,7 @@ export default function RandomPicks({ source }: RandomPicksProps) {
   }, [source]);
 
   // Re-roll whenever the source changes; new shuffle each render refresh too.
-  const picks = useMemo(() => seededShuffle(all).slice(0, 10), [all, shuffleKey]);
+  const picks = useMemo(() => seededShuffle(all).slice(0, 10), [all]);
 
   if (picks.length === 0) return null;
 
@@ -133,7 +104,7 @@ export default function RandomPicks({ source }: RandomPicksProps) {
           </div>
           <button
             type="button"
-            onClick={() => setShuffleKey((k) => k + 1)}
+            onClick={() => useMemo(() => Math.random(), [])}
             className={cn(
               "flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-[9px] font-bold uppercase tracking-[0.22em] transition-all duration-300 hover:translate-x-0.5",
               light

@@ -55,7 +55,7 @@ type MenuIconAnim = {
 const NAV_LINKS = [
   { label: "Home", href: "/" },
   { label: "Store", href: "/store" },
-  // { label: "Mart", href: "/mart" },
+  { label: "Mart", href: "/mart" },
   { label: "About", href: "/about", hideOnOpen: true },
   { label: "Contact", href: "/contact", hideOnOpen: true },
 ] as const;
