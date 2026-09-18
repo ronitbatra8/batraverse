@@ -6,9 +6,9 @@ import { usePathname, useRouter } from "next/navigation";
 import { AnimatePresence, motion, useMotionValueEvent, useScroll } from "framer-motion";
 import {
   Home,
-  Info,
   Phone,
   Search,
+  ShoppingCart,
   Store,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -63,8 +63,7 @@ const NAV_LINKS = [
 const BOTTOM_TABS = [
   { label: "Home", href: "/", icon: Home },
   { label: "Store", href: "/store", icon: Store },
-  // { label: "Mart", href: "/mart", icon: ShoppingCart },
-  { label: "About", href: "/about", icon: Info },
+  { label: "Mart", href: "/mart", icon: ShoppingCart },
   { label: "Contact", href: "/contact", icon: Phone },
 ] as const;
 

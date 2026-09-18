@@ -8,10 +8,8 @@ import SiteLayout from "@/components/layout/SiteLayout";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import { cn, formatPrice } from "@/lib/utils";
 import { resolveImageUrl } from "@/lib/imageUrl";
-import { getAuth } from "@/lib/authStorage";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
-const API_HEADERS = { "ngrok-skip-browser-warning": "true" };
 
 const DB_STORE_GRADIENT: Record<string, string> = {
   watches: "from-zinc-700 to-zinc-900",
@@ -90,84 +88,6 @@ interface UnifiedProduct {
   dbImages?: string[];
   source: "store" | "mart";
   unit?: string;
-}
-
-/* A filter pulled out of the user's query (mirrors the backend `chips`). */
-interface SearchChip {
-  kind: "range" | "discount" | "under" | "toprated" | "new" | "color" | "size" | "gender" | "type";
-  min?: number;
-  max?: number;
-  pct?: number;
-  num?: number;
-  color?: string;
-  size?: string;
-  gender?: string;
-  type?: string;
-  tokens?: string[];
-}
-
-function chipLabel(chip: SearchChip): string {
-  switch (chip.kind) {
-    case "range":
-      return `${formatPrice(chip.min ?? 0)} — ${formatPrice(chip.max ?? 0)}`;
-    case "discount":
-      return `${chip.pct}% off`;
-    case "under":
-      return `Under ${formatPrice(chip.num ?? 0)}`;
-    case "toprated":
-      return "Top rated";
-    case "new":
-      return "New arrivals";
-    case "color":
-      return `Color: ${capitalize(chip.color ?? "")}`;
-    case "size":
-      return `Size: ${(chip.size ?? "").toUpperCase()}`;
-    case "gender":
-      return capitalize(chip.gender ?? "");
-    case "type":
-      return capitalize(chip.type ?? "");
-    default:
-      return "";
-  }
-}
-
-/* Any chip backed by source query words can be dropped from the query; pure
-   ranking biases ("top rated", "new arrivals") carry no tokens so stay. */
-function chipRemovable(chip: SearchChip): boolean {
-  return !!chip.tokens && chip.tokens.length > 0;
-}
-
-function capitalize(w: string): string {
-  return w.charAt(0).toUpperCase() + w.slice(1);
-}
-
-/* Drop the source words (e.g. "under10000", "30% off") out of the query text
-   so hitting x re-searches without that constraint. */
-function stripChip(query: string, chip: SearchChip): string {
-  const tokens = chip.tokens;
-  if (!tokens || tokens.length === 0) return query;
-  const rx = new RegExp(tokens.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|"), "gi");
-  return query.replace(rx, "").replace(/\s+/g, " ").trim();
-}
-
-/* Bold-ish highlight of the matched terms inside a product title. */
-function HighlightedText({ text, terms, markClass }: { text: string; terms: string[]; markClass: string }) {
-  if (!text || terms.length === 0) return <>{text}</>;
-  const rx = new RegExp(`(${terms.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})`, "gi");
-  const parts = text.split(rx);
-  return (
-    <>
-      {parts.map((part, i) =>
-        i % 2 === 1 ? (
-          <mark key={i} className={markClass}>
-            {part}
-          </mark>
-        ) : (
-          <span key={i}>{part}</span>
-        )
-      )}
-    </>
-  );
 }
 
 function dbToUnified(p: DbProduct, source: "store" | "mart"): UnifiedProduct {
@@ -273,16 +193,8 @@ function SearchContent() {
   const [debouncedQuery, setDebouncedQuery] = useState(initialQuery);
   const [ranked, setRanked] = useState<UnifiedProduct[]>([]);
   const [didYouMean, setDidYouMean] = useState<string | null>(null);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
   const [searching, setSearching] = useState(false);
-  const [resultTotal, setResultTotal] = useState<number | null>(null);
-  const [terms, setTerms] = useState<string[]>([]);
-  const [chips, setChips] = useState<SearchChip[]>([]);
-  const [relaxed, setRelaxed] = useState(false);
-  const [autoCorrected, setAutoCorrected] = useState(false);
-  const [related, setRelated] = useState<UnifiedProduct[]>([]);
-  const [noResultsSuggestions, setNoResultsSuggestions] = useState<string[]>([]);
-  const [trending, setTrending] = useState<string[]>([]);
-  const [recent, setRecent] = useState<string[]>([]);
   const [dbStore, setDbStore] = useState<UnifiedProduct[]>([]);
   const [dbMart, setDbMart] = useState<UnifiedProduct[]>([]);
   const [showScrollTop, setShowScrollTop] = useState(false);
@@ -292,58 +204,6 @@ function SearchContent() {
   const sentinelRef = useRef<HTMLDivElement>(null);
   const heroRef = useRef<HTMLDivElement>(null);
   const navAnchorRef = useRef<HTMLDivElement>(null);
-
-  /* Identity (logged-in user or anonymous visitor) for personalisation + search history. */
-  const getIdentity = useCallback((): { userId: string; visitorId: string; qs: string } => {
-    let userId = "";
-    let visitorId = "";
-    try { userId = getAuth("bt-current-user-id") || ""; } catch {}
-    try { visitorId = localStorage.getItem("bv_visitor") || ""; } catch {}
-    const qs =
-      userId
-        ? `userId=${encodeURIComponent(userId)}`
-        : visitorId
-          ? `visitorId=${encodeURIComponent(visitorId)}`
-          : "";
-    return { userId, visitorId, qs };
-  }, []);
-
-  /* One-shot record of the search (feeds trending + the user's recent list). */
-  const logSearch = useCallback((q: string) => {
-    const { userId, visitorId } = getIdentity();
-    if (!q || q.length < 2) return;
-    fetch(`${API_BASE}/search/log`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...API_HEADERS },
-      body: JSON.stringify({ q, userId: userId || undefined, visitorId: visitorId || undefined }),
-    }).catch(() => {});
-  }, [getIdentity]);
-
-  const refreshRecent = useCallback(async () => {
-    const { qs } = getIdentity();
-    if (!qs) {
-      setRecent([]);
-      return;
-    }
-    try {
-      const res = await fetch(`${API_BASE}/search/recent?${qs}`, { headers: API_HEADERS });
-      const data = await res.json();
-      if (Array.isArray(data)) setRecent(data.slice(0, 8));
-    } catch {
-      // ignore
-    }
-  }, [getIdentity]);
-
-  const removeRecent = useCallback(
-    (q: string) => {
-      const { qs } = getIdentity();
-      if (!qs) return;
-      fetch(`${API_BASE}/search/recent?${qs}&query=${encodeURIComponent(q)}`, { method: "DELETE", headers: API_HEADERS })
-        .catch(() => {})
-        .finally(() => refreshRecent());
-    },
-    [getIdentity, refreshRecent]
-  );
 
   useEffect(() => {
     const params = new URLSearchParams();
@@ -366,70 +226,35 @@ function SearchContent() {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setRanked([]);
       setDidYouMean(null);
-      setChips([]);
-      setTerms([]);
-      setRelated([]);
-      setNoResultsSuggestions([]);
-      setRelaxed(false);
-      setAutoCorrected(false);
-      setResultTotal(null);
+      setSuggestions([]);
       return;
     }
     const ctrl = new AbortController();
-    const headers = API_HEADERS;
+    const headers = { "ngrok-skip-browser-warning": "true" };
     setSearching(true);
     const enc = encodeURIComponent(q);
-    fetch(`${API_BASE}/search?q=${enc}&limit=80`, { signal: ctrl.signal, headers })
-      .then(async (res) => {
+    Promise.all([
+      fetch(`${API_BASE}/search?q=${enc}&limit=80`, { signal: ctrl.signal, headers }),
+      fetch(`${API_BASE}/search/suggest?q=${enc}&limit=6`, { signal: ctrl.signal, headers }),
+    ])
+      .then(async ([res, sugRes]) => {
         const data = await res.json();
         const results: UnifiedProduct[] = Array.isArray(data.results)
           ? (data.results as SlimResult[]).map((r) => dbToUnified(r as unknown as DbProduct, r.source === "mart" ? "mart" : "store"))
           : [];
+        const sug = await sugRes.json();
         if (!ctrl.signal.aborted) {
           setRanked(results);
           setDidYouMean(data.didYouMean || null);
-          setResultTotal(typeof data.total === "number" ? data.total : null);
-          setTerms(Array.isArray(data.terms) ? data.terms : []);
-          setChips(Array.isArray(data.chips) ? data.chips : []);
-          setRelaxed(!!data.relaxed);
-          setAutoCorrected(!!data.autoCorrected);
-          setNoResultsSuggestions(
-            Array.isArray(data.suggestions) ? (data.suggestions as string[]).slice(0, 6) : []
-          );
-          setRelated(
-            Array.isArray(data.related)
-              ? (data.related as SlimResult[]).map((r) => dbToUnified(r as unknown as DbProduct, r.source === "mart" ? "mart" : "store"))
-              : []
-          );
+          setSuggestions(Array.isArray(sug) ? sug.slice(0, 6) : []);
         }
       })
       .catch(() => {})
       .finally(() => {
-        if (!ctrl.signal.aborted) {
-          setSearching(false);
-          logSearch(q);
-          refreshRecent();
-        }
+        if (!ctrl.signal.aborted) setSearching(false);
       });
     return () => ctrl.abort();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedQuery]);
-
-  /* Trending + recent searches fetched once on mount — shown when the box is
-   empty (browse mode) and inside the no-results "Explore" panel. */
-  useEffect(() => {
-    const ctrl = new AbortController();
-    fetch(`${API_BASE}/search/trending?limit=8`, { signal: ctrl.signal, headers: API_HEADERS })
-      .then((r) => r.json())
-      .then((d) => {
-        if (!ctrl.signal.aborted) setTrending(Array.isArray(d) ? d.slice(0, 8) : []);
-      })
-      .catch(() => {});
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    refreshRecent();
-    return () => ctrl.abort();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   useEffect(() => {
     const onScroll = () => {
@@ -542,21 +367,7 @@ function SearchContent() {
               }} />
             </div>
 
-            {autoCorrected && didYouMean ? (
-              <div className={cn("flex flex-wrap items-center gap-x-2 gap-y-1 pb-2 text-[11px]", light ? "text-dark-400" : "text-cream-dim/50")}>
-                <span>Showing results for</span>
-                <button
-                  type="button"
-                  onClick={() => setQuery(didYouMean)}
-                  className={cn("font-semibold underline underline-offset-4", light ? "text-sapphire hover:text-sapphire-light" : "text-gold hover:text-gold-light")}
-                >
-                  {didYouMean}
-                </button>
-                <span className="mx-1">·</span>
-                <span>You searched</span>
-                <span className={cn("line-through", light ? "text-dark-300" : "text-cream-dim/40")}>{debouncedQuery}</span>
-              </div>
-            ) : didYouMean && filtered.length <= 3 ? (
+            {didYouMean && filtered.length <= 3 && (
               <div className={cn("flex items-center gap-2 pb-2 text-[11px]", light ? "text-dark-400" : "text-cream-dim/50")}>
                 <span>Did you mean</span>
                 <button
@@ -568,43 +379,25 @@ function SearchContent() {
                 </button>
                 <span>?</span>
               </div>
-            ) : null}
+            )}
 
-            {/* Applied query chips (price/discount/color/size/audience/type) — click × to drop one */}
-            {debouncedQuery && chips.length > 0 && (
-              <div className="flex flex-wrap items-center gap-2 pb-2">
-                {chips.map((chip, i) => (
-                  <span
-                    key={`${chip.kind}-${chip.num ?? chip.min ?? chip.pct ?? i}`}
+            {suggestions.length > 0 && (
+              <div className="flex flex-wrap gap-2 pb-2">
+                {suggestions.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setQuery(s)}
                     className={cn(
-                      "inline-flex items-center gap-1 rounded-full border px-3 py-1 text-[11px]",
+                      "rounded-full border px-3.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.15em] transition-all duration-300",
                       light
-                        ? "border-sapphire/40 bg-sapphire/5 text-sapphire"
-                        : "border-gold/40 bg-gold/5 text-gold-light"
+                        ? "border-dark-300 text-dark-500 hover:border-sapphire/50 hover:text-sapphire"
+                        : "border-white/10 text-cream-dim/60 hover:border-gold/40 hover:text-gold-light"
                     )}
                   >
-                    {chipLabel(chip)}
-                    {chipRemovable(chip) && (
-                      <button
-                        type="button"
-                        onClick={() => setQuery(stripChip(query, chip))}
-                        aria-label={`Remove ${chipLabel(chip)}`}
-                        className="transition-colors hover:text-red-500"
-                      >
-                        <X size={11} strokeWidth={2.5} />
-                      </button>
-                    )}
-                  </span>
+                    {s}
+                  </button>
                 ))}
-                {relaxed && (
-                  <span
-                    className={cn(
-                      "rounded-full border border-amber-400/50 bg-amber-400/10 px-3 py-1 text-[11px] text-amber-500 dark:text-amber-300"
-                    )}
-                  >
-                    No exact matches — showing closest available
-                  </span>
-                )}
               </div>
             )}
           </div>
@@ -613,145 +406,22 @@ function SearchContent() {
         {/* Grid */}
         <div className="mx-auto max-w-[100rem] px-0 py-8 sm:px-5 md:px-10">
           <div className="mt-8">
-            {searching && debouncedQuery ? (
+            {filtered.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-32">
                 <Search size={48} strokeWidth={1} className={cn("mb-6", light ? "text-onyx/15" : "text-cream/10")} />
-                <p className={cn("text-sm uppercase tracking-[0.3em]", light ? "text-dark-400" : "text-cream-dim/50")}>Searching…</p>
-              </div>
-            ) : filtered.length === 0 && debouncedQuery ? (
-              /* No-results: offer a corrected word, trending/recent, related products */
-              <div className="mx-auto max-w-6xl">
-                <div className="flex flex-col items-center text-center pb-10">
-                  <Search size={48} strokeWidth={1} className={cn("mb-6", light ? "text-onyx/15" : "text-cream/10")} />
-                  <p className={cn("text-sm uppercase tracking-[0.3em]", light ? "text-dark-400" : "text-cream-dim/50")}>
-                    No results for “{debouncedQuery}”
-                  </p>
-                  {didYouMean && (
-                    <p className={cn("mt-3 text-sm", light ? "text-dark-500" : "text-cream-dim/70")}>
-                      Did you mean{" "}
-                      <button
-                        type="button"
-                        onClick={() => setQuery(didYouMean)}
-                        className={cn("font-semibold underline underline-offset-4", light ? "text-sapphire" : "text-gold")}
-                      >
-                        {didYouMean}
-                      </button>
-                      ?
-                    </p>
-                  )}
-                  {didYouMean && noResultsSuggestions.length > 0 && (
-                    <div className="mt-4 flex flex-wrap justify-center gap-2">
-                      {noResultsSuggestions.map((s) => (
-                        <button
-                          key={s}
-                          type="button"
-                          onClick={() => setQuery(s)}
-                          className={cn(
-                            "rounded-full border px-3.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.15em] transition-all duration-300",
-                            light
-                              ? "border-dark-300 text-dark-500 hover:border-sapphire/50 hover:text-sapphire"
-                              : "border-white/10 text-cream-dim/60 hover:border-gold/40 hover:text-gold-light"
-                          )}
-                        >
-                          {s}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-1 gap-10 md:grid-cols-2">
-                  {related.length > 0 && (
-                    <section>
-                      <h3 className={cn("mb-4 font-display text-lg font-bold tracking-tight", light ? "text-onyx" : "text-cream")}>
-                        Related products
-                      </h3>
-                      <div className="grid grid-cols-2 gap-4">
-                        {related.map((p) => (
-                          <MemoSearchCard key={`${p.source}-${p.id}`} product={p} light={light} terms={terms} />
-                        ))}
-                      </div>
-                    </section>
-                  )}
-                  {(trending.length > 0 || recent.length > 0) && (
-                    <section>
-                      <h3 className={cn("mb-4 font-display text-lg font-bold tracking-tight", light ? "text-onyx" : "text-cream")}>
-                        Explore
-                      </h3>
-                      {trending.length > 0 && (
-                        <div className="mb-5">
-                          <p className={cn("mb-2 text-[10px] font-semibold uppercase tracking-[0.25em]", light ? "text-dark-400" : "text-cream-dim/40")}>
-                            Trending searches
-                          </p>
-                          <div className="flex flex-wrap gap-2">
-                            {trending.map((t) => (
-                              <button
-                                key={t}
-                                type="button"
-                                onClick={() => setQuery(t)}
-                                className={cn(
-                                  "rounded-full border px-3.5 py-1.5 text-[11px] transition-all duration-300",
-                                  light
-                                    ? "border-dark-200 bg-white/60 text-dark-600 hover:border-sapphire/50 hover:text-sapphire"
-                                    : "border-white/10 bg-black/30 text-cream-dim/70 hover:border-gold/40 hover:text-gold-light"
-                                )}
-                              >
-                                #{t}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                      {recent.length > 0 && (
-                        <div>
-                          <p className={cn("mb-2 text-[10px] font-semibold uppercase tracking-[0.25em]", light ? "text-dark-400" : "text-cream-dim/40")}>
-                            Your recent searches
-                          </p>
-                          <div className="flex flex-wrap gap-2">
-                            {recent.map((r) => (
-                              <span key={r} className="inline-flex items-center">
-                                <button
-                                  type="button"
-                                  onClick={() => setQuery(r)}
-                                  className={cn(
-                                    "rounded-full border px-3.5 py-1.5 text-[11px] transition-all duration-300",
-                                    light
-                                      ? "border-sapphire/30 bg-sapphire/5 text-sapphire hover:border-sapphire hover:bg-sapphire/10"
-                                      : "border-gold/30 bg-gold/5 text-gold-light hover:border-gold hover:bg-gold/10"
-                                  )}
-                                >
-                                  {r}
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => removeRecent(r)}
-                                  aria-label={`Remove ${r} from recent searches`}
-                                  className={cn("-ml-1 mr-1 rounded-full p-0.5 transition-colors", light ? "text-dark-400 hover:text-red-500" : "text-cream-dim/40 hover:text-red-400")}
-                                >
-                                  <X size={10} strokeWidth={2} />
-                                </button>
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </section>
-                  )}
-                </div>
+                <p className={cn("text-sm uppercase tracking-[0.3em]", light ? "text-dark-400" : "text-cream-dim/50")}>
+                  {searching && debouncedQuery
+                    ? "Searching…"
+                    : debouncedQuery
+                      ? `No results for "${debouncedQuery}"`
+                      : "No products available"}
+                </p>
               </div>
             ) : (
               <>
-                {debouncedQuery && !searching && filtered.length > 0 && (
-                  <p className={cn("mb-4 text-sm", light ? "text-dark-400" : "text-cream-dim/50")}>
-                    Showing {resultTotal ?? filtered.length} result{resultTotal === 1 ? "" : "s"} for{" "}
-                    <strong className={light ? "text-dark-900" : "text-cream"}>
-                      “{autoCorrected && didYouMean ? didYouMean : debouncedQuery}”
-                    </strong>
-                  </p>
-                )}
                 <div className="grid grid-cols-2 gap-px sm:gap-5 lg:grid-cols-4">
                   {visible.map((p) => (
-                    <MemoSearchCard key={`${p.source}-${p.id}`} product={p} light={light} terms={terms} />
+                    <MemoSearchCard key={`${p.source}-${p.id}`} product={p} light={light} />
                   ))}
                 </div>
                 {filtered.length > visibleCount && (
@@ -783,7 +453,7 @@ function SearchContent() {
   );
 }
 
-function SearchCard({ product, light, terms }: { product: UnifiedProduct; light: boolean; terms?: string[] }) {
+function SearchCard({ product, light }: { product: UnifiedProduct; light: boolean }) {
   const source = product.source;
   const href =
     source === "store"
@@ -852,18 +522,7 @@ function SearchCard({ product, light, terms }: { product: UnifiedProduct; light:
       {/* Info */}
       <div className="p-4">
         <h3 className={cn("text-sm font-medium leading-tight", light ? "text-dark-900" : "text-cream")}>
-          {terms && terms.length > 0 ? (
-            <HighlightedText
-              text={product.name}
-              terms={terms}
-              markClass={cn(
-                "rounded-sm px-0.5 font-semibold",
-                light ? "bg-amber-200/80 text-dark-900" : "bg-gold/30 text-gold-light"
-              )}
-            />
-          ) : (
-            product.name
-          )}
+          {product.name}
         </h3>
         <span className={cn("mt-1 block text-sm font-semibold tabular-nums", light ? "text-sapphire" : "text-gold-light")}>
           {formatPrice(product.price)}

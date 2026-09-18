@@ -259,27 +259,6 @@ model ProductView {
   @@index([createdAt])
 }
 
-/* Search query log — feeds the Trending Searches widget. One row per search. */
-model SearchLog {
-  id        String   @id @default(cuid())
-  query     String
-  ownerKey  String?
-  createdAt DateTime @default(now())
-
-  @@index([query, createdAt])
-}
-
-/* A user's own recent searches (latest-first), keyed by user or visitor. */
-model RecentSearch {
-  id        String   @id @default(cuid())
-  ownerKey  String   // "usr-..." for accounts, "visitor:<id>" otherwise
-  query     String
-  createdAt DateTime @default(now())
-
-  @@unique([ownerKey, query])
-  @@index([ownerKey, createdAt])
-}
-
 model Category {
   id        String   @id @default(cuid())
   name      String
