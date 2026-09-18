@@ -236,11 +236,27 @@ model Product {
 
   reviews   Review[]
   wishlists Wishlist[]
+  views     ProductView[]
 
   @@index([category])
   @@index([subCategory])
   @@index([sellerId])
   @@index([baseProductId])
+}
+
+model ProductView {
+  id        String   @id @default(cuid())
+  productId String
+  userId    String?
+  visitorId String?
+  createdAt DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@index([userId])
+  @@index([visitorId])
+  @@index([createdAt])
 }
 
 model Category {

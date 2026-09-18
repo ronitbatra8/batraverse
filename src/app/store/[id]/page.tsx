@@ -11,6 +11,7 @@ import { useWishlist } from "@/components/wishlist/WishlistContext";
 import { trackRecentlyViewed } from "@/lib/recentlyViewed";
 import { getProduct, getRelated } from "../products";
 import { apiFetch } from "@/lib/api";
+import { getAuth } from "@/lib/authStorage";
 import { resolveImageUrl } from "@/lib/imageUrl";
 import SiteLayout from "@/components/layout/SiteLayout";
 import ProductDetailSkeleton from "@/components/ui/ProductDetailSkeleton";
@@ -164,6 +165,25 @@ export default function ProductPage() {
       img,
       href: `/store/${product.id}`,
     });
+
+    /* Feed personalisation — record this product view (deduped server-side). */
+    try {
+      let userId = "";
+      let visitorId = "";
+      try { userId = getAuth("bt-current-user-id") || ""; } catch {}
+      try { visitorId = localStorage.getItem("bv_visitor") || ""; } catch {}
+      if (userId || visitorId) {
+        const pid = product.id.startsWith("db-") ? product.id.replace("db-", "") : product.id;
+        apiFetch("/recommendations/track", {
+          method: "POST",
+          body: JSON.stringify({
+            productId: pid,
+            userId: userId || undefined,
+            visitorId: visitorId || undefined,
+          }),
+        }).catch(() => {});
+      }
+    } catch {}
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product?.id]);
 

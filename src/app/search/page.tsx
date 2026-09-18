@@ -52,6 +52,25 @@ interface DbProduct {
   sizeOptions: unknown;
 }
 
+/* Shape of a search result from GET /api/search (slim catalog product). */
+interface SlimResult {
+  id: string;
+  name: string;
+  brand: string | null;
+  category: string | null;
+  subCategory: string | null;
+  price: number;
+  originalPrice: number | null;
+  images: string[];
+  inStock: boolean;
+  badge: string | null;
+  rating: number;
+  reviewCount: number;
+  source: string;
+  colorOptions: unknown;
+  sizeOptions: unknown;
+}
+
 interface UnifiedProduct {
   id: string;
   name: string;
@@ -119,8 +138,7 @@ function dbToUnified(p: DbProduct, source: "store" | "mart"): UnifiedProduct {
   };
 }
 
-function SearchInput({ initialQuery, onDebounced, light, onFocusScroll }: { initialQuery: string; onDebounced: (q: string) => void; light: boolean; onFocusScroll: () => void }) {
-  const [value, setValue] = useState(initialQuery);
+function SearchInput({ query, onQueryChange, onDebounced, light, onFocusScroll }: { query: string; onQueryChange: (q: string) => void; onDebounced: (q: string) => void; light: boolean; onFocusScroll: () => void }) {
   const searchParams = useSearchParams();
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -129,9 +147,9 @@ function SearchInput({ initialQuery, onDebounced, light, onFocusScroll }: { init
   }, [searchParams]);
 
   useEffect(() => {
-    const t = setTimeout(() => onDebounced(value), 200);
+    const t = setTimeout(() => onDebounced(query), 200);
     return () => clearTimeout(t);
-  }, [value, onDebounced]);
+  }, [query, onDebounced]);
 
   return (
     <div className="relative flex-1">
@@ -139,8 +157,8 @@ function SearchInput({ initialQuery, onDebounced, light, onFocusScroll }: { init
       <input
         ref={inputRef}
         type="text"
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
+        value={query}
+        onChange={(e) => onQueryChange(e.target.value)}
         onClick={onFocusScroll}
         placeholder="Search products..."
         aria-label="Search products"
@@ -151,10 +169,10 @@ function SearchInput({ initialQuery, onDebounced, light, onFocusScroll }: { init
             : "border-white/15 bg-black/50 text-cream placeholder:text-cream-dim/40 shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_20px_60px_-10px_rgba(0,0,0,0.6)] focus:border-gold/40"
         )}
       />
-      {value && (
+      {query && (
         <button
           type="button"
-          onClick={() => setValue("")}
+          onClick={() => onQueryChange("")}
           aria-label="Clear search"
           className={cn("absolute right-4 top-1/2 -translate-y-1/2 transition-colors duration-300", light ? "text-dark-400 hover:text-dark-900" : "text-cream-dim/50 hover:text-cream")}
         >
@@ -171,7 +189,12 @@ function SearchContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialQuery = searchParams.get("q") || "";
+  const [query, setQuery] = useState(initialQuery);
   const [debouncedQuery, setDebouncedQuery] = useState(initialQuery);
+  const [ranked, setRanked] = useState<UnifiedProduct[]>([]);
+  const [didYouMean, setDidYouMean] = useState<string | null>(null);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [searching, setSearching] = useState(false);
   const [dbStore, setDbStore] = useState<UnifiedProduct[]>([]);
   const [dbMart, setDbMart] = useState<UnifiedProduct[]>([]);
   const [showScrollTop, setShowScrollTop] = useState(false);
@@ -187,6 +210,51 @@ function SearchContent() {
     if (debouncedQuery) params.set("q", debouncedQuery);
     router.replace(`/search${params.toString() ? `?${params}` : ""}`, { scroll: false });
   }, [debouncedQuery, router]);
+
+  /* Keep the input in sync when navigating back/forward. */
+  useEffect(() => {
+    const q = searchParams.get("q") || "";
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setQuery(q);
+    setDebouncedQuery(q);
+  }, [searchParams]);
+
+  /* Ranked results + autocomplete terms come from the backend relevance engine. */
+  useEffect(() => {
+    const q = debouncedQuery.trim();
+    if (!q) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setRanked([]);
+      setDidYouMean(null);
+      setSuggestions([]);
+      return;
+    }
+    const ctrl = new AbortController();
+    const headers = { "ngrok-skip-browser-warning": "true" };
+    setSearching(true);
+    const enc = encodeURIComponent(q);
+    Promise.all([
+      fetch(`${API_BASE}/search?q=${enc}&limit=80`, { signal: ctrl.signal, headers }),
+      fetch(`${API_BASE}/search/suggest?q=${enc}&limit=6`, { signal: ctrl.signal, headers }),
+    ])
+      .then(async ([res, sugRes]) => {
+        const data = await res.json();
+        const results: UnifiedProduct[] = Array.isArray(data.results)
+          ? (data.results as SlimResult[]).map((r) => dbToUnified(r as unknown as DbProduct, r.source === "mart" ? "mart" : "store"))
+          : [];
+        const sug = await sugRes.json();
+        if (!ctrl.signal.aborted) {
+          setRanked(results);
+          setDidYouMean(data.didYouMean || null);
+          setSuggestions(Array.isArray(sug) ? sug.slice(0, 6) : []);
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!ctrl.signal.aborted) setSearching(false);
+      });
+    return () => ctrl.abort();
+  }, [debouncedQuery]);
 
   useEffect(() => {
     const onScroll = () => {
@@ -234,22 +302,11 @@ function SearchContent() {
   const martCount = useMemo(() => allProducts.filter((p) => p.inStock && p.source === "mart").length, [allProducts]);
 
   const filtered = useMemo(() => {
-    let results = allProducts.filter((p) => p.inStock);
-
-    if (debouncedQuery.trim()) {
-      const q = debouncedQuery.toLowerCase();
-      results = results.filter(
-        (p) =>
-          p.name.toLowerCase().includes(q) ||
-          p.brand.toLowerCase().includes(q) ||
-          p.category.toLowerCase().includes(q) ||
-          p.sub.toLowerCase().includes(q)
-      );
-    }
-
-    results.sort((a, b) => a.name.localeCompare(b.name));
-    return results;
-  }, [allProducts, debouncedQuery]);
+    if (debouncedQuery.trim()) return ranked;
+    return allProducts
+      .filter((p) => p.inStock)
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [allProducts, debouncedQuery, ranked]);
 
   const visible = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount]);
 
@@ -301,7 +358,7 @@ function SearchContent() {
           {/* Search bar */}
           <div className="relative z-10 mx-auto w-[calc(100%-1.5rem)] max-w-[1400px] sm:w-[calc(100%-4rem)]">
             <div className="flex items-center gap-3 py-2">
-              <SearchInput initialQuery={initialQuery} onDebounced={setDebouncedQuery} light={light} onFocusScroll={() => {
+              <SearchInput query={query} onQueryChange={setQuery} onDebounced={setDebouncedQuery} light={light} onFocusScroll={() => {
                 const hero = heroRef.current;
                 if (!hero) return;
                 const r = hero.getBoundingClientRect();
@@ -309,6 +366,40 @@ function SearchContent() {
                 window.scrollTo({ top: Math.max(pos, 0), behavior: "smooth" });
               }} />
             </div>
+
+            {didYouMean && filtered.length <= 3 && (
+              <div className={cn("flex items-center gap-2 pb-2 text-[11px]", light ? "text-dark-400" : "text-cream-dim/50")}>
+                <span>Did you mean</span>
+                <button
+                  type="button"
+                  onClick={() => setQuery(didYouMean)}
+                  className={cn("font-semibold underline underline-offset-4", light ? "text-sapphire hover:text-sapphire-light" : "text-gold hover:text-gold-light")}
+                >
+                  {didYouMean}
+                </button>
+                <span>?</span>
+              </div>
+            )}
+
+            {suggestions.length > 0 && (
+              <div className="flex flex-wrap gap-2 pb-2">
+                {suggestions.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setQuery(s)}
+                    className={cn(
+                      "rounded-full border px-3.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.15em] transition-all duration-300",
+                      light
+                        ? "border-dark-300 text-dark-500 hover:border-sapphire/50 hover:text-sapphire"
+                        : "border-white/10 text-cream-dim/60 hover:border-gold/40 hover:text-gold-light"
+                    )}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
@@ -319,7 +410,11 @@ function SearchContent() {
               <div className="flex flex-col items-center justify-center py-32">
                 <Search size={48} strokeWidth={1} className={cn("mb-6", light ? "text-onyx/15" : "text-cream/10")} />
                 <p className={cn("text-sm uppercase tracking-[0.3em]", light ? "text-dark-400" : "text-cream-dim/50")}>
-                  {debouncedQuery ? `No results for "${debouncedQuery}"` : "No products available"}
+                  {searching && debouncedQuery
+                    ? "Searching…"
+                    : debouncedQuery
+                      ? `No results for "${debouncedQuery}"`
+                      : "No products available"}
                 </p>
               </div>
             ) : (
