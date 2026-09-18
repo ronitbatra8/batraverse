@@ -6,6 +6,8 @@ import SiteLayout from "@/components/layout/SiteLayout";
 import StoreNav from "./StoreNav";
 import StoreGrid from "./StoreGrid";
 import AdsShowcase from "@/components/home/AdsShowcase";
+import CategoryCollection from "@/components/products/CategoryCollection";
+import RandomPicks from "@/components/products/RandomPicks";
 
 function StorePageInner() {
   const searchParams = useSearchParams();
@@ -24,12 +26,18 @@ function StorePageInner() {
   return (
     <SiteLayout>
       <div className="min-h-screen">
-        <AdsShowcase page="store" hideHeader />
         <StoreNav
           active={category}
           onCategoryChange={setCategory}
           subActive={subCategories}
           onSubChange={handleSubChange}
+        />
+        <AdsShowcase page="store" hideHeader />
+        <RandomPicks source="store" />
+        <CategoryCollection
+          source="store"
+          active={category}
+          onCategoryChange={setCategory}
         />
         <StoreGrid category={category} subCategories={subCategories} />
       </div>

@@ -5,6 +5,8 @@ import SiteLayout from "@/components/layout/SiteLayout";
 import MartNav from "./MartNav";
 import MartGrid from "./MartGrid";
 import AdsShowcase from "@/components/home/AdsShowcase";
+import CategoryCollection from "@/components/products/CategoryCollection";
+import RandomPicks from "@/components/products/RandomPicks";
 
 export default function MartPage() {
   const [category, setCategory] = useState("all");
@@ -20,12 +22,18 @@ export default function MartPage() {
   return (
     <SiteLayout>
       <div className="min-h-screen">
-        <AdsShowcase page="mart" hideHeader />
         <MartNav
           active={category}
           onCategoryChange={setCategory}
           subActive={subCategories}
           onSubChange={handleSubChange}
+        />
+        <AdsShowcase page="mart" hideHeader />
+        <RandomPicks source="mart" />
+        <CategoryCollection
+          source="mart"
+          active={category}
+          onCategoryChange={setCategory}
         />
         <MartGrid category={category} subCategories={subCategories} searchQuery="" />
       </div>
