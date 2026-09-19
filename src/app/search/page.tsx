@@ -3,7 +3,7 @@
 import { useMemo, useState, useEffect, useCallback, Suspense, useRef, memo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { Search, X, Star, ChevronUp } from "lucide-react";
+import { Search, X, Star, ChevronUp, Sparkles } from "lucide-react";
 import SiteLayout from "@/components/layout/SiteLayout";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import { cn, formatPrice } from "@/lib/utils";
@@ -47,6 +47,7 @@ interface DbProduct {
   badge: string | null;
   rating: number;
   reviewCount: number;
+  source: "store" | "mart";
   seller: { name: string; shopName: string | null; email: string } | null;
   colorOptions: unknown;
   sizeOptions: unknown;
@@ -174,10 +175,13 @@ function SearchContent() {
   const [debouncedQuery, setDebouncedQuery] = useState(initialQuery);
   const [dbStore, setDbStore] = useState<UnifiedProduct[]>([]);
   const [dbMart, setDbMart] = useState<UnifiedProduct[]>([]);
+  const [mlResults, setMlResults] = useState<UnifiedProduct[] | null>(null);
+  const [mlEngine, setMlEngine] = useState<string>("");
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [hideTabs, setHideTabs] = useState(false);
   const [visibleCount, setVisibleCount] = useState(48);
   const lastScrollY = useRef(0);
+  const searchSeq = useRef(0);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const heroRef = useRef<HTMLDivElement>(null);
   const navAnchorRef = useRef<HTMLDivElement>(null);
@@ -226,6 +230,48 @@ function SearchContent() {
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { fetchDb(); }, [fetchDb]);
 
+  /* ML/ranked search: once a query appears, ask the backend for ranked results
+     instead of filtering the catalog in the browser. If the API is unreachable
+     we fall back to the client-side substring filter below. */
+  useEffect(() => {
+    const q = debouncedQuery.trim();
+    if (!q || q.length < 2) {
+      searchSeq.current += 1;
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setMlResults(null);
+      setMlEngine("");
+      return;
+    }
+    const seq = ++searchSeq.current;
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 1500);
+    fetch(`${API_BASE}/search?q=${encodeURIComponent(q)}`, {
+      headers: { "ngrok-skip-browser-warning": "true" },
+      signal: ctrl.signal,
+    })
+      .then(async (res) => {
+        const data = await res.json();
+        if (searchSeq.current !== seq) return;
+        if (res.ok && Array.isArray(data.products)) {
+          setMlResults(data.products.map((p: DbProduct) => dbToUnified(p, p.source)));
+          setMlEngine(data.engine === "ml" ? "ml" : "keyword");
+        } else {
+          setMlResults(null);
+          setMlEngine("");
+        }
+      })
+      .catch(() => {
+        if (searchSeq.current !== seq) return;
+        setMlResults(null);
+        setMlEngine("");
+      })
+      .finally(() => clearTimeout(timer));
+    return () => {
+      clearTimeout(timer);
+      ctrl.abort();
+    };
+  }, [debouncedQuery]);
+
   const allProducts = useMemo(() => {
     return [...dbStore, ...dbMart];
   }, [dbStore, dbMart]);
@@ -233,7 +279,7 @@ function SearchContent() {
   const storeCount = useMemo(() => allProducts.filter((p) => p.inStock && p.source === "store").length, [allProducts]);
   const martCount = useMemo(() => allProducts.filter((p) => p.inStock && p.source === "mart").length, [allProducts]);
 
-  const filtered = useMemo(() => {
+  const clientFiltered = useMemo(() => {
     let results = allProducts.filter((p) => p.inStock);
 
     if (debouncedQuery.trim()) {
@@ -250,6 +296,8 @@ function SearchContent() {
     results.sort((a, b) => a.name.localeCompare(b.name));
     return results;
   }, [allProducts, debouncedQuery]);
+
+  const filtered = mlResults ?? clientFiltered;
 
   const visible = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount]);
 
@@ -285,6 +333,17 @@ function SearchContent() {
               </h1>
               <p className={cn("mt-3 text-sm tracking-wide", light ? "text-dark-400" : "text-cream-dim/50")}>
                 Browse {storeCount} store items and {martCount} mart items
+                {mlEngine === "ml" && debouncedQuery.trim() && (
+                  <span
+                    className={cn(
+                      "ml-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 align-middle text-[9px] font-bold uppercase tracking-[0.2em]",
+                      light ? "bg-sapphire/10 text-sapphire" : "bg-gold/15 text-gold-light"
+                    )}
+                  >
+                    <Sparkles size={10} strokeWidth={1.75} />
+                    AI-ranked
+                  </span>
+                )}
               </p>
             </div>
           </div>

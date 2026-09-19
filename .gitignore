@@ -25,6 +25,11 @@
 # env files
 .env*
 
+# python ML service
+/python/.venv/
+__pycache__/
+*.pyc
+
 # logs
 *.log
 .dev-server.pid
