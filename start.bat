@@ -55,8 +55,8 @@ start "BATRAVERSE-FRONTEND" cmd /c "cd /d D:\sites\BATRAVERSE && npm run dev"
 echo.
 
 :: Wait for ML service to finish warming the model
-echo Waiting for ML service to be ready...
-powershell -NoProfile -Command "$ok=$false; for($i=0;$i -lt 120;$i++){ try { $r=Invoke-RestMethod -Uri 'http://localhost:8000/health' -TimeoutSec 2; if($r.status -eq 'ok'){ Write-Output '  ML service OK  (port 8000)'; $ok=$true; break } } catch {}; Start-Sleep -Seconds 1 }; if(-not $ok){ Write-Output '  ML service NOT UP after 2 minutes - check the BATRAVERSE-ML window' }"
+echo Waiting for ML service to be ready (model warm-up can take 1-2 min)...
+powershell -NoProfile -Command "$ok=$false; for($i=0;$i -lt 120;$i++){ try { $r=Invoke-RestMethod -Uri 'http://127.0.0.1:8000/health' -TimeoutSec 2; if($r.status -eq 'ok'){ Write-Output '  ML service OK  (port 8000)'; $ok=$true; break } } catch {}; Start-Sleep -Seconds 1 }; if(-not $ok){ Write-Output '  ML service still warming - search will use keyword fallback until it is ready.' }"
 
 echo.
 echo ========================================
