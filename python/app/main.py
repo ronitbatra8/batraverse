@@ -20,6 +20,7 @@ store = VectorStore()
 async def lifespan(_app: FastAPI):
     store.load(get_pool())
     get_model()  # warm the model so the first search isn't a 30s stall
+    embed_texts(["warm up probe"])  # first in-process encode is slow; pay it at boot
     yield
 
 
