@@ -1,9 +1,9 @@
 ﻿"use client";
 
-import { useMemo, useState, useEffect, useCallback, Suspense, useRef, memo } from "react";
+import { useMemo, useState, useEffect, useCallback, Suspense, useRef, memo, type ReactNode } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { Search, X, Star, ChevronUp, Sparkles } from "lucide-react";
+import { Search, X, Star, ChevronUp, Sparkles, SlidersHorizontal, Check, RotateCcw } from "lucide-react";
 import SiteLayout from "@/components/layout/SiteLayout";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import { cn, formatPrice } from "@/lib/utils";
@@ -166,6 +166,330 @@ function SearchInput({ initialQuery, onDebounced, light, onFocusScroll }: { init
   );
 }
 
+type FilterSort = "default" | "price-asc" | "price-desc" | "rating" | "name";
+
+interface FilterState {
+  sources: ("store" | "mart")[];
+  categories: string[];
+  brands: string[];
+  minPrice: number | null;
+  maxPrice: number | null;
+  minRating: number;
+  sortBy: FilterSort;
+}
+
+const EMPTY_FILTERS: FilterState = {
+  sources: [],
+  categories: [],
+  brands: [],
+  minPrice: null,
+  maxPrice: null,
+  minRating: 0,
+  sortBy: "default",
+};
+
+const FILTER_SORTS: { value: FilterSort; label: string }[] = [
+  { value: "default", label: "Relevance" },
+  { value: "price-asc", label: "Price: Low to High" },
+  { value: "price-desc", label: "Price: High to Low" },
+  { value: "rating", label: "Top Rated" },
+  { value: "name", label: "Name A-Z" },
+];
+
+function toggleIn<T>(arr: T[], value: T): T[] {
+  return arr.includes(value) ? arr.filter((v) => v !== value) : [...arr, value];
+}
+
+function applyFilters(items: UnifiedProduct[], f: FilterState): UnifiedProduct[] {
+  let out = items;
+  if (f.sources.length > 0) out = out.filter((p) => f.sources.includes(p.source));
+  if (f.categories.length > 0) out = out.filter((p) => f.categories.includes(p.category));
+  if (f.brands.length > 0) out = out.filter((p) => f.brands.includes(p.brand));
+  const { minPrice, maxPrice } = f;
+  if (minPrice != null) out = out.filter((p) => p.price >= minPrice);
+  if (maxPrice != null) out = out.filter((p) => p.price <= maxPrice);
+  if (f.minRating > 0) out = out.filter((p) => p.rating >= f.minRating);
+  const sorted = [...out];
+  switch (f.sortBy) {
+    case "price-asc":
+      sorted.sort((a, b) => a.price - b.price);
+      break;
+    case "price-desc":
+      sorted.sort((a, b) => b.price - a.price);
+      break;
+    case "rating":
+      sorted.sort((a, b) => b.rating - a.rating);
+      break;
+    case "name":
+      sorted.sort((a, b) => a.name.localeCompare(b.name));
+      break;
+    default:
+      break;
+  }
+  return sorted;
+}
+
+function FilterCheck({ checked, onToggle, label, count, light }: { checked: boolean; onToggle: () => void; label: string; count?: number; light: boolean }) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className={cn(
+        "flex w-full items-center gap-3 rounded-xl border px-3.5 py-2.5 text-left transition-all duration-200",
+        checked
+          ? light
+            ? "border-sapphire/35 bg-sapphire/[0.05] shadow-[inset_0_1px_0_rgba(255,255,255,0.5)]"
+            : "border-gold/35 bg-gold/[0.06] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
+          : light
+            ? "border-onyx/[0.07] hover:border-sapphire/30"
+            : "border-white/[0.06] hover:border-gold/25"
+      )}
+    >
+      <span
+        className={cn(
+          "flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-[5px] border transition-all duration-200",
+          checked
+            ? light
+              ? "border-sapphire bg-sapphire text-white"
+              : "border-gold bg-gradient-to-br from-gold-light via-gold to-gold-deep text-abyss"
+            : light
+              ? "border-dark-300 bg-white"
+              : "border-white/20 bg-black/40"
+        )}
+      >
+        {checked && <Check size={12} strokeWidth={3} />}
+      </span>
+      <span className={cn("flex-1 text-[13px] font-medium leading-tight", light ? "text-dark-800" : "text-cream/90")}>{label}</span>
+      {count != null && <span className={cn("text-[11px] font-medium tabular-nums", light ? "text-dark-400" : "text-cream-dim/50")}>{count}</span>}
+    </button>
+  );
+}
+
+function GroupTitle({ children, light }: { children: ReactNode; light: boolean }) {
+  return (
+    <div className="mb-3 flex items-center gap-2.5">
+      <span className={cn("h-1 w-1 rounded-full", light ? "bg-sapphire" : "bg-gold")} />
+      <h4 className={cn("text-[10px] font-semibold uppercase tracking-[0.3em]", light ? "text-dark-500" : "text-gold/80")}>{children}</h4>
+    </div>
+  );
+}
+
+function FilterPanel({
+  open,
+  light,
+  filters,
+  categories,
+  brands,
+  priceBounds,
+  storeCount,
+  martCount,
+  activeCount,
+  resultCount,
+  onApply,
+  onClose,
+}: {
+  open: boolean;
+  light: boolean;
+  filters: FilterState;
+  categories: { name: string; count: number }[];
+  brands: { name: string; count: number }[];
+  priceBounds: { min: number; max: number };
+  storeCount: number;
+  martCount: number;
+  activeCount: number;
+  resultCount: number;
+  onApply: (patch: Partial<FilterState>) => void;
+  onClose: () => void;
+}) {
+  const pill = (selected: boolean) =>
+    cn(
+      "rounded-full border px-3.5 py-2 text-[11.5px] font-medium tracking-wide transition-all duration-200",
+      selected
+        ? light
+          ? "border-sapphire/45 bg-sapphire/[0.07] text-sapphire shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]"
+          : "border-gold/55 bg-gold/10 text-gold-light shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+        : light
+          ? "border-onyx/[0.08] text-dark-500 hover:border-sapphire/35 hover:text-sapphire"
+          : "border-white/[0.07] text-cream-dim/70 hover:border-gold/30 hover:text-cream"
+    );
+  return (
+    <div
+      aria-hidden={!open}
+      inert={!open}
+      className={cn(
+        "absolute right-0 top-0 z-40 w-full origin-top-right overflow-hidden rounded-3xl border backdrop-blur-2xl transition-all duration-300 ease-out",
+        open ? "translate-y-0 scale-100 opacity-100" : "pointer-events-none translate-y-1 scale-[0.15] opacity-0",
+        light
+          ? "border-dark-200/70 bg-white/95 shadow-[0_40px_120px_-24px_rgba(15,23,42,0.35)]"
+          : "border-gold/15 bg-[#0a0a0e]/95 shadow-[0_40px_120px_-24px_rgba(0,0,0,0.85)]"
+      )}
+    >
+      {/* Gilded hairline */}
+      <div className={cn("h-px w-full bg-gradient-to-r from-transparent to-transparent", light ? "via-sapphire/50" : "via-gold/50")} aria-hidden />
+
+      {/* Header */}
+      <div className="flex items-center justify-between px-6 pb-4 pt-5">
+        <div className="flex items-center gap-3">
+          <span className={cn("flex h-9 w-9 items-center justify-center rounded-full border", light ? "border-sapphire/20 bg-sapphire/[0.05] text-sapphire" : "border-gold/25 bg-gold/[0.06] text-gold")}>
+            <SlidersHorizontal size={15} strokeWidth={1.75} />
+          </span>
+          <div>
+            <h3 className={cn("font-display text-base tracking-wide", light ? "text-dark-900" : "text-cream")}>Refine Results</h3>
+            {activeCount > 0 ? (
+              <p className={cn("mt-0.5 text-[9.5px] font-semibold uppercase tracking-[0.28em]", light ? "text-sapphire" : "text-gold/80")}>{activeCount} filter{activeCount > 1 ? "s" : ""} active</p>
+            ) : (
+              <p className={cn("mt-0.5 text-[9.5px] font-medium uppercase tracking-[0.28em]", light ? "text-dark-400" : "text-cream-dim/50")}>Filter & sort results</p>
+            )}
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close filters"
+          className={cn(
+            "flex h-8 w-8 items-center justify-center rounded-full border transition-all duration-200",
+            light
+              ? "border-onyx/[0.08] text-dark-400 hover:border-sapphire/35 hover:text-sapphire"
+              : "border-white/10 text-cream-dim/60 hover:border-gold/40 hover:text-gold"
+          )}
+        >
+          <X size={15} strokeWidth={1.75} />
+        </button>
+      </div>
+
+      <div className={cn("mx-6 h-px bg-gradient-to-r from-transparent to-transparent", light ? "via-dark-200" : "via-white/10")} aria-hidden />
+
+      <div className="max-h-[min(70vh,480px)] space-y-6 overflow-y-auto px-6 py-5">
+        <section>
+          <GroupTitle light={light}>Sort by</GroupTitle>
+          <div className="flex flex-wrap gap-1.5">
+            {FILTER_SORTS.map((s) => (
+              <button key={s.value} type="button" onClick={() => onApply({ sortBy: s.value })} className={pill(filters.sortBy === s.value)}>
+                {s.label}
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section>
+          <GroupTitle light={light}>Source</GroupTitle>
+          <div className="space-y-2">
+            <FilterCheck checked={filters.sources.includes("store")} onToggle={() => onApply({ sources: toggleIn(filters.sources, "store") })} label="Store" count={storeCount} light={light} />
+            <FilterCheck checked={filters.sources.includes("mart")} onToggle={() => onApply({ sources: toggleIn(filters.sources, "mart") })} label="Mart" count={martCount} light={light} />
+          </div>
+        </section>
+
+        <section>
+          <GroupTitle light={light}>Category</GroupTitle>
+          <div className="max-h-52 space-y-2 overflow-y-auto pr-1">
+            {categories.map((c) => (
+              <FilterCheck key={c.name} checked={filters.categories.includes(c.name)} onToggle={() => onApply({ categories: toggleIn(filters.categories, c.name) })} label={c.name} count={c.count} light={light} />
+            ))}
+          </div>
+        </section>
+
+        <section>
+          <GroupTitle light={light}>Brand</GroupTitle>
+          <div className="max-h-52 space-y-2 overflow-y-auto pr-1">
+            {brands.map((b) => (
+              <FilterCheck key={b.name} checked={filters.brands.includes(b.name)} onToggle={() => onApply({ brands: toggleIn(filters.brands, b.name) })} label={b.name} count={b.count} light={light} />
+            ))}
+          </div>
+        </section>
+
+        <section>
+          <GroupTitle light={light}>
+            Price <span className="ml-1 normal-case tracking-normal opacity-70">{formatPrice(priceBounds.min)} – {formatPrice(priceBounds.max)}</span>
+          </GroupTitle>
+          <div className="flex items-center gap-2.5">
+            <input
+              type="number"
+              min={0}
+              value={filters.minPrice ?? ""}
+              onChange={(e) => onApply({ minPrice: e.target.value === "" ? null : Math.max(0, Number(e.target.value)) })}
+              placeholder={String(priceBounds.min)}
+              aria-label="Minimum price"
+              className={cn(
+                "w-full rounded-xl border px-3.5 py-2.5 text-[13px] font-medium tabular-nums outline-none transition-all duration-200",
+                light
+                  ? "border-onyx/10 bg-white text-dark-900 placeholder:text-dark-300 focus:border-sapphire/40 focus:shadow-[0_0_0_3px_rgba(30,58,138,0.08)]"
+                  : "border-white/10 bg-black/30 text-cream placeholder:text-cream-dim/30 focus:border-gold/40 focus:shadow-[0_0_0_3px_rgba(212,175,55,0.08)]"
+              )}
+            />
+            <span className={cn("h-px w-3", light ? "bg-dark-300" : "bg-white/20")} aria-hidden />
+            <input
+              type="number"
+              min={0}
+              value={filters.maxPrice ?? ""}
+              onChange={(e) => onApply({ maxPrice: e.target.value === "" ? null : Math.max(0, Number(e.target.value)) })}
+              placeholder={String(priceBounds.max)}
+              aria-label="Maximum price"
+              className={cn(
+                "w-full rounded-xl border px-3.5 py-2.5 text-[13px] font-medium tabular-nums outline-none transition-all duration-200",
+                light
+                  ? "border-onyx/10 bg-white text-dark-900 placeholder:text-dark-300 focus:border-sapphire/40 focus:shadow-[0_0_0_3px_rgba(30,58,138,0.08)]"
+                  : "border-white/10 bg-black/30 text-cream placeholder:text-cream-dim/30 focus:border-gold/40 focus:shadow-[0_0_0_3px_rgba(212,175,55,0.08)]"
+              )}
+            />
+          </div>
+        </section>
+
+        <section>
+          <GroupTitle light={light}>Minimum rating</GroupTitle>
+          <div className="flex items-center gap-1.5">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => onApply({ minRating: filters.minRating === i ? 0 : i })}
+                aria-label={`Minimum rating ${i} star${i > 1 ? "s" : ""}`}
+                className={cn(
+                  "transition-all duration-200 hover:scale-110",
+                  i <= filters.minRating
+                    ? light
+                      ? "text-sapphire"
+                      : "text-gold"
+                    : light
+                      ? "text-dark-200 hover:text-dark-300"
+                      : "text-white/15 hover:text-white/30"
+                )}
+              >
+                <Star size={22} strokeWidth={1.5} className={i <= filters.minRating ? "fill-current" : ""} />
+              </button>
+            ))}
+          </div>
+          <p className={cn("mt-2 pl-0.5 text-[11px] tracking-wide", light ? "text-dark-500" : "text-cream-dim/60")}>
+            {filters.minRating === 0 ? "Any rating" : `${filters.minRating} star${filters.minRating > 1 ? "s" : ""} & above`}
+          </p>
+        </section>
+      </div>
+
+      <div className={cn("flex items-center justify-between gap-3 border-t px-6 py-4", light ? "border-dark-200/70" : "border-white/[0.07]")}>
+        <button
+          type="button"
+          onClick={() => onApply({ ...EMPTY_FILTERS })}
+          className={cn("flex items-center gap-1.5 rounded-full px-3 py-2 text-[10.5px] font-semibold uppercase tracking-[0.18em] transition-colors", light ? "text-dark-500 hover:text-sapphire" : "text-cream-dim/70 hover:text-gold")}
+        >
+          <RotateCcw size={12} strokeWidth={2} />
+          Reset
+        </button>
+        <button
+          type="button"
+          onClick={onClose}
+          className={cn(
+            "flex items-center gap-2 rounded-full px-5 py-2.5 text-[12px] font-semibold tracking-wide transition-all duration-300",
+            light
+              ? "bg-sapphire text-white shadow-[0_10px_30px_-8px_rgba(30,58,138,0.45)] hover:bg-sapphire/90"
+              : "bg-gradient-to-r from-gold-deep via-gold to-gold-light text-abyss shadow-[0_10px_30px_-10px_rgba(212,175,55,0.4)] hover:shadow-[0_12px_40px_-8px_rgba(212,175,55,0.55)]"
+          )}
+        >
+          View {resultCount} {resultCount === 1 ? "result" : "results"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function SearchContent() {
   const { theme } = useTheme();
   const light = theme === "light";
@@ -180,6 +504,9 @@ function SearchContent() {
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [hideTabs, setHideTabs] = useState(false);
   const [visibleCount, setVisibleCount] = useState(48);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [filters, setFilters] = useState<FilterState>(EMPTY_FILTERS);
+  const panelWrapRef = useRef<HTMLDivElement>(null);
   const lastScrollY = useRef(0);
   const searchSeq = useRef(0);
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -276,6 +603,63 @@ function SearchContent() {
     return [...dbStore, ...dbMart];
   }, [dbStore, dbMart]);
 
+  const categoryOptions = useMemo(() => {
+    const m = new Map<string, number>();
+    allProducts.forEach((p) => {
+      if (p.inStock) m.set(p.category, (m.get(p.category) || 0) + 1);
+    });
+    return [...m.entries()].map(([name, count]) => ({ name, count })).sort((a, b) => a.name.localeCompare(b.name));
+  }, [allProducts]);
+
+  const brandOptions = useMemo(() => {
+    const m = new Map<string, number>();
+    allProducts.forEach((p) => {
+      if (p.inStock && p.brand) m.set(p.brand, (m.get(p.brand) || 0) + 1);
+    });
+    return [...m.entries()].map(([name, count]) => ({ name, count })).sort((a, b) => a.name.localeCompare(b.name));
+  }, [allProducts]);
+
+  const priceBounds = useMemo(() => {
+    let min = Infinity;
+    let max = -Infinity;
+    allProducts.forEach((p) => {
+      if (p.inStock) {
+        if (p.price < min) min = p.price;
+        if (p.price > max) max = p.price;
+      }
+    });
+    if (!isFinite(min)) return { min: 0, max: 1 };
+    return { min: Math.floor(min), max: Math.ceil(max) };
+  }, [allProducts]);
+
+  const activeFilterCount =
+    (filters.sources.length > 0 ? 1 : 0) +
+    (filters.categories.length > 0 ? 1 : 0) +
+    (filters.brands.length > 0 ? 1 : 0) +
+    (filters.minPrice != null || filters.maxPrice != null ? 1 : 0) +
+    (filters.minRating > 0 ? 1 : 0) +
+    (filters.sortBy !== "default" ? 1 : 0);
+
+  const updateFilters = useCallback((patch: Partial<FilterState>) => {
+    setFilters((prev) => ({ ...prev, ...patch }));
+  }, []);
+
+  useEffect(() => {
+    if (!filtersOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (panelWrapRef.current && !panelWrapRef.current.contains(e.target as Node)) setFiltersOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setFiltersOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [filtersOpen]);
+
   const storeCount = useMemo(() => allProducts.filter((p) => p.inStock && p.source === "store").length, [allProducts]);
   const martCount = useMemo(() => allProducts.filter((p) => p.inStock && p.source === "mart").length, [allProducts]);
 
@@ -297,14 +681,16 @@ function SearchContent() {
     return results;
   }, [allProducts, debouncedQuery]);
 
-  const filtered = mlResults ?? clientFiltered;
+  const baseFiltered = mlResults ?? clientFiltered;
+
+  const filtered = useMemo(() => applyFilters(baseFiltered, filters), [baseFiltered, filters]);
 
   const visible = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setVisibleCount(48);
-  }, [debouncedQuery]);
+  }, [debouncedQuery, filters]);
 
   /* Progressive render: grow the visible slice as the sentinel scrolls in */
   useEffect(() => {
@@ -357,9 +743,9 @@ function SearchContent() {
             hideTabs ? "max-sm:-translate-y-[calc(100%+84px)]" : "translate-y-0"
           )}
         >
-          {/* Search bar */}
+{/* Search bar + filters */}
           <div className="relative z-10 mx-auto w-[calc(100%-1.5rem)] max-w-[1400px] sm:w-[calc(100%-4rem)]">
-            <div className="flex items-center gap-3 py-2">
+            <div ref={panelWrapRef} className="relative flex items-center gap-3 py-2">
               <SearchInput initialQuery={initialQuery} onDebounced={setDebouncedQuery} light={light} onFocusScroll={() => {
                 const hero = heroRef.current;
                 if (!hero) return;
@@ -367,6 +753,43 @@ function SearchContent() {
                 const pos = r.top + window.scrollY + r.height - 78;
                 window.scrollTo({ top: Math.max(pos, 0), behavior: "smooth" });
               }} />
+              <div className="relative shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setFiltersOpen((o) => !o)}
+                  aria-expanded={filtersOpen}
+                  aria-label={filtersOpen ? "Close filters" : "Open filters"}
+className={cn(
+                      "flex h-[2.75rem] shrink-0 items-center gap-2.5 rounded-2xl border px-6 text-[12.5px] backdrop-blur-2xl transition-all duration-300 sm:h-14 sm:px-14",
+                    light
+                      ? "border-white/50 bg-white/50 text-dark-900 shadow-[0_20px_60px_-10px_rgba(0,0,0,0.35)] hover:border-sapphire/40 hover:text-sapphire"
+                      : "border-white/15 bg-black/50 text-cream shadow-[0_20px_60px_-10px_rgba(0,0,0,0.5)] hover:border-gold/40 hover:text-gold-light",
+                    filtersOpen && (light ? "border-sapphire/45 shadow-[0_20px_70px_-14px_rgba(30,58,138,0.55)]" : "border-gold/45 shadow-[0_20px_80px_-14px_rgba(212,175,55,0.5)]")
+                  )}
+                >
+                  <SlidersHorizontal size={16} strokeWidth={1.75} />
+                  <span className="hidden sm:inline">{filtersOpen ? "Close" : "Filters"}</span>
+                  {!filtersOpen && activeFilterCount > 0 && (
+                    <span className={cn("flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-bold", light ? "bg-sapphire text-white" : "bg-gold text-abyss")}>
+                      {activeFilterCount}
+                    </span>
+                  )}
+                </button>
+              </div>
+              <FilterPanel
+                open={filtersOpen}
+                light={light}
+                filters={filters}
+                categories={categoryOptions}
+                brands={brandOptions}
+                priceBounds={priceBounds}
+                storeCount={storeCount}
+                martCount={martCount}
+                activeCount={activeFilterCount}
+                resultCount={filtered.length}
+                onApply={updateFilters}
+                onClose={() => setFiltersOpen(false)}
+              />
             </div>
           </div>
         </div>
@@ -378,7 +801,7 @@ function SearchContent() {
               <div className="flex flex-col items-center justify-center py-32">
                 <Search size={48} strokeWidth={1} className={cn("mb-6", light ? "text-onyx/15" : "text-cream/10")} />
                 <p className={cn("text-sm uppercase tracking-[0.3em]", light ? "text-dark-400" : "text-cream-dim/50")}>
-                  {debouncedQuery ? `No results for "${debouncedQuery}"` : "No products available"}
+                  {debouncedQuery ? `No results for "${debouncedQuery}"` : activeFilterCount > 0 ? "No products match your filters" : "No products available"}
                 </p>
               </div>
             ) : (
