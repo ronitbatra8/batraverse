@@ -29,6 +29,7 @@ import SellerSystemTab from "../admin/components/SellerSystemTab";
 import AdsTab from "../admin/components/AdsTab";
 import FeaturedTab from "../admin/components/FeaturedTab";
 import TestimonialsTab from "../admin/components/TestimonialsTab";
+import CategoriesTab from "../admin/components/CategoriesTab";
 import { useToast } from "@/components/Toast";
 
 // Empty initial state. Every tab is populated exclusively by live API responses
@@ -306,6 +307,7 @@ export default function AdminPage() {
           {tab === "ads" && <AdsTab adminKey={adminKey} />}
           {tab === "featured" && <FeaturedTab adminKey={adminKey} />}
           {tab === "testimonials" && <TestimonialsTab adminKey={adminKey} />}
+          {tab === "categories" && <CategoriesTab adminKey={adminKey} />}
         </div>
       </main>
     </div>

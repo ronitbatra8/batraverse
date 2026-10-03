@@ -312,7 +312,7 @@ export default function ProductPage() {
               Store
             </Link>
             <ChevronRight size={10} className={light ? "text-dark-300" : "text-cream-dim/30"} />
-            <Link href={`/store?cat=${encodeURIComponent(product.category)}`} className={cn("transition-colors", light ? "text-dark-400 hover:text-sapphire" : "text-cream-dim/50 hover:text-gold-light")}>
+            <Link href={`/store/category/${encodeURIComponent(product.category)}`} className={cn("transition-colors", light ? "text-dark-400 hover:text-sapphire" : "text-cream-dim/50 hover:text-gold-light")}>
               {product.category}
             </Link>
             <ChevronRight size={10} className={light ? "text-dark-300" : "text-cream-dim/30"} />

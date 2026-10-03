@@ -1,42 +1,37 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import SiteLayout from "@/components/layout/SiteLayout";
-import MartNav from "./MartNav";
 import MartGrid from "./MartGrid";
 import AdsShowcase from "@/components/home/AdsShowcase";
 import CategoryCollection from "@/components/products/CategoryCollection";
 import RandomPicks from "@/components/products/RandomPicks";
 
-export default function MartPage() {
-  const [category, setCategory] = useState("all");
-  const [subCategories, setSubCategories] = useState<string[]>([]);
-
-  const handleSubChange = (id: string) => {
-    setSubCategories((prev) => {
-      if (id === "all") return [];
-      return prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id];
-    });
-  };
+function MartPageInner() {
+  // Category navigation now lives in the Collections section (top of page),
+  // which links through to the dedicated category pages.
+  const searchParams = useSearchParams();
+  const catParam = searchParams.get("cat");
+  const category = catParam && catParam !== "all" ? catParam : "all";
 
   return (
     <SiteLayout>
       <div className="min-h-screen">
-        <MartNav
-          active={category}
-          onCategoryChange={setCategory}
-          subActive={subCategories}
-          onSubChange={handleSubChange}
-        />
-        <AdsShowcase page="mart" hideHeader />
+        <CategoryCollection source="mart" navigate />
         <RandomPicks source="mart" />
-        <CategoryCollection
-          source="mart"
-          active={category}
-          onCategoryChange={setCategory}
-        />
-        <MartGrid category={category} subCategories={subCategories} searchQuery="" />
+        <AdsShowcase page="mart" hideHeader />
+        <div id="products-anchor" />
+        <MartGrid category={category} subCategories={[]} searchQuery="" />
       </div>
     </SiteLayout>
+  );
+}
+
+export default function MartPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen" />}>
+      <MartPageInner />
+    </Suspense>
   );
 }

@@ -612,7 +612,7 @@ model Testimonial {
   id          String   @id @default(cuid())
   source      String   @default("custom") // "custom" or "review"
   reviewId    String?  // reference to a Review id when source = review
-  quote       String
+  quote      String
   name        String
   role        String?
   avatar      String?
@@ -624,5 +624,43 @@ model Testimonial {
   updatedAt   DateTime @updatedAt
 
   @@index([active])
+  @@index([sortOrder])
+}
+
+// Independent curated category section used on public pages.
+// Deliberately has NO relation to Category/Subcategory so this feature can
+// never mutate the category system. categorySlug is a soft link by slug.
+model CategorySection {
+  id           String   @id @default(cuid())
+  categorySlug String   @unique
+  source       String   @default("store")
+  name         String
+  image        String?
+  sortOrder    Int      @default(0)
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([source])
+  @@index([sortOrder])
+}
+
+// Independent curated section for SUBCATEGORIES, rendered on a category's
+// dedicated page. Also has NO relation to Category/Subcategory.
+model SubcategorySection {
+  id              String   @id @default(cuid())
+  subcategorySlug String
+  parentSlug      String
+  source          String   @default("store")
+  name            String
+  image           String?
+  sortOrder       Int      @default(0)
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([parentSlug, subcategorySlug])
+  @@index([parentSlug])
+  @@index([source])
   @@index([sortOrder])
 }

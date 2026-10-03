@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import { cn } from "@/lib/utils";
@@ -20,7 +20,19 @@ interface Billboard {
   duration: number;
 }
 
-export default function AdsShowcase({ page = "home", hideHeader = false }: { page?: string; hideHeader?: boolean }) {
+export default function AdsShowcase({
+  page = "home",
+  fallbacks = [],
+  hideHeader = false,
+  inline = false,
+}: {
+  page?: string;
+  /** Tried in order when `page` has no ads. */
+  fallbacks?: string[];
+  hideHeader?: boolean;
+  /** Fills its grid cell instead of rendering a full-width section. */
+  inline?: boolean;
+}) {
   const { theme } = useTheme();
   const light = theme === "light";
 
@@ -30,28 +42,54 @@ export default function AdsShowcase({ page = "home", hideHeader = false }: { pag
   const elapsedRef = useRef(0);
   const lastTickRef = useRef(0);
 
+  // Joined so the effect identity stays stable when callers pass inline arrays.
+  const chainKey = [page, ...fallbacks].join("|");
+  const chain = useMemo(() => chainKey.split("|"), [chainKey]);
+
   useEffect(() => {
-    fetch(`${API_URL}/spotlight-ads?page=${page}`, { headers: { "ngrok-skip-browser-warning": "true" } })
-      .then((r) => r.json())
-      .then((data) => {
-        if (Array.isArray(data) && data.length > 0) {
-          setBillboards(
-            data.map((ad: { img: string; tagline: string; line: string; href: string; duration: number }) => ({
-              img: ad.img,
-              tagline: ad.tagline,
-              line: ad.line,
-              href: ad.href || "/store",
-              duration: ad.duration || DEFAULT_DURATION,
-            }))
-          );
+    let cancelled = false;
+
+    const toBillboards = (data: unknown): Billboard[] =>
+      Array.isArray(data)
+        ? data.map((ad: { img: string; tagline: string; line: string; href: string; duration: number }) => ({
+            img: ad.img,
+            tagline: ad.tagline,
+            line: ad.line,
+            href: ad.href || "/store",
+            duration: ad.duration || DEFAULT_DURATION,
+          }))
+        : [];
+
+    (async () => {
+      for (const key of chain) {
+        try {
+          const res = await fetch(`${API_URL}/spotlight-ads?page=${encodeURIComponent(key)}`, {
+            headers: { "ngrok-skip-browser-warning": "true" },
+          });
+          if (!res.ok) continue;
+          const list = toBillboards(await res.json());
+          if (cancelled) return;
+          // First page in the chain that actually has ads wins.
+          if (list.length > 0) {
+            setBillboards(list);
+            return;
+          }
+        } catch {
+          // try the next fallback
         }
-      })
-      .catch(() => {});
-  }, [page]);
+      }
+      if (!cancelled) setBillboards([]);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [chain]);
 
   useEffect(() => {
     if (billboards.length === 0) return;
-    const base = (billboards[index]?.duration || DEFAULT_DURATION) * 1000;
+    const currentIdx = Math.min(index, billboards.length - 1);
+    const base = (billboards[currentIdx]?.duration || DEFAULT_DURATION) * 1000;
     elapsedRef.current = 0;
     lastTickRef.current = performance.now();
     let raf: number;
@@ -77,14 +115,22 @@ export default function AdsShowcase({ page = "home", hideHeader = false }: { pag
   const go = (dir: 1 | -1) =>
     setIndex((i) => (i + dir + billboards.length) % billboards.length);
 
-  const current = billboards[index];
+  const current = billboards[Math.min(index, billboards.length - 1)];
   if (!current) return null;
 
+  // Inline ads are just the billboard — never render the section heading.
+  const showHeader = !hideHeader && !inline;
+
   return (
-    <section className={cn("relative overflow-hidden", hideHeader ? "py-4 pb-10" : "pt-12 pb-6 sm:py-16")}>
+    <section
+      className={cn(
+        inline ? "h-full w-full" : "relative overflow-hidden",
+        !inline && (hideHeader ? "py-4 pb-10" : "pt-12 pb-6 sm:py-16")
+      )}
+    >
       {/* Desktop: padded container with heading */}
-      <div className="hidden sm:block mx-auto w-full max-w-7xl px-6 sm:px-8">
-        {!hideHeader && (
+      <div className={inline ? "h-full" : "hidden sm:block mx-auto w-full max-w-7xl px-6 sm:px-8"}>
+        {showHeader && (
           <div className="flex flex-wrap items-end justify-between gap-6">
             <div>
               <motion.div
@@ -183,9 +229,18 @@ export default function AdsShowcase({ page = "home", hideHeader = false }: { pag
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-80px" }}
           transition={{ duration: 1, delay: 0.15, ease: EASE }}
-          className={cn("relative overflow-hidden", !hideHeader && "mt-12")}
+          className={cn(
+            "relative overflow-hidden",
+            !inline && showHeader && "mt-12",
+            inline && "h-full"
+          )}
         >
-          <div className="relative aspect-[21/9] w-full overflow-hidden">
+          <div
+            className={cn(
+              "relative w-full overflow-hidden",
+              inline ? "h-full min-h-[13rem]" : "aspect-[21/9]"
+            )}
+          >
             <AnimatePresence mode="popLayout">
               <motion.div
                 key={index}
@@ -229,7 +284,7 @@ export default function AdsShowcase({ page = "home", hideHeader = false }: { pag
               </span>
             </div>
 
-            <div className="absolute inset-x-0 bottom-0 p-8 sm:p-12">
+            <div className={cn("absolute inset-x-0 bottom-0", inline ? "p-6" : "p-8 sm:p-12")}>
               <AnimatePresence mode="popLayout">
                 <motion.div
                   key={index}
@@ -239,19 +294,32 @@ export default function AdsShowcase({ page = "home", hideHeader = false }: { pag
                   exit={{ opacity: 0, y: -16 }}
                   transition={{ duration: 0.8, delay: 0.15, ease: EASE }}
                 >
-                  <h3 className="font-display text-3xl font-semibold text-cream sm:text-4xl">
+                  <h3
+                    className={cn(
+                      "font-display font-semibold text-cream",
+                      inline ? "text-xl" : "text-3xl sm:text-4xl"
+                    )}
+                  >
                     {current.tagline}
                   </h3>
-                  <p className="mt-3 max-w-md text-sm leading-relaxed text-cream-dim">
+                  <p
+                    className={cn(
+                      "leading-relaxed text-cream-dim",
+                      inline ? "mt-2 text-xs line-clamp-2" : "mt-3 max-w-md text-sm"
+                    )}
+                  >
                     {current.line}
                   </p>
                   <Link
                     href={current.href}
-                    className="group mt-8 inline-flex items-center gap-2.5 rounded-full border border-gold-light/40 bg-gold/15 px-9 py-3.5 text-sm font-semibold uppercase tracking-[0.15em] text-gold-light shadow-[0_0_24px_rgba(212,175,55,0.25)] transition-all duration-300 hover:bg-gold hover:text-onyx hover:shadow-[0_0_36px_rgba(212,175,55,0.5)]"
+                    className={cn(
+                      "group inline-flex items-center gap-2.5 rounded-full border border-gold-light/40 bg-gold/15 font-semibold uppercase tracking-[0.15em] text-gold-light shadow-[0_0_24px_rgba(212,175,55,0.25)] transition-all duration-300 hover:bg-gold hover:text-onyx hover:shadow-[0_0_36px_rgba(212,175,55,0.5)]",
+                      inline ? "mt-5 px-6 py-2.5 text-[10px]" : "mt-8 px-9 py-3.5 text-sm"
+                    )}
                   >
                     View Campaign
                     <ArrowRight
-                      size={18}
+                      size={inline ? 14 : 18}
                       strokeWidth={2}
                       className="transition-transform duration-300 group-hover:translate-x-1"
                     />
@@ -260,7 +328,12 @@ export default function AdsShowcase({ page = "home", hideHeader = false }: { pag
               </AnimatePresence>
             </div>
 
-            <div className="absolute bottom-0 right-0 hidden items-end gap-5 p-8 sm:flex sm:p-12">
+            <div
+              className={cn(
+                "absolute bottom-0 right-0 items-end gap-5",
+                inline ? "hidden gap-4 p-6 lg:flex" : "hidden items-end gap-5 p-8 sm:flex sm:p-12"
+              )}
+            >
               {billboards.map((b, i) => (
                 <button
                   key={b.tagline}
@@ -293,8 +366,8 @@ export default function AdsShowcase({ page = "home", hideHeader = false }: { pag
       </div>
 
       {/* Mobile: full-width, compact heading */}
-      <div className="sm:hidden">
-        {!hideHeader && (
+      <div className={inline ? "hidden" : "sm:hidden"}>
+        {showHeader && (
           <div className="flex items-center justify-between px-4 pb-3">
             <p className={cn("text-[10px] font-medium uppercase tracking-[0.3em]", light ? "text-sapphire" : "text-gold")}>
               Spotlight

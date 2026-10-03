@@ -12,20 +12,23 @@ export default function Brand({
   heroWhite = false,
   size = "md",
   mobileWordmark = false,
+  wordmark = true,
 }: {
   light?: boolean;
   heroWhite?: boolean;
   size?: "md" | "lg";
   mobileWordmark?: boolean;
+  wordmark?: boolean;
 }) {
   const lg = size === "lg";
   const cardSize = lg ? "h-11 w-11" : "h-9 w-9 sm:h-10 sm:w-10";
   const markSize = lg ? "text-base" : "text-sm";
   const wordSize = lg ? "text-xl" : "text-base sm:text-lg";
+  const gap = wordmark ? (lg ? "gap-3" : "gap-2.5") : "gap-0";
 
   return (
     <motion.div
-      className={`flex items-center ${lg ? "gap-3" : "gap-2.5"}`}
+      className={`flex items-center ${gap}`}
       initial="hidden"
       animate="show"
       variants={container}
@@ -46,7 +49,11 @@ export default function Brand({
       {/* Wordmark — one continuous "BATRAVERSE" like the boot splash: BATRA in
           white/onyx/cream, VERSE gilded (sapphire in light mode), with the
           shopping bag hanging on the last E's bottom bar */}
-      <span className={`${mobileWordmark ? "flex" : "hidden sm:flex"} relative items-baseline`}>
+      <span
+        className={`${mobileWordmark ? "flex" : "hidden sm:flex"} relative items-baseline transition-opacity duration-200 ${
+          wordmark ? "opacity-100" : "w-0 overflow-hidden opacity-0"
+        }`}
+      >
         {/* BATRA */}
         <motion.span
           variants={wordStagger}

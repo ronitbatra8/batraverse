@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo, type FocusEvent } from "react";
 import { useRouter } from "next/navigation";
 import {
   Loader2,
@@ -287,6 +287,15 @@ function getImageUrl(src: string) {
   return resolveImageUrl(src);
 }
 
+const inrFormatter = new Intl.NumberFormat("en-IN", {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
+function fmtINR(value: number) {
+  return `₹${inrFormatter.format(value)}`;
+}
+
 const TABS: { key: Tab; label: string; icon: typeof Package }[] = [
   { key: "overview", label: "Overview", icon: TrendingUp },
   { key: "analytics", label: "Analytics", icon: BarChart3 },
@@ -310,6 +319,13 @@ export default function SellerDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [navHovered, setNavHovered] = useState(false);
+  const navRailRef = useRef<HTMLElement | null>(null);
+  const expandNav = () => setNavHovered(true);
+  const collapseNav = () => setNavHovered(false);
+  const handleNavBlur = (e: FocusEvent<HTMLElement>) => {
+    if (!navRailRef.current?.contains(e.relatedTarget as Node | null)) setNavHovered(false);
+  };
 
   const [profile, setProfile] = useState<SellerProfile | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
@@ -820,49 +836,78 @@ export default function SellerDashboardPage() {
   return (
     <SiteLayout>
       <div className="min-h-screen overflow-x-clip bg-dark-950 lg:flex">
-        {/* Desktop sidebar */}
-        <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-dark-800 bg-dark-900/95 lg:flex">
-          <div className="border-b border-dark-800 p-5">
-            <Brand size="md" />
+        {/* Desktop sidebar — collapsed rail that expands on hover (or keyboard focus) */}
+        <aside
+          ref={navRailRef}
+          onMouseEnter={expandNav}
+          onMouseLeave={collapseNav}
+          onFocus={expandNav}
+          onBlur={handleNavBlur}
+          className={cn(
+            "sticky top-0 hidden h-screen shrink-0 flex-col overflow-hidden border-r border-dark-800 bg-dark-900/95 transition-[width] duration-300 ease-in-out lg:flex",
+            navHovered ? "w-64" : "w-[68px]"
+          )}
+        >
+          <div
+            className={cn(
+              "flex shrink-0 items-center border-b border-dark-800",
+              navHovered ? "p-5" : "justify-center p-3"
+            )}
+          >
+            <Brand size="md" wordmark={navHovered} />
           </div>
-          <div className="flex-1 space-y-1 overflow-y-auto p-3">
+          <div className={cn("flex-1 space-y-1 overflow-y-auto overflow-x-hidden", navHovered ? "p-3" : "p-2")}>
             {TABS.map((t) => (
               <button
                 key={t.key}
                 onClick={() => goToTab(t.key)}
+                title={t.label}
+                aria-label={t.label}
+                aria-current={tab === t.key ? "page" : undefined}
                 className={cn(
-                  "flex w-full items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200",
+                  "flex w-full items-center rounded-xl text-sm font-medium transition-all duration-200",
+                  navHovered ? "gap-3 px-4 py-3" : "justify-center px-0 py-3",
                   tab === t.key
                     ? "bg-gold-500/10 text-gold-400 border border-gold-500/20"
                     : "text-dark-400 hover:text-dark-200 border border-transparent"
                 )}
               >
                 <t.icon size={18} className="shrink-0" />
-                <span className="truncate">{t.label}</span>
+                {navHovered && <span className="truncate">{t.label}</span>}
               </button>
             ))}
           </div>
-          <div className="border-t border-dark-800 p-3">
+          <div className={cn("shrink-0 border-t border-dark-800", navHovered ? "p-3" : "p-2")}>
             <button
               onClick={() => handleRefresh()}
               disabled={refreshing}
-              className="flex w-full items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-dark-300 transition-all duration-200 hover:bg-white/[0.05] hover:text-white disabled:opacity-50"
+              title="Refresh"
+              aria-label="Refresh"
+              className={cn(
+                "flex w-full items-center rounded-xl text-sm font-medium text-dark-300 transition-all duration-200 hover:bg-white/[0.05] hover:text-white disabled:opacity-50",
+                navHovered ? "gap-3 px-4 py-3" : "justify-center px-0 py-3"
+              )}
             >
               <RefreshCw size={18} className={`shrink-0 ${refreshing ? "animate-spin" : ""}`} />
-              <span className="truncate">{refreshing ? "Refreshing..." : "Refresh"}</span>
+              {navHovered && <span className="truncate">{refreshing ? "Refreshing..." : "Refresh"}</span>}
             </button>
             <button
               onClick={() => { logout(); router.replace("/"); }}
-              className="flex w-full items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-red-400 transition-all duration-200 hover:bg-red-500/10"
+              title="Sign Out"
+              aria-label="Sign Out"
+              className={cn(
+                "flex w-full items-center rounded-xl text-sm font-medium text-red-400 transition-all duration-200 hover:bg-red-500/10",
+                navHovered ? "gap-3 px-4 py-3" : "justify-center px-0 py-3"
+              )}
             >
               <LogOut size={18} className="shrink-0" />
-              <span className="truncate">Sign Out</span>
+              {navHovered && <span className="truncate">Sign Out</span>}
             </button>
           </div>
         </aside>
 
         <div className="min-w-0 flex-1">
-          <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-8">
+          <div className={cn("mx-auto px-3 sm:px-6 py-4 sm:py-8", tab === "addproduct" ? "max-w-none" : "max-w-7xl")}>
           <div className="mb-6">
             <div className="grid grid-cols-3 items-center gap-2">
               <p className="text-base sm:text-lg font-display font-bold text-white truncate text-left">{profile?.shopName || "My Shop"}</p>
@@ -2011,21 +2056,21 @@ function SelectList({
         type="button"
         onClick={() => setOpen((v) => !v)}
         className={cn(
-          "w-full flex items-center justify-between bg-dark-800/60 border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-gold-500/50 cursor-pointer transition-colors",
-          open ? "border-gold-500/50" : "border-dark-700/50",
-          selected ? "text-white" : "text-dark-500"
+          "w-full flex items-center justify-between bg-dark-800 border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-gold-500 focus:ring-2 focus:ring-gold-500/25 cursor-pointer transition-colors",
+          open ? "border-gold-500" : "border-dark-600",
+          selected ? "text-white" : "text-dark-400"
         )}
       >
         <span className="truncate">{selected ? selected.label : placeholder}</span>
         <ChevronDown size={16} className={cn("shrink-0 text-dark-400 transition-transform", open && "rotate-180")} />
       </button>
       {open && (
-        <div className="absolute z-20 mt-2 w-full max-h-64 overflow-y-auto rounded-xl border border-dark-700/50 bg-dark-900 shadow-xl shadow-black/40 p-1">
+        <div className="absolute z-20 mt-2 w-full max-h-64 overflow-y-auto rounded-xl border border-dark-600 bg-dark-900 shadow-xl shadow-black/60 p-1">
           {value && (
             <button
               type="button"
               onClick={() => { onChange(""); setOpen(false); }}
-              className="w-full text-left px-3 py-2.5 rounded-lg text-sm text-dark-500 hover:bg-dark-800/60 hover:text-dark-200"
+              className="w-full text-left px-3 py-2.5 rounded-lg text-sm text-dark-400 hover:bg-dark-800 hover:text-white"
             >
               {placeholder}
             </button>
@@ -2038,15 +2083,15 @@ function SelectList({
               className={cn(
                 "w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors",
                 o.value === value
-                  ? "bg-gold-500/10 text-gold-400"
-                  : "text-dark-200 hover:bg-dark-800/60 hover:text-white"
+                  ? "bg-gold-500/15 text-gold-300"
+                  : "text-dark-200 hover:bg-dark-800 hover:text-white"
               )}
             >
               <span className="truncate">{o.label}</span>
             </button>
           ))}
           {options.length === 0 && (
-            <div className="px-3 py-2.5 text-sm text-dark-500">No categories available</div>
+            <div className="px-3 py-2.5 text-sm text-dark-400">No categories available</div>
           )}
         </div>
       )}
@@ -2133,6 +2178,27 @@ function AddProductTab({
   const hasColors = form.colorOptions.length > 0;
   const hasSizes = Object.values(form.sizeOptions).some((arr) => arr && arr.length > 0);
 
+  // Estimate is derived from the first colour, and that colour's first size when sizes exist.
+  const firstColor = form.colorOptions[0];
+  const firstColorName = firstColor ? firstColor.name || "Color 1" : "";
+  const firstSize = (form.sizeOptions[firstColorName] || [])[0];
+  const variantPrice = firstSize ? firstSize.price ?? firstColor?.price : firstColor?.price;
+  const variantLabel = firstSize ? `${firstColorName} · ${firstSize.name}` : firstColorName || null;
+
+  const EST_DELIVERY = 49;
+  const EST_MARGIN_RATE = 0.06;
+  const EST_GST_RATE = 0.18;
+  const EST_EXTERNAL_RATE = 0.02;
+  const round2 = (n: number) => Math.round(n * 100) / 100;
+
+  const estBase = typeof variantPrice === "number" && variantPrice > 0 ? variantPrice : form.price || 0;
+  const estMargin = round2(estBase * EST_MARGIN_RATE);
+  const estGst = round2(estMargin * EST_GST_RATE);
+  const estNetMargin = round2(estMargin - estGst);
+  const estSubtotal = round2(estBase + estMargin + EST_DELIVERY);
+  const estExternal = round2(estSubtotal * EST_EXTERNAL_RATE);
+  const estTotal = round2(estSubtotal + estExternal);
+
   return (
     <div>
       <div className="flex flex-wrap items-center gap-2 sm:gap-4 mb-4 sm:mb-6">
@@ -2145,57 +2211,55 @@ function AddProductTab({
       </div>
 
       {rejectReason ? (
-        <div className="mb-5 rounded-xl bg-red-500/10 border border-red-500/30 px-4 py-3 text-sm text-red-300">
+        <div className="mb-5 rounded-xl bg-red-500/15 border border-red-500/40 px-4 py-3 text-sm text-red-200">
           <span className="font-semibold">Product was rejected.</span> Reason: {rejectReason || "—"}{" "}
-          <span className="text-red-400/70">Fix the details below and save to resubmit for approval.</span>
+          <span className="text-red-200/80">Fix the details below and save to resubmit for approval.</span>
         </div>
       ) : !editing ? (
-        <div className="mb-5 rounded-xl bg-amber-500/10 border border-amber-500/30 px-4 py-3 text-sm text-amber-300">
+        <div className="mb-5 rounded-xl bg-amber-500/15 border border-amber-500/40 px-4 py-3 text-sm text-amber-200">
           Your product will be shown on the storefront within 24 hours.
         </div>
       ) : lockedPrice ? (
-        <div className="mb-5 rounded-xl bg-sky-500/10 border border-sky-500/30 px-4 py-3 text-sm text-sky-300">
+        <div className="mb-5 rounded-xl bg-sky-500/15 border border-sky-500/40 px-4 py-3 text-sm text-sky-200">
           This product is live — the sell price is set by the owner. You can still update images, description, and stock.
         </div>
       ) : null}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-        {/* Left column � main info (2 cols wide) */}
-        <div className="lg:col-span-2 space-y-6">
-          <div className="bg-dark-900/60 border border-dark-800/50 rounded-2xl p-4 sm:p-6 space-y-4 sm:space-y-5">
-            <div>
-              <label className="text-xs text-dark-500 uppercase tracking-wider font-semibold mb-1.5 block">Product Name</label>
-              <input type="text" value={form.name} onChange={(e) => onChange({ ...form, name: e.target.value })}
-                className="w-full bg-dark-800/60 border border-dark-700/50 rounded-xl px-3 sm:px-4 py-3 text-white text-sm placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50"
-                placeholder="Enter product name" />
-            </div>
+<div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_25rem]">
+          <div className="space-y-6">
+          <div className="bg-dark-900 border border-dark-700 shadow-lg shadow-black/30 rounded-2xl p-4 sm:p-6 space-y-4 sm:space-y-5">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="text-xs text-dark-500 uppercase tracking-wider font-semibold mb-1.5 block">Sell On</label>
-                <div className="grid grid-cols-2 sm:grid-cols-2 gap-2">
-                  <button type="button" onClick={() => handleSourceChange("store")}
-                    className={cn("flex flex-col items-center justify-center gap-1 px-2 py-2.5 rounded-xl border text-[11px] font-medium transition-all",
-                      form.source === "store" ? "bg-sky-500/10 border-sky-500/40 text-sky-400" : "bg-dark-800/60 border-dark-700/50 text-dark-400 hover:text-dark-200")}>
-                    <Store size={16} /> Store
-                  </button>
-                  <button type="button" onClick={() => handleSourceChange("mart")}
-                    className={cn("flex flex-col items-center justify-center gap-1 px-2 py-2.5 rounded-xl border text-[11px] font-medium transition-all",
-                      form.source === "mart" ? "bg-emerald-500/10 border-emerald-500/40 text-emerald-400" : "bg-dark-800/60 border-dark-700/50 text-dark-400 hover:text-dark-200")}>
-                    <ShoppingCart size={16} /> Mart
-                  </button>
-                </div>
+                <label className="text-xs text-dark-300 uppercase tracking-wider font-semibold mb-1.5 block">Product Name</label>
+                <input type="text" value={form.name} onChange={(e) => onChange({ ...form, name: e.target.value })}
+                  className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 text-white text-sm placeholder:text-dark-400 focus:outline-none focus:border-gold-500 focus:ring-2 focus:ring-gold-500/25"
+                  placeholder="Enter product name" />
               </div>
               <div>
-                <label className="text-xs text-dark-500 uppercase tracking-wider font-semibold mb-1.5 block">Brand</label>
+                <label className="text-xs text-dark-300 uppercase tracking-wider font-semibold mb-1.5 block">Brand</label>
                 <input type="text" value={form.brand} onChange={(e) => onChange({ ...form, brand: e.target.value })}
-                  className="w-full bg-dark-800/60 border border-dark-700/50 rounded-xl px-4 py-2.5 text-white text-sm placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50"
+                  className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 text-white text-sm placeholder:text-dark-400 focus:outline-none focus:border-gold-500 focus:ring-2 focus:ring-gold-500/25"
                   placeholder="Brand name" />
               </div>
             </div>
+            <div>
+              <label className="text-xs text-dark-300 uppercase tracking-wider font-semibold mb-1.5 block">Sell On</label>
+              <div className="grid grid-cols-2 sm:grid-cols-2 gap-2">
+                <button type="button" onClick={() => handleSourceChange("store")}
+                  className={cn("flex flex-col items-center justify-center gap-1 px-2 py-2.5 rounded-xl border text-[11px] font-medium transition-all",
+                    form.source === "store" ? "bg-sky-500/10 border-sky-500/40 text-sky-400" : "bg-dark-800 border-dark-600 text-dark-400 hover:text-dark-200")}>
+                  <Store size={16} /> Store
+                </button>
+                <button type="button" onClick={() => handleSourceChange("mart")}
+                  className={cn("flex flex-col items-center justify-center gap-1 px-2 py-2.5 rounded-xl border text-[11px] font-medium transition-all",
+                    form.source === "mart" ? "bg-emerald-500/10 border-emerald-500/40 text-emerald-400" : "bg-dark-800 border-dark-600 text-dark-400 hover:text-dark-200")}>
+                  <ShoppingCart size={16} /> Mart
+                </button>
+              </div>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="text-xs text-dark-500 uppercase tracking-wider font-semibold mb-1.5 block">Category</label>
+                <label className="text-xs text-dark-300 uppercase tracking-wider font-semibold mb-1.5 block">Category</label>
                 <SelectList
                   value={form.category}
                   onChange={(v) => onChange({ ...form, category: v, subCategory: "" })}
@@ -2205,7 +2269,7 @@ function AddProductTab({
               </div>
               {form.category && subcategories.length > 0 && (
                 <div>
-                  <label className="text-xs text-dark-500 uppercase tracking-wider font-semibold mb-1.5 block">Subcategory</label>
+                  <label className="text-xs text-dark-300 uppercase tracking-wider font-semibold mb-1.5 block">Subcategory</label>
                   <SelectList
                     value={form.subCategory}
                     onChange={(v) => onChange({ ...form, subCategory: v })}
@@ -2216,20 +2280,20 @@ function AddProductTab({
               )}
             </div>
             <div>
-              <label className="text-xs text-dark-500 uppercase tracking-wider font-semibold mb-1.5 block">Description</label>
+              <label className="text-xs text-dark-300 uppercase tracking-wider font-semibold mb-1.5 block">Description</label>
               <textarea value={form.description} onChange={(e) => onChange({ ...form, description: e.target.value })} rows={3}
-                className="w-full bg-dark-800/60 border border-dark-700/50 rounded-xl px-4 py-3 text-white text-sm placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50 resize-none"
+                className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 text-white text-sm placeholder:text-dark-400 focus:outline-none focus:border-gold-500 focus:ring-2 focus:ring-gold-500/25 resize-none"
                 placeholder="Product description..." />
             </div>
           </div>
 
           {/* Product Images */}
-          <div className="bg-dark-900/60 border border-dark-800/50 rounded-2xl p-4 sm:p-6">
-            <label className="text-xs text-dark-500 uppercase tracking-wider font-semibold mb-3 block">Product Images</label>
+          <div className="bg-dark-900 border border-dark-700 shadow-lg shadow-black/30 rounded-2xl p-4 sm:p-6">
+            <label className="text-xs text-dark-300 uppercase tracking-wider font-semibold mb-3 block">Product Images</label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div onDragOver={(e) => { e.preventDefault(); setDragOver(true); }} onDragLeave={() => setDragOver(false)} onDrop={handleDrop}
                 className={cn("border-2 border-dashed rounded-xl p-4 sm:p-5 text-center transition-all cursor-pointer",
-                  dragOver ? "border-gold-500/50 bg-gold-500/5" : "border-dark-700/50 bg-dark-800/30 hover:border-dark-600")}
+                  dragOver ? "border-gold-500 bg-gold-500/15" : "border-dark-600 bg-dark-800/70 hover:border-gold-500/60 hover:bg-dark-800")}
                 onClick={() => fileInputRef.current?.click()}>
                 {uploading ? (
                   <div className="flex flex-col items-center gap-2">
@@ -2238,19 +2302,19 @@ function AddProductTab({
                   </div>
                 ) : (
                   <div className="flex flex-col items-center gap-1.5">
-                    <Upload size={20} className="text-dark-500" />
-                    <p className="text-xs text-dark-300 font-medium">Upload from device</p>
-                    <p className="text-[10px] text-dark-500">Drag & drop or click</p>
+                    <Upload size={20} className="text-dark-400" />
+                    <p className="text-xs text-dark-100 font-medium">Upload from device</p>
+                    <p className="text-[10px] text-dark-400">Drag & drop or click</p>
                   </div>
                 )}
               </div>
               <div className="flex flex-col gap-2">
                 <input type="text" value={urlInput} onChange={(e) => setUrlInput(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddUrl(); } }}
-                  className="flex-1 bg-dark-800/60 border border-dark-700/50 rounded-xl px-3 py-2 text-white text-xs placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50"
+                  className="flex-1 bg-dark-800 border border-dark-600 rounded-xl px-3 py-2 text-white text-xs placeholder:text-dark-400 focus:outline-none focus:border-gold-500 focus:ring-2 focus:ring-gold-500/25"
                   placeholder="Paste image URL..." />
                 <button type="button" onClick={handleAddUrl} disabled={!urlInput.trim()}
-                  className="px-3 py-2 bg-dark-800/60 border border-dark-700/50 rounded-xl text-xs text-dark-300 hover:text-white hover:border-gold-500/30 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
+                  className="px-3 py-2 bg-dark-800 border border-dark-600 rounded-xl text-xs text-dark-300 hover:text-white hover:border-gold-500/30 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
                   Add URL
                 </button>
               </div>
@@ -2260,7 +2324,7 @@ function AddProductTab({
             {form.images.length > 0 && (
               <div className="flex gap-2 mt-3 flex-wrap">
                 {form.images.map((url, i) => (
-                  <div key={i} className="relative w-14 h-14 sm:w-20 sm:h-20 rounded-xl overflow-hidden border border-dark-700/50 bg-dark-800 group/img">
+                  <div key={i} className="relative w-14 h-14 sm:w-20 sm:h-20 rounded-xl overflow-hidden border border-dark-600 bg-dark-800 group/img">
                     <img src={getImageUrl(url)} alt="" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                     <button onClick={(e) => { e.stopPropagation(); removeImage(i); }}
                       className="absolute inset-0 bg-black/50 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center">
@@ -2274,15 +2338,15 @@ function AddProductTab({
 
           {/* Color Variants */}
           {form.source === "store" && (
-            <div className="bg-dark-900/60 border border-dark-800/50 rounded-2xl p-4 sm:p-6">
+            <div className="bg-dark-900 border border-dark-700 shadow-lg shadow-black/30 rounded-2xl p-4 sm:p-6">
               <div className="flex items-center justify-between mb-4">
-                <label className="text-xs text-dark-500 uppercase tracking-wider font-semibold">Color Variants</label>
+                <label className="text-xs text-dark-300 uppercase tracking-wider font-semibold">Color Variants</label>
                 <button type="button" onClick={() => onChange({ ...form, colorOptions: [...form.colorOptions, { name: "", hex: "#000000", colors: [], images: [], specifications: [], keyFeatures: [] }] })}
                   className="px-3 py-2 bg-gold-500 text-dark-950 rounded-xl text-xs font-semibold hover:bg-gold-400 transition-all flex items-center gap-1.5">
                   <Plus size={14} /> Add Color
                 </button>
               </div>
-              {form.colorOptions.length === 0 && <p className="text-sm text-dark-500 italic">No color variants yet. Add colors for multi-variant products.</p>}
+              {form.colorOptions.length === 0 && <p className="text-sm text-dark-400 italic">No color variants yet. Add colors for multi-variant products.</p>}
 
               <div className="space-y-5">
                 {form.colorOptions.map((color, i) => {
@@ -2292,13 +2356,13 @@ function AddProductTab({
                   const isMultiple = form.colorOptions.length > 1;
 
                   return (
-                    <div key={i} className={`rounded-2xl border border-dark-700/50 bg-dark-800/30 p-4 sm:p-5 space-y-3 sm:space-y-4 ${isMultiple && i > 0 ? "border-t-2 border-t-dark-600/30" : ""}`}>
+                    <div key={i} className={`rounded-2xl border border-dark-600 bg-dark-800 p-4 sm:p-5 space-y-3 sm:space-y-4 ${isMultiple && i > 0 ? "border-t-2 border-t-dark-600/30" : ""}`}>
 
                       <div className="flex flex-wrap gap-3 items-center">
                         <div className="relative shrink-0">
                           <input type="color" value={color.hex}
                             onChange={(e) => { const u = [...form.colorOptions]; u[i] = { ...u[i], hex: e.target.value }; onChange({ ...form, colorOptions: u }); }}
-                            className="w-12 h-12 rounded-xl border border-dark-700/50 bg-transparent cursor-pointer" />
+                            className="w-12 h-12 rounded-xl border border-dark-600 bg-transparent cursor-pointer" />
                           {(color.colors?.length || 0) > 1 && (() => {
                             const cols = color.colors || [];
                             const cnt = cols.length;
@@ -2315,27 +2379,27 @@ function AddProductTab({
                         </div>
                         <input type="text" value={color.name}
                           onChange={(e) => { const u = [...form.colorOptions]; const oldName = u[i].name; const newName = e.target.value; u[i] = { ...u[i], name: newName }; const so = { ...form.sizeOptions }; const oldKey = oldName || `Color ${i + 1}`; const newKey = newName || `Color ${i + 1}`; if (oldKey !== newKey && Array.isArray(so[oldKey]) && so[oldKey].length > 0) { so[newKey] = Array.isArray(so[newKey]) ? [...so[newKey], ...so[oldKey]] : so[oldKey]; delete so[oldKey]; } onChange({ ...form, colorOptions: u, sizeOptions: so }); }}
-                          className="flex-1 min-w-0 bg-dark-800/60 border border-dark-700/50 rounded-xl px-4 py-3 text-white text-sm placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50"
+                          className="flex-1 min-w-0 bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 text-white text-sm placeholder:text-dark-400 focus:outline-none focus:border-gold-500 focus:ring-2 focus:ring-gold-500/25"
                           placeholder="Color name (e.g. Midnight Black)" />
                         <button type="button" onClick={() => { const deletedName = form.colorOptions[i]?.name; const deletedKey = deletedName || `Color ${i + 1}`; const so = { ...form.sizeOptions }; delete so[deletedKey]; if (deletedName && deletedKey !== deletedName) delete so[deletedName]; onChange({ ...form, colorOptions: form.colorOptions.filter((_, j) => j !== i), sizeOptions: so }); }}
-                          className="px-3 py-3 bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl hover:bg-red-500/20 transition-all shrink-0">
+                          className="px-3 py-3 bg-red-500/15 border border-red-500/40 text-red-300 hover:bg-red-500/25 rounded-xl transition-all shrink-0">
                           <Trash2 size={14} />
                         </button>
                         <button type="button"
                           onClick={() => { const u = [...form.colorOptions]; const current = u[i].colors && u[i].colors.length > 0 ? u[i].colors : [u[i].hex]; u[i] = { ...u[i], colors: [...current, "#808080"] }; onChange({ ...form, colorOptions: u }); }}
-                          className="px-3 py-3 bg-dark-800/60 border border-dark-700/50 text-dark-300 rounded-xl hover:text-white hover:border-gold-500/30 transition-all shrink-0">
+                          className="px-3 py-3 bg-dark-800 border border-dark-600 text-dark-300 rounded-xl hover:text-white hover:border-gold-500/30 transition-all shrink-0">
                           <Palette size={14} />
                         </button>
                       </div>
 
                       {(color.colors?.length || 0) > 0 && (
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-xs text-dark-500">Palette:</span>
+                          <span className="text-xs text-dark-400">Palette:</span>
                           {(color.colors || []).map((hex, ci) => (
                             <div key={ci} className="relative group/swatch">
                               <input type="color" value={hex}
                                 onChange={(e) => { const u = [...form.colorOptions]; const cols = [...(u[i].colors || [])]; cols[ci] = e.target.value; u[i] = { ...u[i], colors: cols }; onChange({ ...form, colorOptions: u }); }}
-                                className="w-8 h-8 rounded-lg border border-dark-700/50 bg-transparent cursor-pointer" />
+                                className="w-8 h-8 rounded-lg border border-dark-600 bg-transparent cursor-pointer" />
                               <button type="button" onClick={() => { const u = [...form.colorOptions]; u[i] = { ...u[i], colors: (u[i].colors || []).filter((_, j) => j !== ci) }; onChange({ ...form, colorOptions: u }); }}
                                 className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover/swatch:opacity-100 transition-opacity">
                                 <X size={8} className="text-white" />
@@ -2346,7 +2410,7 @@ function AddProductTab({
                       )}
 
                       <div>
-                        <label className="text-xs text-dark-500 uppercase tracking-wider font-semibold mb-2 block">Images</label>
+                        <label className="text-xs text-dark-300 uppercase tracking-wider font-semibold mb-2 block">Images</label>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <div className="flex flex-col gap-2">
                             <input type="file" accept="image/*" multiple className="hidden" id={`color-img-${i}`}
@@ -2370,22 +2434,22 @@ function AddProductTab({
                                 }
                               }} />
                             <label htmlFor={`color-img-${i}`}
-                              className="border-2 border-dashed border-dark-700/50 bg-dark-800/30 hover:border-dark-600 rounded-xl p-4 sm:p-5 text-center cursor-pointer transition-all">
+                              className="border-2 border-dashed border-dark-600 bg-dark-800/70 hover:border-gold-500/60 hover:bg-dark-800 rounded-xl p-4 sm:p-5 text-center cursor-pointer transition-all">
                               <div className="flex flex-col items-center gap-1.5">
                                 {colorUploading === i ? (
                                   <Loader2 size={20} className="text-gold-400 animate-spin" />
                                 ) : (
-                                  <Upload size={20} className="text-dark-500" />
+                                  <Upload size={20} className="text-dark-400" />
                                 )}
-                                <p className="text-xs text-dark-300 font-medium">{colorUploading === i ? "Uploading..." : "Upload images"}</p>
-                                <p className="text-[10px] text-dark-500">Click to browse</p>
+                                <p className="text-xs text-dark-100 font-medium">{colorUploading === i ? "Uploading..." : "Upload images"}</p>
+                                <p className="text-[10px] text-dark-400">Click to browse</p>
                               </div>
                             </label>
                           </div>
                           <div className="flex flex-col gap-2">
                             <input type="text"
                               ref={(el) => { colorUrlRefs.current[i] = el; }}
-                              className="flex-1 bg-dark-800/60 border border-dark-700/50 rounded-xl px-3 py-2 text-white text-xs placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50"
+                              className="flex-1 bg-dark-800 border border-dark-600 rounded-xl px-3 py-2 text-white text-xs placeholder:text-dark-400 focus:outline-none focus:border-gold-500 focus:ring-2 focus:ring-gold-500/25"
                               placeholder="Paste image URL..."
                               onKeyDown={(e) => {
                                 if (e.key === "Enter") {
@@ -2411,7 +2475,7 @@ function AddProductTab({
                                   input.value = "";
                                 }
                               }}
-                              className="px-3 py-2 bg-dark-800/60 border border-dark-700/50 rounded-xl text-xs text-dark-300 hover:text-white hover:border-gold-500/30 transition-all">
+                              className="px-3 py-2 bg-dark-800 border border-dark-600 rounded-xl text-xs text-dark-300 hover:text-white hover:border-gold-500/30 transition-all">
                               Add URL
                             </button>
                           </div>
@@ -2419,7 +2483,7 @@ function AddProductTab({
                         {(color.images || []).length > 0 && (
                           <div className="flex gap-2 mt-3 flex-wrap">
                             {(color.images || []).map((img, ii) => (
-                                <div key={ii} className="relative w-14 h-14 sm:w-20 sm:h-20 rounded-xl overflow-hidden border border-dark-700/50 bg-dark-800 group/ci">
+                                <div key={ii} className="relative w-14 h-14 sm:w-20 sm:h-20 rounded-xl overflow-hidden border border-dark-600 bg-dark-800 group/ci">
                                 <img src={resolveImageUrl(img)} alt="" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                                 <button onClick={() => { const u = [...form.colorOptions]; u[i] = { ...u[i], images: (u[i].images || []).filter((_, j) => j !== ii) }; onChange({ ...form, colorOptions: u }); }}
                                   className="absolute inset-0 bg-black/50 opacity-0 group-hover/ci:opacity-100 transition-opacity flex items-center justify-center">
@@ -2434,17 +2498,17 @@ function AddProductTab({
                       {!hasColorSizes && (
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           <div>
-                            <label className="text-xs text-dark-500 uppercase tracking-wider font-semibold mb-1.5 block">Price (₹)</label>
+                            <label className="text-xs text-dark-300 uppercase tracking-wider font-semibold mb-1.5 block">Price (₹)</label>
                             <input type="number" value={color.price || ""}
                               onChange={(e) => { const u = [...form.colorOptions]; u[i] = { ...u[i], price: e.target.value ? Number(e.target.value) : undefined }; onChange({ ...form, colorOptions: u }); }}
-                              className="w-full bg-dark-800/60 border border-dark-700/50 rounded-xl px-4 py-3 text-white text-sm placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50"
+                              className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 text-white text-sm placeholder:text-dark-400 focus:outline-none focus:border-gold-500 focus:ring-2 focus:ring-gold-500/25"
                               placeholder="Selling price" min="0" />
                           </div>
                           <div>
-                            <label className="text-xs text-dark-500 uppercase tracking-wider font-semibold mb-1.5 block">Original Price (₹)</label>
+                            <label className="text-xs text-dark-300 uppercase tracking-wider font-semibold mb-1.5 block">Original Price (₹)</label>
                             <input type="number" value={color.originalPrice || ""}
                               onChange={(e) => { const u = [...form.colorOptions]; u[i] = { ...u[i], originalPrice: e.target.value ? Number(e.target.value) : undefined }; onChange({ ...form, colorOptions: u }); }}
-                              className="w-full bg-dark-800/60 border border-dark-700/50 rounded-xl px-4 py-3 text-white text-sm placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50"
+                              className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 text-white text-sm placeholder:text-dark-400 focus:outline-none focus:border-gold-500 focus:ring-2 focus:ring-gold-500/25"
                               placeholder="M.R.P" min="0" />
                           </div>
                         </div>
@@ -2464,14 +2528,14 @@ function AddProductTab({
                           <div>
                             {presets.length > 0 && (
                               <div className="mb-3">
-                                <label className="text-xs text-dark-500 uppercase tracking-wider font-semibold mb-2 block">Quick Add Sizes</label>
+                                <label className="text-xs text-dark-300 uppercase tracking-wider font-semibold mb-2 block">Quick Add Sizes</label>
                                 <div className="flex flex-wrap gap-2">
                                   {presets.map((ps) => {
                                     const exists = existingNames.includes(ps);
                                     return (
                                       <button key={ps} type="button" disabled={exists}
                                         onClick={() => { if (!exists) onChange({ ...form, sizeOptions: { ...form.sizeOptions, [colorName]: [...(form.sizeOptions[colorName] || []), { name: ps }] } }); }}
-                                        className={`rounded-xl px-4 py-2 text-xs font-semibold transition-all ${exists ? "bg-dark-800/40 text-dark-600 cursor-not-allowed" : "bg-gold-500/10 border border-gold-500/30 text-gold-400 hover:bg-gold-500/20"}`}>
+                                        className={`rounded-xl px-4 py-2 text-xs font-semibold transition-all ${exists ? "bg-dark-800 text-dark-400 cursor-not-allowed" : "bg-gold-500/10 border border-gold-500/30 text-gold-400 hover:bg-gold-500/20"}`}>
                                         {exists ? `${ps} ✓` : ps}
                                       </button>
                                     );
@@ -2481,20 +2545,20 @@ function AddProductTab({
                             )}
                             {colorSizes.length > 0 && (
                               <div className="space-y-2 mb-3">
-                                <label className="text-xs text-dark-500 uppercase tracking-wider font-semibold block">Added Sizes</label>
+                                <label className="text-xs text-dark-300 uppercase tracking-wider font-semibold block">Added Sizes</label>
                                 {colorSizes.map((sz, si) => (
                                   <div key={si} className="flex flex-wrap gap-2">
-                                    <span className="text-sm text-white font-medium bg-dark-800/60 border border-dark-700/50 rounded-xl px-4 py-2.5 min-w-[60px] text-center shrink-0">{sz.name}</span>
+                                    <span className="text-sm text-white font-medium bg-dark-800 border border-dark-600 rounded-xl px-4 py-2.5 min-w-[60px] text-center shrink-0">{sz.name}</span>
                                     <input type="number" value={sz.price ?? ""}
                                       onChange={(e) => { const updated = { ...form.sizeOptions }; const sizes = [...(updated[colorName] || [])]; sizes[si] = { ...sizes[si], price: e.target.value ? Number(e.target.value) : undefined }; updated[colorName] = sizes; onChange({ ...form, sizeOptions: updated }); }}
-                                      className="w-full sm:flex-1 sm:min-w-[80px] bg-dark-800/60 border border-dark-700/50 rounded-xl px-3 py-2.5 text-white text-sm placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50"
+                                      className="w-full sm:flex-1 sm:min-w-[80px] bg-dark-800 border border-dark-600 rounded-xl px-3 py-2.5 text-white text-sm placeholder:text-dark-400 focus:outline-none focus:border-gold-500 focus:ring-2 focus:ring-gold-500/25"
                                       placeholder="Price ₹" min={0} />
                                     <input type="number" value={sz.originalPrice ?? ""}
                                       onChange={(e) => { const updated = { ...form.sizeOptions }; const sizes = [...(updated[colorName] || [])]; sizes[si] = { ...sizes[si], originalPrice: e.target.value ? Number(e.target.value) : undefined }; updated[colorName] = sizes; onChange({ ...form, sizeOptions: updated }); }}
-                                      className="w-full sm:flex-1 sm:min-w-[80px] bg-dark-800/60 border border-dark-700/50 rounded-xl px-3 py-2.5 text-white text-sm placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50"
+                                      className="w-full sm:flex-1 sm:min-w-[80px] bg-dark-800 border border-dark-600 rounded-xl px-3 py-2.5 text-white text-sm placeholder:text-dark-400 focus:outline-none focus:border-gold-500 focus:ring-2 focus:ring-gold-500/25"
                                       placeholder="M.R.P ₹" min={0} />
                                     <button type="button" onClick={() => { const updated = { ...form.sizeOptions }; updated[colorName] = (updated[colorName] || []).filter((_, j) => j !== si); onChange({ ...form, sizeOptions: updated }); }}
-                                      className="px-3 py-3 bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl hover:bg-red-500/20 transition-all shrink-0">
+                                      className="px-3 py-3 bg-red-500/15 border border-red-500/40 text-red-300 hover:bg-red-500/25 rounded-xl transition-all shrink-0">
                                       <X size={14} />
                                     </button>
                                   </div>
@@ -2503,7 +2567,7 @@ function AddProductTab({
                             )}
                             <div className="flex flex-col sm:flex-row gap-2">
                               <input type="text" id={`size-input-${i}`}
-                                className="flex-1 min-w-0 bg-dark-800/60 border border-dark-700/50 rounded-xl px-4 py-3 text-white text-sm placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50"
+                                className="flex-1 min-w-0 bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 text-white text-sm placeholder:text-dark-400 focus:outline-none focus:border-gold-500 focus:ring-2 focus:ring-gold-500/25"
                                 placeholder="Custom size name..."
                                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); const val = (e.target as HTMLInputElement).value.trim(); if (val && !existingNames.includes(val)) { onChange({ ...form, sizeOptions: { ...form.sizeOptions, [colorName]: [...(form.sizeOptions[colorName] || []), { name: val }] } }); (e.target as HTMLInputElement).value = ""; } } }} />
                               <button type="button"
@@ -2520,9 +2584,9 @@ function AddProductTab({
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                           <div className="flex items-center justify-between mb-2">
-                            <label className="text-xs text-dark-500 uppercase tracking-wider font-semibold">Specifications</label>
+                            <label className="text-xs text-dark-300 uppercase tracking-wider font-semibold">Specifications</label>
                             <button type="button" onClick={() => { const u = [...form.colorOptions]; u[i] = { ...u[i], specifications: [...(u[i].specifications || []), { key: "", value: "" }] }; onChange({ ...form, colorOptions: u }); }}
-                              className="px-3 py-2 bg-dark-800/60 border border-dark-700/50 text-dark-300 rounded-xl text-xs font-semibold hover:text-white hover:border-gold-500/30 transition-all flex items-center gap-1.5">
+                              className="px-3 py-2 bg-dark-800 border border-dark-600 text-dark-300 rounded-xl text-xs font-semibold hover:text-white hover:border-gold-500/30 transition-all flex items-center gap-1.5">
                               <Plus size={14} /> Add
                             </button>
                           </div>
@@ -2530,14 +2594,14 @@ function AddProductTab({
                             <div key={si} className="flex flex-wrap gap-2 items-center mb-2">
                               <input type="text" value={spec.key}
                                 onChange={(e) => { const u = [...form.colorOptions]; const specs = [...(u[i].specifications || [])]; specs[si] = { ...specs[si], key: e.target.value }; u[i] = { ...u[i], specifications: specs }; onChange({ ...form, colorOptions: u }); }}
-                                className="flex-1 min-w-0 basis-44 sm:basis-0 bg-dark-800/60 border border-dark-700/50 rounded-xl px-3 py-2.5 text-white text-sm placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50"
+                                className="flex-1 min-w-0 basis-44 sm:basis-0 bg-dark-800 border border-dark-600 rounded-xl px-3 py-2.5 text-white text-sm placeholder:text-dark-400 focus:outline-none focus:border-gold-500 focus:ring-2 focus:ring-gold-500/25"
                                 placeholder="Specification name" />
                               <input type="text" value={spec.value}
                                 onChange={(e) => { const u = [...form.colorOptions]; const specs = [...(u[i].specifications || [])]; specs[si] = { ...specs[si], value: e.target.value }; u[i] = { ...u[i], specifications: specs }; onChange({ ...form, colorOptions: u }); }}
-                                className="flex-1 min-w-0 basis-44 sm:basis-0 bg-dark-800/60 border border-dark-700/50 rounded-xl px-3 py-2.5 text-white text-sm placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50"
+                                className="flex-1 min-w-0 basis-44 sm:basis-0 bg-dark-800 border border-dark-600 rounded-xl px-3 py-2.5 text-white text-sm placeholder:text-dark-400 focus:outline-none focus:border-gold-500 focus:ring-2 focus:ring-gold-500/25"
                                 placeholder="Value" />
                               <button type="button" onClick={() => { const u = [...form.colorOptions]; u[i] = { ...u[i], specifications: (u[i].specifications || []).filter((_, j) => j !== si) }; onChange({ ...form, colorOptions: u }); }}
-                                className="px-2.5 py-2.5 bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl hover:bg-red-500/20 transition-all shrink-0">
+                                className="px-2.5 py-2.5 bg-red-500/15 border border-red-500/40 text-red-300 hover:bg-red-500/25 rounded-xl transition-all shrink-0">
                                 <Trash2 size={14} />
                               </button>
                             </div>
@@ -2545,21 +2609,21 @@ function AddProductTab({
                         </div>
                         <div>
                           <div className="flex items-center justify-between mb-2">
-                            <label className="text-xs text-dark-500 uppercase tracking-wider font-semibold">Key Features</label>
+                            <label className="text-xs text-dark-300 uppercase tracking-wider font-semibold">Key Features</label>
                             <button type="button" onClick={() => { const u = [...form.colorOptions]; u[i] = { ...u[i], keyFeatures: [...(u[i].keyFeatures || []), ""] }; onChange({ ...form, colorOptions: u }); }}
-                              className="px-3 py-2 bg-dark-800/60 border border-dark-700/50 text-dark-300 rounded-xl text-xs font-semibold hover:text-white hover:border-gold-500/30 transition-all flex items-center gap-1.5">
+                              className="px-3 py-2 bg-dark-800 border border-dark-600 text-dark-300 rounded-xl text-xs font-semibold hover:text-white hover:border-gold-500/30 transition-all flex items-center gap-1.5">
                               <Plus size={14} /> Add
                             </button>
                           </div>
                           {(color.keyFeatures || []).map((feat, fi) => (
                             <div key={fi} className="flex flex-wrap gap-2 items-center mb-2">
-                              <span className="text-dark-500 text-sm w-5 text-center shrink-0">{fi + 1}</span>
+                              <span className="text-dark-400 text-sm w-5 text-center shrink-0">{fi + 1}</span>
                               <input type="text" value={feat}
                                 onChange={(e) => { const u = [...form.colorOptions]; const feats = [...(u[i].keyFeatures || [])]; feats[fi] = e.target.value; u[i] = { ...u[i], keyFeatures: feats }; onChange({ ...form, colorOptions: u }); }}
-                                className="flex-1 min-w-0 basis-44 sm:basis-0 bg-dark-800/60 border border-dark-700/50 rounded-xl px-3 py-2.5 text-white text-sm placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50"
+                                className="flex-1 min-w-0 basis-44 sm:basis-0 bg-dark-800 border border-dark-600 rounded-xl px-3 py-2.5 text-white text-sm placeholder:text-dark-400 focus:outline-none focus:border-gold-500 focus:ring-2 focus:ring-gold-500/25"
                                 placeholder="Feature" />
                               <button type="button" onClick={() => { const u = [...form.colorOptions]; u[i] = { ...u[i], keyFeatures: (u[i].keyFeatures || []).filter((_, j) => j !== fi) }; onChange({ ...form, colorOptions: u }); }}
-                                className="px-2.5 py-2.5 bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl hover:bg-red-500/20 transition-all shrink-0">
+                                className="px-2.5 py-2.5 bg-red-500/15 border border-red-500/40 text-red-300 hover:bg-red-500/25 rounded-xl transition-all shrink-0">
                                 <Trash2 size={14} />
                               </button>
                             </div>
@@ -2575,24 +2639,24 @@ function AddProductTab({
           )}
           {/* Specifications & Features */}
           {form.source === "store" && !hasColors && (
-            <div className="bg-dark-900/60 border border-dark-800/50 rounded-2xl p-4 sm:p-6">
+            <div className="bg-dark-900 border border-dark-700 shadow-lg shadow-black/30 rounded-2xl p-4 sm:p-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div>
                   <div className="flex items-center justify-between mb-3">
-                    <label className="text-xs text-dark-500 uppercase tracking-wider font-semibold">Specifications</label>
+                    <label className="text-xs text-dark-300 uppercase tracking-wider font-semibold">Specifications</label>
                     <button type="button" onClick={() => onChange({ ...form, specifications: [...form.specifications, { key: "", value: "" }] })}
                       className="text-[10px] text-gold-400 hover:text-gold-300 font-semibold uppercase tracking-wider flex items-center gap-1">
                       <Plus size={10} /> Add
                     </button>
                   </div>
-                  {form.specifications.length === 0 && <p className="text-[11px] text-dark-600 italic">No specifications</p>}
+                  {form.specifications.length === 0 && <p className="text-[11px] text-dark-400 italic">No specifications</p>}
                   {form.specifications.map((spec, i) => (
                     <div key={i} className="flex flex-wrap gap-2 mb-2">
                       <input type="text" value={spec.key} onChange={(e) => { const u = [...form.specifications]; u[i] = { ...u[i], key: e.target.value }; onChange({ ...form, specifications: u }); }}
-                        className="flex-1 min-w-0 basis-44 sm:basis-0 bg-dark-800/60 border border-dark-700/50 rounded-xl px-3 py-2 text-white text-xs placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50" placeholder="Key" />
+                        className="flex-1 min-w-0 basis-44 sm:basis-0 bg-dark-800 border border-dark-600 rounded-xl px-3 py-2 text-white text-xs placeholder:text-dark-400 focus:outline-none focus:border-gold-500 focus:ring-2 focus:ring-gold-500/25" placeholder="Key" />
                       <input type="text" value={spec.value} onChange={(e) => { const u = [...form.specifications]; u[i] = { ...u[i], value: e.target.value }; onChange({ ...form, specifications: u }); }}
-                        className="flex-1 min-w-0 basis-44 sm:basis-0 bg-dark-800/60 border border-dark-700/50 rounded-xl px-3 py-2 text-white text-xs placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50" placeholder="Value" />
-                      <button type="button" onClick={() => onChange({ ...form, specifications: form.specifications.filter((_, j) => j !== i) })} className="text-dark-500 hover:text-red-400 px-1 shrink-0">
+                        className="flex-1 min-w-0 basis-44 sm:basis-0 bg-dark-800 border border-dark-600 rounded-xl px-3 py-2 text-white text-xs placeholder:text-dark-400 focus:outline-none focus:border-gold-500 focus:ring-2 focus:ring-gold-500/25" placeholder="Value" />
+                      <button type="button" onClick={() => onChange({ ...form, specifications: form.specifications.filter((_, j) => j !== i) })} className="text-dark-400 hover:text-red-400 px-1 shrink-0">
                         <Trash2 size={14} />
                       </button>
                     </div>
@@ -2600,19 +2664,19 @@ function AddProductTab({
                 </div>
                 <div>
                   <div className="flex items-center justify-between mb-3">
-                    <label className="text-xs text-dark-500 uppercase tracking-wider font-semibold">Key Features</label>
+                    <label className="text-xs text-dark-300 uppercase tracking-wider font-semibold">Key Features</label>
                     <button type="button" onClick={() => onChange({ ...form, keyFeatures: [...form.keyFeatures, ""] })}
                       className="text-[10px] text-gold-400 hover:text-gold-300 font-semibold uppercase tracking-wider flex items-center gap-1">
                       <Plus size={10} /> Add
                     </button>
                   </div>
-                  {form.keyFeatures.length === 0 && <p className="text-[11px] text-dark-600 italic">No features</p>}
+                  {form.keyFeatures.length === 0 && <p className="text-[11px] text-dark-400 italic">No features</p>}
                   {form.keyFeatures.map((feat, i) => (
                     <div key={i} className="flex flex-wrap gap-2 mb-2">
-                      <span className="text-dark-500 text-xs mt-1.5 shrink-0">{i + 1}.</span>
+                      <span className="text-dark-400 text-xs mt-1.5 shrink-0">{i + 1}.</span>
                       <input type="text" value={feat} onChange={(e) => { const u = [...form.keyFeatures]; u[i] = e.target.value; onChange({ ...form, keyFeatures: u }); }}
-                        className="flex-1 min-w-0 basis-44 sm:basis-0 bg-dark-800/60 border border-dark-700/50 rounded-xl px-3 py-2 text-white text-xs placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50" placeholder="Feature" />
-                      <button type="button" onClick={() => onChange({ ...form, keyFeatures: form.keyFeatures.filter((_, j) => j !== i) })} className="text-dark-500 hover:text-red-400 px-1 shrink-0">
+                        className="flex-1 min-w-0 basis-44 sm:basis-0 bg-dark-800 border border-dark-600 rounded-xl px-3 py-2 text-white text-xs placeholder:text-dark-400 focus:outline-none focus:border-gold-500 focus:ring-2 focus:ring-gold-500/25" placeholder="Feature" />
+                      <button type="button" onClick={() => onChange({ ...form, keyFeatures: form.keyFeatures.filter((_, j) => j !== i) })} className="text-dark-400 hover:text-red-400 px-1 shrink-0">
                         <Trash2 size={14} />
                       </button>
                     </div>
@@ -2621,57 +2685,123 @@ function AddProductTab({
               </div>
             </div>
           )}
-        </div>
 
-        {/* Right column � sidebar */}
-        <div className="space-y-6 lg:sticky lg:top-6 lg:self-start">
           {/* Price */}
           {!hasSizes && (
-            <div className="bg-dark-900/60 border border-dark-800/50 rounded-2xl p-4 sm:p-6 space-y-4">
-              <label className="text-xs text-dark-500 uppercase tracking-wider font-semibold block">Price</label>
-              <div>
-                <label className="text-[10px] text-dark-500 uppercase tracking-wider font-semibold mb-1 block">Selling Price (?)</label>
+            <div className="bg-dark-900 border border-dark-700 shadow-lg shadow-black/30 rounded-2xl p-4 sm:p-6 space-y-4">
+              <label className="text-xs text-dark-300 uppercase tracking-wider font-semibold block">Price</label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                <label className="text-[11px] text-dark-300 uppercase tracking-wider font-semibold mb-1.5 block">Selling Price (?)</label>
                 <input type="number" value={form.price || ""} onChange={(e) => onChange({ ...form, price: Number(e.target.value) })}
                   disabled={lockedPrice}
-                  className="w-full bg-dark-800/60 border border-dark-700/50 rounded-xl px-4 py-3 text-white text-sm placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 text-white text-sm placeholder:text-dark-400 focus:outline-none focus:border-gold-500 focus:ring-2 focus:ring-gold-500/25 disabled:opacity-50 disabled:cursor-not-allowed"
                   placeholder="0" min="0" />
-              </div>
-              <div>
-                <label className="text-[10px] text-dark-500 uppercase tracking-wider font-semibold mb-1 block">M.R.P (?)</label>
+                </div>
+                <div>
+                <label className="text-[11px] text-dark-300 uppercase tracking-wider font-semibold mb-1.5 block">M.R.P (?)</label>
                 <input type="number" value={form.originalPrice || ""} onChange={(e) => onChange({ ...form, originalPrice: Number(e.target.value) })}
                   disabled={lockedPrice}
-                  className="w-full bg-dark-800/60 border border-dark-700/50 rounded-xl px-4 py-3 text-white text-sm placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 text-white text-sm placeholder:text-dark-400 focus:outline-none focus:border-gold-500 focus:ring-2 focus:ring-gold-500/25 disabled:opacity-50 disabled:cursor-not-allowed"
                   placeholder="0" min="0" />
+                </div>
               </div>
-              {hasColors && <p className="text-[9px] text-dark-600 italic">Fallback when a color has no price set</p>}
+              {hasColors && <p className="text-[10px] text-dark-400 italic">Fallback when a color has no price set</p>}
               {lockedPrice && <p className="text-[10px] text-sky-400 italic">Price is locked — set by the owner once the product is live.</p>}
             </div>
           )}
 
           {/* Badge + Stock */}
-          <div className="bg-dark-900/60 border border-dark-800/50 rounded-2xl p-4 sm:p-6 space-y-4">
+          <div className="bg-dark-900 border border-dark-700 shadow-lg shadow-black/30 rounded-2xl p-4 sm:p-6 space-y-4">
             <div>
-              <label className="text-xs text-dark-500 uppercase tracking-wider font-semibold mb-1.5 block">Badge</label>
+              <label className="text-xs text-dark-300 uppercase tracking-wider font-semibold mb-1.5 block">Badge</label>
               <input type="text" value={form.badge} onChange={(e) => onChange({ ...form, badge: e.target.value })}
-                className="w-full bg-dark-800/60 border border-dark-700/50 rounded-xl px-4 py-2.5 text-white text-sm placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50"
+                className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-2.5 text-white text-sm placeholder:text-dark-400 focus:outline-none focus:border-gold-500 focus:ring-2 focus:ring-gold-500/25"
                 placeholder="e.g. New, Sale" />
             </div>
             <div>
-              <label className="text-xs text-dark-500 uppercase tracking-wider font-semibold mb-1.5 block">Stock Status</label>
+              <label className="text-xs text-dark-300 uppercase tracking-wider font-semibold mb-1.5 block">Stock Status</label>
               <button type="button" onClick={() => onChange({ ...form, inStock: !form.inStock })}
                 className={cn("w-full flex items-center gap-2 px-4 py-3 rounded-xl border text-sm font-medium transition-all",
-                  form.inStock ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" : "bg-red-500/10 border-red-500/30 text-red-400")}>
+                  form.inStock ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" : "bg-red-500/15 border-red-500/40 text-red-300 hover:bg-red-500/25")}>
                 {form.inStock ? <Eye size={14} /> : <EyeOff size={14} />}
                 {form.inStock ? "In Stock" : "Out of Stock"}
               </button>
             </div>
           </div>
         </div>
+
+        {/* Estimated price */}
+        <div className="space-y-6 lg:sticky lg:top-6 lg:self-start">
+          <div className="bg-dark-900 border border-dark-700 shadow-lg shadow-black/30 rounded-2xl p-4 sm:p-6 space-y-4">
+            <div className="flex items-center justify-between gap-2">
+              <label className="text-xs text-dark-300 uppercase tracking-wider font-semibold">Estimated Price</label>
+              {variantLabel && (
+                <span className="text-[10px] text-gold-400 bg-gold-500/10 border border-gold-500/30 rounded-lg px-2 py-1 font-medium truncate">
+                  {variantLabel}
+                </span>
+              )}
+            </div>
+
+            {estBase > 0 ? (
+              <>
+                <div className="space-y-2.5">
+                  <div className="flex items-center justify-between gap-3 text-sm">
+                    <span className="text-dark-400">Your base price</span>
+                    <span className="text-white font-medium">{fmtINR(estBase)}</span>
+                  </div>
+                  <div className="flex items-start justify-between gap-3 text-sm">
+                    <span className="text-dark-400">
+                      Batraverse margin
+                      <span className="block text-[10px]">6% &middot; incl. {EST_GST_RATE * 100}% GST {fmtINR(estGst)}</span>
+                    </span>
+                    <span className="text-white font-medium whitespace-nowrap">+ {fmtINR(estMargin)}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3 text-sm">
+                    <span className="text-dark-400">Delivery charge</span>
+                    <span className="text-white font-medium whitespace-nowrap">+ {fmtINR(EST_DELIVERY)}</span>
+                  </div>
+                  <div className="flex items-start justify-between gap-3 text-sm">
+                    <span className="text-dark-400">
+                      External charges
+                      <span className="block text-[10px]">2% of overall price</span>
+                    </span>
+                    <span className="text-white font-medium whitespace-nowrap">+ {fmtINR(estExternal)}</span>
+                  </div>
+                </div>
+
+                <div className="border-t border-dark-600 pt-4 flex items-end justify-between gap-3">
+                  <span className="text-xs text-dark-300 uppercase tracking-wider font-semibold">Customer pays</span>
+                  <span className="text-2xl font-semibold text-gold-400 leading-none">{fmtINR(estTotal)}</span>
+                </div>
+
+                <div className="rounded-xl bg-dark-800 border border-dark-600 px-3 py-2.5 space-y-1">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-dark-400">Net margin after GST</span>
+                    <span className="text-dark-200 font-medium">{fmtINR(round2(estNetMargin + estExternal))}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-dark-400">GST collected (18%)</span>
+                    <span className="text-dark-200 font-medium">{fmtINR(estGst)}</span>
+                  </div>
+                </div>
+
+                {lockedPrice && (
+                  <p className="text-[10px] text-sky-400 italic">Price is locked &mdash; set by the owner once the product is live.</p>
+                )}
+              </>
+            ) : (
+              <p className="text-sm text-dark-400 italic">
+                Enter a {hasSizes ? "size price" : hasColors ? "colour price" : "price"} to see the estimated customer price.
+              </p>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Action bar */}
       <div className="flex flex-col sm:flex-row gap-3 mt-6">
-        <button onClick={onBack} className="px-6 py-3 bg-dark-800 hover:bg-dark-700 text-dark-300 rounded-xl text-sm font-medium transition-all">
+        <button onClick={onBack} className="px-6 py-3 bg-dark-800 border border-dark-600 hover:bg-dark-700 text-dark-100 rounded-xl text-sm font-medium transition-all">
           Cancel
         </button>
         <button onClick={onSave}
@@ -2819,7 +2949,7 @@ function AdRequestsTab({ form, onChange, saving, onSubmit }: {
           <div className="flex flex-col sm:flex-row flex-wrap gap-4 items-stretch sm:items-end">
             <div className="w-full sm:w-36"><label className="block text-xs font-medium text-dark-400 mb-1.5">Page</label>
               <select value={form.page} onChange={(e) => onChange({ ...form, page: e.target.value })} className={inputCls}>
-                <option value="home">Home</option><option value="store">Store</option><option value="mart">Mart</option>
+                <option value="home">Home</option><option value="store">Store</option><option value="mart">Mart</option><option value="search">Search</option>
               </select>
             </div>
             <div className="w-full sm:w-28"><label className="block text-xs font-medium text-dark-400 mb-1.5">Duration (sec)</label>

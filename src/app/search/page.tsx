@@ -1,10 +1,12 @@
 ﻿"use client";
 
 import { useMemo, useState, useEffect, useCallback, Suspense, useRef, memo, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { Search, X, Star, ChevronUp, Sparkles, SlidersHorizontal, Check, RotateCcw } from "lucide-react";
+import { Search, X, Star, ChevronUp, ChevronDown, SlidersHorizontal, Check, RotateCcw } from "lucide-react";
 import SiteLayout from "@/components/layout/SiteLayout";
+import AdsShowcase from "@/components/home/AdsShowcase";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import { cn, formatPrice } from "@/lib/utils";
 import { resolveImageUrl } from "@/lib/imageUrl";
@@ -178,6 +180,17 @@ interface FilterState {
   sortBy: FilterSort;
 }
 
+function countActiveFilters(f: FilterState) {
+  return (
+    (f.sources.length > 0 ? 1 : 0) +
+    (f.categories.length > 0 ? 1 : 0) +
+    (f.brands.length > 0 ? 1 : 0) +
+    (f.minPrice != null || f.maxPrice != null ? 1 : 0) +
+    (f.minRating > 0 ? 1 : 0) +
+    (f.sortBy !== "default" ? 1 : 0)
+  );
+}
+
 const EMPTY_FILTERS: FilterState = {
   sources: [],
   categories: [],
@@ -229,39 +242,157 @@ function applyFilters(items: UnifiedProduct[], f: FilterState): UnifiedProduct[]
   return sorted;
 }
 
-function FilterCheck({ checked, onToggle, label, count, light }: { checked: boolean; onToggle: () => void; label: string; count?: number; light: boolean }) {
+const MENU_MAX_H = 232;
+
+/* Custom multi-select, not a native <select>, so it can match the panel's
+   sapphire/gold styling. The listbox is portaled to <body> because the panel
+   body scrolls (overflow-y-auto) and would clip an in-panel overlay. */
+function MultiSelect({
+  label,
+  options,
+  selected,
+  onToggle,
+  emptyText,
+  light,
+}: {
+  label: string;
+  options: { name: string; count: number }[];
+  selected: string[];
+  onToggle: (value: string) => void;
+  emptyText: string;
+  light: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<{ left: number; width: number; top: number; bottom: number; maxHeight: number; openUp: boolean } | null>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const place = useCallback(() => {
+    const t = triggerRef.current;
+    if (!t) return;
+    const r = t.getBoundingClientRect();
+    const below = window.innerHeight - r.bottom - 14;
+    const above = r.top - 14;
+    const openUp = below < Math.min(MENU_MAX_H, above);
+    const next = {
+      left: r.left,
+      width: r.width,
+      top: r.bottom + 6,
+      bottom: window.innerHeight - r.top + 6,
+      maxHeight: Math.max(132, Math.min(MENU_MAX_H, openUp ? above : below)),
+      openUp,
+    };
+    setPos((prev) =>
+      prev && prev.left === next.left && prev.width === next.width && prev.top === next.top && prev.bottom === next.bottom && prev.maxHeight === next.maxHeight && prev.openUp === next.openUp ? prev : next
+    );
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    /* capture phase so scrolling the panel body repositions the menu too */
+    const onDown = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (triggerRef.current?.contains(t) || menuRef.current?.contains(t)) return;
+      setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("scroll", place, { capture: true, passive: true });
+    window.addEventListener("resize", place);
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("scroll", place, { capture: true } as EventListenerOptions);
+      window.removeEventListener("resize", place);
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open, place]);
+
+  const summary = selected.length === 0 ? `All ${label}` : selected.length === 1 ? selected[0] : `${selected.length} selected`;
+
   return (
-    <button
-      type="button"
-      onClick={onToggle}
-      className={cn(
-        "flex w-full items-center gap-3 rounded-xl border px-3.5 py-2.5 text-left transition-all duration-200",
-        checked
-          ? light
-            ? "border-sapphire/35 bg-sapphire/[0.05] shadow-[inset_0_1px_0_rgba(255,255,255,0.5)]"
-            : "border-gold/35 bg-gold/[0.06] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
-          : light
-            ? "border-onyx/[0.07] hover:border-sapphire/30"
-            : "border-white/[0.06] hover:border-gold/25"
-      )}
-    >
-      <span
+    <>
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={() => {
+          if (!open) place();
+          setOpen((o) => !o);
+        }}
+        aria-expanded={open}
+        aria-haspopup="listbox"
         className={cn(
-          "flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-[5px] border transition-all duration-200",
-          checked
+          "flex w-full items-center gap-2.5 rounded-xl border px-3.5 py-2.5 text-left transition-all duration-200",
+          open
             ? light
-              ? "border-sapphire bg-sapphire text-white"
-              : "border-gold bg-gradient-to-br from-gold-light via-gold to-gold-deep text-abyss"
+              ? "border-sapphire/40 bg-white"
+              : "border-gold/40 bg-black/30"
             : light
-              ? "border-dark-300 bg-white"
-              : "border-white/20 bg-black/40"
+              ? "border-onyx/10 bg-white hover:border-sapphire/40"
+              : "border-white/10 bg-black/30 hover:border-gold/40"
         )}
       >
-        {checked && <Check size={12} strokeWidth={3} />}
-      </span>
-      <span className={cn("flex-1 text-[13px] font-medium leading-tight", light ? "text-dark-800" : "text-cream/90")}>{label}</span>
-      {count != null && <span className={cn("text-[11px] font-medium tabular-nums", light ? "text-dark-400" : "text-cream-dim/50")}>{count}</span>}
-    </button>
+        <span className={cn("flex-1 truncate text-[13px] font-medium", selected.length > 0 ? (light ? "text-sapphire" : "text-gold-light") : light ? "text-dark-400" : "text-cream-dim/55")}>{summary}</span>
+        <ChevronDown size={14} strokeWidth={2} className={cn("shrink-0 transition-transform duration-200", open && "rotate-180", light ? "text-dark-400" : "text-cream-dim/50")} />
+      </button>
+
+      {open &&
+        pos &&
+        createPortal(
+          <div
+            ref={menuRef}
+            data-panel-layer=""
+            role="listbox"
+            aria-multiselectable="true"
+            aria-label={label}
+            className={cn(
+              "fixed z-[65] overscroll-contain overflow-y-auto rounded-2xl border p-1.5 shadow-[0_24px_70px_-18px_rgba(0,0,0,0.6)]",
+              light ? "border-dark-200/80 bg-white/98" : "border-gold/20 bg-[#0a0a0e]/98"
+            )}
+            style={{ left: pos.left, width: pos.width, maxHeight: pos.maxHeight, ...(pos.openUp ? { bottom: pos.bottom } : { top: pos.top }) }}
+          >
+            {options.length === 0 ? (
+              <p className={cn("px-2.5 py-3 text-[11.5px]", light ? "text-dark-400" : "text-cream-dim/50")}>{emptyText}</p>
+            ) : (
+              options.map((o) => {
+                const isSel = selected.includes(o.name);
+                return (
+                  <button
+                    key={o.name}
+                    type="button"
+                    role="option"
+                    aria-selected={isSel}
+                    onClick={() => onToggle(o.name)}
+                    className={cn(
+                      "flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left transition-colors duration-150",
+                      isSel ? (light ? "bg-sapphire/[0.07]" : "bg-gold/[0.08]") : light ? "hover:bg-onyx/[0.04]" : "hover:bg-white/[0.04]"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "flex h-[16px] w-[16px] shrink-0 items-center justify-center rounded-[4px] border transition-colors duration-150",
+                        isSel
+                          ? light
+                            ? "border-sapphire bg-sapphire text-white"
+                            : "border-gold bg-gradient-to-br from-gold-light via-gold to-gold-deep text-abyss"
+                          : light
+                            ? "border-dark-300 bg-white"
+                            : "border-white/20 bg-black/40"
+                      )}
+                    >
+                      {isSel && <Check size={10} strokeWidth={3} />}
+                    </span>
+                    <span className={cn("flex-1 truncate text-[12.5px] font-medium", isSel ? (light ? "text-sapphire" : "text-gold-light") : light ? "text-dark-800" : "text-cream/90")}>{o.name}</span>
+                  </button>
+                );
+              })
+            )}
+          </div>,
+          document.body
+        )}
+    </>
   );
 }
 
@@ -281,11 +412,9 @@ function FilterPanel({
   categories,
   brands,
   priceBounds,
-  storeCount,
-  martCount,
   activeCount,
-  resultCount,
   onApply,
+  onSubmit,
   onClose,
 }: {
   open: boolean;
@@ -294,11 +423,9 @@ function FilterPanel({
   categories: { name: string; count: number }[];
   brands: { name: string; count: number }[];
   priceBounds: { min: number; max: number };
-  storeCount: number;
-  martCount: number;
   activeCount: number;
-  resultCount: number;
   onApply: (patch: Partial<FilterState>) => void;
+  onSubmit: () => void;
   onClose: () => void;
 }) {
   const pill = (selected: boolean) =>
@@ -317,11 +444,13 @@ function FilterPanel({
       aria-hidden={!open}
       inert={!open}
       className={cn(
-        "absolute right-0 top-0 z-40 w-full origin-top-right overflow-hidden rounded-3xl border backdrop-blur-2xl transition-all duration-300 ease-out",
-        open ? "translate-y-0 scale-100 opacity-100" : "pointer-events-none translate-y-1 scale-[0.15] opacity-0",
+        "absolute right-0 top-2 z-40 w-full origin-top-right overflow-hidden rounded-3xl border backdrop-blur-2xl transition-all duration-300 ease-out",
+        open
+          ? "translate-y-0 scale-100 opacity-100 duration-[420ms] ease-[cubic-bezier(0.34,1.36,0.64,1)]"
+          : "pointer-events-none translate-y-1 scale-[0.15] opacity-0",
         light
-          ? "border-dark-200/70 bg-white/95 shadow-[0_40px_120px_-24px_rgba(15,23,42,0.35)]"
-          : "border-gold/15 bg-[#0a0a0e]/95 shadow-[0_40px_120px_-24px_rgba(0,0,0,0.85)]"
+          ? "border-sapphire/30 bg-white/95 shadow-[0_0_0_1px_rgba(30,58,138,0.18),0_0_20px_-6px_rgba(30,58,138,0.35),0_40px_120px_-24px_rgba(15,23,42,0.35)]"
+          : "border-gold/30 bg-[#0a0a0e]/95 shadow-[0_0_0_1px_rgba(212,175,55,0.20),0_0_22px_-6px_rgba(212,175,55,0.35),0_40px_120px_-24px_rgba(0,0,0,0.85)]"
       )}
     >
       {/* Gilded hairline */}
@@ -359,7 +488,7 @@ function FilterPanel({
 
       <div className={cn("mx-6 h-px bg-gradient-to-r from-transparent to-transparent", light ? "via-dark-200" : "via-white/10")} aria-hidden />
 
-      <div className="max-h-[min(70vh,480px)] space-y-6 overflow-y-auto px-6 py-5">
+      <div className="max-h-[min(60vh,400px)] space-y-6 overflow-y-auto px-6 py-5">
         <section>
           <GroupTitle light={light}>Sort by</GroupTitle>
           <div className="flex flex-wrap gap-1.5">
@@ -367,32 +496,6 @@ function FilterPanel({
               <button key={s.value} type="button" onClick={() => onApply({ sortBy: s.value })} className={pill(filters.sortBy === s.value)}>
                 {s.label}
               </button>
-            ))}
-          </div>
-        </section>
-
-        <section>
-          <GroupTitle light={light}>Source</GroupTitle>
-          <div className="space-y-2">
-            <FilterCheck checked={filters.sources.includes("store")} onToggle={() => onApply({ sources: toggleIn(filters.sources, "store") })} label="Store" count={storeCount} light={light} />
-            <FilterCheck checked={filters.sources.includes("mart")} onToggle={() => onApply({ sources: toggleIn(filters.sources, "mart") })} label="Mart" count={martCount} light={light} />
-          </div>
-        </section>
-
-        <section>
-          <GroupTitle light={light}>Category</GroupTitle>
-          <div className="max-h-52 space-y-2 overflow-y-auto pr-1">
-            {categories.map((c) => (
-              <FilterCheck key={c.name} checked={filters.categories.includes(c.name)} onToggle={() => onApply({ categories: toggleIn(filters.categories, c.name) })} label={c.name} count={c.count} light={light} />
-            ))}
-          </div>
-        </section>
-
-        <section>
-          <GroupTitle light={light}>Brand</GroupTitle>
-          <div className="max-h-52 space-y-2 overflow-y-auto pr-1">
-            {brands.map((b) => (
-              <FilterCheck key={b.name} checked={filters.brands.includes(b.name)} onToggle={() => onApply({ brands: toggleIn(filters.brands, b.name) })} label={b.name} count={b.count} light={light} />
             ))}
           </div>
         </section>
@@ -433,6 +536,32 @@ function FilterPanel({
             />
           </div>
         </section>
+
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+          <section>
+            <GroupTitle light={light}>Category</GroupTitle>
+            <MultiSelect
+              label="categories"
+              options={categories}
+              selected={filters.categories}
+              onToggle={(name) => onApply({ categories: toggleIn(filters.categories, name) })}
+              emptyText="No categories available"
+              light={light}
+            />
+          </section>
+
+          <section>
+            <GroupTitle light={light}>Brand</GroupTitle>
+            <MultiSelect
+              label="brands"
+              options={brands}
+              selected={filters.brands}
+              onToggle={(name) => onApply({ brands: toggleIn(filters.brands, name) })}
+              emptyText="No brands available"
+              light={light}
+            />
+          </section>
+        </div>
 
         <section>
           <GroupTitle light={light}>Minimum rating</GroupTitle>
@@ -475,7 +604,7 @@ function FilterPanel({
         </button>
         <button
           type="button"
-          onClick={onClose}
+          onClick={onSubmit}
           className={cn(
             "flex items-center gap-2 rounded-full px-5 py-2.5 text-[12px] font-semibold tracking-wide transition-all duration-300",
             light
@@ -483,7 +612,7 @@ function FilterPanel({
               : "bg-gradient-to-r from-gold-deep via-gold to-gold-light text-abyss shadow-[0_10px_30px_-10px_rgba(212,175,55,0.4)] hover:shadow-[0_12px_40px_-8px_rgba(212,175,55,0.55)]"
           )}
         >
-          View {resultCount} {resultCount === 1 ? "result" : "results"}
+          Apply filters
         </button>
       </div>
     </div>
@@ -500,12 +629,14 @@ function SearchContent() {
   const [dbStore, setDbStore] = useState<UnifiedProduct[]>([]);
   const [dbMart, setDbMart] = useState<UnifiedProduct[]>([]);
   const [mlResults, setMlResults] = useState<UnifiedProduct[] | null>(null);
-  const [mlEngine, setMlEngine] = useState<string>("");
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [hideTabs, setHideTabs] = useState(false);
   const [visibleCount, setVisibleCount] = useState(48);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [filters, setFilters] = useState<FilterState>(EMPTY_FILTERS);
+  /* Filters are staged in `draft` and only committed on Apply, so toggling an
+     option never re-filters the grid. Reset to `filters` each time it opens. */
+  const [draft, setDraft] = useState<FilterState>(EMPTY_FILTERS);
   const panelWrapRef = useRef<HTMLDivElement>(null);
   const lastScrollY = useRef(0);
   const searchSeq = useRef(0);
@@ -566,7 +697,6 @@ function SearchContent() {
       searchSeq.current += 1;
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setMlResults(null);
-      setMlEngine("");
       return;
     }
     const seq = ++searchSeq.current;
@@ -581,16 +711,13 @@ function SearchContent() {
         if (searchSeq.current !== seq) return;
         if (res.ok && Array.isArray(data.products)) {
           setMlResults(data.products.map((p: DbProduct) => dbToUnified(p, p.source)));
-          setMlEngine(data.engine === "ml" ? "ml" : "keyword");
         } else {
           setMlResults(null);
-          setMlEngine("");
         }
       })
       .catch(() => {
         if (searchSeq.current !== seq) return;
         setMlResults(null);
-        setMlEngine("");
       })
       .finally(() => clearTimeout(timer));
     return () => {
@@ -632,22 +759,31 @@ function SearchContent() {
     return { min: Math.floor(min), max: Math.ceil(max) };
   }, [allProducts]);
 
-  const activeFilterCount =
-    (filters.sources.length > 0 ? 1 : 0) +
-    (filters.categories.length > 0 ? 1 : 0) +
-    (filters.brands.length > 0 ? 1 : 0) +
-    (filters.minPrice != null || filters.maxPrice != null ? 1 : 0) +
-    (filters.minRating > 0 ? 1 : 0) +
-    (filters.sortBy !== "default" ? 1 : 0);
+  const activeFilterCount = countActiveFilters(filters);
 
-  const updateFilters = useCallback((patch: Partial<FilterState>) => {
-    setFilters((prev) => ({ ...prev, ...patch }));
+  /* panel edits stage into the draft, not into the applied filters */
+  const updateDraft = useCallback((patch: Partial<FilterState>) => {
+    setDraft((prev) => ({ ...prev, ...patch }));
   }, []);
+
+  const openPanel = useCallback(() => {
+    setDraft(filters);
+    setFiltersOpen(true);
+  }, [filters]);
+
+  const applyDraft = useCallback(() => {
+    setFilters(draft);
+    setFiltersOpen(false);
+  }, [draft]);
 
   useEffect(() => {
     if (!filtersOpen) return;
     const onDown = (e: MouseEvent) => {
-      if (panelWrapRef.current && !panelWrapRef.current.contains(e.target as Node)) setFiltersOpen(false);
+      const t = e.target as Node;
+      if (panelWrapRef.current?.contains(t)) return;
+      /* dropdown listboxes are portaled to <body>, so treat them as part of the panel */
+      if (t instanceof Element && t.closest("[data-panel-layer]")) return;
+      setFiltersOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setFiltersOpen(false);
@@ -659,9 +795,6 @@ function SearchContent() {
       document.removeEventListener("keydown", onKey);
     };
   }, [filtersOpen]);
-
-  const storeCount = useMemo(() => allProducts.filter((p) => p.inStock && p.source === "store").length, [allProducts]);
-  const martCount = useMemo(() => allProducts.filter((p) => p.inStock && p.source === "mart").length, [allProducts]);
 
   const clientFiltered = useMemo(() => {
     let results = allProducts.filter((p) => p.inStock);
@@ -709,37 +842,15 @@ function SearchContent() {
   return (
     <SiteLayout>
       <div className="min-h-screen pt-24 pb-20">
-        {/* Hero */}
-        <div ref={heroRef} className={cn("border-b transition-colors duration-300", light ? "border-onyx/5 bg-white" : "border-white/5 bg-abyss")}>
-          <div className="mx-auto max-w-7xl px-5 sm:px-8">
-            <div className="py-12 sm:py-16">
-              <h1 className={cn("font-display text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl", light ? "text-onyx" : "text-cream")}>
-                Search{" "}
-                <span className={cn(light ? "text-sapphire-gradient" : "text-gold-gradient")}>Products</span>
-              </h1>
-              <p className={cn("mt-3 text-sm tracking-wide", light ? "text-dark-400" : "text-cream-dim/50")}>
-                Browse {storeCount} store items and {martCount} mart items
-                {mlEngine === "ml" && debouncedQuery.trim() && (
-                  <span
-                    className={cn(
-                      "ml-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 align-middle text-[9px] font-bold uppercase tracking-[0.2em]",
-                      light ? "bg-sapphire/10 text-sapphire" : "bg-gold/15 text-gold-light"
-                    )}
-                  >
-                    <Sparkles size={10} strokeWidth={1.75} />
-                    AI-ranked
-                  </span>
-                )}
-              </p>
-            </div>
-          </div>
+        <div ref={heroRef}>
+          <AdsShowcase page="search" hideHeader />
         </div>
 
-        {/* Sticky floating search + tabs — whole block slides up on mobile scroll down */}
-        <div ref={navAnchorRef} aria-hidden />
+        {/* Fixed floating search + tabs — spacer below reserves its flow height; whole block slides up on mobile scroll down */}
+        <div ref={navAnchorRef} aria-hidden className="h-[60px] sm:h-[72px]" />
         <div
           className={cn(
-            "sticky top-[82px] z-30 transition-all duration-500 max-sm:top-[78px]",
+            "fixed left-0 right-0 top-[82px] z-30 transition-all duration-500 max-sm:top-[78px]",
             hideTabs ? "max-sm:-translate-y-[calc(100%+84px)]" : "translate-y-0"
           )}
         >
@@ -753,14 +864,14 @@ function SearchContent() {
                 const pos = r.top + window.scrollY + r.height - 78;
                 window.scrollTo({ top: Math.max(pos, 0), behavior: "smooth" });
               }} />
-              <div className="relative shrink-0">
+              <div className="relative z-50 shrink-0">
                 <button
                   type="button"
-                  onClick={() => setFiltersOpen((o) => !o)}
+                  onClick={() => (filtersOpen ? setFiltersOpen(false) : openPanel())}
                   aria-expanded={filtersOpen}
                   aria-label={filtersOpen ? "Close filters" : "Open filters"}
-className={cn(
-                      "flex h-[2.75rem] shrink-0 items-center gap-2.5 rounded-2xl border px-6 text-[12.5px] backdrop-blur-2xl transition-all duration-300 sm:h-14 sm:px-14",
+                  className={cn(
+                    "flex h-[2.75rem] shrink-0 items-center gap-2.5 rounded-2xl border px-6 text-[12.5px] backdrop-blur-2xl transition-all duration-300 sm:h-14 sm:px-14",
                     light
                       ? "border-white/50 bg-white/50 text-dark-900 shadow-[0_20px_60px_-10px_rgba(0,0,0,0.35)] hover:border-sapphire/40 hover:text-sapphire"
                       : "border-white/15 bg-black/50 text-cream shadow-[0_20px_60px_-10px_rgba(0,0,0,0.5)] hover:border-gold/40 hover:text-gold-light",
@@ -769,25 +880,18 @@ className={cn(
                 >
                   <SlidersHorizontal size={16} strokeWidth={1.75} />
                   <span className="hidden sm:inline">{filtersOpen ? "Close" : "Filters"}</span>
-                  {!filtersOpen && activeFilterCount > 0 && (
-                    <span className={cn("flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-bold", light ? "bg-sapphire text-white" : "bg-gold text-abyss")}>
-                      {activeFilterCount}
-                    </span>
-                  )}
                 </button>
               </div>
               <FilterPanel
                 open={filtersOpen}
                 light={light}
-                filters={filters}
+                filters={draft}
                 categories={categoryOptions}
                 brands={brandOptions}
                 priceBounds={priceBounds}
-                storeCount={storeCount}
-                martCount={martCount}
-                activeCount={activeFilterCount}
-                resultCount={filtered.length}
-                onApply={updateFilters}
+                activeCount={countActiveFilters(draft)}
+                onApply={updateDraft}
+                onSubmit={applyDraft}
                 onClose={() => setFiltersOpen(false)}
               />
             </div>
@@ -853,6 +957,8 @@ function SearchCard({ product, light }: { product: UnifiedProduct; light: boolea
   return (
     <Link
       href={href}
+      target="_blank"
+      rel="noopener noreferrer"
       className={cn(
         "group block overflow-hidden rounded-none border-0 transition-all duration-500 sm:rounded-2xl sm:border",
         light

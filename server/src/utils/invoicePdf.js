@@ -1,6 +1,6 @@
 /* Invoice / bill PDF generator (A4, black-and-white).
  * Layout: floating top stripes, brand header, bordered centered meta row,
- * bordered sold-by/bill-to, items table, payment + bill summary, footer. */
+ * bordered full-width bill-to, items table, payment + bill summary, footer. */
 const PDFDocument = require("pdfkit");
 
 const W = 595.28;
@@ -195,25 +195,28 @@ function draw(doc, payload) {
   centerText(doc, `#${o.orderId}`, c2, metaY + 36, { size: 11, bold: true });
   centerText(doc, fmtDate(o.orderDate), c3, metaY + 36, { size: 11, bold: true });
 
-  /* ---------------- sold by / bill to (bordered, centered) ---------------- */
+  /* ---------------- bill to: name / phone / address (3 columns) ---------------- */
   const sbY = metaY + metaH + GAP;
   const sbH = 112;
-  const cxL = M + boxW / 2;
-  const cxR = box2X + boxW / 2;
+  doc.strokeColor(BLACK).lineWidth(1)
+    .moveTo(M + colW, sbY).lineTo(M + colW, sbY + sbH).stroke();
+  doc.strokeColor(BLACK).lineWidth(1)
+    .moveTo(M + 2 * colW, sbY).lineTo(M + 2 * colW, sbY + sbH).stroke();
+  doc.rect(M, sbY, CONTENT_W, sbH).stroke();
 
-  labelC(doc, "Sold By", cxL, sbY + 14);
-  centerText(doc, payload.storeName, cxL, sbY + 36, { size: 11, bold: true });
+  const b1 = M + colW / 2;
+  const b2 = M + colW + colW / 2;
+  const b3 = M + 2 * colW + colW / 2;
+  labelC(doc, "Customer Name", b1, sbY + 16);
+  labelC(doc, "Phone No.", b2, sbY + 16);
+  labelC(doc, "Address", b3, sbY + 16);
 
-  labelC(doc, "Bill To", cxR, sbY + 14);
-  let by = sbY + 34;
-  by = centerBlock(doc, o.shippingName, cxR, boxW - 28, by, { size: 10, bold: true });
-  by = centerBlock(doc, o.shippingAddress, cxR, boxW - 28, by, { size: 9 });
-  by = centerBlock(doc, [o.shippingCity, o.shippingState].filter(Boolean).join(", "), cxR, boxW - 28, by, { size: 9 });
-  by = centerBlock(doc, o.shippingPincode, cxR, boxW - 28, by, { size: 9 });
-  centerBlock(doc, `Phone: ${o.shippingPhone}`, cxR, boxW - 28, by, { size: 9 });
-
-  doc.rect(M, sbY, boxW, sbH).stroke();
-  doc.rect(box2X, sbY, boxW, sbH).stroke();
+  centerBlock(doc, o.shippingName, b1, colW - 28, sbY + 36, { size: 10, bold: true });
+  centerText(doc, o.shippingPhone, b2, sbY + 36, { size: 10, bold: true });
+  let by = sbY + 36;
+  by = centerBlock(doc, o.shippingAddress, b3, colW - 28, by, { size: 9 });
+  by = centerBlock(doc, [o.shippingCity, o.shippingState].filter(Boolean).join(", "), b3, colW - 28, by, { size: 9 });
+  centerBlock(doc, o.shippingPincode, b3, colW - 28, by, { size: 9 });
 
   /* ---------------- items ---------------- */
   const tableEnd = drawItemsTable(doc, payload, sbY + sbH + GAP);

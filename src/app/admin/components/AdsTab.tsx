@@ -2,9 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { Megaphone, Plus, Pencil, Trash2, ExternalLink, ArrowUpDown, ChevronUp, X } from "lucide-react";
-import { adminHeaders } from "./types";
+import { adminHeaders, API } from "./types";
 import { resolveImageUrl } from "@/lib/imageUrl";
 import { API_URL } from "@/lib/api";
+import { categoryAdPage, subcategoryAdPage } from "@/lib/adPages";
+import SectionScopeNav from "./SectionScopeNav";
 import { useConfirm } from "@/components/useConfirm";
 import { useToast } from "@/components/Toast";
 
@@ -21,12 +23,31 @@ interface SpotlightAd {
   createdAt: string;
 }
 
-type PageKey = "home" | "store" | "mart";
-const PAGE_TABS: { key: PageKey; label: string }[] = [
+type MainKey = "home" | "store" | "mart" | "search" | "category" | "subcategory";
+
+const MAIN_TABS: { key: MainKey; label: string }[] = [
   { key: "home", label: "Home" },
   { key: "store", label: "Store" },
   { key: "mart", label: "Mart" },
+  { key: "search", label: "Search" },
+  { key: "category", label: "Category" },
+  { key: "subcategory", label: "Sub category" },
 ];
+
+const SCOPES = [
+  { id: "all", label: "All" },
+  { id: "store", label: "Store" },
+  { id: "mart", label: "Mart" },
+];
+
+type SectionRowLite = {
+  id: string;
+  categorySlug: string;
+  subcategorySlug?: string;
+  parentSlug?: string;
+  source: string;
+  name: string;
+};
 
 const EMPTY_FORM = { img: "", tagline: "", line: "", href: "/store", page: "home", duration: 7, active: true, sortOrder: 0 };
 
@@ -37,15 +58,74 @@ export default function AdsTab({ adminKey }: { adminKey: string }) {
   const [isAdding, setIsAdding] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<PageKey>("home");
+
+  // Nav 1 — which kind of page
+  const [mainTab, setMainTab] = useState<MainKey>("home");
+  // Nav 2 / 3 / 4 — scope, category in section, subcategory in that section
+  const [scope, setScope] = useState("all");
+  const [catPick, setCatPick] = useState("");
+  const [subPick, setSubPick] = useState("");
+
+  const [sections, setSections] = useState<SectionRowLite[]>([]);
+  const [subSections, setSubSections] = useState<SectionRowLite[]>([]);
 
   const { confirm, ConfirmDialog } = useConfirm();
   const { toast } = useToast();
 
+  const loadSections = async () => {
+    try {
+      const [secRes, subRes] = await Promise.all([
+        fetch(`${API}/api/category-sections/admin`, { headers: adminHeaders(adminKey) }),
+        fetch(`${API}/api/category-sections/sub/admin`, { headers: adminHeaders(adminKey) }),
+      ]);
+      const sec = secRes.ok ? await secRes.json() : [];
+      const sub = subRes.ok ? await subRes.json() : [];
+      setSections(Array.isArray(sec) ? sec : []);
+      setSubSections(Array.isArray(sub) ? sub : []);
+    } catch {
+      // nav falls back to base pages only
+    }
+  };
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadSections();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [adminKey]);
+
+  /* ------------------------- nav options (section only) -------------------- */
+  const catOptions = sections.filter((s) => scope === "all" || s.source === scope);
+  const subOptions = subSections.filter((s) => s.parentSlug === catPick);
+
+  // Derived defaults: keep the selection valid without needing effects.
+  const catValid: string = catOptions.some((s) => s.categorySlug === catPick)
+    ? catPick
+    : (catOptions[0]?.categorySlug ?? "");
+  const subValid: string = subOptions.some((s) => s.subcategorySlug === subPick)
+    ? subPick
+    : (subOptions[0]?.subcategorySlug ?? "");
+
+  const activePage: string =
+    mainTab === "category"
+      ? catValid
+        ? categoryAdPage(catValid)
+        : ""
+      : mainTab === "subcategory"
+        ? catValid && subValid
+          ? subcategoryAdPage(catValid, subValid)
+          : ""
+        : mainTab;
+
   const loadAds = async () => {
     setLoading(true);
+    // No page resolved yet (empty section) — never fall back to "all ads".
+    if (!activePage) {
+      setAds([]);
+      setLoading(false);
+      return;
+    }
     try {
-      const res = await fetch(`${API_URL}/admin/spotlight-ads?page=${activeTab}`, {
+      const res = await fetch(`${API_URL}/admin/spotlight-ads?page=${encodeURIComponent(activePage)}`, {
         headers: adminHeaders(adminKey),
       });
       if (res.ok) {
@@ -60,23 +140,39 @@ export default function AdsTab({ adminKey }: { adminKey: string }) {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadAds();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [adminKey, activeTab]);
+  }, [adminKey, activePage]);
+
+  const closeForm = () => {
+    setExpandedId(null);
+    setIsAdding(false);
+  };
+
+  const selectMain = (key: MainKey) => {
+    setMainTab(key);
+    closeForm();
+  };
+
+  const selectCat = (slug: string) => {
+    setCatPick(slug);
+    setSubPick("");
+    closeForm();
+  };
+
+  const selectSub = (slug: string) => {
+    setSubPick(slug);
+    closeForm();
+  };
 
   const openAdd = () => {
     setIsAdding(true);
     setExpandedId(null);
-    setForm({ ...EMPTY_FORM, page: activeTab as string, sortOrder: ads.length });
+    setForm({ ...EMPTY_FORM, page: activePage, sortOrder: ads.length });
   };
 
   const openEdit = (ad: SpotlightAd) => {
     setIsAdding(false);
     setExpandedId(ad.id);
     setForm({ img: ad.img, tagline: ad.tagline, line: ad.line, href: ad.href, page: ad.page || "home", duration: ad.duration || 7, active: ad.active, sortOrder: ad.sortOrder });
-  };
-
-  const closeForm = () => {
-    setExpandedId(null);
-    setIsAdding(false);
   };
 
   const handleSave = async () => {
@@ -222,27 +318,65 @@ export default function AdsTab({ adminKey }: { adminKey: string }) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-serif text-white">Brand Spotlight Ads</h2>
-        <button onClick={openAdd} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gold-500/10 text-gold-400 border border-gold-500/20 text-sm font-medium hover:bg-gold-500/20 transition-all">
+        <button onClick={openAdd} disabled={!activePage} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gold-500/10 text-gold-400 border border-gold-500/20 text-sm font-medium hover:bg-gold-500/20 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
           <Plus size={16} />
           Add Ad
         </button>
       </div>
 
-      {/* Page sub-tabs */}
-      <div className="flex gap-1 p-1 bg-dark-900/60 border border-dark-800/50 rounded-xl w-fit">
-        {PAGE_TABS.map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => { setActiveTab(tab.key); closeForm(); }}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-              activeTab === tab.key
-                ? "bg-gold-500/15 text-gold-400 border border-gold-500/20"
-                : "text-dark-400 hover:text-white border border-transparent"
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+      {/* Nav 1 — page kind, then the shared 3-level scope nav (same as Categories tab) */}
+      <div className="space-y-4">
+        <div className="flex flex-wrap gap-1 p-1 bg-dark-900/60 border border-dark-800/50 rounded-xl w-fit">
+          {MAIN_TABS.map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => selectMain(tab.key)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                mainTab === tab.key
+                  ? "bg-gold-500/15 text-gold-400 border border-gold-500/20"
+                  : "text-dark-400 hover:text-white border border-transparent"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {(mainTab === "category" || mainTab === "subcategory") && (
+          <SectionScopeNav
+            variant="dark"
+            scope={scope}
+            onScope={setScope}
+            scopeOptions={SCOPES}
+            categories={catOptions.map((s) => ({ slug: s.categorySlug, name: s.name }))}
+            activeCategory={catValid}
+            onCategory={selectCat}
+            categoryAllLabel="All"
+            showSubcategories={mainTab === "subcategory" && catValid !== ""}
+            subcategories={subOptions.map((s) => ({ slug: s.subcategorySlug ?? "", name: s.name }))}
+            activeSubcategory={subValid}
+            onSubcategory={selectSub}
+          />
+        )}
+
+        <p className="text-[11px] text-dark-500">
+          {activePage ? (
+            <>
+              Editing ads for <span className="text-dark-300 font-medium">{activePage}</span>
+              {(mainTab === "category" || mainTab === "subcategory") ? (
+                <span className="text-dark-500">
+                  {" "}— if this page has no ads it falls back to
+                  {mainTab === "subcategory" ? " its parent category, then" : ""} the main page.
+                </span>
+              ) : null}
+            </>
+          ) : (
+            <span className="text-amber-500/80">
+              Nothing in the section yet — add categories in Categories → first.
+            </span>
+          )}
+        </p>
       </div>
 
       {loading ? (
@@ -253,10 +387,14 @@ export default function AdsTab({ adminKey }: { adminKey: string }) {
       ) : ads.length === 0 && !isAdding ? (
         <div className="text-center py-16 bg-dark-900/60 border border-dark-800/50 rounded-2xl">
           <Megaphone className="w-12 h-12 text-dark-600 mx-auto mb-3" />
-          <p className="text-dark-400 text-sm">No spotlight ads on this page</p>
-          <button onClick={openAdd} className="mt-4 px-4 py-2 rounded-xl bg-gold-500/10 text-gold-400 border border-gold-500/20 text-sm font-medium hover:bg-gold-500/20 transition-all">
-            Create your first ad
-          </button>
+          <p className="text-dark-400 text-sm">
+            {activePage ? "No spotlight ads on this page" : "Nothing in the section yet"}
+          </p>
+          {activePage ? (
+            <button onClick={openAdd} className="mt-4 px-4 py-2 rounded-xl bg-gold-500/10 text-gold-400 border border-gold-500/20 text-sm font-medium hover:bg-gold-500/20 transition-all">
+              Create your first ad
+            </button>
+          ) : null}
         </div>
       ) : (
         <div className="space-y-2">

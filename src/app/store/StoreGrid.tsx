@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useState, useEffect, useCallback, useRef } from "react";
+import { Fragment, useMemo, useState, useEffect, useCallback, useRef, type ReactNode } from "react";
 import { cn, formatPrice } from "@/lib/utils";
 import { resolveImageUrl } from "@/lib/imageUrl";
 import { useTheme, detailQuery } from "@/components/theme/ThemeProvider";
 import { useCart } from "@/components/cart/CartContext";
 import ProductGridSkeleton from "@/components/ui/ProductGridSkeleton";
 import { seedSlimProduct, warmProduct } from "@/lib/productCache";
+import { useAdSlotIndex } from "@/components/products/useAdSlotIndex";
 import type { Product } from "./products";
 import { Star, Check } from "lucide-react";
 
@@ -112,15 +113,21 @@ function dbToStoreProduct(p: DbProduct): Product {
 interface StoreGridProps {
   category: string;
   subCategories: string[];
+  /** Rendered inside the grid, spanning 2 cards on desktop / full width below lg. */
+  adSlot?: ReactNode;
+  /** Overrides the responsive slot position. */
+  adSlotIndex?: number;
 }
 
-export default function StoreGrid({ category, subCategories }: StoreGridProps) {
+export default function StoreGrid({ category, subCategories, adSlot, adSlotIndex }: StoreGridProps) {
   const { theme } = useTheme();
   const light = theme === "light";
   const [dbProducts, setDbProducts] = useState<Product[]>([]);
   const [visibleCount, setVisibleCount] = useState(48);
   const [loading, setLoading] = useState(true);
   const sentinelRef = useRef<HTMLDivElement>(null);
+  const responsiveSlot = useAdSlotIndex();
+  const slotAt = adSlotIndex ?? responsiveSlot;
 
   const fetchDbProducts = useCallback(async () => {
     try {
@@ -159,6 +166,9 @@ export default function StoreGrid({ category, subCategories }: StoreGridProps) {
     }
     return map;
   }, [filtered, visibleCount]);
+
+  // Flattened so the inline ad can be placed at an exact card index.
+  const flat = useMemo(() => Array.from(grouped.values()).flat(), [grouped]);
 
   /* Progressive render: grow the visible slice as the sentinel scrolls in */
   useEffect(() => {
@@ -201,15 +211,18 @@ export default function StoreGrid({ category, subCategories }: StoreGridProps) {
       ) : (
         <>
           <div className="grid grid-cols-2 gap-px sm:gap-5 md:grid-cols-3 lg:grid-cols-4">
-            {Array.from(grouped.entries()).map(([cat, products]) =>
-              products.map((product) => (
-                <ProductCard
-                  key={product.id}
-                  product={product}
-                  light={light}
-                />
-              ))
-            )}
+            {flat.map((product, i) => (
+              <Fragment key={product.id}>
+                {adSlot && i === slotAt ? (
+                  <div className="col-span-full lg:col-span-2">{adSlot}</div>
+                ) : null}
+                <ProductCard product={product} light={light} />
+              </Fragment>
+            ))}
+            {/* Not enough products to reach the slot — keep the ad on the last row. */}
+            {adSlot && flat.length <= slotAt ? (
+              <div className="col-span-full lg:col-span-2">{adSlot}</div>
+            ) : null}
           </div>
           {filtered.length > visibleCount && (
             <div ref={sentinelRef} className="flex items-center justify-center py-12">
