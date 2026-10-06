@@ -17,6 +17,9 @@ export interface Product {
   category: string;
   sub: string;
   badge?: string;
+  /* Return window offered on this product, in hours. Absent/null = the 12h
+     platform default. */
+  returnWindowHours?: number | null;
   gradient: string;
   rating: number;
   reviews: number;

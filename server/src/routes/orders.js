@@ -4,6 +4,7 @@ const prisma = require("../db");
 const { userAuth, customerOnly } = require("../middleware/userAuth");
 const { safeErrorMessage } = require("../utils/helpers");
 const { getEffectiveCardLevel } = require("../utils/cardLevel");
+const { DEFAULT_RETURN_WINDOW_HOURS } = require("../utils/products");
 const {
   sendOrderStatusEmail,
   sendOrderConfirmationEmail,
@@ -123,6 +124,7 @@ router.post("/", userAuth, customerOnly, async (req, res) => {
         status: "pending",
         image: item.image || null,
         gstPct: null,
+        returnWindowHours: null,
       };
     });
 
@@ -153,7 +155,7 @@ router.post("/", userAuth, customerOnly, async (req, res) => {
 
     const pids = [...new Set(orderItems.map((it) => it.productId).filter(Boolean))];
     const products = pids.length
-      ? await prisma.product.findMany({ where: { id: { in: pids } }, select: { id: true, category: true, subCategory: true } })
+      ? await prisma.product.findMany({ where: { id: { in: pids } }, select: { id: true, category: true, subCategory: true, returnWindowHours: true } })
       : [];
     const catSlugs = [...new Set(products.map((p) => p.category).filter(Boolean))];
     const subSlugs = [...new Set(products.map((p) => p.subCategory).filter(Boolean))];
@@ -170,10 +172,16 @@ router.post("/", userAuth, customerOnly, async (req, res) => {
       return [p.id, gstPct];
     }));
 
+    /* Return window offered on the product at checkout time, snapshotted onto
+       the order item so a later seller edit can't shorten a window the
+       customer already bought under. NULL in the DB means the 12h default. */
+    const prodReturnWindow = new Map(products.map((p) => [p.id, p.returnWindowHours ?? null]));
+
     let gstOnSubtotal = 0;
     for (const it of orderItems) {
       const gstPct = it.productId && prodGst.has(it.productId) ? prodGst.get(it.productId) : 18;
       it.gstPct = gstPct;
+      it.returnWindowHours = (it.productId && prodReturnWindow.has(it.productId) ? prodReturnWindow.get(it.productId) : null) ?? DEFAULT_RETURN_WINDOW_HOURS;
       gstOnSubtotal += round2(it.price - it.price / (1 + gstPct / 100)) * it.quantity;
     }
     gstOnSubtotal = round2(gstOnSubtotal);
@@ -424,10 +432,19 @@ router.post("/:id/return-request", userAuth, customerOnly, async (req, res) => {
     if (!order.deliveredAt) {
       return res.status(400).json({ error: "Delivery timestamp not found" });
     }
-    const returnWindowMs = 12 * 60 * 60 * 1000;
+    /* One order per cart line, so the window comes straight off that item
+       (snapshotted at checkout from the product). Legacy multi-item orders
+       and anything never assigned a window fall back to the 12h default.
+       A snapshotted 0 means the seller opted out of returns entirely. */
+    const snapshotted = Array.isArray(order.items) && order.items[0] ? order.items[0].returnWindowHours : null;
+    const windowHours = snapshotted ?? DEFAULT_RETURN_WINDOW_HOURS;
+    if (windowHours <= 0) {
+      return res.status(400).json({ error: "This product does not accept returns" });
+    }
+    const returnWindowMs = windowHours * 60 * 60 * 1000;
     const elapsed = Date.now() - new Date(order.deliveredAt).getTime();
     if (elapsed > returnWindowMs) {
-      return res.status(400).json({ error: "Return window has expired (12 hours after delivery)" });
+      return res.status(400).json({ error: `Return window has expired (${windowHours} hours after delivery)` });
     }
 
     const updatedItems = order.items.map((it) => {

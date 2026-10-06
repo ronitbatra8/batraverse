@@ -218,6 +218,11 @@ model Product {
   images        Json     @default("[]")
   inStock       Boolean  @default(true)
   badge         String?
+  /* Return window offered on this product, in hours (6, 12, 24, 72, 120, 168).
+     NULL = platform default (12h). Snapshotted onto each order item at
+     checkout so a later seller edit can't shorten a window a customer
+     already bought under. */
+  returnWindowHours Int?
   rating        Float    @default(0)
   reviewCount   Int      @default(0)
 

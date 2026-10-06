@@ -64,6 +64,7 @@ function mapDbToProduct(found: any): Product {
     category: found.category || "uncategorized",
     sub: found.subCategory || "all",
     badge: found.badge || undefined,
+    returnWindowHours: found.returnWindowHours ?? null,
     gradient: "from-zinc-700 to-zinc-900",
     rating: found.rating,
     reviews: found.reviewCount,
@@ -79,6 +80,15 @@ function mapDbToProduct(found: any): Product {
     brand: found.brand || undefined,
     seller: found.seller || null,
   } as Product;
+}
+
+/* Trust-badge wording for a product's return window. 0 = the seller opted out
+   of returns. Absent falls back to the 12h platform default so existing
+   products read exactly as before. */
+function returnWindowLabel(hours?: number | null): string {
+  if (hours === 0) return "No Returns";
+  const h = hours && hours > 0 ? hours : 12;
+  return h % 24 === 0 ? `${h / 24}-Day Returns` : `${h}-Hour Returns`;
 }
 
 export default function ProductPage() {
@@ -618,7 +628,7 @@ export default function ProductPage() {
             <div className={cn("mt-8 grid grid-cols-2 gap-3 rounded-2xl border p-4", light ? "border-dark-100 bg-dark-50/50" : "border-white/5 bg-graphite/50")}>
               {[
                 { icon: <Truck size={16} />, label: "Free Shipping\nAbove ₹250" },
-                { icon: <RotateCcw size={16} />, label: "12-Hour Returns" },
+                { icon: <RotateCcw size={16} />, label: returnWindowLabel(dbProduct?.returnWindowHours) },
               ].map((b) => (
                 <div key={b.label} className="flex flex-col items-center gap-2 text-center">
                   <span className={cn(light ? "text-sapphire" : "text-gold")}>{b.icon}</span>

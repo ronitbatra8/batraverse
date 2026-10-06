@@ -124,6 +124,7 @@ interface Product {
   images: string[];
   inStock: boolean;
   badge: string;
+  returnWindowHours?: number | null;
   rating: number;
   reviewCount: number;
   status?: string;
@@ -142,6 +143,7 @@ interface Product {
     images: string[];
     inStock: boolean;
     badge: string;
+    returnWindowHours?: number | null;
     specifications: { key: string; value: string }[];
     keyFeatures: string[];
     colorOptions: { name: string; hex: string; colors: string[]; images: string[]; specifications: { key: string; value: string }[]; keyFeatures: string[]; price?: number; originalPrice?: number }[];
@@ -164,6 +166,7 @@ interface Product {
     images: string[];
     inStock: boolean;
     badge: string | null;
+    returnWindowHours?: number | null;
     specifications: { key: string; value: string }[];
     keyFeatures: string[];
     colorOptions: { name: string; hex: string; colors: string[]; images: string[]; specifications: { key: string; value: string }[]; keyFeatures: string[]; price?: number; originalPrice?: number }[];
@@ -214,6 +217,7 @@ interface ProductForm {
   images: string[];
   inStock: boolean;
   badge: string;
+  returnWindowHours: number | null;
   specifications: { key: string; value: string }[];
   keyFeatures: string[];
   colorOptions: { name: string; hex: string; colors: string[]; images: string[]; specifications: { key: string; value: string }[]; keyFeatures: string[]; price?: number; originalPrice?: number }[];
@@ -251,11 +255,24 @@ const EMPTY_PRODUCT: ProductForm = {
   images: [],
   inStock: true,
   badge: "",
+  returnWindowHours: 12,
   specifications: [],
   keyFeatures: [],
   colorOptions: [],
   sizeOptions: {},
 };
+
+/* Return windows a seller may offer, in hours. 0 opts out of returns
+   entirely. Kept in sync with RETURN_WINDOW_HOURS in server/src/utils/products.js. */
+const RETURN_WINDOW_OPTIONS: { value: number; label: string }[] = [
+  { value: 0, label: "No returns" },
+  { value: 6, label: "6 hours" },
+  { value: 12, label: "12 hours" },
+  { value: 24, label: "24 hours" },
+  { value: 72, label: "3 days" },
+  { value: 120, label: "5 days" },
+  { value: 168, label: "7 days" },
+];
 
 function parseImages(raw: unknown): string[] {
   if (Array.isArray(raw)) return raw;
@@ -423,6 +440,7 @@ export default function SellerDashboardPage() {
                 images: parseImages(item.sellerDetails.images),
                 inStock: item.sellerDetails.inStock !== false,
                 badge: String(item.sellerDetails.badge ?? ""),
+                returnWindowHours: item.sellerDetails.returnWindowHours != null ? Number(item.sellerDetails.returnWindowHours) : null,
                 specifications: parseJsonArray(item.sellerDetails.specifications) as Product["specifications"],
                 keyFeatures: parseJsonArray(item.sellerDetails.keyFeatures) as Product["keyFeatures"],
                 colorOptions: Array.isArray(item.sellerDetails.colorOptions) ? (item.sellerDetails.colorOptions as Product["colorOptions"]).map((c: Product["colorOptions"][number]) => ({
@@ -602,6 +620,7 @@ export default function SellerDashboardPage() {
       images: dImages,
       inStock: d.inStock !== undefined ? d.inStock : (p.inStock ?? true),
       badge: String(d.badge ?? p.badge ?? "") || "",
+      returnWindowHours: Number(d.returnWindowHours ?? p.returnWindowHours ?? 12) || 12,
       specifications: Array.isArray(d.specifications) ? d.specifications : (Array.isArray(p.specifications) ? p.specifications : []),
       keyFeatures: Array.isArray(d.keyFeatures) ? d.keyFeatures : (Array.isArray(p.keyFeatures) ? p.keyFeatures : []),
       colorOptions: dColorOptions.map((c) => ({
@@ -2702,13 +2721,31 @@ function AddProductTab({
             </div>
           )}
 
-          {/* Badge + Stock */}
+          {/* Badge + Return Window + Stock */}
           <div className="bg-dark-900 border border-dark-700 shadow-lg shadow-black/30 rounded-2xl p-4 sm:p-6 space-y-4">
-            <div>
-              <label className="text-xs text-dark-300 uppercase tracking-wider font-semibold mb-1.5 block">Badge</label>
-              <input type="text" value={form.badge} onChange={(e) => onChange({ ...form, badge: e.target.value })}
-                className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-2.5 text-white text-sm placeholder:text-dark-400 focus:outline-none focus:border-gold-500 focus:ring-2 focus:ring-gold-500/25"
-                placeholder="e.g. New, Sale" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className={form.source === "store" ? undefined : "sm:col-span-2"}>
+                <label className="text-[11px] text-dark-300 uppercase tracking-wider font-semibold mb-1.5 block">Badge</label>
+                <input type="text" value={form.badge} onChange={(e) => onChange({ ...form, badge: e.target.value })}
+                  className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-2.5 text-white text-sm placeholder:text-dark-400 focus:outline-none focus:border-gold-500 focus:ring-2 focus:ring-gold-500/25"
+                  placeholder="e.g. New, Sale" />
+              </div>
+              {form.source === "store" && (
+                <div>
+                  <label className="text-[11px] text-dark-300 uppercase tracking-wider font-semibold mb-1.5 block">Return Window</label>
+                  <select value={form.returnWindowHours ?? 12} onChange={(e) => onChange({ ...form, returnWindowHours: Number(e.target.value) })}
+                    className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-gold-500 focus:ring-2 focus:ring-gold-500/25">
+                    {RETURN_WINDOW_OPTIONS.map((o) => (
+                      <option key={o.value} value={o.value} className="bg-dark-800 text-white">{o.label}</option>
+                    ))}
+                  </select>
+                  <p className="text-[10px] text-dark-400 italic mt-1.5">
+                    {(form.returnWindowHours ?? 12) === 0
+                      ? "This product will not accept returns"
+                      : "Customers can request a return within this window of delivery"}
+                  </p>
+                </div>
+              )}
             </div>
             <div>
               <label className="text-xs text-dark-300 uppercase tracking-wider font-semibold mb-1.5 block">Stock Status</label>

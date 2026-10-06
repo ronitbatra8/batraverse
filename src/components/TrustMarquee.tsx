@@ -9,9 +9,8 @@ import { cn } from "@/lib/utils";
    dark text); dark mode = a deep onyx frosted strip with cream/gold accents. */
 const PROMISES = [
   "Authenticity Guaranteed",
-  "12-Hour Returns",
   "Trusted Delivery Partner",
-  "Free Delivery Above 400",
+  "Free Delivery Above 250",
 ];
 
 function TrustMarquee() {

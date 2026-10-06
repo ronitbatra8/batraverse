@@ -30,7 +30,7 @@ const sections = [
   },
   {
     title: "6. Returns & Refunds",
-    body: "You may request a return within 12 hours of delivery for eligible store products. Returns are subject to inspection and approval by the owner. Mart (grocery) orders are final sale and cannot be returned. Approved refunds are processed to your BatraVerse card or wallet.",
+    body: "Each seller sets the return window for their products, shown on the product page and on your order — anywhere from 6 hours to 7 days, or no returns at all. You may request a return for eligible store products within that window. Returns are subject to inspection and approval by the owner. Mart (grocery) orders are final sale and cannot be returned. Approved refunds are processed to your BatraVerse card or wallet.",
   },
   {
     title: "7. Seller Obligations",

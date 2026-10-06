@@ -20,6 +20,7 @@ const SLIM_SELECT = {
   images: true,
   inStock: true,
   badge: true,
+  returnWindowHours: true,
   rating: true,
   reviewCount: true,
   source: true,
@@ -67,6 +68,7 @@ function slimProduct(p) {
     images: p.images || [],
     inStock: p.inStock,
     badge: p.badge,
+    returnWindowHours: p.returnWindowHours,
     rating: p.rating,
     reviewCount: p.reviewCount,
     source: p.source,
@@ -124,6 +126,7 @@ function buildSellerDetails(d) {
     images: d && Array.isArray(d.images) ? d.images : [],
     inStock: d && d.inStock !== undefined ? Boolean(d.inStock) : true,
     badge: d && d.badge !== undefined ? d.badge : null,
+    returnWindowHours: d && d.returnWindowHours != null ? Number(d.returnWindowHours) : null,
     specifications: d && Array.isArray(d.specifications) ? d.specifications : [],
     keyFeatures: d && Array.isArray(d.keyFeatures) ? d.keyFeatures : [],
     colorOptions: d && Array.isArray(d.colorOptions) ? d.colorOptions : [],
@@ -152,4 +155,20 @@ function effectiveSellerPrice(product, item) {
   return null;
 }
 
-module.exports = { SLIM_SELECT, FULL_SELECT, slimProduct, buildSellerPricing, buildSellerDetails, effectiveSellerPrice, PUBLIC_WHERE };
+/* Allowed per-product return windows, in hours. 0 = the seller opts out of
+   returns entirely; 6, 12, 24, 72, 120, 168 are 6h, 12h, 24h, 3d, 5d, 7d.
+   A null value means "fall back to the platform default of 12 hours". */
+const RETURN_WINDOW_HOURS = [0, 6, 12, 24, 72, 120, 168];
+const DEFAULT_RETURN_WINDOW_HOURS = 12;
+
+/* Parses a caller-supplied return window. Absent/empty -> null (platform
+   default). Anything outside the allowed set is rejected so a bad API call
+   can't silently give a customer a window the form never offered. */
+function parseReturnWindow(value) {
+  if (value == null || value === "") return { ok: true, value: null };
+  const n = Number(value);
+  if (!Number.isFinite(n) || !RETURN_WINDOW_HOURS.includes(n)) return { ok: false };
+  return { ok: true, value: n };
+}
+
+module.exports = { SLIM_SELECT, FULL_SELECT, slimProduct, buildSellerPricing, buildSellerDetails, effectiveSellerPrice, PUBLIC_WHERE, RETURN_WINDOW_HOURS, DEFAULT_RETURN_WINDOW_HOURS, parseReturnWindow };

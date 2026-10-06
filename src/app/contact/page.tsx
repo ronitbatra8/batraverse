@@ -80,7 +80,7 @@ const faqs = [
   },
   {
     q: "What is your return policy?",
-    a: "Store orders can be returned within 12 hours of delivery, provided they are unused and in original packaging — requests must be submitted from the order page. Mart (grocery) orders are final sale and cannot be returned.",
+    a: "Store orders can be returned within the window the seller sets for that product — from 6 hours to 7 days, or no returns at all — shown on the product page and on your order, provided the item is unused and in original packaging. Requests must be submitted from the order page. Mart (grocery) orders are final sale and cannot be returned.",
   },
   {
     q: "Do you offer international shipping?",

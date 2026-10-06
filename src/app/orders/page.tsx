@@ -24,6 +24,9 @@ interface OrderItem {
   source?: string;
   status?: string;
   image?: string | null;
+  /* Return window snapshotted from the product at checkout, in hours.
+     Absent on legacy orders = the 12h platform default. */
+  returnWindowHours?: number | null;
 }
 
 interface Order {
@@ -47,6 +50,29 @@ interface Order {
   signatureData?: string;
   signedAt?: string;
   securityPhotos?: string[];
+}
+
+/* Platform default return window, used when an order item never carried one
+   (orders placed before per-product windows existed). */
+const RETURN_WINDOW_DEFAULT = 12;
+
+/* Return window in hours for a whole order. One order per cart line, so it
+   comes off the first item; multi-item legacy orders fall back to default.
+   A snapshotted 0 is meaningful (seller opted out) and must not be coerced
+   to the default. */
+function returnWindowHoursOf(order: Order): number {
+  const h = order.items?.[0]?.returnWindowHours;
+  return h == null ? RETURN_WINDOW_DEFAULT : h;
+}
+
+/* "12 hours" / "3 days" - wording for the return button and its countdown. */
+function returnWindowLabel(hours: number): string {
+  if (hours <= 0) return "no returns";
+  if (hours >= 24 && hours % 24 === 0) {
+    const d = hours / 24;
+    return `${d} day${d > 1 ? "s" : ""}`;
+  }
+  return `${hours} hour${hours > 1 ? "s" : ""}`;
 }
 
 const ONLINE_METHODS = ["CARD", "UPI", "NETBANKING", "WALLET"];
@@ -427,7 +453,9 @@ export default function OrdersPage() {
 
   const isWithinReturnWindow = useCallback((order: Order) => {
     if (order.source === "mart" || order.status !== "delivered" || !order.deliveredAt) return false;
-    return Date.now() - new Date(order.deliveredAt).getTime() <= 2 * 60 * 60 * 1000;
+    const windowHours = returnWindowHoursOf(order);
+    if (windowHours <= 0) return false;
+    return Date.now() - new Date(order.deliveredAt).getTime() <= windowHours * 60 * 60 * 1000;
   }, []);
 
   if (!user) {
@@ -485,6 +513,7 @@ export default function OrdersPage() {
                 const isQuickDelivery = isMart;
                 const canCancel = !isQuickDelivery && CANCEL_STATUSES.includes(order.status);
                 const returnWindow = isWithinReturnWindow(order);
+                const returnWindowHours = returnWindowHoursOf(order);
                 const primaryName = order.items?.[0]?.name || "Order";
                 const mainTitle = order.items.length > 1 ? `${primaryName} +${order.items.length - 1}` : primaryName;
 
@@ -784,7 +813,7 @@ export default function OrdersPage() {
                           </div>
                         )}
 
-                        {/* Return request (store only, within 2h) */}
+                        {/* Return request (store only, within the product's window) */}
                         {returnWindow && order.status === "delivered" && (
                           <div>
                             {confirmReturnId === order.id ? (
@@ -814,7 +843,7 @@ export default function OrdersPage() {
                                 onClick={() => setConfirmReturnId(order.id)}
                                 className={cn("flex items-center gap-2 rounded-xl border px-4 py-2.5 text-[10px] font-bold uppercase tracking-[0.2em] transition-all", light ? "border-amber-200 text-amber-600 hover:bg-amber-50" : "border-amber-500/20 text-amber-400 hover:bg-amber-500/5")}
                               >
-                                <RotateCcw size={12} /> Return within 12 hours
+                                <RotateCcw size={12} /> Return within {returnWindowLabel(returnWindowHours)}
                               </button>
                             )}
                           </div>
