@@ -201,7 +201,16 @@ export default function CheckoutPage() {
       });
     }
     const results = await Promise.all(reqs.map((r) => apiFetch("/orders", { method: "POST", body: JSON.stringify(r) })));
-    return results.map((r: any) => r?.orderId || r?.id || "").filter(Boolean).join(", ");
+    // The backend now splits each request into one order per cart line.
+    const ids: string[] = [];
+    for (const r of results) {
+      if (Array.isArray(r?.orders)) {
+        for (const o of r.orders) ids.push(o?.orderId || o?.id || "");
+      } else {
+        ids.push(r?.orderId || r?.id || "");
+      }
+    }
+    return ids.filter(Boolean).join(", ");
   };
 
   const finishSuccess = (ids: string) => {

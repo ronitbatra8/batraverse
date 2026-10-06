@@ -132,6 +132,25 @@ router.post("/", userAuth, customerOnly, async (req, res) => {
     // subcategory at order time) and compute the GST embedded in the
     // GST-inclusive list price: gst = price - price / (1 + gstPct/100).
     const round2 = (n) => Math.round(n * 100) / 100;
+
+    // Split a request-level amount across cart lines by weight. Parts are
+    // rounded to paise and the LAST line absorbs whatever is left over, so the
+    // parts always sum back to the original total exactly - the split orders
+    // can never gain or lose a paisa against the amount the customer paid.
+    const allocate = (total, weights) => {
+      const weightSum = weights.reduce((a, b) => a + b, 0);
+      if (weightSum <= 0 || weights.length === 0) return weights.map(() => 0);
+      const parts = [];
+      let taken = 0;
+      for (let i = 0; i < weights.length - 1; i++) {
+        const part = round2((total * weights[i]) / weightSum);
+        parts.push(part);
+        taken = round2(taken + part);
+      }
+      parts.push(round2(total - taken));
+      return parts;
+    };
+
     const pids = [...new Set(orderItems.map((it) => it.productId).filter(Boolean))];
     const products = pids.length
       ? await prisma.product.findMany({ where: { id: { in: pids } }, select: { id: true, category: true, subCategory: true } })
@@ -213,32 +232,50 @@ router.post("/", userAuth, customerOnly, async (req, res) => {
       initialStatus = "confirmed";
     }
 
-    const order = await prisma.order.create({
-      data: {
-        orderId: generateOrderId(source),
-        items: orderItems,
-        totalAmount,
-        subtotalAmount: round2(subtotal),
-        deliveryAmount: deliveryCharge,
-        expressAmount: expressFee,
-        gstAmount,
-        discountAmount: Math.max(0, Number(discountAmount) || 0),
-        status: initialStatus,
-        paymentMethod: paymentMethod || "CARD",
-        paymentStatus,
-        ...(isAutoApprove ? { paymentApprovedAt: new Date() } : {}),
-        shippingName: shipping.name,
-        shippingPhone: shipping.phone,
-        shippingAddress: shipping.address + (shipping.apartment ? `, ${shipping.apartment}` : ""),
-        shippingCity: shipping.city,
-        shippingState: shipping.state || null,
-        shippingPincode: shipping.pincode || null,
-        userId: req.userId,
-        source,
-        deliveryMode: deliveryMode || "standard",
-        transactionId: transactionId || null,
-      },
-    });
+    // One order per cart line. Request-level money (discount, delivery,
+    // express) is split across the lines proportionally to their value, so the
+    // split orders still add up to exactly what the customer was charged.
+    // Payment itself stays a single charge: every split order shares one
+    // transactionId.
+    const lineValues = orderItems.map((it) => round2(it.price * it.quantity));
+    const discountParts = allocate(discountAmt, lineValues);
+    const deliveryParts = allocate(deliveryCharge, lineValues);
+    const expressParts = allocate(expressFee, lineValues);
+
+    const orderTotals = lineValues.map((value, i) =>
+      round2(value - discountParts[i] + deliveryParts[i] + expressParts[i])
+    );
+    const gstParts = allocate(gstAmount, orderTotals);
+
+    const orderData = orderItems.map((item, i) => ({
+      orderId: generateOrderId(source),
+      items: [item],
+      totalAmount: orderTotals[i],
+      subtotalAmount: lineValues[i],
+      deliveryAmount: deliveryParts[i],
+      expressAmount: expressParts[i],
+      gstAmount: gstParts[i],
+      discountAmount: discountParts[i],
+      status: initialStatus,
+      paymentMethod: paymentMethod || "CARD",
+      paymentStatus,
+      ...(isAutoApprove ? { paymentApprovedAt: new Date() } : {}),
+      shippingName: shipping.name,
+      shippingPhone: shipping.phone,
+      shippingAddress: shipping.address + (shipping.apartment ? `, ${shipping.apartment}` : ""),
+      shippingCity: shipping.city,
+      shippingState: shipping.state || null,
+      shippingPincode: shipping.pincode || null,
+      userId: req.userId,
+      source,
+      deliveryMode: deliveryMode || "standard",
+      transactionId: transactionId || null,
+    }));
+
+    const createdOrders = await prisma.$transaction(
+      orderData.map((data) => prisma.order.create({ data }))
+    );
+    const orderRefs = createdOrders.map((o) => o.orderId || o.id).join(", ");
 
     // Update free delivery counter if free delivery was used
     if (hasFreeDelivery) {
@@ -251,7 +288,6 @@ router.post("/", userAuth, customerOnly, async (req, res) => {
     // Deduct from wallet if paying via WALLET and record it in the wallet
     // ledger (negative WalletTopUp row) so order payments appear in history.
     if (isWalletPay) {
-      const orderRef = order.orderId || order.id;
       await prisma.$transaction([
         prisma.user.update({
           where: { id: req.userId },
@@ -262,19 +298,39 @@ router.post("/", userAuth, customerOnly, async (req, res) => {
             userId: req.userId,
             amount: -totalAmount,
             paymentMethod: "ORDER",
-            transactionId: `ORDER:${orderRef}`,
+            transactionId: `ORDER:${orderRefs}`,
             status: "APPROVED",
             processedAt: new Date(),
-            adminNote: `Payment for order #${orderRef}`,
+            adminNote:
+              createdOrders.length > 1
+                ? `Payment for ${createdOrders.length} orders from one checkout (#${orderRefs})`
+                : `Payment for order #${orderRefs}`,
           },
         }),
       ]);
     }
 
     const emailUser = await prisma.user.findUnique({ where: { id: req.userId }, select: { name: true, email: true } });
-    sendOrderConfirmationEmail(emailUser.email, emailUser.name, order.orderId || order.id, totalAmount, source, order.items).catch(() => {});
+    // One email for the whole checkout, listing every order it produced.
+    sendOrderConfirmationEmail(
+      emailUser.email,
+      emailUser.name,
+      orderRefs,
+      totalAmount,
+      source,
+      createdOrders.flatMap((o) => o.items)
+    ).catch(() => {});
 
-    res.status(201).json({ ...order, discount: discountAmount, freeDelivery: hasFreeDelivery });
+    // `orders` is the real payload (one entry per cart line). The flattened
+    // orderId/id still point at the first order so older callers that only
+    // expect one keep working.
+    res.status(201).json({
+      orders: createdOrders,
+      orderId: createdOrders[0]?.orderId || null,
+      id: createdOrders[0]?.id || null,
+      discount: discountAmount,
+      freeDelivery: hasFreeDelivery,
+    });
   } catch (err) {
     console.error("Order creation error:", err);
     res.status(500).json({ error: safeErrorMessage(err) });

@@ -323,8 +323,11 @@ async function sendOrderStatusEmail(to, name, orderId, status, source, items) {
 
 async function sendOrderConfirmationEmail(to, name, orderId, totalAmount, source, items) {
   const sourceLabel = SOURCE_LABELS[source] || "Store";
-  const singleItem = Array.isArray(items) ? items.find((it) => it && it.name) : null;
-  const productName = singleItem ? singleItem.name : "";
+  const names = (Array.isArray(items) ? items : []).map((it) => it && it.name).filter(Boolean);
+  const productName =
+    names.length === 0 ? "" :
+    names.length <= 2 ? names.join(" and ") :
+    `${names.slice(0, 2).join(", ")} and ${names.length - 2} more`;
   const formattedAmount = Number(totalAmount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   await sendMail({
     to,
