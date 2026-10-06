@@ -108,3 +108,116 @@ export function estimatePrice(
     livePrice: round2(totalPaise / 100),
   };
 }
+
+/* ------------------------------------------------------------------ *
+ * Rate calculator
+ *
+ * The seller estimate above fixes every rate at its usual value because
+ * the seller is only allowed to see the outcome. The owner calculator is
+ * the other way round: every charge is an input, so a product can be
+ * priced against its own GST band, its own delivery cost and its own
+ * gateway fee.
+ *
+ * Same two rules as the estimate above:
+ *
+ *  - GST is inclusive. The total is what the customer pays and GST is read
+ *    back out of it with `total - total / (1 + rate)` - never added on top.
+ *
+ *  - The gateway fee is a percentage of the customer-paid total, the base
+ *    Razorpay itself charges on.
+ *
+ * The remainder after GST, gateway, delivery, COD and the seller payout is
+ * BatraVerse's margin, so a negative one is exactly the loss the calculator
+ * exists to prevent. All arithmetic is in paise so every line ties back to
+ * the total to the paisa.
+ * ------------------------------------------------------------------ */
+
+export interface RateCharges {
+  /** What BatraVerse pays the seller for the unit. */
+  sellerPrice: number;
+  /** GST as a fraction of the total (0.18 = 18%). Per-category in the DB. */
+  gstRate: number;
+  /** Delivery charged for the order. */
+  delivery: number;
+  /** Gateway fee as a fraction of the total (0.02 = Razorpay's 2%). */
+  gatewayRate: number;
+  /** Cash-on-delivery collection fee. 0 for prepaid orders. */
+  cod: number;
+}
+
+export interface RateBreakdown {
+  sellerPrice: number;
+  delivery: number;
+  gateway: number;
+  cod: number;
+  gst: number;
+  /** What BatraVerse keeps. Negative means the platform takes the loss. */
+  margin: number;
+  /** What the customer pays. Contains GST. */
+  customerPrice: number;
+  /** customerPrice less GST. */
+  netBeforeGst: number;
+}
+
+const toPaise = (n: number): number => Math.round(n * 100);
+const toRupees = (p: number): number => round2(p / 100);
+
+function breakdownPaise(totalPaise: number, c: RateCharges): RateBreakdown {
+  const sellerPaise = toPaise(c.sellerPrice);
+  const deliveryPaise = toPaise(c.delivery);
+  const codPaise = toPaise(c.cod);
+  const gatewayPaise = Math.round(totalPaise * c.gatewayRate);
+  const gstPaise = Math.round(totalPaise - totalPaise / (1 + c.gstRate));
+  const marginPaise = totalPaise - gatewayPaise - gstPaise - deliveryPaise - codPaise - sellerPaise;
+
+  return {
+    sellerPrice: toRupees(sellerPaise),
+    delivery: toRupees(deliveryPaise),
+    gateway: toRupees(gatewayPaise),
+    cod: toRupees(codPaise),
+    gst: toRupees(gstPaise),
+    margin: toRupees(marginPaise),
+    customerPrice: toRupees(totalPaise),
+    netBeforeGst: toRupees(totalPaise - gstPaise),
+  };
+}
+
+/**
+ * The price to charge so that every cost is covered and BatraVerse still
+ * keeps `margin`. With a zero margin this is the break-even price: anything
+ * below it is a loss.
+ *
+ * Solves `total / (1 + gst) - gateway * total = seller + delivery + cod + margin`
+ * then steps off the anchor until the rounded lines reconcile to the paisa.
+ */
+export function priceToSet(c: RateCharges, margin: number): RateBreakdown {
+  const denom = 1 / (1 + c.gstRate) - c.gatewayRate;
+  if (!(denom > 0)) return breakdownPaise(0, c);
+
+  const sellerPaise = toPaise(c.sellerPrice);
+  const deliveryPaise = toPaise(c.delivery);
+  const codPaise = toPaise(c.cod);
+  const marginPaise = toPaise(margin);
+  const anchor = Math.round((sellerPaise + deliveryPaise + codPaise + marginPaise) / denom);
+
+  let totalPaise = anchor;
+  for (let d = 0; d <= 25; d++) {
+    let found = -1;
+    for (const candidate of d === 0 ? [anchor] : [anchor - d, anchor + d]) {
+      const gatewayPaise = Math.round(candidate * c.gatewayRate);
+      const gstPaise = Math.round(candidate - candidate / (1 + c.gstRate));
+      if (candidate - gatewayPaise - gstPaise - deliveryPaise - codPaise - sellerPaise === marginPaise) {
+        found = candidate;
+        break;
+      }
+    }
+    if (found >= 0) { totalPaise = found; break; }
+  }
+
+  return breakdownPaise(totalPaise, c);
+}
+
+/** What a chosen customer price actually leaves BatraVerse. */
+export function marginAt(customerPrice: number, c: RateCharges): RateBreakdown {
+  return breakdownPaise(Math.max(0, toPaise(customerPrice)), c);
+}

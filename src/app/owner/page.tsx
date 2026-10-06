@@ -23,6 +23,7 @@ import NewsletterTab from "../admin/components/NewsletterTab";
 import DeliveryExecTab from "../admin/components/DeliveryExecTab";
 import CardsWalletTab from "../admin/components/CardsWalletTab";
 import MoneyTab from "../admin/components/MoneyTab";
+import RateCalculatorTab from "../admin/components/RateCalculatorTab";
 import ViolationsTab from "../admin/components/ViolationsTab";
 import ProductCatalogTab from "../admin/components/ProductCatalogTab";
 import SellerSystemTab from "../admin/components/SellerSystemTab";
@@ -302,6 +303,7 @@ export default function AdminPage() {
           {tab === "sellersystem" && <SellerSystemTab adminKey={adminKey} onCount={setProductApprovalCount} />}
           {tab === "cards" && <CardsWalletTab adminKey={adminKey} />}
           {tab === "money" && <MoneyTab adminKey={adminKey} />}
+          {tab === "ratecalculator" && <RateCalculatorTab />}
           {tab === "violations" && <ViolationsTab adminKey={adminKey} />}
           {tab === "productcatalog" && <ProductCatalogTab adminKey={adminKey} />}
           {tab === "ads" && <AdsTab adminKey={adminKey} />}
