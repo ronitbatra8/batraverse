@@ -652,6 +652,10 @@ router.get("/finance", async (req, res) => {
     const SUCCEEDED = { status: { notIn: ["cancelled", "returned", "return_requested", "return_approved", "return_rejected"] } };
     const DELIVERED = { status: "delivered" };
     const SHIPPING_FEE = 60;
+    // Cash-on-delivery collection charge levied by the courier (Delhivery).
+    // Batraverse does NOT pass this on to the customer, so it is a real cost
+    // with no matching revenue - count it or COD orders look falsely profitable.
+    const COD_FEE = 35;
     const RAZORPAY_FEE_PCT = 0.02;
     const RAZORPAY_GST_PCT = 0.18;
     const ONLINE_METHODS = ["CARD", "UPI", "NETBANKING"];
@@ -675,6 +679,7 @@ router.get("/finance", async (req, res) => {
       upgradeRecent,
       payoutRecent,
       deliveryChargeAgg,
+      codAgg,
     ] = await Promise.all([
       // Delivered (completed) orders: all money actually earned
       prisma.order.aggregate({
@@ -799,6 +804,12 @@ router.get("/finance", async (req, res) => {
         _sum: { deliveryAmount: true, expressAmount: true },
         where: { ...DELIVERED, ...PAID, OR: [{ deliveryAmount: { gt: 0 } }, { expressAmount: { gt: 0 } }] },
       }),
+      // Delivered + paid COD orders: each one incurs the courier's flat
+      // collection charge, which is never collected from the customer.
+      prisma.order.aggregate({
+        _count: { _all: true },
+        where: { ...DELIVERED, ...PAID, paymentMethod: "COD" },
+      }),
     ]);
 
     const byStatus = Object.fromEntries(
@@ -850,8 +861,10 @@ router.get("/finance", async (req, res) => {
     const freeDeliveryCount = Math.max(0, (delivered._count._all || 0) - (deliveryChargeAgg._count._all || 0));
     const shippingFees = Math.round((deliveryChargedSum + freeDeliveryCount * SHIPPING_FEE) * 100) / 100;
     const payoutOwed = paidPayouts + pendingPayouts;
+    const codCount = codAgg._count._all || 0;
+    const codFees = Math.round(codCount * COD_FEE * 100) / 100;
     const netEarnings = Math.round(
-      (grossRevenue - gstCollected - razorpayFees - shippingFees - payoutOwed) * 100
+      (grossRevenue - gstCollected - razorpayFees - shippingFees - codFees - payoutOwed) * 100
     ) / 100;
 
     // Whole-wallet picture: everything that flows INTO and OUT of customer
@@ -872,6 +885,9 @@ router.get("/finance", async (req, res) => {
       shippingFees,
       shippingCount: delivered._count._all || 0,
       shippingFreeCount: freeDeliveryCount,
+      codFees,
+      codCount,
+      codFeeEach: COD_FEE,
       returnsTotal,
       returnedItemCount,
       razorpayPaid,

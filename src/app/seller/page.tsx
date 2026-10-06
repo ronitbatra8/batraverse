@@ -287,15 +287,6 @@ function getImageUrl(src: string) {
   return resolveImageUrl(src);
 }
 
-const inrFormatter = new Intl.NumberFormat("en-IN", {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-});
-
-function fmtINR(value: number) {
-  return `₹${inrFormatter.format(value)}`;
-}
-
 const TABS: { key: Tab; label: string; icon: typeof Package }[] = [
   { key: "overview", label: "Overview", icon: TrendingUp },
   { key: "analytics", label: "Analytics", icon: BarChart3 },
@@ -2178,27 +2169,6 @@ function AddProductTab({
   const hasColors = form.colorOptions.length > 0;
   const hasSizes = Object.values(form.sizeOptions).some((arr) => arr && arr.length > 0);
 
-  // Estimate is derived from the first colour, and that colour's first size when sizes exist.
-  const firstColor = form.colorOptions[0];
-  const firstColorName = firstColor ? firstColor.name || "Color 1" : "";
-  const firstSize = (form.sizeOptions[firstColorName] || [])[0];
-  const variantPrice = firstSize ? firstSize.price ?? firstColor?.price : firstColor?.price;
-  const variantLabel = firstSize ? `${firstColorName} · ${firstSize.name}` : firstColorName || null;
-
-  const EST_DELIVERY = 49;
-  const EST_MARGIN_RATE = 0.06;
-  const EST_GST_RATE = 0.18;
-  const EST_EXTERNAL_RATE = 0.02;
-  const round2 = (n: number) => Math.round(n * 100) / 100;
-
-  const estBase = typeof variantPrice === "number" && variantPrice > 0 ? variantPrice : form.price || 0;
-  const estMargin = round2(estBase * EST_MARGIN_RATE);
-  const estGst = round2(estMargin * EST_GST_RATE);
-  const estNetMargin = round2(estMargin - estGst);
-  const estSubtotal = round2(estBase + estMargin + EST_DELIVERY);
-  const estExternal = round2(estSubtotal * EST_EXTERNAL_RATE);
-  const estTotal = round2(estSubtotal + estExternal);
-
   return (
     <div>
       <div className="flex flex-wrap items-center gap-2 sm:gap-4 mb-4 sm:mb-6">
@@ -2225,7 +2195,7 @@ function AddProductTab({
         </div>
       ) : null}
 
-<div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_25rem]">
+<div className="grid grid-cols-1 gap-6">
           <div className="space-y-6">
           <div className="bg-dark-900 border border-dark-700 shadow-lg shadow-black/30 rounded-2xl p-4 sm:p-6 space-y-4 sm:space-y-5">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -2728,73 +2698,6 @@ function AddProductTab({
                 {form.inStock ? "In Stock" : "Out of Stock"}
               </button>
             </div>
-          </div>
-        </div>
-
-        {/* Estimated price */}
-        <div className="space-y-6 lg:sticky lg:top-6 lg:self-start">
-          <div className="bg-dark-900 border border-dark-700 shadow-lg shadow-black/30 rounded-2xl p-4 sm:p-6 space-y-4">
-            <div className="flex items-center justify-between gap-2">
-              <label className="text-xs text-dark-300 uppercase tracking-wider font-semibold">Estimated Price</label>
-              {variantLabel && (
-                <span className="text-[10px] text-gold-400 bg-gold-500/10 border border-gold-500/30 rounded-lg px-2 py-1 font-medium truncate">
-                  {variantLabel}
-                </span>
-              )}
-            </div>
-
-            {estBase > 0 ? (
-              <>
-                <div className="space-y-2.5">
-                  <div className="flex items-center justify-between gap-3 text-sm">
-                    <span className="text-dark-400">Your base price</span>
-                    <span className="text-white font-medium">{fmtINR(estBase)}</span>
-                  </div>
-                  <div className="flex items-start justify-between gap-3 text-sm">
-                    <span className="text-dark-400">
-                      Batraverse margin
-                      <span className="block text-[10px]">6% &middot; incl. {EST_GST_RATE * 100}% GST {fmtINR(estGst)}</span>
-                    </span>
-                    <span className="text-white font-medium whitespace-nowrap">+ {fmtINR(estMargin)}</span>
-                  </div>
-                  <div className="flex items-center justify-between gap-3 text-sm">
-                    <span className="text-dark-400">Delivery charge</span>
-                    <span className="text-white font-medium whitespace-nowrap">+ {fmtINR(EST_DELIVERY)}</span>
-                  </div>
-                  <div className="flex items-start justify-between gap-3 text-sm">
-                    <span className="text-dark-400">
-                      External charges
-                      <span className="block text-[10px]">2% of overall price</span>
-                    </span>
-                    <span className="text-white font-medium whitespace-nowrap">+ {fmtINR(estExternal)}</span>
-                  </div>
-                </div>
-
-                <div className="border-t border-dark-600 pt-4 flex items-end justify-between gap-3">
-                  <span className="text-xs text-dark-300 uppercase tracking-wider font-semibold">Customer pays</span>
-                  <span className="text-2xl font-semibold text-gold-400 leading-none">{fmtINR(estTotal)}</span>
-                </div>
-
-                <div className="rounded-xl bg-dark-800 border border-dark-600 px-3 py-2.5 space-y-1">
-                  <div className="flex items-center justify-between text-[11px]">
-                    <span className="text-dark-400">Net margin after GST</span>
-                    <span className="text-dark-200 font-medium">{fmtINR(round2(estNetMargin + estExternal))}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-[11px]">
-                    <span className="text-dark-400">GST collected (18%)</span>
-                    <span className="text-dark-200 font-medium">{fmtINR(estGst)}</span>
-                  </div>
-                </div>
-
-                {lockedPrice && (
-                  <p className="text-[10px] text-sky-400 italic">Price is locked &mdash; set by the owner once the product is live.</p>
-                )}
-              </>
-            ) : (
-              <p className="text-sm text-dark-400 italic">
-                Enter a {hasSizes ? "size price" : hasColors ? "colour price" : "price"} to see the estimated customer price.
-              </p>
-            )}
           </div>
         </div>
       </div>
