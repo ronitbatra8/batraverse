@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Mail, Phone, UserPlus, CreditCard, MessageSquareText, KeyRound, RefreshCw, Store, ArrowRight } from "lucide-react";
+import { Mail, Phone, UserPlus, CreditCard, MessageSquareText, KeyRound, RefreshCw, Store, Compass, Truck, User as UserIcon } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthContext";
 import {
   AuthShell,
@@ -18,12 +18,19 @@ import {
   useLight,
 } from "@/components/auth/auth-ui";
 import { useToast } from "@/components/Toast";
+import Brand from "@/components/brand/Brand";
 import { cn, errCode, errMessage } from "@/lib/utils";
 import { apiUrl, apiFetch } from "@/lib/api";
 import { createPortal } from "react-dom";
 
 const OWNER_EMAIL = "ronit_batra_08_11@gmail.com";
 const OWNER_PHONE = "+91 90000 00001";
+
+const JOIN_ROLES = [
+  { value: "CUSTOMER", label: "Customer", icon: UserIcon },
+  { value: "SELLER", label: "Seller", icon: Store },
+  { value: "DELIVERY", label: "Delivery", icon: Truck },
+] as const;
 
 function redirectFor(user: { role?: string; email?: string; phone?: string }) {
   if (user.role === "DELIVERY") return "/delivery";
@@ -71,6 +78,7 @@ function LoginContent() {
   const [resendIn, setResendIn] = useState(0);
   const [needPhone, setNeedPhone] = useState(false);
   const [newPhone, setNewPhone] = useState("");
+  const [newRole, setNewRole] = useState<"CUSTOMER" | "SELLER" | "DELIVERY">("CUSTOMER");
   const [phoneError, setPhoneError] = useState("");
   const [savingPhone, setSavingPhone] = useState(false);
   const resendTimer = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -135,7 +143,7 @@ function LoginContent() {
     }
     setSavingPhone(true);
     try {
-      const user = await updateUser({ phone });
+      const user = await updateUser({ phone, role: newRole });
       router.push(redirectFor(user));
     } catch (err) {
       setPhoneError(errMessage(err));
@@ -324,10 +332,14 @@ function LoginContent() {
 
   return (
     <AuthShell topPad="pt-2 sm:pt-3" className="login-ui !items-start">
+      <div className="mb-6 flex justify-center">
+        <Brand light={light} size="lg" mobileWordmark />
+      </div>
+
       <AuthHeading
         title={
           <>
-            Sign <span className={headingGradCls(light)}>In</span>
+            Sign in or create <span className={headingGradCls(light)}>account</span>
           </>
         }
         titleClassName="text-3xl sm:text-4xl"
@@ -504,63 +516,44 @@ function LoginContent() {
               </div>
             )}
 
-            {googleEnabled && (
-              <a
-                href={apiUrl("/auth/google")}
-                className={cn(
-                  "inline-flex w-full items-center justify-center gap-2.5 rounded-xl px-8 py-3.5 text-[11px] font-semibold uppercase tracking-[0.3em] transition-all duration-500",
-                  light
-                    ? "bg-black text-white hover:opacity-85"
-                    : "bg-white text-black hover:opacity-85"
-                )}
-              >
-                <svg viewBox="0 0 48 48" className="h-4 w-4" aria-hidden>
-                  <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
-                  <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
-                  <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
-                  <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
-                </svg>
-                Google
-              </a>
-            )}
-
-            <button
-              type="button"
-              onClick={() => {
-                enterAsGuest();
-                router.push("/");
-              }}
-              className={cn(
-                "group relative inline-flex w-full items-center rounded-xl p-[2px] transition-all duration-300",
-                light
-                  ? "bg-gradient-to-r from-sapphire-deep via-sapphire-light to-sapphire-deep"
-                  : "bg-gradient-to-r from-gold-deep via-gold-light to-gold-deep"
+            <div className="flex items-center gap-2 sm:gap-3">
+              {googleEnabled && (
+                <a
+                  href={apiUrl("/auth/google")}
+                  className={cn(
+                    "inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-transparent px-2 py-3.5 text-[clamp(9px,2.4vw,11px)] font-semibold uppercase tracking-[0.08em] transition-all duration-500 sm:gap-2.5 sm:px-5 sm:tracking-[0.3em]",
+                    light
+                      ? "bg-black text-white hover:opacity-85"
+                      : "bg-white text-black hover:opacity-85"
+                  )}
+                >
+                  <svg viewBox="0 0 48 48" className="h-4 w-4 shrink-0" aria-hidden>
+                    <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+                    <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+                    <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+                    <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+                  </svg>
+                  Google
+                </a>
               )}
-            >
-              <span
+
+              <button
+                type="button"
+                onClick={() => {
+                  enterAsGuest();
+                  router.push("/");
+                }}
                 className={cn(
-                  "relative flex w-full items-center justify-between gap-3 rounded-[10px] py-3 pl-8 pr-3 transition-colors duration-300 group-hover:bg-gold group-hover:text-white",
-                  light ? "bg-white" : "bg-abyss"
+                  "inline-flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border px-2 py-3.5 text-[clamp(9px,2.4vw,11px)] font-semibold uppercase tracking-[0.08em] transition-all duration-500 sm:gap-2.5 sm:px-5 sm:tracking-[0.3em]",
+                  light
+                    ? "border-gold/70 bg-transparent text-onyx shadow-[0_0_18px_rgba(212,175,55,0.45)] hover:bg-gold/10 hover:shadow-[0_0_30px_rgba(212,175,55,0.7)]"
+                    : "border-gold/70 bg-transparent text-gold-light shadow-[0_0_18px_rgba(212,175,55,0.4)] hover:bg-gold/10 hover:shadow-[0_0_30px_rgba(212,175,55,0.7)]"
                 )}
               >
-                <span
-                  className={cn(
-                    "whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.3em] transition-colors duration-300 group-hover:text-white",
-                    light ? "text-sapphire" : "text-gold-light"
-                  )}
-                >
-                  Explore as Guest
-                </span>
-                <span
-                  className={cn(
-                    "flex h-7 w-7 shrink-0 items-center justify-center rounded-full",
-                    light ? "bg-sapphire text-white" : "bg-gradient-to-br from-gold-light to-gold-deep text-abyss"
-                  )}
-                >
-                  <ArrowRight size={13} strokeWidth={2} />
-                </span>
-              </span>
-            </button>
+                <Compass size={15} strokeWidth={2} className="shrink-0" />
+                Explore as Guest
+              </button>
+            </div>
 
             {checkState !== "missing" && (
               <Link href="/register" className={actionBtnCls("create", light)}>
@@ -601,8 +594,37 @@ function LoginContent() {
                   <p className={cn("text-xs", light ? "text-onyx/60" : "text-cream-dim")}>
                     You&apos;re signed in with your Google account for the first time.
                     <br />
-                    Add a phone number so your orders can reach you:
+                    Choose how you want to join and add a phone number:
                   </p>
+                </div>
+                <div className="mb-4">
+                  <p className={cn("mb-2 text-[10px] font-semibold uppercase tracking-[0.2em]", light ? "text-onyx/60" : "text-cream-dim")}>
+                    I want to join as
+                  </p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {JOIN_ROLES.map((r) => {
+                      const Icon = r.icon;
+                      const active = newRole === r.value;
+                      return (
+                        <button
+                          key={r.value}
+                          type="button"
+                          onClick={() => setNewRole(r.value)}
+                          className={cn(
+                            "flex flex-col items-center justify-center gap-1 rounded-xl border px-2 py-2.5 text-[10px] font-semibold uppercase tracking-wider transition-all duration-300",
+                            active
+                              ? "border-gold bg-gold/15 text-gold"
+                              : light
+                                ? "border-onyx/15 bg-onyx/[0.03] text-onyx/60 hover:border-onyx/30"
+                                : "border-white/10 bg-white/[0.03] text-cream-dim hover:border-gold/40"
+                          )}
+                        >
+                          <Icon size={16} strokeWidth={1.75} />
+                          {r.label}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
                 <input
                   type="tel"

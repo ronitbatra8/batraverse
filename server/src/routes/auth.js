@@ -494,11 +494,30 @@ router.get("/me", userAuth, async (req, res) => {
 
 router.put("/me", userAuth, async (req, res) => {
   try {
-    const { name, phone } = req.body;
+    const { name, phone, role } = req.body;
     const data = {};
     if (name !== undefined) {
       if (String(name).trim().length < 2) return res.status(400).json({ error: "Name must be at least 2 characters" });
       data.name = name.trim();
+    }
+    if (role !== undefined) {
+      const validRoles = ["USER", "CUSTOMER", "SELLER", "DELIVERY"];
+      if (!validRoles.includes(String(role))) {
+        return res.status(400).json({ error: "Invalid account type" });
+      }
+      const existing = await prisma.user.findUnique({ where: { id: req.userId } });
+      // The account type can only be chosen while finishing a brand-new Google
+      // sign-up. Existing accounts keep their role.
+      if (!existing || existing.googleCreated !== true) {
+        return res.status(400).json({ error: "Account type can only be chosen when creating your account" });
+      }
+      const chosenRole = String(role) === "CUSTOMER" ? "USER" : String(role);
+      data.role = chosenRole;
+      if (chosenRole === "SELLER" || chosenRole === "DELIVERY") {
+        data.approved = false;
+        data.cardNumber = null;
+        data.cardLevel = null;
+      }
     }
     if (phone !== undefined) {
       if (!isPhone(phone)) return res.status(400).json({ error: "Please enter a valid 10-digit Indian phone number" });
@@ -506,6 +525,7 @@ router.put("/me", userAuth, async (req, res) => {
       const dup = await prisma.user.findFirst({ where: { phone: normalizedPhone, NOT: { id: req.userId } } });
       if (dup) return res.status(400).json({ error: "Phone number already registered" });
       data.phone = normalizedPhone;
+      data.googleCreated = false;
     }
     const user = await prisma.user.update({
       where: { id: req.userId },
