@@ -4,12 +4,15 @@ import { useMemo, useState, useEffect, useCallback, Suspense, useRef, memo, type
 import { createPortal } from "react-dom";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { Search, X, Star, ChevronUp, ChevronDown, SlidersHorizontal, Check, RotateCcw } from "lucide-react";
+import { Search, X, Star, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, SlidersHorizontal, Check, RotateCcw, Sparkles } from "lucide-react";
 import SiteLayout from "@/components/layout/SiteLayout";
 import AdsShowcase from "@/components/home/AdsShowcase";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import { cn, formatPrice } from "@/lib/utils";
 import { resolveImageUrl } from "@/lib/imageUrl";
+import { getAuth } from "@/lib/authStorage";
+import { getRecentItems } from "@/lib/recentlyViewed";
+import { getSearchHistory, trackSearchTerm } from "@/lib/searchHistory";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
@@ -626,6 +629,11 @@ function SearchContent() {
   const searchParams = useSearchParams();
   const initialQuery = searchParams.get("q") || "";
   const [debouncedQuery, setDebouncedQuery] = useState(initialQuery);
+  /* Query that has "settled" (stopped changing) — committing to search history
+     and (re)fetching personalised recommendations on every keystroke would be
+     wasteful, so we wait for the user to pause. */
+  const [settleQuery, setSettleQuery] = useState(initialQuery.trim());
+  const [recommend, setRecommend] = useState<UnifiedProduct[]>([]);
   const [dbStore, setDbStore] = useState<UnifiedProduct[]>([]);
   const [dbMart, setDbMart] = useState<UnifiedProduct[]>([]);
   const [mlResults, setMlResults] = useState<UnifiedProduct[] | null>(null);
@@ -725,6 +733,55 @@ function SearchContent() {
       ctrl.abort();
     };
   }, [debouncedQuery]);
+
+  useEffect(() => {
+    const t = setTimeout(() => setSettleQuery(debouncedQuery.trim()), 1200);
+    return () => clearTimeout(t);
+  }, [debouncedQuery]);
+
+  /* Remember what people search for — this is one of the recommendation signals. */
+  useEffect(() => {
+    if (settleQuery.length >= 2) trackSearchTerm(settleQuery);
+  }, [settleQuery]);
+
+  /* Personalised recommendations: signals = recent views (localStorage) + past
+     searches + this query; the API adds the signed-in user's order history and
+     blends them in the ML service. */
+  useEffect(() => {
+    const viewed = getRecentItems()
+      .map((r) => r.id.replace(/^db-/, ""))
+      .filter(Boolean)
+      .slice(0, 16);
+    const terms = getSearchHistory().slice(0, 8);
+    const ctrl = new AbortController();
+    const params = new URLSearchParams();
+    if (settleQuery) params.set("q", settleQuery);
+    params.set("viewed", JSON.stringify(viewed));
+    params.set("terms", JSON.stringify(terms));
+    const token = getAuth("bt-token");
+
+    fetch(`${API_BASE}/search/recommend?${params.toString()}`, {
+      headers: {
+        "ngrok-skip-browser-warning": "true",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      signal: ctrl.signal,
+    })
+      .then(async (res) => {
+        if (!res.ok) {
+          setRecommend([]);
+          return;
+        }
+        const data = await res.json();
+        if (Array.isArray(data.products)) {
+          setRecommend(data.products.map((p: DbProduct) => dbToUnified(p, p.source)));
+        }
+      })
+      .catch(() => {
+        /* offline — keep whatever we last had */
+      });
+    return () => ctrl.abort();
+  }, [settleQuery]);
 
   const allProducts = useMemo(() => {
     return [...dbStore, ...dbMart];
@@ -842,6 +899,7 @@ function SearchContent() {
   return (
     <SiteLayout>
       <div className="min-h-screen pt-24 pb-20">
+        {recommend.length >= 4 && <RecommendedShelf products={recommend.slice(0, 20)} light={light} />}
         <div ref={heroRef}>
           <AdsShowcase page="search" hideHeader />
         </div>
@@ -1053,6 +1111,87 @@ function SearchCard({ product, light }: { product: UnifiedProduct; light: boolea
 }
 
 const MemoSearchCard = memo(SearchCard);
+
+/* Two horizontally-scrollable rows of cards — same card as the results grid
+   below, sized so roughly six-to-ten are visible per row on desktop. Each row
+   has its own prev/next control; the shelf is hidden entirely while cold. */
+function RecommendedShelf({ products, light }: { products: UnifiedProduct[]; light: boolean }) {
+  const rows = [products.slice(0, 10), products.slice(10, 20)].filter((r) => r.length > 0);
+  const rowRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  const scroll = (rowIndex: number, dir: number) => {
+    const el = rowRefs.current[rowIndex];
+    if (!el) return;
+    el.scrollBy({ left: dir * el.clientWidth * 0.85, behavior: "smooth" });
+  };
+
+  const arrow = (rowIndex: number, dir: number, Icon: typeof ChevronLeft, label: string) => (
+    <button
+      type="button"
+      aria-label={label}
+      onClick={() => scroll(rowIndex, dir)}
+      className={cn(
+        "grid h-8 w-8 place-items-center rounded-full border backdrop-blur-2xl transition-all duration-300",
+        light
+          ? "border-onyx/10 bg-white/70 text-dark-600 hover:border-sapphire/40 hover:text-sapphire"
+          : "border-white/10 bg-black/50 text-cream-dim/70 hover:border-gold/40 hover:text-gold-light"
+      )}
+    >
+      <Icon size={15} strokeWidth={1.75} />
+    </button>
+  );
+
+  return (
+    <section className="mb-6 mt-6 sm:mt-10">
+      <div className="mx-auto w-full max-w-[100rem] px-5 sm:px-8 md:px-10">
+        <div className="mb-4 flex items-end justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <span className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-full border", light ? "border-sapphire/25 bg-sapphire/[0.06] text-sapphire" : "border-gold/30 bg-gold/[0.07] text-gold")}>
+              <Sparkles size={17} strokeWidth={1.75} />
+            </span>
+            <div>
+              <h2 className={cn("font-display text-lg leading-none sm:text-2xl", light ? "font-bold text-onyx" : "font-semibold text-cream")}>
+                Recommended for you
+              </h2>
+              <p className={cn("mt-1.5 text-[9.5px] font-medium uppercase tracking-[0.28em]", light ? "text-dark-400" : "text-cream-dim/50")}>
+                Based on your orders, views &amp; searches
+              </p>
+            </div>
+          </div>
+          <div className="hidden shrink-0 items-center gap-2 sm:flex">
+            {rows.map((_, i) => (
+              <span key={i} className="flex items-center gap-1.5">
+                {arrow(i, -1, ChevronLeft, `Scroll row ${i + 1} left`)}
+                {arrow(i, 1, ChevronRight, `Scroll row ${i + 1} right`)}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-4 sm:gap-5">
+        {rows.map((row, i) => (
+          <div
+            key={i}
+            ref={(el) => {
+              rowRefs.current[i] = el;
+            }}
+            className="flex snap-x snap-mandatory gap-px overflow-x-auto px-5 pb-2 sm:gap-5 sm:px-8 md:px-10 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          >
+            {row.map((p) => (
+              <div
+                key={`${p.source}-${p.id}`}
+                className="w-[44%] shrink-0 snap-start sm:w-[30%] md:w-[23%] lg:w-[18.5%] xl:w-[15.5%] 2xl:w-[13.5%]"
+              >
+                <MemoSearchCard product={p} light={light} />
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
 
 export default function SearchPage() {
   return (

@@ -1637,10 +1637,11 @@ router.post("/product-approvals/:id/approve", async (req, res) => {
       if (!base) return res.status(404).json({ error: "Original product not found" });
       const baseData = {
         ...data,
-        /* The return window is seller-entered, so it travels from the draft
-           like the prices do — otherwise an approved edit would silently leave
-           the live product on its old window. */
+        /* The return window and packaging weight are seller-entered, so they
+           travel from the draft like the prices do — otherwise an approved
+           edit would silently leave the live product on its old values. */
         returnWindowHours: existing.returnWindowHours,
+        packagingWeightGrams: existing.packagingWeightGrams,
         sellerPrice: existing.sellerPrice,
         sellerPricing: existing.sellerPricing,
         sellerDetails: existing.sellerDetails || (base && base.sellerDetails) || {},

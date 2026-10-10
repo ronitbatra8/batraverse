@@ -223,6 +223,11 @@ model Product {
      checkout so a later seller edit can't shorten a window a customer
      already bought under. */
   returnWindowHours Int?
+  /* Packaging weight slab the seller declared, in grams — the ceiling of the
+     band they picked (500, 1000, 1500, 2000, 3000, 5000, or the open-ended
+     "above 5 kg" sentinel 999999). NULL = not declared. Also the weight we
+     would hand to the courier when creating a shipment. */
+  packagingWeightGrams Int?
   rating        Float    @default(0)
   reviewCount   Int      @default(0)
 

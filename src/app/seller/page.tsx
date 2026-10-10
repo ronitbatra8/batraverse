@@ -47,7 +47,7 @@ import { useToast } from "@/components/Toast";
 import { apiFetch, apiUpload, apiUrl } from "@/lib/api";
 import { getAuth } from "@/lib/authStorage";
 import { resolveImageUrl } from "@/lib/imageUrl";
-import { estimatePrice, EXTERNAL_RATE, GST_RATE } from "@/lib/pricing";
+import { estimatePrice, EXTERNAL_RATE, GST_RATE, deliveryForWeight } from "@/lib/pricing";
 import { cn, formatPrice } from "@/lib/utils";
 import SiteLayout from "@/components/layout/SiteLayout";
 import ConfirmModal from "@/components/ConfirmModal";
@@ -125,6 +125,7 @@ interface Product {
   inStock: boolean;
   badge: string;
   returnWindowHours?: number | null;
+  packagingWeightGrams?: number | null;
   rating: number;
   reviewCount: number;
   status?: string;
@@ -144,6 +145,7 @@ interface Product {
     inStock: boolean;
     badge: string;
     returnWindowHours?: number | null;
+    packagingWeightGrams?: number | null;
     specifications: { key: string; value: string }[];
     keyFeatures: string[];
     colorOptions: { name: string; hex: string; colors: string[]; images: string[]; specifications: { key: string; value: string }[]; keyFeatures: string[]; price?: number; originalPrice?: number }[];
@@ -167,6 +169,7 @@ interface Product {
     inStock: boolean;
     badge: string | null;
     returnWindowHours?: number | null;
+    packagingWeightGrams?: number | null;
     specifications: { key: string; value: string }[];
     keyFeatures: string[];
     colorOptions: { name: string; hex: string; colors: string[]; images: string[]; specifications: { key: string; value: string }[]; keyFeatures: string[]; price?: number; originalPrice?: number }[];
@@ -218,6 +221,7 @@ interface ProductForm {
   inStock: boolean;
   badge: string;
   returnWindowHours: number | null;
+  packagingWeightGrams: number | null;
   specifications: { key: string; value: string }[];
   keyFeatures: string[];
   colorOptions: { name: string; hex: string; colors: string[]; images: string[]; specifications: { key: string; value: string }[]; keyFeatures: string[]; price?: number; originalPrice?: number }[];
@@ -256,6 +260,7 @@ const EMPTY_PRODUCT: ProductForm = {
   inStock: true,
   badge: "",
   returnWindowHours: 12,
+  packagingWeightGrams: 500,
   specifications: [],
   keyFeatures: [],
   colorOptions: [],
@@ -272,6 +277,20 @@ const RETURN_WINDOW_OPTIONS: { value: number; label: string }[] = [
   { value: 72, label: "3 days" },
   { value: 120, label: "5 days" },
   { value: 168, label: "7 days" },
+];
+
+/* Packaging weight slabs, in grams. Each value is the ceiling of the band the
+   seller picks ("under N grams"), which is the weight we declare to the
+   courier. 999999 is the open-ended above-5 kg band. Kept in sync with
+   PACKAGING_WEIGHT_GRAMS in server/src/utils/products.js. */
+const PACKAGING_WEIGHT_OPTIONS: { value: number; label: string }[] = [
+  { value: 500, label: "Under 500 g" },
+  { value: 1000, label: "Under 1000 g" },
+  { value: 1500, label: "Under 1500 g" },
+  { value: 2000, label: "Under 2000 g" },
+  { value: 3000, label: "Under 3000 g" },
+  { value: 5000, label: "Under 5000 g" },
+  { value: 999999, label: "Above 5000 g" },
 ];
 
 function parseImages(raw: unknown): string[] {
@@ -441,6 +460,7 @@ export default function SellerDashboardPage() {
                 inStock: item.sellerDetails.inStock !== false,
                 badge: String(item.sellerDetails.badge ?? ""),
                 returnWindowHours: item.sellerDetails.returnWindowHours != null ? Number(item.sellerDetails.returnWindowHours) : null,
+                packagingWeightGrams: item.sellerDetails.packagingWeightGrams != null ? Number(item.sellerDetails.packagingWeightGrams) : 500,
                 specifications: parseJsonArray(item.sellerDetails.specifications) as Product["specifications"],
                 keyFeatures: parseJsonArray(item.sellerDetails.keyFeatures) as Product["keyFeatures"],
                 colorOptions: Array.isArray(item.sellerDetails.colorOptions) ? (item.sellerDetails.colorOptions as Product["colorOptions"]).map((c: Product["colorOptions"][number]) => ({
@@ -621,6 +641,7 @@ export default function SellerDashboardPage() {
       inStock: d.inStock !== undefined ? d.inStock : (p.inStock ?? true),
       badge: String(d.badge ?? p.badge ?? "") || "",
       returnWindowHours: Number(d.returnWindowHours ?? p.returnWindowHours ?? 12) || 12,
+      packagingWeightGrams: Number(d.packagingWeightGrams ?? p.packagingWeightGrams) || 500,
       specifications: Array.isArray(d.specifications) ? d.specifications : (Array.isArray(p.specifications) ? p.specifications : []),
       keyFeatures: Array.isArray(d.keyFeatures) ? d.keyFeatures : (Array.isArray(p.keyFeatures) ? p.keyFeatures : []),
       colorOptions: dColorOptions.map((c) => ({
@@ -2207,7 +2228,7 @@ function AddProductTab({
   const variantLabel = firstSize ? `${firstColorName} · ${firstSize.name}` : firstColorName || null;
 
   const estBase = typeof variantPrice === "number" && variantPrice > 0 ? variantPrice : form.price || 0;
-  const est = estimatePrice(estBase);
+  const est = estimatePrice(estBase, deliveryForWeight(form.packagingWeightGrams));
 
   return (
     <div>
@@ -2721,10 +2742,10 @@ function AddProductTab({
             </div>
           )}
 
-          {/* Badge + Return Window + Stock */}
+          {/* Badge + Return Window + Packaging Weight + Stock */}
           <div className="bg-dark-900 border border-dark-700 shadow-lg shadow-black/30 rounded-2xl p-4 sm:p-6 space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className={form.source === "store" ? undefined : "sm:col-span-2"}>
+            <div className={cn("grid grid-cols-1 gap-4", form.source === "store" ? "sm:grid-cols-3" : "sm:grid-cols-2")}>
+              <div>
                 <label className="text-[11px] text-dark-300 uppercase tracking-wider font-semibold mb-1.5 block">Badge</label>
                 <input type="text" value={form.badge} onChange={(e) => onChange({ ...form, badge: e.target.value })}
                   className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-2.5 text-white text-sm placeholder:text-dark-400 focus:outline-none focus:border-gold-500 focus:ring-2 focus:ring-gold-500/25"
@@ -2746,6 +2767,17 @@ function AddProductTab({
                   </p>
                 </div>
               )}
+              <div>
+                <label className="text-[11px] text-dark-300 uppercase tracking-wider font-semibold mb-1.5 block">Packaging Weight</label>
+                <select value={form.packagingWeightGrams ?? 500}
+                  onChange={(e) => onChange({ ...form, packagingWeightGrams: Number(e.target.value) })}
+                  className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-gold-500 focus:ring-2 focus:ring-gold-500/25">
+                  {PACKAGING_WEIGHT_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value} className="bg-dark-800 text-white">{o.label}</option>
+                  ))}
+                </select>
+                <p className="text-[10px] text-dark-400 italic mt-1.5">Used to estimate shipping</p>
+              </div>
             </div>
             <div>
               <label className="text-xs text-dark-300 uppercase tracking-wider font-semibold mb-1.5 block">Stock Status</label>
@@ -2784,7 +2816,9 @@ function AddProductTab({
                   <div className="flex items-start justify-between gap-3 text-sm">
                     <span className="text-dark-400">
                       Delivery charge
-                      <span className="block text-[10px]">Standard delivery used for the estimate</span>
+                      <span className="block text-[10px]">
+                        Rises with packaging weight — {PACKAGING_WEIGHT_OPTIONS.find((o) => o.value === (form.packagingWeightGrams ?? 500))?.label ?? "Under 500 g"} → {fmtINR(est.delivery)}
+                      </span>
                     </span>
                     <span className="text-white font-medium whitespace-nowrap">+ {fmtINR(est.delivery)}</span>
                   </div>
@@ -2809,7 +2843,7 @@ function AddProductTab({
                   <span className="text-2xl font-semibold text-gold-400 leading-none">{fmtINR(est.livePrice)}</span>
                 </div>
 
-                <p className="text-[10px] text-dark-500 leading-relaxed">
+                <p className="text-[10px] text-red-400 leading-relaxed">
                   Estimate only. Final delivery and charges are set by the owner when your
                   product is approved. You always receive {fmtINR(est.sellerPrice)} per unit.
                 </p>

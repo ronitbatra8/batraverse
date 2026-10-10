@@ -20,6 +20,10 @@ export interface Product {
   /* Return window offered on this product, in hours. Absent/null = the 12h
      platform default. */
   returnWindowHours?: number | null;
+  /* Packaging weight slab, in grams — the ceiling of the band the seller
+     picked, or 999999 for the open-ended "above 5 kg" band. Absent/null =
+     not declared. */
+  packagingWeightGrams?: number | null;
   gradient: string;
   rating: number;
   reviews: number;

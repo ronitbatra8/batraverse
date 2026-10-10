@@ -21,6 +21,7 @@ const SLIM_SELECT = {
   inStock: true,
   badge: true,
   returnWindowHours: true,
+  packagingWeightGrams: true,
   rating: true,
   reviewCount: true,
   source: true,
@@ -69,6 +70,7 @@ function slimProduct(p) {
     inStock: p.inStock,
     badge: p.badge,
     returnWindowHours: p.returnWindowHours,
+    packagingWeightGrams: p.packagingWeightGrams,
     rating: p.rating,
     reviewCount: p.reviewCount,
     source: p.source,
@@ -127,6 +129,7 @@ function buildSellerDetails(d) {
     inStock: d && d.inStock !== undefined ? Boolean(d.inStock) : true,
     badge: d && d.badge !== undefined ? d.badge : null,
     returnWindowHours: d && d.returnWindowHours != null ? Number(d.returnWindowHours) : null,
+    packagingWeightGrams: d && d.packagingWeightGrams != null ? Number(d.packagingWeightGrams) : null,
     specifications: d && Array.isArray(d.specifications) ? d.specifications : [],
     keyFeatures: d && Array.isArray(d.keyFeatures) ? d.keyFeatures : [],
     colorOptions: d && Array.isArray(d.colorOptions) ? d.colorOptions : [],
@@ -171,4 +174,21 @@ function parseReturnWindow(value) {
   return { ok: true, value: n };
 }
 
-module.exports = { SLIM_SELECT, FULL_SELECT, slimProduct, buildSellerPricing, buildSellerDetails, effectiveSellerPrice, PUBLIC_WHERE, RETURN_WINDOW_HOURS, DEFAULT_RETURN_WINDOW_HOURS, parseReturnWindow };
+/* Allowed packaging weight slabs, in grams. Each value is the CEILING of the
+   band the seller picks ("under N grams"), which is also the weight we would
+   declare to the courier. The open-ended top band (anything heavier than 5 kg)
+   has no real ceiling, so it gets an explicit sentinel that shipping code can
+   recognise. A null value means the seller has not declared a weight. */
+const PACKAGING_WEIGHT_ABOVE_5000 = 999999;
+const PACKAGING_WEIGHT_GRAMS = [500, 1000, 1500, 2000, 3000, 5000, PACKAGING_WEIGHT_ABOVE_5000];
+
+/* Same contract as parseReturnWindow: absent/empty -> null, anything outside
+   the offered slabs is rejected. */
+function parsePackagingWeight(value) {
+  if (value == null || value === "") return { ok: true, value: null };
+  const n = Number(value);
+  if (!Number.isFinite(n) || !PACKAGING_WEIGHT_GRAMS.includes(n)) return { ok: false };
+  return { ok: true, value: n };
+}
+
+module.exports = { SLIM_SELECT, FULL_SELECT, slimProduct, buildSellerPricing, buildSellerDetails, effectiveSellerPrice, PUBLIC_WHERE, RETURN_WINDOW_HOURS, DEFAULT_RETURN_WINDOW_HOURS, parseReturnWindow, PACKAGING_WEIGHT_GRAMS, PACKAGING_WEIGHT_ABOVE_5000, parsePackagingWeight };

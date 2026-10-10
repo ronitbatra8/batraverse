@@ -45,6 +45,29 @@ export const EXTERNAL_RATE = 0.03;
 /** GST rate. Per-category in the DB (defaults to 18), so this is the default. */
 export const GST_RATE = 0.18;
 
+/* Delivery estimate per packaging-weight band. Stepped, not linear — light
+   parcels ride the flat ₹49 store rate; heavier ones pick up the courier's
+   volumetric surcharge as the band passes 500 g. The ceiling of each band
+   mirrors PACKAGING_WEIGHT_GRAMS: 500/1000/1500/2000/3000/5000 grams, with
+   999999 the open-ended above-5 kg band. */
+export const WEIGHT_DELIVERY_BANDS: { grams: number; delivery: number }[] = [
+  { grams: 500, delivery: 49 },
+  { grams: 1000, delivery: 91 },
+  { grams: 1500, delivery: 131 },
+  { grams: 2000, delivery: 143 },
+  { grams: 3000, delivery: 184 },
+  { grams: 5000, delivery: 229 },
+  { grams: 999999, delivery: 321 },
+];
+
+/** Delivery estimate for a declared packaging weight (grams). Unset/null or a
+   weight no band covers falls back to the standard ₹49 flat rate. */
+export function deliveryForWeight(grams: number | null | undefined): number {
+  if (!grams || grams <= 0) return ESTIMATE_DELIVERY;
+  const band = WEIGHT_DELIVERY_BANDS.find((b) => grams <= b.grams);
+  return (band || WEIGHT_DELIVERY_BANDS[WEIGHT_DELIVERY_BANDS.length - 1]).delivery;
+}
+
 export const round2 = (n: number): number => Math.round(n * 100) / 100;
 
 export interface PriceEstimate {
