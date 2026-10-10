@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Store, UserCheck, UserX, ChevronDown, ChevronUp, Package, ShoppingBag, Eye, LogIn } from "lucide-react";
+import { Store, UserCheck, UserX, ChevronDown, ChevronUp, Package, ShoppingBag, Eye, LogIn, HandCoins, MapPin } from "lucide-react";
 import { API, adminHeaders, statusColors } from "./types";
 import { getAuth, getAuthJSON, setAuth, setAuthJSON } from "@/lib/authStorage";
 import { resolveImageUrl } from "@/lib/imageUrl";
@@ -159,6 +159,37 @@ export default function SellersTab({ adminKey }: { adminKey: string }) {
                         <div className="pt-4 space-y-1">
                           <p className="text-xs text-dark-500">Joined {new Date(seller.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}</p>
                         </div>
+
+                        {(detail?.shopName || detail?.shopDescription || detail?.payoutAccount || detail?.pickupAddress) && (
+                          <div className="grid gap-3 mt-4 sm:grid-cols-2">
+                            <div className="bg-dark-900/40 border border-dark-800/30 rounded-xl p-4 space-y-2">
+                              <h4 className="text-xs text-gold-400 uppercase tracking-wider font-semibold flex items-center gap-2">
+                                <Store className="w-3.5 h-3.5" /> Shop
+                              </h4>
+                              <p className="text-white text-sm font-medium">{detail?.shopName || "—"}</p>
+                              {detail?.shopDescription && <p className="text-dark-400 text-xs">{detail.shopDescription}</p>}
+                            </div>
+                            <div className="bg-dark-900/40 border border-dark-800/30 rounded-xl p-4 space-y-2">
+                              <h4 className="text-xs text-gold-400 uppercase tracking-wider font-semibold flex items-center gap-2">
+                                <HandCoins className="w-3.5 h-3.5" /> Payout Account
+                              </h4>
+                              {detail?.payoutAccount ? (
+                                <p className="text-white text-sm font-medium select-all break-all">{detail.payoutAccount}</p>
+                              ) : (
+                                <p className="text-dark-500 text-xs italic">Not provided yet</p>
+                              )}
+                            </div>
+                            {detail?.pickupAddress && (
+                              <div className="bg-dark-900/40 border border-dark-800/30 rounded-xl p-4 space-y-1 sm:col-span-2">
+                                <h4 className="text-xs text-gold-400 uppercase tracking-wider font-semibold flex items-center gap-2">
+                                  <MapPin className="w-3.5 h-3.5" /> Pickup Address
+                                </h4>
+                                <p className="text-dark-300 text-xs">{detail.pickupName}{detail.pickupPhone ? ` · ${detail.pickupPhone}` : ""}</p>
+                                <p className="text-dark-400 text-xs">{[detail.pickupAddress, detail.pickupCity, detail.pickupState, detail.pickupPincode].filter(Boolean).join(", ")}</p>
+                              </div>
+                            )}
+                          </div>
+                        )}
 
                         <h4 className="text-xs text-purple-400 uppercase tracking-wider font-semibold mt-5 mb-3 flex items-center gap-2">
                           <ShoppingBag className="w-3.5 h-3.5" /> Products ({products.length})

@@ -80,6 +80,7 @@ interface SellerProfile {
   pickupState: string;
   pickupPincode: string;
   pickupPhone: string;
+  payoutAccount: string;
   createdAt: string;
 }
 
@@ -383,6 +384,7 @@ export default function SellerDashboardPage() {
   const [pickupState, setPickupState] = useState("");
   const [pickupPincode, setPickupPincode] = useState("");
   const [pickupPhone, setPickupPhone] = useState("");
+  const [payoutAccount, setPayoutAccount] = useState("");
 
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [productForm, setProductForm] = useState<ProductForm>(EMPTY_PRODUCT);
@@ -505,6 +507,7 @@ export default function SellerDashboardPage() {
       setPickupState(p.pickupState || "");
       setPickupPincode(p.pickupPincode || "");
       setPickupPhone(p.pickupPhone || "");
+      setPayoutAccount(p.payoutAccount || "");
     } catch {
       toast("Failed to load dashboard", "error");
     } finally {
@@ -541,6 +544,7 @@ export default function SellerDashboardPage() {
         setPickupCity(data.pickupCity || "");
         setPickupState(data.pickupState || "");
         setPickupPincode(data.pickupPincode || "");
+        setPayoutAccount(data.payoutAccount || "");
         setOnboardSubmitted(!!data.submittedForApproval);
         setOnboardRejected(!!data.rejectedAt);
       } catch {
@@ -562,6 +566,7 @@ export default function SellerDashboardPage() {
       ["City", pickupCity],
       ["State", pickupState],
       ["Pincode", pickupPincode],
+      ["Payout UPI ID / Account Number", payoutAccount],
     ];
     const missing = required.filter(([, v]) => !String(v ?? "").trim()).map(([label]) => label);
     if (missing.length > 0) {
@@ -572,7 +577,7 @@ export default function SellerDashboardPage() {
     try {
       await apiFetch("/seller/complete-profile", {
         method: "PUT",
-        body: JSON.stringify({ shopName, shopDescription: shopDesc, pickupName, pickupAddress, pickupCity, pickupState, pickupPincode, pickupPhone }),
+        body: JSON.stringify({ shopName, shopDescription: shopDesc, pickupName, pickupAddress, pickupCity, pickupState, pickupPincode, pickupPhone, payoutAccount }),
       });
       await apiFetch("/seller/submit-approval", { method: "POST" });
       setOnboardSubmitted(true);
@@ -601,9 +606,10 @@ export default function SellerDashboardPage() {
           pickupState,
           pickupPincode,
           pickupPhone,
+          payoutAccount,
         }),
       });
-      setProfile((p) => (p ? { ...p, shopName, shopDescription: shopDesc, pickupName, pickupAddress, pickupCity, pickupState, pickupPincode, pickupPhone } : p));
+      setProfile((p) => (p ? { ...p, shopName, shopDescription: shopDesc, pickupName, pickupAddress, pickupCity, pickupState, pickupPincode, pickupPhone, payoutAccount } : p));
       toast("Profile updated", "success");
     } catch {
       toast("Failed to update profile", "error");
@@ -793,7 +799,7 @@ export default function SellerDashboardPage() {
 
     const inputCls = "w-full bg-dark-900/60 border border-dark-700/50 rounded-xl px-4 py-3 text-white text-sm placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50 transition-colors";
     const labelCls = "block text-xs text-dark-500 uppercase tracking-wider font-semibold mb-1.5";
-    const missing = [shopName, shopDesc, pickupName, pickupPhone, pickupAddress, pickupCity, pickupState, pickupPincode].some((v) => !String(v ?? "").trim());
+    const missing = [shopName, shopDesc, pickupName, pickupPhone, pickupAddress, pickupCity, pickupState, pickupPincode, payoutAccount].some((v) => !String(v ?? "").trim());
 
     return (
       <SiteLayout>
@@ -848,6 +854,15 @@ export default function SellerDashboardPage() {
                   <label className={labelCls}>Pincode *</label>
                   <input value={pickupPincode} onChange={(e) => setPickupPincode(e.target.value)} placeholder="6-digit pincode" className={inputCls} />
                 </div>
+              </div>
+
+              <div className="pt-2 border-t border-dark-800/50">
+                <p className="text-xs text-gold-400 uppercase tracking-[0.2em] font-semibold mb-4">Payout Details</p>
+              </div>
+
+              <div>
+                <label className={labelCls}>UPI ID / Account Number *</label>
+                <input value={payoutAccount} onChange={(e) => setPayoutAccount(e.target.value)} placeholder="e.g. name@upi or bank account number" className={inputCls} />
               </div>
 
               <button onClick={handleOnboardingSubmit} disabled={missing || onboardSaving}
@@ -1128,6 +1143,7 @@ export default function SellerDashboardPage() {
               pickupState={pickupState}
               pickupPincode={pickupPincode}
               pickupPhone={pickupPhone}
+              payoutAccount={payoutAccount}
               saving={profileSaving}
               onShopName={setShopName}
               onShopDesc={setShopDesc}
@@ -1137,6 +1153,7 @@ export default function SellerDashboardPage() {
               onPickupState={setPickupState}
               onPickupPincode={setPickupPincode}
               onPickupPhone={setPickupPhone}
+              onPayoutAccount={setPayoutAccount}
               onSave={handleProfileSave}
             />
           )}
@@ -1894,6 +1911,7 @@ function ProfileTab({
   pickupState,
   pickupPincode,
   pickupPhone,
+  payoutAccount,
   saving,
   onShopName,
   onShopDesc,
@@ -1903,6 +1921,7 @@ function ProfileTab({
   onPickupState,
   onPickupPincode,
   onPickupPhone,
+  onPayoutAccount,
   onSave,
 }: {
   profile: SellerProfile | null;
@@ -1914,6 +1933,7 @@ function ProfileTab({
   pickupState: string;
   pickupPincode: string;
   pickupPhone: string;
+  payoutAccount: string;
   saving: boolean;
   onShopName: (v: string) => void;
   onShopDesc: (v: string) => void;
@@ -1923,6 +1943,7 @@ function ProfileTab({
   onPickupState: (v: string) => void;
   onPickupPincode: (v: string) => void;
   onPickupPhone: (v: string) => void;
+  onPayoutAccount: (v: string) => void;
   onSave: () => void;
 }) {
   if (!profile) return null;
@@ -1934,7 +1955,8 @@ function ProfileTab({
     pickupCity !== (profile.pickupCity || "") ||
     pickupState !== (profile.pickupState || "") ||
     pickupPincode !== (profile.pickupPincode || "") ||
-    pickupPhone !== (profile.pickupPhone || "");
+    pickupPhone !== (profile.pickupPhone || "") ||
+    payoutAccount !== (profile.payoutAccount || "");
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -2041,6 +2063,25 @@ function ProfileTab({
               placeholder="Pincode"
             />
           </div>
+        </div>
+      </div>
+
+      <div className="bg-dark-900/60 border border-dark-800/50 rounded-2xl p-6 space-y-5">
+        <div>
+          <h3 className="text-sm font-display font-bold text-white">Payout Details</h3>
+          <p className="text-xs text-dark-500 mt-1">
+            Where you receive your earnings. Enter a UPI ID or bank account number.
+          </p>
+        </div>
+        <div>
+          <label className="text-xs text-dark-500 uppercase tracking-wider font-semibold mb-1.5 block">UPI ID / Account Number</label>
+          <input
+            type="text"
+            value={payoutAccount}
+            onChange={(e) => onPayoutAccount(e.target.value)}
+            className="w-full bg-dark-800/60 border border-dark-700/50 rounded-xl px-4 py-3 text-white text-sm placeholder:text-dark-500 focus:outline-none focus:border-gold-500/50 transition-colors"
+            placeholder="e.g. name@upi or bank account number"
+          />
         </div>
       </div>
 

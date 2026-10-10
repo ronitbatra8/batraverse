@@ -144,17 +144,13 @@ function googleRedirectUri(req) {
   return process.env.GOOGLE_REDIRECT_URI || `${req.protocol}://${req.get("host")}/api/auth/google/callback`;
 }
 
-async function generatePlaceholderPhone() {
-  for (let i = 0; i < 10; i++) {
-    const phone = "9" + Array.from({ length: 9 }, () => Math.floor(Math.random() * 10)).join("");
-    const exists = await prisma.user.findFirst({ where: { phone } });
-    if (!exists) return phone;
-  }
-  throw new Error("Could not allocate a phone number");
-}
 
 function signToken(userId) {
   return jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: "30d" });
+}
+
+function signGooglePendingToken(email, name) {
+  return jwt.sign({ purpose: "google-signup", email, name }, process.env.JWT_SECRET, { expiresIn: "1h" });
 }
 
 function publicUser(user) {
@@ -430,36 +426,97 @@ router.get("/google/callback", async (req, res) => {
       return res.redirect(googleErrorRedirect("Your Google account has no email address."));
     }
 
-    let user = await prisma.user.findUnique({ where: { email } });
-    let createdNew = false;
-    if (!user) {
-      const gmailDomain = email.split("@")[1] || "";
-      if (DISPOSABLE_DOMAINS.has(gmailDomain)) {
-        return res.redirect(googleErrorRedirect("Please use a permanent email address."));
-      }
-      const name = String(profile.name || email.split("@")[0] || "BATRAVERSE User").trim();
-      const phone = await generatePlaceholderPhone();
-      const hashed = await bcrypt.hash(crypto.randomBytes(18).toString("hex"), 10);
-      let cardNumber;
+    const user = await prisma.user.findUnique({ where: { email } });
+
+    if (user) {
+      const token = signToken(user.id);
+      const isGooglePending = user.googleCreated === true || !user.phone;
+      return res.redirect(`${FRONTEND_URL}/login?g_token=${encodeURIComponent(token)}${isGooglePending ? "&g_new=1" : ""}`);
+    }
+
+    const gmailDomain = email.split("@")[1] || "";
+    if (DISPOSABLE_DOMAINS.has(gmailDomain)) {
+      return res.redirect(googleErrorRedirect("Please use a permanent email address."));
+    }
+    const name = String(profile.name || email.split("@")[0] || "BATRAVERSE User").trim();
+    await prisma.pendingSignup.upsert({
+      where: { email },
+      update: { name },
+      create: { email, name, provider: "google" },
+    });
+    const pendingToken = signGooglePendingToken(email, name);
+    return res.redirect(`${FRONTEND_URL}/login?g_pending=${encodeURIComponent(pendingToken)}`);
+  } catch (err) {
+    console.error("Google callback error:", err.message);
+    res.redirect(googleErrorRedirect("Google sign-in failed. Please try again."));
+  }
+});
+
+router.post("/google/complete", async (req, res) => {
+  try {
+    const { pendingToken, phone, role } = req.body;
+    if (!pendingToken) return res.status(400).json({ error: "Missing sign-up token" });
+
+    let decoded;
+    try {
+      decoded = jwt.verify(String(pendingToken), process.env.JWT_SECRET);
+    } catch {
+      return res.status(400).json({ error: "Your sign-up session expired. Please sign in with Google again." });
+    }
+    if (decoded.purpose !== "google-signup" || !decoded.email) {
+      return res.status(400).json({ error: "Invalid sign-up session. Please sign in with Google again." });
+    }
+    const email = String(decoded.email).trim().toLowerCase();
+    const name = String(decoded.name || email.split("@")[0] || "BATRAVERSE User").trim();
+
+    if (!isPhone(phone)) return res.status(400).json({ error: "Please enter a valid 10-digit Indian phone number" });
+    const normalizedPhone = normalizePhone(phone);
+
+    const validRoles = ["USER", "CUSTOMER", "SELLER", "DELIVERY"];
+    const requestedRole = validRoles.includes(role) ? role : "CUSTOMER";
+    const userRole = requestedRole === "CUSTOMER" ? "USER" : requestedRole;
+    const needsApproval = userRole === "SELLER" || userRole === "DELIVERY";
+
+    const [emailExists, phoneExists] = await Promise.all([
+      prisma.user.findUnique({ where: { email } }),
+      prisma.user.findFirst({ where: { phone: normalizedPhone } }),
+    ]);
+    if (emailExists) {
+      await prisma.pendingSignup.deleteMany({ where: { email } });
+      const token = signToken(emailExists.id);
+      return res.json({ token, user: publicUser(emailExists) });
+    }
+    if (phoneExists) return res.status(400).json({ error: "Phone number already registered" });
+
+    const isOwner = email === OWNER_EMAIL;
+    const hashed = await bcrypt.hash(crypto.randomBytes(18).toString("hex"), 10);
+    let cardNumber = null;
+    if (userRole === "USER") {
       let cardUnique = false;
       while (!cardUnique) {
         cardNumber = generateCardNumber(name);
         const existing = await prisma.user.findUnique({ where: { cardNumber } });
         if (!existing) cardUnique = true;
       }
-      const isOwner = email === OWNER_EMAIL || phone === OWNER_PHONE;
-      user = await prisma.user.create({
-        data: { name, email, phone, passwordHash: hashed, role: "USER", approved: true, cardNumber, cardLevel: isOwner ? "owner" : null, googleCreated: true },
-      });
-      createdNew = true;
     }
-
+    const user = await prisma.user.create({
+      data: {
+        name,
+        email,
+        phone: normalizedPhone,
+        passwordHash: hashed,
+        role: userRole,
+        approved: !needsApproval || isOwner,
+        cardNumber,
+        cardLevel: isOwner ? "owner" : null,
+      },
+    });
+    await prisma.pendingSignup.deleteMany({ where: { email } });
     const token = signToken(user.id);
-    const isGooglePending = createdNew || user.googleCreated === true;
-    res.redirect(`${FRONTEND_URL}/login?g_token=${encodeURIComponent(token)}${isGooglePending ? "&g_new=1" : ""}`);
+    res.json({ token, user: publicUser(user) });
   } catch (err) {
-    console.error("Google callback error:", err.message);
-    res.redirect(googleErrorRedirect("Google sign-in failed. Please try again."));
+    console.error("Google complete error:", err.message);
+    res.status(500).json({ error: safeErrorMessage(err) });
   }
 });
 

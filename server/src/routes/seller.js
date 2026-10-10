@@ -18,10 +18,10 @@ router.use(sellerAuth);
 // gate below, so a freshly registered seller can complete their mandatory
 // profile and submit for owner review.
 
-const PROFILE_SELECT = { id: true, name: true, email: true, phone: true, role: true, approved: true, submittedForApproval: true, rejectedAt: true, shopName: true, shopDescription: true, pickupName: true, pickupAddress: true, pickupCity: true, pickupState: true, pickupPincode: true, pickupPhone: true };
+const PROFILE_SELECT = { id: true, name: true, email: true, phone: true, role: true, approved: true, submittedForApproval: true, rejectedAt: true, shopName: true, shopDescription: true, pickupName: true, pickupAddress: true, pickupCity: true, pickupState: true, pickupPincode: true, pickupPhone: true, payoutAccount: true };
 
 function profileDataFromBody(body) {
-  const { shopName, shopDescription, pickupName, pickupAddress, pickupCity, pickupState, pickupPincode, pickupPhone } = body;
+  const { shopName, shopDescription, pickupName, pickupAddress, pickupCity, pickupState, pickupPincode, pickupPhone, payoutAccount } = body;
   const data = {};
   if (shopName !== undefined) data.shopName = String(shopName).trim();
   if (shopDescription !== undefined) data.shopDescription = String(shopDescription).trim();
@@ -31,6 +31,7 @@ function profileDataFromBody(body) {
   if (pickupState !== undefined) data.pickupState = String(pickupState).trim();
   if (pickupPincode !== undefined) data.pickupPincode = String(pickupPincode).trim();
   if (pickupPhone !== undefined) data.pickupPhone = String(pickupPhone).trim();
+  if (payoutAccount !== undefined) data.payoutAccount = String(payoutAccount).trim();
   return data;
 }
 
@@ -74,6 +75,7 @@ router.post("/submit-approval", async (req, res) => {
     if (!user.pickupCity) missing.push("Pickup City");
     if (!user.pickupState) missing.push("Pickup State");
     if (!user.pickupPincode) missing.push("Pickup Pincode");
+    if (!user.payoutAccount) missing.push("Payout UPI ID / Account Number");
     if (missing.length > 0) return res.status(400).json({ error: `Complete all mandatory fields: ${missing.join(", ")}` });
     const updated = await prisma.user.update({ where: { id: req.userId }, data: { submittedForApproval: true, rejectedAt: null }, select: PROFILE_SELECT });
     res.json(updated);
@@ -136,7 +138,7 @@ router.get("/profile", (req, res) => {
 
 router.put("/profile", async (req, res) => {
   try {
-    const { shopName, shopDescription, pickupName, pickupAddress, pickupCity, pickupState, pickupPincode, pickupPhone } = req.body;
+    const { shopName, shopDescription, pickupName, pickupAddress, pickupCity, pickupState, pickupPincode, pickupPhone, payoutAccount } = req.body;
     const data = {};
     if (shopName !== undefined) data.shopName = shopName;
     if (shopDescription !== undefined) data.shopDescription = shopDescription;
@@ -146,10 +148,11 @@ router.put("/profile", async (req, res) => {
     if (pickupState !== undefined) data.pickupState = pickupState;
     if (pickupPincode !== undefined) data.pickupPincode = pickupPincode;
     if (pickupPhone !== undefined) data.pickupPhone = pickupPhone;
+    if (payoutAccount !== undefined) data.payoutAccount = payoutAccount;
     const updated = await prisma.user.update({
       where: { id: req.userId },
       data,
-      select: { id: true, name: true, email: true, shopName: true, shopDescription: true, pickupName: true, pickupAddress: true, pickupCity: true, pickupState: true, pickupPincode: true, pickupPhone: true },
+      select: { id: true, name: true, email: true, shopName: true, shopDescription: true, pickupName: true, pickupAddress: true, pickupCity: true, pickupState: true, pickupPincode: true, pickupPhone: true, payoutAccount: true },
     });
     res.json(updated);
   } catch (err) {

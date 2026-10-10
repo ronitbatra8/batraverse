@@ -21,7 +21,7 @@ interface Payout {
   createdAt: string;
   paidAt: string | null;
   voidedAt: string | null;
-  seller: { id: string; name: string; email: string; shopName: string | null };
+  seller: { id: string; name: string; email: string; shopName: string | null; payoutAccount: string | null };
 }
 
 const STATUS_STYLE: Record<string, string> = {
@@ -235,6 +235,14 @@ export default function SellerPayoutsTab({ adminKey }: { adminKey: string }) {
                               {p.seller.shopName}
                             </div>
                           )}
+                          <div className="flex items-center gap-2 text-xs">
+                            <HandCoins className="w-3.5 h-3.5 text-gold-400 shrink-0" />
+                            {p.seller.payoutAccount ? (
+                              <span className="text-dark-300 select-all">{p.seller.payoutAccount}</span>
+                            ) : (
+                              <span className="text-dark-500 italic">No payout account added</span>
+                            )}
+                          </div>
                         </div>
                       </div>
 

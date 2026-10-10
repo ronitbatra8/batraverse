@@ -59,7 +59,7 @@ function actionBtnCls(variant: "primary" | "otp" | "create", light: boolean) {
 
 function LoginContent() {
   const router = useRouter();
-  const { login, loginWithOtp, loginWithGoogleToken, enterAsGuest, updateUser } = useAuth();
+  const { login, loginWithOtp, loginWithGoogleToken, completeGoogleSignup, enterAsGuest, updateUser } = useAuth();
   const searchParams = useSearchParams();
   const light = useLight();
   const { toast } = useToast();
@@ -77,6 +77,7 @@ function LoginContent() {
   const [googleEnabled, setGoogleEnabled] = useState(false);
   const [resendIn, setResendIn] = useState(0);
   const [needPhone, setNeedPhone] = useState(false);
+  const [pendingToken, setPendingToken] = useState("");
   const [newPhone, setNewPhone] = useState("");
   const [newRole, setNewRole] = useState<"CUSTOMER" | "SELLER" | "DELIVERY">("CUSTOMER");
   const [phoneError, setPhoneError] = useState("");
@@ -113,8 +114,14 @@ function LoginContent() {
   useEffect(() => {
     const gToken = searchParams.get("g_token");
     const gNew = searchParams.get("g_new");
+    const gPending = searchParams.get("g_pending");
+    if (gPending) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- start the Google sign-up completion only after mount
+      setPendingToken(gPending);
+      setNeedPhone(true);
+      return clearResendTimer;
+    }
     if (gToken) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- start the Google handshake only after mount
       setGoogleHandling(true);
       loginWithGoogleToken(gToken)
         .then((user) => {
@@ -143,7 +150,9 @@ function LoginContent() {
     }
     setSavingPhone(true);
     try {
-      const user = await updateUser({ phone, role: newRole });
+      const user = pendingToken
+        ? await completeGoogleSignup(pendingToken, phone, newRole)
+        : await updateUser({ phone, role: newRole });
       router.push(redirectFor(user));
     } catch (err) {
       setPhoneError(errMessage(err));
@@ -592,9 +601,9 @@ function LoginContent() {
                     Almost done!
                   </p>
                   <p className={cn("text-xs", light ? "text-onyx/60" : "text-cream-dim")}>
-                    You&apos;re signed in with your Google account for the first time.
-                    <br />
-                    Choose how you want to join and add a phone number:
+                    {pendingToken
+                      ? "Choose how you want to join and add a phone number to create your account:"
+                      : "Choose how you want to join and add a phone number to finish setting up your account:"}
                   </p>
                 </div>
                 <div className="mb-4">
@@ -661,7 +670,7 @@ function LoginContent() {
                       : "bg-gold text-abyss hover:shadow-[0_0_30px_rgba(212,175,55,0.5)]"
                   )}
                 >
-                  {savingPhone ? "Saving..." : "Save & Continue"}
+                  {savingPhone ? "Saving..." : pendingToken ? "Create Account" : "Save & Continue"}
                 </button>
               </div>
             </div>

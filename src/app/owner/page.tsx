@@ -76,6 +76,7 @@ export default function AdminPage() {
 
   const [orders, setOrders] = useState<any[]>(EMPTY_DATA.orders);
   const [users, setUsers] = useState<any[]>(EMPTY_DATA.users);
+  const [pendingSignups, setPendingSignups] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(EMPTY_DATA.stats);
   const [analytics, setAnalytics] = useState<any>(EMPTY_DATA.analytics);
   const [newsletter, setNewsletter] = useState<any>(EMPTY_DATA.newsletter);
@@ -108,6 +109,10 @@ export default function AdminPage() {
         fetch(`${API}/api/admin/product-approvals`, { headers: h }).then((r) => r.json()),
         fetch(`${API}/api/admin/stock-summary`, { headers: h }).then((r) => r.json()),
       ]);
+      fetch(`${API}/api/admin/pending-signups`, { headers: h })
+        .then((r) => r.json())
+        .then((ps) => setPendingSignups(Array.isArray(ps) ? ps : []))
+        .catch(() => setPendingSignups([]));
       if (o && o.error) { setAuthError(o.error); setLoading(false); return; }
       setOrders(Array.isArray(o) ? o : []);
       setUsers(Array.isArray(u) ? u : []);
@@ -293,7 +298,7 @@ export default function AdminPage() {
         <div key={refreshKey} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-24 lg:pb-8">
           {tab === "overview" && <OverviewTab stats={stats} orders={orders} passwordResets={passwordResets} messages={messages} stockSummary={stockSummary} onNavigate={handleNavigateToTab} />}
           {tab === "orders" && <OrdersTab orders={orders} updatingId={updatingId} onStatusUpdate={updateStatus} onItemStatusUpdate={updateItemStatus} onAssign={assignOrder} onPaymentAction={paymentAction} onReturnApprove={returnApprove} focusOrderId={focusOrderId} onFocusHandled={() => setFocusOrderId(null)} adminKey={adminKey} onShipDelhivery={shipViaDelhivery} initialStatusFilter={orderStatusFilter} />}
-          {tab === "users" && <UsersTab users={users} adminKey={adminKey} onNavigate={handleNavigateToTab} />}
+          {tab === "users" && <UsersTab users={users} pending={pendingSignups} adminKey={adminKey} onNavigate={handleNavigateToTab} onPendingChanged={loadAll} />}
           {tab === "mail" && <MailTab adminKey={adminKey} />}
           {tab === "messages" && <MessagesTab messages={messages} adminKey={adminKey} setMessages={setMessages} />}
           {tab === "security" && <SecurityTab adminKey={adminKey} />}

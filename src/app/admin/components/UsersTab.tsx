@@ -23,6 +23,7 @@ import {
   Gem,
   Shield,
   KeyRound,
+  AlertTriangle,
 } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
 import { getAuth, getAuthJSON, setAuth, setAuthJSON } from "@/lib/authStorage";
@@ -137,12 +138,16 @@ function getUserLevel(user: any): LevelKey {
 
 export default function UsersTab({
   users,
+  pending = [],
   adminKey,
   onNavigate,
+  onPendingChanged,
 }: {
   users: any[];
+  pending?: any[];
   adminKey: string;
   onNavigate: (tab: Tab, focusId?: string) => void;
+  onPendingChanged?: () => void;
 }) {
   const [userSearch, setUserSearch] = useState("");
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
@@ -158,6 +163,7 @@ export default function UsersTab({
   const [emailSent, setEmailSent] = useState(false);
   const [emailError, setEmailError] = useState("");
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- reset pagination when filters/search change
   useEffect(() => { setVisibleCount(50); }, [userSearch, userFilter, roleFilter]);
 
   const now = new Date();
@@ -182,6 +188,7 @@ export default function UsersTab({
     { key: "USER", label: "Customers", count: users.filter((u) => u.role === "USER").length, color: "text-sky-400" },
     { key: "SELLER", label: "Sellers", count: users.filter((u) => u.role === "SELLER").length, color: "text-violet-400" },
     { key: "DELIVERY", label: "Delivery", count: users.filter((u) => u.role === "DELIVERY").length, color: "text-emerald-400" },
+    { key: "UNVERIFIED", label: "Unverified", count: pending.length, color: "text-amber-400" },
   ];
 
   const filteredUsers = users.filter((user) => {
@@ -207,6 +214,13 @@ export default function UsersTab({
   });
 
   const visibleUsers = filteredUsers.slice(0, visibleCount);
+
+  const showUnverified = roleFilter === "UNVERIFIED";
+  const filteredPending = pending.filter((lead) => {
+    if (userSearch === "") return true;
+    const q = userSearch.toLowerCase();
+    return lead.name?.toLowerCase().includes(q) || lead.email?.toLowerCase().includes(q);
+  });
 
   const toggleExpand = useCallback(async (userId: string) => {
     if (expandedUser === userId) {
@@ -235,7 +249,10 @@ export default function UsersTab({
     if (emailMessage.trim().length < 3) { setEmailError("Message must be at least 3 characters"); return; }
     setEmailSending(true);
     try {
-      const res = await fetch(`${API}/api/admin/users/${emailModalUser.id}/email`, {
+      const endpoint = emailModalUser.__pending
+        ? `${API}/api/admin/pending-signups/${emailModalUser.id}/email`
+        : `${API}/api/admin/users/${emailModalUser.id}/email`;
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: adminHeaders(adminKey),
         body: JSON.stringify({ subject: emailSubject.trim(), message: emailMessage.trim() }),
@@ -255,10 +272,28 @@ export default function UsersTab({
 
   const openEmailModal = (user: any) => {
     setEmailModalUser(user);
-    setEmailSubject("");
-    setEmailMessage("");
+    if (user.__pending) {
+      setEmailSubject("Complete your BATRAVERSE account");
+      setEmailMessage(
+        `Hi ${user.name || "there"},\n\nYou started creating your BATRAVERSE account with Google but didn't finish. Just sign in with Google again and choose how you'd like to join (customer, seller or delivery) and add your phone number to complete your registration.\n\nSee you there!`
+      );
+    } else {
+      setEmailSubject("");
+      setEmailMessage("");
+    }
     setEmailSent(false);
     setEmailError("");
+  };
+
+  const handleDismissPending = async (lead: any) => {
+    if (!window.confirm(`Remove the unverified sign-up from ${lead.name || lead.email}?`)) return;
+    try {
+      const res = await fetch(`${API}/api/admin/pending-signups/${lead.id}`, {
+        method: "DELETE",
+        headers: adminHeaders(adminKey),
+      });
+      if (res.ok) onPendingChanged?.();
+    } catch {}
   };
 
   const handleAccess = async (userId: string, _role?: string) => {
@@ -305,6 +340,8 @@ export default function UsersTab({
                       ? "bg-sky-500/15 text-sky-400 border border-sky-500/30"
                       : r.key === "DELIVERY"
                       ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
+                      : r.key === "UNVERIFIED"
+                      ? "bg-amber-500/15 text-amber-400 border border-amber-500/30"
                       : "bg-gold/15 text-gold border border-gold/30"
                     : "text-dark-400 hover:text-dark-200 border border-transparent"
                 }`}
@@ -319,6 +356,8 @@ export default function UsersTab({
                         ? "bg-sky-500/20 text-sky-300"
                         : r.key === "DELIVERY"
                         ? "bg-emerald-500/20 text-emerald-300"
+                        : r.key === "UNVERIFIED"
+                        ? "bg-amber-500/20 text-amber-300"
                         : "bg-gold/20 text-gold-light"
                       : "bg-dark-800 text-dark-500"
                   }`}>
@@ -366,7 +405,58 @@ export default function UsersTab({
         ))}
       </div>
 
-      {filteredUsers.length === 0 ? (
+      {showUnverified ? (
+        filteredPending.length === 0 ? (
+          <div className="text-center py-16 bg-dark-900/60 border border-dark-800/50 rounded-2xl">
+            <AlertTriangle className="w-12 h-12 text-dark-600 mx-auto mb-3" />
+            <p className="text-dark-400 text-sm">
+              {pending.length === 0 ? "No unverified sign-ups" : "No matching sign-ups"}
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {filteredPending.map((lead) => (
+              <div
+                key={lead.id}
+                className="bg-gradient-to-r from-amber-500/15 via-amber-600/10 to-amber-700/15 border border-amber-500/30 rounded-xl px-4 sm:px-5 py-3.5 flex items-center gap-3"
+              >
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-gradient-to-br from-amber-500/40 to-amber-700/30">
+                  <AlertTriangle className="w-4 h-4 text-amber-200" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold tracking-[0.14em] border bg-amber-500/15 border-amber-500/30 text-amber-300">
+                      UNVERIFIED
+                    </span>
+                    <span className="text-white font-semibold text-sm truncate">{lead.name || lead.email}</span>
+                  </div>
+                  <p className="text-dark-400 text-xs mt-1 truncate">
+                    {lead.email}
+                    <span className="text-dark-600 mx-1.5">&middot;</span>
+                    {lead.provider === "google" ? "Google sign-up" : lead.provider}
+                    <span className="text-dark-600 mx-1.5">&middot;</span>
+                    {new Date(lead.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                  </p>
+                </div>
+                <button
+                  onClick={() => openEmailModal({ ...lead, __pending: true })}
+                  className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gold-500/10 border border-gold-500/20 text-gold-400 text-[10px] font-semibold uppercase tracking-wider hover:bg-gold-500/20 transition-colors"
+                  title="Send Email"
+                >
+                  <Send className="w-3 h-3" /> <span className="hidden sm:inline">Email</span>
+                </button>
+                <button
+                  onClick={() => handleDismissPending(lead)}
+                  className="shrink-0 p-2 rounded-lg text-dark-400 hover:text-red-400 hover:bg-dark-800 transition-colors"
+                  title="Dismiss"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )
+      ) : filteredUsers.length === 0 ? (
         <div className="text-center py-16 bg-dark-900/60 border border-dark-800/50 rounded-2xl">
           <Users className="w-12 h-12 text-dark-600 mx-auto mb-3" />
           <p className="text-dark-400 text-sm">
@@ -629,7 +719,7 @@ export default function UsersTab({
         </div>
       )}
 
-      {filteredUsers.length > visibleUsers.length && (
+      {!showUnverified && filteredUsers.length > visibleUsers.length && (
         <div className="flex justify-center pt-2">
           <button
             onClick={() => setVisibleCount((c) => c + 50)}

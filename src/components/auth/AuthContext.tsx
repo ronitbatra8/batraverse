@@ -59,6 +59,7 @@ interface AuthContextType {
   login: (identifier: string, password: string) => Promise<User>;
   loginWithOtp: (identifier: string, code: string) => Promise<User>;
   loginWithGoogleToken: (token: string) => Promise<User>;
+  completeGoogleSignup: (pendingToken: string, phone: string, role: string) => Promise<User>;
   enterAsGuest: () => void;
   logout: () => void;
   updateUser: (data: Partial<User>) => Promise<User>;
@@ -201,6 +202,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return res.user;
   };
 
+  const completeGoogleSignup = async (pendingToken: string, phone: string, role: string) => {
+    const res = await apiFetch("/auth/google/complete", {
+      method: "POST",
+      body: JSON.stringify({ pendingToken, phone, role }),
+    });
+    applySession(res);
+    return res.user;
+  };
+
   /** Persist a freshly-issued token+user as the single active session. */
   const applySession = (res: { token: string; user: User }) => {
     const updated = [{ token: res.token, user: res.user }];
@@ -263,8 +273,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const value = useMemo(
-    () => ({ user, loading, isGuest, register, login, loginWithOtp, loginWithGoogleToken, enterAsGuest, logout, updateUser, refreshUser }),
-    [user, loading, isGuest, register, login, loginWithOtp, loginWithGoogleToken, enterAsGuest, logout, updateUser, refreshUser]
+    () => ({ user, loading, isGuest, register, login, loginWithOtp, loginWithGoogleToken, completeGoogleSignup, enterAsGuest, logout, updateUser, refreshUser }),
+    [user, loading, isGuest, register, login, loginWithOtp, loginWithGoogleToken, completeGoogleSignup, enterAsGuest, logout, updateUser, refreshUser]
   );
 
   return (

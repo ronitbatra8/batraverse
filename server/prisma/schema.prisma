@@ -72,7 +72,7 @@ model User {
   id            String   @id @default(cuid())
   name          String
   email         String   @unique
-  phone         String   @unique
+  phone         String?  @unique
   passwordHash  String
   role          Role     @default(USER)
   approved      Boolean  @default(false)
@@ -86,6 +86,7 @@ model User {
   pickupState   String?
   pickupPincode String?
   pickupPhone   String?
+  payoutAccount String?  // seller's UPI ID or bank account number for payouts
   cardNumber    String?  @unique // unique card/account number e.g. BV-XXXX-XXXX
   cardPinHash   String?  // optional separate PIN for card login (bcrypt hash)
   cardLevel     String?  // "owner" for admin override; otherwise level derived from walletBalance
@@ -583,6 +584,14 @@ model SpotlightAd {
   @@index([active])
   @@index([sortOrder])
   @@index([page, active])
+}
+
+model PendingSignup {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  provider  String   @default("google")
+  createdAt DateTime @default(now())
 }
 
 model AdRequest {

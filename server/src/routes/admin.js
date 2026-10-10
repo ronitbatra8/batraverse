@@ -524,7 +524,7 @@ router.get("/payouts", async (req, res) => {
         orderBy: { createdAt: "desc" },
         skip: (pageNum - 1) * limitNum,
         take: limitNum,
-        include: { seller: { select: { id: true, name: true, email: true, shopName: true } } },
+        include: { seller: { select: { id: true, name: true, email: true, shopName: true, payoutAccount: true } } },
       }),
       prisma.sellerPayout.count(),
       prisma.sellerPayout.groupBy({ by: ["status"], _sum: { amount: true }, _count: true }),
@@ -605,6 +605,42 @@ router.get("/users", async (req, res) => {
     res.json(users);
   } catch (err) {
     res.status(500).json({ error: safeErrorMessage(err) });
+  }
+});
+
+router.get("/pending-signups", async (req, res) => {
+  try {
+    const pending = await prisma.pendingSignup.findMany({ orderBy: { createdAt: "desc" } });
+    res.json(pending);
+  } catch (err) {
+    res.status(500).json({ error: safeErrorMessage(err) });
+  }
+});
+
+router.delete("/pending-signups/:id", async (req, res) => {
+  try {
+    await prisma.pendingSignup.delete({ where: { id: req.params.id } });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: safeErrorMessage(err) });
+  }
+});
+
+router.post("/pending-signups/:id/email", async (req, res) => {
+  try {
+    const { subject, message } = req.body;
+    if (!subject || !message) return res.status(400).json({ error: "Subject and message are required" });
+    const lead = await prisma.pendingSignup.findUnique({ where: { id: req.params.id } });
+    if (!lead) return res.status(404).json({ error: "Sign-up not found" });
+    const html = CARD_TEMPLATE(
+      '<p style="margin:0 0 8px;">Hello ' + escapeHtml(lead.name || "there") + ',</p>'
+      + '<p style="margin:0;white-space:pre-wrap;">' + escapeHtml(message) + '</p>'
+    );
+    await sendMail({ to: lead.email, subject: String(subject).slice(0, 200), html });
+    res.json({ success: true, message: `Email sent to ${lead.name}` });
+  } catch (err) {
+    console.error("[email] Pending signup send failed:", err.message);
+    res.status(500).json({ error: "Failed to send email. Please try again." });
   }
 });
 
@@ -1011,6 +1047,8 @@ router.get("/users/:id", async (req, res) => {
       where: { id: req.params.id },
       select: {
         id: true, name: true, email: true, phone: true, role: true, approved: true, createdAt: true,
+        shopName: true, shopDescription: true, payoutAccount: true,
+        pickupName: true, pickupPhone: true, pickupAddress: true, pickupCity: true, pickupState: true, pickupPincode: true,
         orders: {
           orderBy: { createdAt: "desc" },
           select: {
