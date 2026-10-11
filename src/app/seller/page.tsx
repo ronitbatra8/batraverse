@@ -765,12 +765,12 @@ export default function SellerDashboardPage() {
               </p>
               <p className="mt-6 text-xs text-dark-500">
                 Reach us at{" "}
-                <a href="mailto:ronit.batra.08@gmail.com" className="text-gold-400 hover:text-gold-300 transition-colors">
-                  ronit.batra.08@gmail.com
+                <a href="mailto:batraverse.shopeverything@gmail.com" className="text-gold-400 hover:text-gold-300 transition-colors">
+                  batraverse.shopeverything@gmail.com
                 </a>{" "}
                 or call{" "}
-                <a href="tel:+919351396757" className="text-gold-400 hover:text-gold-300 transition-colors">
-                  +91 93513 96757
+                <a href="tel:+919251196757" className="text-gold-400 hover:text-gold-300 transition-colors">
+                  +91 92511 96757
                 </a>
               </p>
             </div>

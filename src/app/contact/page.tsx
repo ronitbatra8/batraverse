@@ -58,8 +58,8 @@ function YoutubeIcon({ size = 20 }: { size?: number }) {
 }
 
 const contactInfo = [
-  { icon: Phone, label: "Phone", value: "+91 93513 96757" },
-  { icon: Mail, label: "Email", value: "ronit.batra.08@gmail.com" },
+  { icon: Phone, label: "Phone", value: "+91 92511 96757" },
+  { icon: Mail, label: "Email", value: "batraverse.shopeverything@gmail.com" },
   { icon: Clock, label: "Hours", value: "Mon – Sat, 8 AM – 10 AM" },
   { icon: MapPin, label: "Address", value: "Alwar, Rajasthan, India" },
   { icon: Moon, label: "Mart Holiday", value: "Closed on New Moon & Full Moon" },
@@ -68,8 +68,8 @@ const contactInfo = [
 const office = {
   name: "BatraVerse Office",
   address: "Alwar, Rajasthan, India",
-  phone: "+91 93513 96757",
-  email: "ronit.batra.08@gmail.com",
+  phone: "+91 92511 96757",
+  email: "batraverse.shopeverything@gmail.com",
   hours: "Mon – Sat, 8 AM – 10 AM",
 };
 
@@ -92,7 +92,7 @@ const faqs = [
   },
   {
     q: "How do I contact support?",
-    a: "You can reach us via the form on this page, email ronit.batra.08@gmail.com, or call +91 93513 96757 during business hours. We aim to respond within 24 hours.",
+    a: "You can reach us via the form on this page, email batraverse.shopeverything@gmail.com, or call +91 92511 96757 during business hours. We aim to respond within 24 hours.",
   },
 ];
 

@@ -251,13 +251,13 @@ export default function Footer() {
                     className={cn("shrink-0", light ? "text-sapphire" : "text-gold")}
                   />
                   <a
-                    href="mailto:ronit.batra.08@gmail.com"
+                    href="mailto:batraverse.shopeverything@gmail.com"
                     className={cn(
                       "group relative transition-colors",
                       light ? "hover:text-sapphire" : "hover:text-gold-light"
                     )}
                   >
-                    ronit.batra.08@gmail.com
+                    batraverse.shopeverything@gmail.com
                     <span
                       className={cn(
                         "absolute bottom-0 left-0 h-px w-0 transition-all duration-700 group-hover:w-full",
@@ -271,7 +271,7 @@ export default function Footer() {
                     size={15}
                     className={cn("shrink-0", light ? "text-sapphire" : "text-gold")}
                   />
-                  +91 93513 96757
+                  +91 92511 96757
                 </p>
               </div>
 

@@ -54,7 +54,7 @@ const sections = [
   },
   {
     title: "12. Contact",
-    body: "For questions about these Terms, contact us at ronit.batra.08@gmail.com or visit our Contact page.",
+    body: "For questions about these Terms, contact us at batraverse.shopeverything@gmail.com or visit our Contact page.",
   },
 ];
 
