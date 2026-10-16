@@ -23,19 +23,16 @@ import { cn, errCode, errMessage } from "@/lib/utils";
 import { apiUrl, apiFetch } from "@/lib/api";
 import { createPortal } from "react-dom";
 
-const OWNER_EMAIL = "ronit_batra_08_11@gmail.com";
-const OWNER_PHONE = "+91 90000 00001";
-
 const JOIN_ROLES = [
   { value: "CUSTOMER", label: "Customer", icon: UserIcon },
   { value: "SELLER", label: "Seller", icon: Store },
   { value: "DELIVERY", label: "Delivery", icon: Truck },
 ] as const;
 
-function redirectFor(user: { role?: string; email?: string; phone?: string }) {
+function redirectFor(user: { role?: string }) {
   if (user.role === "DELIVERY") return "/delivery";
   if (user.role === "SELLER") return "/seller";
-  if (user.email === OWNER_EMAIL || user.phone === OWNER_PHONE) return "/owner";
+  if (user.role === "ADMIN") return "/owner";
   return "/";
 }
 
