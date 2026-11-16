@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Mail, Phone, UserPlus, CreditCard, MessageSquareText, KeyRound, RefreshCw, Store, Compass, User as UserIcon } from "lucide-react";
+import { Mail, Phone, UserPlus, CreditCard, MessageSquareText, KeyRound, RefreshCw, Store, User as UserIcon } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthContext";
 import {
   AuthShell,
@@ -52,7 +52,7 @@ function actionBtnCls(variant: "primary" | "otp" | "create", light: boolean) {
 
 function LoginContent() {
   const router = useRouter();
-  const { login, loginWithOtp, loginWithGoogleToken, completeGoogleSignup, enterAsGuest, updateUser } = useAuth();
+  const { login, loginWithOtp, loginWithGoogleToken, completeGoogleSignup, updateUser } = useAuth();
   const searchParams = useSearchParams();
   const light = useLight();
   const { toast } = useToast();
@@ -548,12 +548,12 @@ function LoginContent() {
                 </a>
               )}
 
-              <button
-                type="button"
-                onClick={() => {
-                  enterAsGuest();
-                  router.push("/");
-                }}
+              <Link
+                href={
+                  identifier.trim()
+                    ? `/register?prefill=${encodeURIComponent(identifier.trim())}`
+                    : "/register"
+                }
                 className={cn(
                   "inline-flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border px-2 py-3.5 text-[clamp(9px,2.4vw,11px)] font-semibold uppercase tracking-[0.08em] transition-all duration-500 sm:gap-2.5 sm:px-5 sm:tracking-[0.3em]",
                   light
@@ -561,16 +561,10 @@ function LoginContent() {
                     : "border-gold/70 bg-transparent text-gold-light shadow-[0_0_18px_rgba(212,175,55,0.4)] hover:bg-gold/10 hover:shadow-[0_0_30px_rgba(212,175,55,0.7)]"
                 )}
               >
-                <Compass size={15} strokeWidth={2} className="shrink-0" />
-                Explore as Guest
-              </button>
-            </div>
-
-            {checkState !== "missing" && (
-              <Link href="/register" className={actionBtnCls("create", light)}>
-                <UserPlus size={13} /> Create account
+                <UserPlus size={15} strokeWidth={2} className="shrink-0" />
+                Create Account
               </Link>
-            )}
+            </div>
 
             <a href={typeof window !== "undefined" && window.location.origin.includes("localhost") ? "http://localhost:3001/login" : "https://seller.batraverse.vercel.app"} className={actionBtnCls("create", light)}>
               <Store size={13} /> Seller portal
