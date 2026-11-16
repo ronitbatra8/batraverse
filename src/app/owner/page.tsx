@@ -20,11 +20,9 @@ import MessagesTab from "../admin/components/MessagesTab";
 import SecurityTab from "../admin/components/SecurityTab";
 import AnalyticsTab from "../admin/components/AnalyticsTab";
 import NewsletterTab from "../admin/components/NewsletterTab";
-import DeliveryExecTab from "../admin/components/DeliveryExecTab";
 import CardsWalletTab from "../admin/components/CardsWalletTab";
 import MoneyTab from "../admin/components/MoneyTab";
 import RateCalculatorTab from "../admin/components/RateCalculatorTab";
-import ViolationsTab from "../admin/components/ViolationsTab";
 import ProductCatalogTab from "../admin/components/ProductCatalogTab";
 import SellerSystemTab from "../admin/components/SellerSystemTab";
 import AdsTab from "../admin/components/AdsTab";
@@ -167,18 +165,6 @@ export default function AdminPage() {
     setUpdatingId(null);
   }, [adminKey, toast]);
 
-  const assignOrder = useCallback(async (orderId: string, deliveryId: string) => {
-    setUpdatingId(orderId);
-    try {
-      const res = await fetch(`${API}/api/admin/orders/${orderId}/assign`, {
-        method: "PUT", headers: adminHeaders(adminKey), body: JSON.stringify({ deliveryId }),
-      });
-      if (!res.ok) { const err = await res.json(); throw new Error(err.error || "Request failed"); }
-      loadAll();
-    } catch (e: any) { toast(e.message || "Failed to assign/unassign delivery executive", "error"); }
-    setUpdatingId(null);
-  }, [adminKey, loadAll, toast]);
-
   const paymentAction = useCallback(async (orderId: string, action: "approve" | "reject") => {
     setUpdatingId(orderId);
     try {
@@ -297,19 +283,17 @@ export default function AdminPage() {
       <main className={cn("pt-24 min-h-screen origin-left transition-[padding] duration-500 ease-in-out", sidebarCollapsed ? "lg:pl-0" : "lg:pl-64")}>
         <div key={refreshKey} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-24 lg:pb-8">
           {tab === "overview" && <OverviewTab stats={stats} orders={orders} passwordResets={passwordResets} messages={messages} stockSummary={stockSummary} onNavigate={handleNavigateToTab} />}
-          {tab === "orders" && <OrdersTab orders={orders} updatingId={updatingId} onStatusUpdate={updateStatus} onItemStatusUpdate={updateItemStatus} onAssign={assignOrder} onPaymentAction={paymentAction} onReturnApprove={returnApprove} focusOrderId={focusOrderId} onFocusHandled={() => setFocusOrderId(null)} adminKey={adminKey} onShipDelhivery={shipViaDelhivery} initialStatusFilter={orderStatusFilter} />}
+          {tab === "orders" && <OrdersTab orders={orders} updatingId={updatingId} onStatusUpdate={updateStatus} onItemStatusUpdate={updateItemStatus} onPaymentAction={paymentAction} onReturnApprove={returnApprove} focusOrderId={focusOrderId} onFocusHandled={() => setFocusOrderId(null)} adminKey={adminKey} onShipDelhivery={shipViaDelhivery} initialStatusFilter={orderStatusFilter} />}
           {tab === "users" && <UsersTab users={users} pending={pendingSignups} adminKey={adminKey} onNavigate={handleNavigateToTab} onPendingChanged={loadAll} />}
           {tab === "mail" && <MailTab adminKey={adminKey} />}
           {tab === "messages" && <MessagesTab messages={messages} adminKey={adminKey} setMessages={setMessages} />}
           {tab === "security" && <SecurityTab adminKey={adminKey} />}
           {tab === "analytics" && <AnalyticsTab analytics={analytics} />}
           {tab === "newsletter" && <NewsletterTab newsletter={newsletter} privateViewing={privateViewing} adminKey={adminKey} setNewsletter={setNewsletter} setPrivateViewing={setPrivateViewing} />}
-          {tab === "delivery" && <DeliveryExecTab adminKey={adminKey} />}
           {tab === "sellersystem" && <SellerSystemTab adminKey={adminKey} onCount={setProductApprovalCount} />}
           {tab === "cards" && <CardsWalletTab adminKey={adminKey} />}
           {tab === "money" && <MoneyTab adminKey={adminKey} />}
           {tab === "ratecalculator" && <RateCalculatorTab />}
-          {tab === "violations" && <ViolationsTab adminKey={adminKey} />}
           {tab === "productcatalog" && <ProductCatalogTab adminKey={adminKey} />}
           {tab === "ads" && <AdsTab adminKey={adminKey} />}
           {tab === "featured" && <FeaturedTab adminKey={adminKey} />}

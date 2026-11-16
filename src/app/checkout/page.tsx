@@ -104,15 +104,23 @@ export default function CheckoutPage() {
     }));
   }, [user]);
 
-  // Wallet balance
+  // Wallet balance (only meaningful for a signed-in customer)
   useEffect(() => {
+    if (!user) {
+      setWallet(0);
+      return;
+    }
     apiFetch("/wallet/balance")
       .then((j: any) => setWallet(typeof j?.balance === "number" ? j.balance : 0))
       .catch(() => setWallet(0));
-  }, []);
+  }, [user]);
 
-  // Razorpay readiness
+  // Razorpay readiness (keys endpoint requires auth, so only fetch when signed in)
   useEffect(() => {
+    if (!user) {
+      setRzpReady(false);
+      return;
+    }
     apiFetch("/payments/keys")
       .then((j: any) => {
         const enabled = Boolean(j?.enabled) && Boolean(j?.keyId);
@@ -120,7 +128,7 @@ export default function CheckoutPage() {
         setRzpReady(enabled);
       })
       .catch(() => setRzpReady(false));
-  }, []);
+  }, [user]);
 
   const storeItems = items.filter((it) => it.source !== "mart");
   const martItems = items.filter((it) => it.source === "mart");

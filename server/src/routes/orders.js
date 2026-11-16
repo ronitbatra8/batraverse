@@ -84,7 +84,7 @@ router.get("/my", userAuth, async (req, res) => {
       where: { userId: req.userId },
       orderBy: { createdAt: "desc" },
     });
-    const parsed = orders.map((o) => ({ ...o, securityPhotos: o.securityPhotos ? JSON.parse(o.securityPhotos) : null }));
+    const parsed = orders;
     await resolveOrderItemImages(parsed);
     res.json(parsed);
   } catch (err) {
@@ -464,47 +464,6 @@ router.post("/:id/return-request", userAuth, customerOnly, async (req, res) => {
 
     const user = await prisma.user.findUnique({ where: { id: req.userId }, select: { name: true, email: true } });
     sendOrderStatusEmail(user.email, user.name, order.orderId || order.id, "return_requested", order.source, updatedItems).catch(() => {});
-
-    res.json(updated);
-  } catch (err) {
-    res.status(500).json({ error: safeErrorMessage(err) });
-  }
-});
-
-router.post("/:id/verify-delivery", userAuth, async (req, res) => {
-  try {
-    const { code } = req.body;
-    const order = await prisma.order.findUnique({ where: { id: req.params.id } });
-    if (!order) return res.status(404).json({ error: "Order not found" });
-    if (order.userId !== req.userId) return res.status(403).json({ error: "Not your order" });
-    if (order.status !== "out_for_delivery") {
-      return res.status(400).json({ error: "Order is not out for delivery" });
-    }
-
-    const otpRecord = await prisma.deliveryOTP.findFirst({
-      where: { orderId: order.id, verified: false },
-      orderBy: { createdAt: "desc" },
-    });
-    if (!otpRecord) {
-      return res.status(400).json({ error: "No verification OTP found. Ask delivery executive to resend." });
-    }
-    if (new Date() > otpRecord.expiresAt) {
-      return res.status(400).json({ error: "OTP has expired. Ask delivery executive to resend." });
-    }
-    if (otpRecord.code !== String(code)) {
-      return res.status(400).json({ error: "Invalid OTP code" });
-    }
-
-    await prisma.deliveryOTP.update({ where: { id: otpRecord.id }, data: { verified: true } });
-
-    const updatedItems = order.items.map((it) => ({ ...it, status: "delivered" }));
-    const updated = await prisma.order.update({
-      where: { id: order.id },
-      data: { items: updatedItems, status: "delivered", deliveredAt: new Date() },
-    });
-
-    const user = await prisma.user.findUnique({ where: { id: req.userId }, select: { name: true, email: true } });
-    sendOrderStatusEmail(user.email, user.name, order.orderId || order.id, "delivered", order.source, updatedItems).catch(() => {});
 
     res.json(updated);
   } catch (err) {

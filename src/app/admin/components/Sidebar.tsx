@@ -15,7 +15,6 @@ export const topNavItems: { key: Tab; label: string; icon: any }[] = [
   { key: "cards", label: "Cards & Wallet", icon: CreditCard },
   { key: "sellersystem", label: "Seller System", icon: Store },
   { key: "analytics", label: "Analytics", icon: BarChart3 },
-  { key: "delivery", label: "Delivery", icon: Truck },
 ];
 
 export const sideNavItems: { key: Tab; label: string; icon: any }[] = [
@@ -29,7 +28,6 @@ export const sideNavItems: { key: Tab; label: string; icon: any }[] = [
   { key: "messages", label: "Messages", icon: MessageSquare },
   { key: "security", label: "Security", icon: KeyRound },
   { key: "newsletter", label: "Newsletter", icon: Newspaper },
-  { key: "violations", label: "Violations", icon: AlertTriangle },
 ];
 
 /* Site-centre-link typography: small caps, wide tracking, underline on hover. */

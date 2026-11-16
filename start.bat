@@ -38,12 +38,12 @@ timeout /t 2 /nobreak >nul
 
 :: Start ML service (embeds + semantic search; warms the model for ~30-45s)
 echo Starting ML service on port 8000...
-start "BATRAVERSE-ML" cmd /c "cd /d D:\sites\BATRAVERSE\python && .venv\Scripts\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8000"
+start "BATRAVERSE-ML" cmd /c "cd /d D:\buiseness\batraverse\python && .venv\Scripts\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8000"
 echo.
 
 :: Start backend
 echo Starting backend on port 5000...
-start "BATRAVERSE-BACKEND" cmd /c "cd /d D:\sites\BATRAVERSE && node server\src\index.js"
+start "BATRAVERSE-BACKEND" cmd /c "cd /d D:\buiseness\batraverse && node server\src\index.js"
 echo.
 
 :: Wait for backend to initialize
@@ -51,7 +51,7 @@ timeout /t 3 /nobreak >nul
 
 :: Start frontend
 echo Starting frontend on port 3000...
-start "BATRAVERSE-FRONTEND" cmd /c "cd /d D:\sites\BATRAVERSE && npm run dev"
+start "BATRAVERSE-FRONTEND" cmd /c "cd /d D:\buiseness\batraverse && npm run dev"
 echo.
 
 :: Wait for ML service to finish warming the model

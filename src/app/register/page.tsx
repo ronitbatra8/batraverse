@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { KeyRound, Mail, Phone, Store, Truck, User as UserIcon } from "lucide-react";
+import { KeyRound, Mail, Phone, User as UserIcon } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthContext";
 import { useToast } from "@/components/Toast";
 import {
@@ -24,42 +24,6 @@ import { cn } from "@/lib/utils";
 import { errMessage } from "@/lib/utils";
 import { apiFetch } from "@/lib/api";
 
-const ROLES = [
-  {
-    value: "CUSTOMER",
-    label: "Customer",
-    desc: "Browse and shop",
-    icon: UserIcon,
-    card: {
-      active: "border-sky-500/50 bg-sky-500/10 text-sky-600",
-      chip: "bg-sky-500 text-white",
-      text: "text-sky-600",
-    },
-  },
-  {
-    value: "SELLER",
-    label: "Seller",
-    desc: "List your products",
-    icon: Store,
-    card: {
-      active: "border-amber-500/50 bg-amber-500/10 text-amber-600",
-      chip: "bg-amber-500 text-white",
-      text: "text-amber-600",
-    },
-  },
-  {
-    value: "DELIVERY",
-    label: "Delivery",
-    desc: "Deliver orders",
-    icon: Truck,
-    card: {
-      active: "border-emerald-500/50 bg-emerald-500/10 text-emerald-600",
-      chip: "bg-emerald-600 text-white",
-      text: "text-emerald-600",
-    },
-  },
-] as const;
-
 function RegisterContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -69,10 +33,7 @@ function RegisterContent() {
   const light = useLight();
 
   const [step, setStep] = useState<"form" | "otp">("form");
-  const [role, setRole] = useState<"CUSTOMER" | "SELLER" | "DELIVERY">(() => {
-    const r = searchParams.get("role");
-    return r === "SELLER" || r === "DELIVERY" ? r : "CUSTOMER";
-  });
+  const [role] = useState<"CUSTOMER">("CUSTOMER");
   const [name, setName] = useState("");
   const [email, setEmail] = useState(() => (prefillIsEmail ? prefill : ""));
   const [phone, setPhone] = useState(() => (prefillIsEmail ? "" : prefill));
@@ -105,14 +66,8 @@ function RegisterContent() {
     return "";
   };
 
-  const goAfterRegister = (user: { role?: string }) => {
-    if (user.role === "SELLER") {
-      router.push("/seller");
-    } else if (user.role === "DELIVERY") {
-      router.push("/delivery");
-    } else {
-      router.push("/");
-    }
+  const goAfterRegister = (_user: { role?: string }) => {
+    router.push("/");
   };
 
   /* Step 1 — details, then send the email OTP */
@@ -261,52 +216,8 @@ function RegisterContent() {
 
       <AuthCard>
         <form onSubmit={handleDetails} className="space-y-5">
-          <div>
-            <label className={labelCls(light)}>I want to join as</label>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {ROLES.map((r, i) => {
-                const Icon = r.icon;
-                const active = role === r.value;
-                return (
-                  <button
-                    type="button"
-                    key={r.value}
-                    onClick={() => setRole(r.value)}
-                    className={cn(
-                      "flex flex-col gap-1 rounded-xl border px-3 py-2 text-xs transition-all duration-300 sm:gap-1.5 sm:py-3",
-                      i === 0 && "sm:col-span-2",
-                      active
-                        ? cn("border-transparent shadow-lg", r.card.active)
-                        : light
-                          ? "border-onyx/15 bg-onyx/[0.03] hover:border-onyx/30 hover:-translate-y-0.5"
-                          : "border-dark-700 bg-dark-800/50 hover:border-dark-600 hover:-translate-y-0.5"
-                    )}
-                  >
-                    <span className="flex w-full items-center justify-between gap-2 sm:justify-between">
-                      <span className={cn("font-semibold", active && r.card.text)}>{r.label}</span>
-                      <span
-                        className={cn(
-                          "flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors duration-300 sm:h-9 sm:w-9",
-                          active ? r.card.chip : light ? "bg-dark-100 text-onyx/50" : "bg-dark-800 text-dark-400"
-                        )}
-                      >
-                        <Icon size={16} strokeWidth={1.75} />
-                      </span>
-                    </span>
-                    <span
-                      className={cn(
-                        "text-center text-[9px] font-medium lowercase",
-                        active
-                          ? r.card.text
-                          : cn("opacity-70", light ? "text-onyx/50" : "text-dark-500")
-                      )}
-                    >
-                      {r.desc}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+          <div className="rounded-xl bg-sky-500/10 border border-sky-500/30 px-4 py-3 text-sm text-sky-300">
+            Registering a customer account on BATRAVERSE.
           </div>
 
           <Field label="Full Name" icon={<UserIcon size={16} strokeWidth={1.5} />}>

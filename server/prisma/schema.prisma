@@ -99,7 +99,6 @@ model User {
   createdAt     DateTime @default(now())
 
   orders           Order[]      @relation("PlacedOrders")
-  assignedOrders   Order[]      @relation("AssignedOrders")
   savedAddresses   Address[]
   reviews          Review[]
   wishlists        Wishlist[]
@@ -110,7 +109,6 @@ model User {
   cardUpgrades     CardUpgradeRequest[]
   walletTopUps     WalletTopUp[]
   sellerPayouts    SellerPayout[]
-  deliveryComplaints DeliveryComplaint[] @relation("ComplaintsAgainst")
   categoryRequests CategoryRequest[]
 
   @@index([role])
@@ -149,16 +147,9 @@ model Order {
 
   userId     String
   user       User     @relation("PlacedOrders", fields: [userId], references: [id])
-  assignedTo String?
-  assignedAt DateTime?
-  deliveryExecutive User? @relation("AssignedOrders", fields: [assignedTo], references: [id])
 
   createdAt DateTime @default(now())
   deliveredAt DateTime?
-
-  signatureData String?
-  signedAt      DateTime?
-  securityPhotos String?
 
   source String @default("store")
   deliveryMode String @default("standard")
@@ -173,7 +164,6 @@ model Order {
   @@index([status])
   @@index([paymentStatus])
   @@index([userId])
-  @@index([assignedTo])
 }
 
 model Invoice {
@@ -218,6 +208,8 @@ model Product {
   rejectReason String?
   images        Json     @default("[]")
   inStock       Boolean  @default(true)
+  stockQty      Int      @default(0)
+  sku           String?
   badge         String?
   /* Return window offered on this product, in hours (6, 12, 24, 72, 120, 168).
      NULL = platform default (12h). Snapshotted onto each order item at
@@ -499,31 +491,6 @@ model CardUpgradeRequest {
   @@index([status])
 }
 
-model DeliveryComplaint {
-  id          String   @id @default(cuid())
-  orderId     String
-  execId      String
-  reason      String
-  orderSource String
-  createdAt   DateTime @default(now())
-
-  exec  User @relation("ComplaintsAgainst", fields: [execId], references: [id])
-
-  @@index([execId])
-  @@index([orderId])
-}
-
-model DeliveryOTP {
-  id        String   @id @default(cuid())
-  orderId   String
-  code      String
-  expiresAt DateTime
-  verified  Boolean  @default(false)
-  createdAt DateTime @default(now())
-
-  @@index([orderId])
-}
-
 /* Settlement ledger for seller earnings. A pending record is created when an
    order item containing the seller's product is marked delivered (at their
    sellerPrice). Payments happen OUTSIDE the app (bank/UPI); the owner marks a
@@ -682,4 +649,14 @@ model SubcategorySection {
   @@index([parentSlug])
   @@index([source])
   @@index([sortOrder])
+}
+
+/* Derived embedding store for the ML service (populated by python/app/backfill.py).
+   Declared here so `prisma db push` does not drop it. Managed by Python. */
+model ProductVector {
+  productId String   @id @map("product_id")
+  embedding Unsupported("real[]")
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@map("product_vector")
 }

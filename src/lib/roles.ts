@@ -5,18 +5,6 @@ export const ROLE_DASHBOARDS = {
     href: "/owner",
     desc: "Manage users, orders, inventory and everything else from the owner panel.",
   },
-  SELLER: {
-    label: "Seller Dashboard",
-    short: "Seller",
-    href: "/seller",
-    desc: "Manage your listings, inventory and orders. This page is under construction.",
-  },
-  DELIVERY: {
-    label: "Delivery Dashboard",
-    short: "Delivery",
-    href: "/delivery",
-    desc: "View assigned orders and delivery tasks. This page is under construction.",
-  },
 } as const;
 
 export type RoleKey = keyof typeof ROLE_DASHBOARDS;

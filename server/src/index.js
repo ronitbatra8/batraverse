@@ -15,7 +15,7 @@ const orderRoutes = require("./routes/orders");
 const locationRoutes = require("./routes/location");
 const cardUpgradeRoutes = require("./routes/cardUpgrades");
 const cartRoutes = require("./routes/cart");
-const deliveryRoutes = require("./routes/delivery");
+
 const sellerRoutes = require("./routes/seller");
 const categoryRoutes = require("./routes/categories");
 const sitemapRoutes = require("./routes/sitemap");
@@ -137,7 +137,7 @@ app.use("/api/orders", orderRoutes);
 app.use("/api/location", locationRoutes);
 app.use("/api/card-upgrades", cardUpgradeRoutes);
 app.use("/api/cart", cartRoutes);
-app.use("/api/delivery", deliveryRoutes);
+
 app.use("/api/seller", sellerRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/sitemap", sitemapRoutes);

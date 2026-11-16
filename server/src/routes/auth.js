@@ -14,7 +14,6 @@ const router = express.Router();
 const ROLE_PREFIX = {
   ADMIN: "FD",
   SELLER: "GL",
-  DELIVERY: "SV",
   USER: "BV",
 };
 
@@ -176,7 +175,7 @@ function publicUser(user) {
 
 router.post("/register", async (req, res) => {
   try {
-    const { name, email, phone, password, role, verifyToken } = req.body;
+    const { name, email, phone, password, role, verifyToken, portal } = req.body;
     if (!name || !email || !phone || !password) {
       return res.status(400).json({ error: "Name, email, phone and password are required" });
     }
@@ -220,10 +219,13 @@ router.post("/register", async (req, res) => {
     if (emailExists) return res.status(400).json({ error: "Email already registered" });
     if (phoneExists) return res.status(400).json({ error: "Phone number already registered" });
 
-    const validRoles = ["USER", "CUSTOMER", "SELLER", "DELIVERY"];
-    const requestedRole = validRoles.includes(role) ? role : "CUSTOMER";
+    let effectiveRole = role;
+    if (portal === "seller") effectiveRole = "SELLER";
+    if (portal === "main") effectiveRole = "CUSTOMER";
+    const validRoles = ["USER", "CUSTOMER", "SELLER"];
+    const requestedRole = validRoles.includes(effectiveRole) ? effectiveRole : "CUSTOMER";
     const userRole = requestedRole === "CUSTOMER" ? "USER" : requestedRole;
-    const needsApproval = userRole === "SELLER" || userRole === "DELIVERY";
+    const needsApproval = userRole === "SELLER";
     const isOwner = normalizedEmail === OWNER_EMAIL || normalizedPhone === OWNER_PHONE;
 
     const hashed = await bcrypt.hash(String(password), 10);
@@ -259,7 +261,7 @@ router.post("/register", async (req, res) => {
 
 router.post("/login", async (req, res) => {
   try {
-    const { identifier, email, phone, password } = req.body;
+    const { identifier, email, phone, password, portal } = req.body;
     const id = (identifier ?? email ?? phone ?? "").trim();
     if (!id) {
       return res.status(400).json({ error: "Email, phone, or card number is required" });
@@ -291,6 +293,14 @@ router.post("/login", async (req, res) => {
       return res.status(401).json({ error: "Incorrect password. Please try again.", code: "WRONG_PASSWORD" });
     }
 
+    // Portal gating: keep sellers on the seller portal, customers on the shop.
+    if (portal === "main" && user.role === "SELLER") {
+      return res.status(401).json({ error: "This account is registered as a Seller. Please sign in from the Seller Portal.", code: "SELLER_PORTAL_ONLY" });
+    }
+    if (portal === "seller" && user.role !== "SELLER") {
+      return res.status(401).json({ error: "This account is not a seller account.", code: "CUSTOMER_PORTAL_ONLY" });
+    }
+
     const token = signToken(user.id);
     res.json({ token, user: publicUser(user) });
   } catch (err) {
@@ -301,13 +311,20 @@ router.post("/login", async (req, res) => {
 
 router.post("/check", async (req, res) => {
   try {
-    const { identifier } = req.body;
+    const { identifier, portal } = req.body;
     const id = String(identifier || "").trim();
     if (!id) {
       return res.status(400).json({ error: "Enter your email, phone number, or card number" });
     }
     const user = await findUserByIdentifier(id);
-    res.json({ exists: !!user });
+    if (!user) return res.json({ exists: false });
+    if (portal === "main" && user.role === "SELLER") {
+      return res.status(401).json({ exists: true, error: "This account is registered as a Seller. Please sign in from the Seller Portal.", code: "SELLER_PORTAL_ONLY" });
+    }
+    if (portal === "seller" && user.role !== "SELLER") {
+      return res.status(401).json({ exists: true, error: "This account is not a seller account.", code: "CUSTOMER_PORTAL_ONLY" });
+    }
+    res.json({ exists: true });
   } catch (err) {
     res.status(500).json({ error: safeErrorMessage(err) });
   }
@@ -472,10 +489,10 @@ router.post("/google/complete", async (req, res) => {
     if (!isPhone(phone)) return res.status(400).json({ error: "Please enter a valid 10-digit Indian phone number" });
     const normalizedPhone = normalizePhone(phone);
 
-    const validRoles = ["USER", "CUSTOMER", "SELLER", "DELIVERY"];
+    const validRoles = ["USER", "CUSTOMER", "SELLER"];
     const requestedRole = validRoles.includes(role) ? role : "CUSTOMER";
     const userRole = requestedRole === "CUSTOMER" ? "USER" : requestedRole;
-    const needsApproval = userRole === "SELLER" || userRole === "DELIVERY";
+    const needsApproval = userRole === "SELLER";
 
     const [emailExists, phoneExists] = await Promise.all([
       prisma.user.findUnique({ where: { email } }),
@@ -558,7 +575,7 @@ router.put("/me", userAuth, async (req, res) => {
       data.name = name.trim();
     }
     if (role !== undefined) {
-      const validRoles = ["USER", "CUSTOMER", "SELLER", "DELIVERY"];
+      const validRoles = ["USER", "CUSTOMER", "SELLER"];
       if (!validRoles.includes(String(role))) {
         return res.status(400).json({ error: "Invalid account type" });
       }
@@ -570,7 +587,7 @@ router.put("/me", userAuth, async (req, res) => {
       }
       const chosenRole = String(role) === "CUSTOMER" ? "USER" : String(role);
       data.role = chosenRole;
-      if (chosenRole === "SELLER" || chosenRole === "DELIVERY") {
+      if (chosenRole === "SELLER") {
         data.approved = false;
         data.cardNumber = null;
         data.cardLevel = null;

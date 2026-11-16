@@ -6,7 +6,6 @@ const prisma = new PrismaClient();
 const ROLE_PREFIX = {
   ADMIN: "OW",
   SELLER: "GL",
-  DELIVERY: "SV",
   USER: "BV",
 };
 
@@ -31,8 +30,6 @@ async function main() {
   await prisma.cardUpgradePricing.deleteMany();
   await prisma.walletTopUp.deleteMany();
   await prisma.sellerPayout.deleteMany();
-  await prisma.deliveryComplaint.deleteMany();
-  await prisma.deliveryOTP.deleteMany();
   await prisma.adRequest.deleteMany();
   await prisma.featuredProduct.deleteMany();
   await prisma.testimonial.deleteMany();

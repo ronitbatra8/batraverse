@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Mail, Phone, UserPlus, CreditCard, MessageSquareText, KeyRound, RefreshCw, Store, Compass, Truck, User as UserIcon } from "lucide-react";
+import { Mail, Phone, UserPlus, CreditCard, MessageSquareText, KeyRound, RefreshCw, Store, Compass, User as UserIcon } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthContext";
 import {
   AuthShell,
@@ -25,13 +25,9 @@ import { createPortal } from "react-dom";
 
 const JOIN_ROLES = [
   { value: "CUSTOMER", label: "Customer", icon: UserIcon },
-  { value: "SELLER", label: "Seller", icon: Store },
-  { value: "DELIVERY", label: "Delivery", icon: Truck },
 ] as const;
 
 function redirectFor(user: { role?: string }) {
-  if (user.role === "DELIVERY") return "/delivery";
-  if (user.role === "SELLER") return "/seller";
   if (user.role === "ADMIN") return "/owner";
   return "/";
 }
@@ -76,7 +72,7 @@ function LoginContent() {
   const [needPhone, setNeedPhone] = useState(false);
   const [pendingToken, setPendingToken] = useState("");
   const [newPhone, setNewPhone] = useState("");
-  const [newRole, setNewRole] = useState<"CUSTOMER" | "SELLER" | "DELIVERY">("CUSTOMER");
+  const [newRole] = useState<"CUSTOMER">("CUSTOMER");
   const [phoneError, setPhoneError] = useState("");
   const [savingPhone, setSavingPhone] = useState(false);
   const resendTimer = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -203,12 +199,17 @@ function LoginContent() {
       const res = await apiFetch("/auth/check", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ identifier: id }),
+        body: JSON.stringify({ identifier: id, portal: "main" }),
       });
       setCheckState(res.exists ? "found" : "missing");
     } catch (err) {
-      setError(errMessage(err));
-      setCheckState("idle");
+      if (errCode(err) === "SELLER_PORTAL_ONLY") {
+        setError("This account is registered as a Seller. Please sign in from the Seller Portal.");
+        setCheckState("checking");
+      } else {
+        setError(errMessage(err));
+        setCheckState("idle");
+      }
     }
   };
 
@@ -237,12 +238,14 @@ function LoginContent() {
 
     setLoading(true);
     try {
-      const user = await login(id, password);
+      const user = await login(id, password, "main");
       router.push(redirectFor(user));
     } catch (err) {
       if (errCode(err) === "NOT_FOUND") {
         setCheckState("missing");
         setError("");
+      } else if (errCode(err) === "SELLER_PORTAL_ONLY") {
+        setError("This account is registered as a Seller. Please sign in from the Seller Portal.");
       } else {
         setError(errMessage(err));
       }
@@ -304,6 +307,8 @@ function LoginContent() {
       if (errCode(err) === "NOT_FOUND") {
         setCheckState("missing");
         setError("");
+      } else if (errCode(err) === "SELLER_PORTAL_ONLY") {
+        setError("This account is registered as a Seller. Please sign in from the Seller Portal.");
       } else {
         setError(errMessage(err));
       }
@@ -567,9 +572,9 @@ function LoginContent() {
               </Link>
             )}
 
-            <Link href="/register?role=SELLER" className={actionBtnCls("create", light)}>
-              <Store size={13} /> Create seller account
-            </Link>
+            <a href={typeof window !== "undefined" && window.location.origin.includes("localhost") ? "http://localhost:3001/login" : "https://seller.batraverse.vercel.app"} className={actionBtnCls("create", light)}>
+              <Store size={13} /> Seller portal
+            </a>
           </form>
         )}
       </AuthCard>
@@ -602,35 +607,6 @@ function LoginContent() {
                       ? "Choose how you want to join and add a phone number to create your account:"
                       : "Choose how you want to join and add a phone number to finish setting up your account:"}
                   </p>
-                </div>
-                <div className="mb-4">
-                  <p className={cn("mb-2 text-[10px] font-semibold uppercase tracking-[0.2em]", light ? "text-onyx/60" : "text-cream-dim")}>
-                    I want to join as
-                  </p>
-                  <div className="grid grid-cols-3 gap-2">
-                    {JOIN_ROLES.map((r) => {
-                      const Icon = r.icon;
-                      const active = newRole === r.value;
-                      return (
-                        <button
-                          key={r.value}
-                          type="button"
-                          onClick={() => setNewRole(r.value)}
-                          className={cn(
-                            "flex flex-col items-center justify-center gap-1 rounded-xl border px-2 py-2.5 text-[10px] font-semibold uppercase tracking-wider transition-all duration-300",
-                            active
-                              ? "border-gold bg-gold/15 text-gold"
-                              : light
-                                ? "border-onyx/15 bg-onyx/[0.03] text-onyx/60 hover:border-onyx/30"
-                                : "border-white/10 bg-white/[0.03] text-cream-dim hover:border-gold/40"
-                          )}
-                        >
-                          <Icon size={16} strokeWidth={1.75} />
-                          {r.label}
-                        </button>
-                      );
-                    })}
-                  </div>
                 </div>
                 <input
                   type="tel"

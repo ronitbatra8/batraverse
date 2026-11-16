@@ -272,7 +272,7 @@ router.get("/products", async (req, res) => {
       const hasSellerCopy = p.sellerDetails && typeof p.sellerDetails === "object" && Object.keys(p.sellerDetails).length > 0;
       const sellerCopy = hasSellerCopy
         ? p.sellerDetails
-        : buildSellerDetails({ name: p.name, brand: p.brand, category: p.category, subCategory: p.subCategory, source: p.source, price: p.price, originalPrice: p.originalPrice, description: p.description, images: p.images, inStock: p.inStock, badge: p.badge, returnWindowHours: p.returnWindowHours, packagingWeightGrams: p.packagingWeightGrams, specifications: p.specifications, keyFeatures: p.keyFeatures, colorOptions: p.colorOptions, sizeOptions: p.sizeOptions });
+        : buildSellerDetails({ name: p.name, brand: p.brand, category: p.category, subCategory: p.subCategory, source: p.source, price: p.price, originalPrice: p.originalPrice, description: p.description, images: p.images, inStock: p.inStock, stockQty: p.stockQty, badge: p.badge, returnWindowHours: p.returnWindowHours, packagingWeightGrams: p.packagingWeightGrams, specifications: p.specifications, keyFeatures: p.keyFeatures, colorOptions: p.colorOptions, sizeOptions: p.sizeOptions });
       return {
         ...p,
         sellerDetails: sellerCopy,
@@ -288,7 +288,7 @@ router.get("/products", async (req, res) => {
 
 router.post("/products", async (req, res) => {
   try {
-    const { name, brand, category, subCategory, source, price, originalPrice, description, images, inStock, badge, returnWindowHours, packagingWeightGrams, specifications, keyFeatures, colorOptions, sizeOptions } = req.body;
+    const { name, brand, category, subCategory, source, price, originalPrice, description, images, inStock, stockQty, sku, badge, returnWindowHours, packagingWeightGrams, specifications, keyFeatures, colorOptions, sizeOptions } = req.body;
     if (name == null || !name.trim()) return res.status(400).json({ error: "Product name is required" });
     const rw = parseReturnWindow(returnWindowHours);
     if (!rw.ok) return res.status(400).json({ error: "Return window must be 0 (no returns), 6, 12, 24, 72, 120 or 168 hours" });
@@ -325,6 +325,8 @@ router.post("/products", async (req, res) => {
         description: description || null,
         images: Array.isArray(images) ? images : [],
         inStock: inStock !== undefined ? inStock : true,
+        stockQty: stockQty != null ? Number(stockQty) : 0,
+        sku: sku || null,
         badge: badge || null,
         returnWindowHours: rw.value,
         packagingWeightGrams: pw.value,
@@ -332,7 +334,7 @@ router.post("/products", async (req, res) => {
         status: "pending",
         sellerPrice: (price != null && price > 0) ? price : null,
         sellerPricing: buildSellerPricing(price, colorOptions, sizeOptions),
-        sellerDetails: buildSellerDetails({ name, brand, category, subCategory, source, price, originalPrice, description, images, inStock, badge, returnWindowHours: rw.value, packagingWeightGrams: pw.value, specifications, keyFeatures, colorOptions, sizeOptions }),
+        sellerDetails: buildSellerDetails({ name, brand, category, subCategory, source, price, originalPrice, description, images, inStock, stockQty, sku, badge, returnWindowHours: rw.value, packagingWeightGrams: pw.value, specifications, keyFeatures, colorOptions, sizeOptions }),
         rejectReason: null,
         specifications: Array.isArray(specifications) ? specifications : [],
         keyFeatures: Array.isArray(keyFeatures) ? keyFeatures : [],
@@ -353,7 +355,7 @@ router.put("/products/:id", async (req, res) => {
     if (!existing) return res.status(404).json({ error: "Product not found" });
     if (existing.sellerId !== req.userId) return res.status(403).json({ error: "Not authorized to edit this product" });
 
-    const { name, brand, category, subCategory, source, price, originalPrice, description, images, inStock, badge, returnWindowHours, packagingWeightGrams, specifications, keyFeatures, colorOptions, sizeOptions } = req.body;
+    const { name, brand, category, subCategory, source, price, originalPrice, description, images, inStock, stockQty, sku, badge, returnWindowHours, packagingWeightGrams, specifications, keyFeatures, colorOptions, sizeOptions } = req.body;
     const rw = parseReturnWindow(returnWindowHours);
     if (!rw.ok) return res.status(400).json({ error: "Return window must be 0 (no returns), 6, 12, 24, 72, 120 or 168 hours" });
     const pw = parsePackagingWeight(packagingWeightGrams);
@@ -386,7 +388,7 @@ router.put("/products/:id", async (req, res) => {
       const draftPrice = price !== undefined ? (price != null ? Number(price) : null) : base.price;
       const sellerPrice = draftPrice != null && draftPrice > 0 ? draftPrice : null;
       const sellerDetails = buildSellerDetails(
-        name !== undefined ? { name, brand, category, subCategory, source, price: draftPrice, originalPrice, description, images, inStock, badge, returnWindowHours: rwProvided ? rw.value : base.returnWindowHours, packagingWeightGrams: pwProvided ? pw.value : base.packagingWeightGrams, specifications, keyFeatures, colorOptions: colors, sizeOptions: sizes }
+        name !== undefined ? { name, brand, category, subCategory, source, price: draftPrice, originalPrice, description, images, inStock, stockQty, sku, badge, returnWindowHours: rwProvided ? rw.value : base.returnWindowHours, packagingWeightGrams: pwProvided ? pw.value : base.packagingWeightGrams, specifications, keyFeatures, colorOptions: colors, sizeOptions: sizes }
           : base.sellerDetails
       );
       const draftData = {
@@ -400,6 +402,8 @@ router.put("/products/:id", async (req, res) => {
         description: description !== undefined ? description : base.description,
         images: images !== undefined ? images : base.images,
         inStock: inStock !== undefined ? Boolean(inStock) : base.inStock,
+        stockQty: stockQty != null ? Number(stockQty) : base.stockQty,
+        sku: sku !== undefined ? sku : base.sku,
         badge: badge !== undefined ? badge : base.badge,
         returnWindowHours: rwProvided ? rw.value : base.returnWindowHours ?? null,
         packagingWeightGrams: pwProvided ? pw.value : base.packagingWeightGrams ?? null,
@@ -474,6 +478,8 @@ router.put("/products/:id", async (req, res) => {
       description: description !== undefined ? description : existing.description,
       images: images !== undefined ? images : existing.images,
       inStock: inStock !== undefined ? inStock : existing.inStock,
+      stockQty: stockQty != null ? Number(stockQty) : existing.stockQty,
+      sku: sku !== undefined ? sku : existing.sku,
       badge: badge !== undefined ? badge : existing.badge,
       returnWindowHours: rwProvided ? rw.value : existing.returnWindowHours ?? null,
       packagingWeightGrams: pwProvided ? pw.value : existing.packagingWeightGrams ?? null,

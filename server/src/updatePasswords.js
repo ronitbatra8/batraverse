@@ -5,7 +5,6 @@ const prisma = new PrismaClient();
 (async () => {
   const hash = await bcrypt.hash("test123", 10);
   const emails = [
-    "test-delivery@batraverse.com",
     "test-seller@batraverse.com",
     "test-cards@batraverse.com",
     "test-customer@batraverse.com",

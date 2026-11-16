@@ -177,10 +177,9 @@ router.get("/orders", async (req, res) => {
       orderBy: { createdAt: "desc" },
       include: {
         user: { select: { id: true, name: true, email: true, phone: true } },
-        deliveryExecutive: { select: { id: true, name: true, email: true, phone: true } },
       },
     });
-    const parsed = orders.map((o) => ({ ...o, securityPhotos: o.securityPhotos ? JSON.parse(o.securityPhotos) : null }));
+    const parsed = orders;
     await resolveOrderItemImages(parsed);
     await resolveOrderItemSellerPrices(parsed);
     res.json(parsed);
@@ -427,36 +426,6 @@ router.put("/orders/:id/payment", async (req, res) => {
   }
 });
 
-router.put("/orders/:id/assign", async (req, res) => {
-  try {
-    const { deliveryId } = req.body;
-    const order = await prisma.order.findUnique({ where: { id: req.params.id } });
-    if (!order) return res.status(404).json({ error: "Order not found" });
-
-    const assignable = ["packed", "return_requested"];
-    if (!assignable.includes(order.status)) {
-      return res.status(400).json({ error: `Delivery executive can only be assigned when the order is packed or a return is requested (current status: ${order.status})` });
-    }
-
-    if (!deliveryId) {
-      await prisma.order.update({ where: { id: req.params.id }, data: { assignedTo: null } });
-      return res.json({ message: "Order unassigned" });
-    }
-
-    const exec = await prisma.user.findUnique({ where: { id: deliveryId } });
-    if (!exec || exec.role !== "DELIVERY") return res.status(400).json({ error: "Invalid delivery executive" });
-    if (!exec.approved) return res.status(400).json({ error: "Delivery executive is not approved" });
-
-    await prisma.order.update({ where: { id: req.params.id }, data: { assignedTo: deliveryId, assignedAt: new Date() } });
-
-    sendDeliveryAssignedEmail(exec.email, exec.name, order.orderId || order.id, order.source, order).catch(() => {});
-
-    res.json({ message: "Order assigned" });
-  } catch (err) {
-    res.status(500).json({ error: safeErrorMessage(err) });
-  }
-});
-
 router.put("/orders/:id/return-approve", async (req, res) => {
   try {
     const { action } = req.body;
@@ -579,20 +548,6 @@ router.put("/payouts/:id/paid", async (req, res) => {
   }
 });
 
-router.get("/violations", async (req, res) => {
-  try {
-    const violations = await prisma.deliveryComplaint.findMany({
-      orderBy: { createdAt: "desc" },
-      include: {
-        exec: { select: { id: true, name: true, email: true, phone: true } },
-      },
-    });
-    res.json(violations);
-  } catch (err) {
-    res.status(500).json({ error: safeErrorMessage(err) });
-  }
-});
-
 router.get("/users", async (req, res) => {
   try {
     const users = await prisma.user.findMany({
@@ -646,7 +601,7 @@ router.post("/pending-signups/:id/email", async (req, res) => {
 
 router.get("/stats", async (req, res) => {
   try {
-    const [totalOrders, totalUsers, totalProducts, revenue, pendingOrders, pendingPaymentOrders, confirmedOrders, outForDeliveryOrders, deliveredOrders, returnedOrders, returnRequests, totalViolations] = await Promise.all([
+    const [totalOrders, totalUsers, totalProducts, revenue, pendingOrders, pendingPaymentOrders, confirmedOrders, outForDeliveryOrders, deliveredOrders, returnedOrders, returnRequests] = await Promise.all([
       prisma.order.count(),
       prisma.user.count(),
       prisma.product.count(),
@@ -658,7 +613,6 @@ router.get("/stats", async (req, res) => {
       prisma.order.count({ where: { status: "delivered" } }),
       prisma.order.count({ where: { status: "returned" } }),
       prisma.order.count({ where: { status: "return_requested" } }),
-      prisma.deliveryComplaint.count(),
     ]);
     res.json({
       totalOrders,
@@ -672,7 +626,6 @@ router.get("/stats", async (req, res) => {
       deliveredOrders,
       returnedOrders,
       returnRequests,
-      totalViolations,
     });
   } catch (err) {
     res.status(500).json({ error: safeErrorMessage(err) });
@@ -1086,20 +1039,6 @@ router.get("/users/:id", async (req, res) => {
     });
     if (!user) return res.status(404).json({ error: "User not found" });
 
-    if (user.role === "DELIVERY") {
-      const assignedOrders = await prisma.order.findMany({
-        where: { assignedTo: req.params.id },
-        orderBy: { createdAt: "desc" },
-        select: {
-          id: true, orderId: true, items: true, totalAmount: true, status: true,
-          shippingName: true, shippingPhone: true, shippingAddress: true,
-          shippingCity: true, shippingState: true, shippingPincode: true,
-          paymentMethod: true, createdAt: true,
-        },
-      });
-      user.orders = assignedOrders;
-    }
-
     /* For a SELLER, "orders" should mean orders that contain the seller's
        own products (their sales), NOT the orders the seller placed as a buyer
        (the default user.orders relation above). */
@@ -1127,22 +1066,6 @@ router.get("/users/:id", async (req, res) => {
     const totalSpent = user.orders.reduce((sum, o) => sum + (o.status !== "cancelled" ? o.totalAmount : 0), 0);
     await resolveOrderItemImages(user.orders);
     res.json({ ...user, totalSpent });
-  } catch (err) {
-    res.status(500).json({ error: safeErrorMessage(err) });
-  }
-});
-
-router.get("/delivery-executives", async (req, res) => {
-  try {
-    const execs = await prisma.user.findMany({
-      where: { role: "DELIVERY" },
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true, name: true, email: true, phone: true, approved: true, createdAt: true,
-        _count: { select: { assignedOrders: true } },
-      },
-    });
-    res.json(execs);
   } catch (err) {
     res.status(500).json({ error: safeErrorMessage(err) });
   }
@@ -1276,7 +1199,7 @@ router.get("/users/:id/detail", async (req, res) => {
     const user = await prisma.user.findUnique({
       where: { id: req.params.id },
       include: {
-        orders: { orderBy: { createdAt: "desc" }, include: { deliveryExecutive: { select: { id: true, name: true, email: true } } } },
+        orders: { orderBy: { createdAt: "desc" } },
         savedAddresses: { orderBy: [{ isDefault: "desc" }, { createdAt: "desc" }] },
         reviews: { orderBy: { createdAt: "desc" }, include: { product: { select: { id: true, name: true, price: true } } } },
         wishlists: { orderBy: { createdAt: "desc" }, include: { product: { select: { id: true, name: true, price: true, gradient: true } } } },

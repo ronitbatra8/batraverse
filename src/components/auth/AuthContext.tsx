@@ -56,7 +56,7 @@ interface AuthContextType {
     role?: string;
     verifyToken?: string;
   }) => Promise<User>;
-  login: (identifier: string, password: string) => Promise<User>;
+  login: (identifier: string, password: string, portal?: "main" | "seller") => Promise<User>;
   loginWithOtp: (identifier: string, code: string) => Promise<User>;
   loginWithGoogleToken: (token: string) => Promise<User>;
   completeGoogleSignup: (pendingToken: string, phone: string, role: string) => Promise<User>;
@@ -183,8 +183,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   /* Single account only: logging in always replaces whatever session is stored.
      To use another account you must sign out first. */
-  const login = async (identifier: string, password: string) => {
-    const res = await apiFetch("/auth/login", { method: "POST", body: JSON.stringify({ identifier, password }) });
+  const login = async (identifier: string, password: string, portal?: "main" | "seller") => {
+    const res = await apiFetch("/auth/login", { method: "POST", body: JSON.stringify({ identifier, password, portal }) });
     applySession(res);
     return res.user;
   };
