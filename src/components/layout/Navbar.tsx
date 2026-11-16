@@ -119,6 +119,9 @@ export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [tabHidden, setTabHidden] = useState(false);
   const [sliderOpen, setSliderOpen] = useState(false);
+  /* Mobile-only inline search — typing stays local; the query only runs on
+     submit (Enter / the phone keyboard's search key). */
+  const [mobileQuery, setMobileQuery] = useState("");
   const lastScrollY = useRef(0);
   const sliderPanelRef = useRef<HTMLDivElement>(null);
   const sliderTriggerRef = useRef<HTMLButtonElement>(null);
@@ -309,24 +312,63 @@ export default function Navbar() {
           {/* Actions */}
           <div
             className={cn(
-              "flex items-center gap-2 sm:gap-4",
+              "flex items-center gap-2 sm:gap-4 max-sm:min-w-0 max-sm:flex-1 max-sm:justify-end",
               sliderOpen && "pointer-events-none [&>*:not([data-menu-trigger])]:opacity-0"
             )}
           >
-            <IconBtn
-              label="Search"
-              lightNav={lightNav}
-              onClick={() => router.push("/search?focus=1")}
+            {/* Mobile: compact search bar slotted into the space the icon used.
+                Width is capped so brand / sign-in / menu never shift. */}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const q = mobileQuery.trim();
+                if (q) router.push(`/search?q=${encodeURIComponent(q)}`);
+                else router.push("/search?focus=1");
+              }}
+              className="relative ml-2 flex w-full min-w-[4.75rem] max-w-36 items-center sm:hidden"
             >
-              <Search size={17} strokeWidth={1.5} />
-            </IconBtn>
+              <Search
+                size={13}
+                strokeWidth={1.75}
+                className={cn(
+                  "pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2",
+                  lightNav ? "text-onyx/50" : "text-cream-dim/50"
+                )}
+              />
+              <input
+                type="text"
+                value={mobileQuery}
+                onChange={(e) => setMobileQuery(e.target.value)}
+                placeholder="Search"
+                aria-label="Search products"
+                enterKeyHint="search"
+                autoComplete="off"
+                className={cn(
+                  "h-8 w-full min-w-0 rounded-full border pl-6 pr-1 text-[16px] font-light tracking-tight outline-none transition-colors duration-300",
+                  lightNav
+                    ? "border-sapphire/25 bg-white/40 text-onyx placeholder:text-[13px] placeholder:text-onyx/50 focus:border-sapphire/50"
+                    : "border-gold/25 bg-black/40 text-cream placeholder:text-[13px] placeholder:text-cream-dim/50 focus:border-gold/50"
+                )}
+              />
+            </form>
+
+            {/* Desktop: the familiar magnifier opens the search page focused. */}
+            <div className="hidden sm:block">
+              <IconBtn
+                label="Search"
+                lightNav={lightNav}
+                onClick={() => router.push("/search?focus=1")}
+              >
+                <Search size={17} strokeWidth={1.5} />
+              </IconBtn>
+            </div>
 
             {user ? (
               <button
                 type="button"
                 onClick={() => router.push("/account")}
                 className={cn(
-                  "inline-flex items-center gap-2 rounded-full border px-2.5 py-1.5 transition-all duration-300 sm:px-3.5 sm:py-2",
+                  "inline-flex shrink-0 items-center gap-2 rounded-full border px-2.5 py-1.5 transition-all duration-300 sm:px-3.5 sm:py-2",
                   lightNav
                     ? "border-sapphire/25 bg-sapphire/10 hover:border-sapphire/45 hover:bg-sapphire/15"
                     : "border-gold/25 bg-gold/10 hover:border-gold/45 hover:bg-gold/15"
@@ -366,7 +408,7 @@ export default function Navbar() {
               <Link
                 href="/login"
                 className={cn(
-                  "items-center rounded-full bg-rose-500 px-3.5 py-1.5 text-[9px] font-semibold uppercase tracking-[0.28em] text-abyss transition-all duration-300 hover:bg-rose-400 hover:shadow-[0_0_30px_rgba(244,63,94,0.45)] sm:inline-flex sm:px-5 sm:py-2 sm:text-[10px]"
+                  "shrink-0 whitespace-nowrap items-center rounded-full bg-rose-500 px-3.5 py-1.5 text-[9px] font-semibold uppercase tracking-[0.28em] text-abyss transition-all duration-300 hover:bg-rose-400 hover:shadow-[0_0_30px_rgba(244,63,94,0.45)] sm:inline-flex sm:px-5 sm:py-2 sm:text-[10px]"
                 )}
               >
                 Sign In
