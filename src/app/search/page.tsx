@@ -1121,24 +1121,10 @@ function SearchCard({ product, light }: { product: UnifiedProduct; light: boolea
         ) : (
           <div className={cn("absolute inset-0 bg-gradient-to-br transition-transform duration-700 group-hover:scale-105", product.gradient)} />
         )}
-        <span
-          className={cn(
-            "absolute left-3 top-3 rounded-full px-3 py-1 text-[8px] font-bold uppercase tracking-[0.2em]",
-            source === "store"
-              ? light
-                ? "bg-sapphire/90 text-white"
-                : "bg-gold/90 text-abyss"
-              : light
-                ? "bg-emerald-600/90 text-white"
-                : "bg-emerald-500/90 text-white"
-          )}
-        >
-          {source === "store" ? "Store" : "Mart"}
-        </span>
         {product.badge && (
           <span
             className={cn(
-              "absolute left-3 top-11 rounded-full px-3 py-1 text-[8px] font-bold uppercase tracking-[0.2em]",
+              "absolute left-3 top-3 rounded-full px-3 py-1 text-[8px] font-bold uppercase tracking-[0.2em]",
               light
                 ? "bg-white/90 text-dark-900 shadow-sm"
                 : "bg-abyss/80 text-gold-light backdrop-blur-sm"
