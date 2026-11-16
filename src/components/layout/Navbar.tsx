@@ -316,7 +316,7 @@ export default function Navbar() {
             <IconBtn
               label="Search"
               lightNav={lightNav}
-              onClick={() => router.push("/search")}
+              onClick={() => router.push("/search?focus=1")}
             >
               <Search size={17} strokeWidth={1.5} />
             </IconBtn>

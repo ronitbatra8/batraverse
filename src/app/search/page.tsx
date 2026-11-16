@@ -125,7 +125,7 @@ function dbToUnified(p: DbProduct, source: "store" | "mart"): UnifiedProduct {
   };
 }
 
-function SearchInput({ initialQuery, onDebounced, light, onFocusScroll }: { initialQuery: string; onDebounced: (q: string) => void; light: boolean; onFocusScroll: () => void }) {
+function SearchInput({ initialQuery, onSearch, light, onFocusScroll }: { initialQuery: string; onSearch: (q: string) => void; light: boolean; onFocusScroll: () => void }) {
   const [value, setValue] = useState(initialQuery);
   const searchParams = useSearchParams();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -134,13 +134,21 @@ function SearchInput({ initialQuery, onDebounced, light, onFocusScroll }: { init
     if (searchParams.get("focus") === "1") inputRef.current?.focus();
   }, [searchParams]);
 
+  /* Keep the field in sync when the URL query changes (e.g. navbar search),
+     but never search while the user is still typing. */
   useEffect(() => {
-    const t = setTimeout(() => onDebounced(value), 200);
-    return () => clearTimeout(t);
-  }, [value, onDebounced]);
+    setValue(initialQuery);
+  }, [initialQuery]);
 
   return (
-    <div className="relative flex-1">
+    <form
+      className="relative flex-1"
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSearch(value.trim());
+        inputRef.current?.blur();
+      }}
+    >
       <Search size={16} strokeWidth={1.5} className={cn("pointer-events-none absolute left-4 top-1/2 -translate-y-1/2", light ? "text-dark-400" : "text-cream-dim/50")} />
       <input
         ref={inputRef}
@@ -150,6 +158,7 @@ function SearchInput({ initialQuery, onDebounced, light, onFocusScroll }: { init
         onClick={onFocusScroll}
         placeholder="Search products..."
         aria-label="Search products"
+        enterKeyHint="search"
         className={cn(
           "w-full rounded-2xl border py-0 pl-11 pr-10 text-[13px] font-light tracking-wide backdrop-blur-2xl transition-[background-color,border-color,box-shadow] duration-500 focus:outline-none h-[2.75rem] sm:h-14",
           light
@@ -160,14 +169,17 @@ function SearchInput({ initialQuery, onDebounced, light, onFocusScroll }: { init
       {value && (
         <button
           type="button"
-          onClick={() => setValue("")}
+          onClick={() => {
+            setValue("");
+            onSearch("");
+          }}
           aria-label="Clear search"
           className={cn("absolute right-4 top-1/2 -translate-y-1/2 transition-colors duration-300", light ? "text-dark-400 hover:text-dark-900" : "text-cream-dim/50 hover:text-cream")}
         >
           <X size={14} strokeWidth={1.5} />
         </button>
       )}
-    </div>
+    </form>
   );
 }
 
@@ -214,6 +226,93 @@ const FILTER_SORTS: { value: FilterSort; label: string }[] = [
 
 function toggleIn<T>(arr: T[], value: T): T[] {
   return arr.includes(value) ? arr.filter((v) => v !== value) : [...arr, value];
+}
+
+/* Client-side relevance ranking — used the moment a query is submitted (and as
+   the offline fallback). Mirrors the API scoring: exact word > word prefix >
+   string prefix > compact substring > loose substring, with a whole-phrase
+   bonus and popularity tie-break. */
+const SEARCH_SYNONYMS: Record<string, string[]> = {
+  phone: ["mobile", "smartphone"],
+  mobile: ["phone", "smartphone"],
+  smartphone: ["phone", "mobile"],
+  laptop: ["notebook", "computer"],
+  computer: ["laptop", "pc"],
+  pc: ["computer", "laptop"],
+  tv: ["television"],
+  television: ["tv"],
+  fridge: ["refrigerator"],
+  refrigerator: ["fridge"],
+  shoes: ["footwear", "sneakers"],
+  sneakers: ["shoes", "footwear"],
+  footwear: ["shoes", "sneakers"],
+  watch: ["watches"],
+  watches: ["watch"],
+  earphones: ["earbuds", "headphones"],
+  earbuds: ["earphones", "headphones"],
+  headphones: ["earphones", "headset"],
+  shirt: ["tshirt", "t-shirt"],
+  tshirt: ["shirt", "t-shirt"],
+  bag: ["backpack", "handbag"],
+  backpack: ["bag"],
+  ac: ["airconditioner"],
+  airconditioner: ["ac"],
+};
+
+function tokenizeQuery(q: string): string[] {
+  return q
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+}
+
+function fieldScore(field: string, tok: string): number {
+  if (!field) return 0;
+  const f = field.toLowerCase();
+  if (!f) return 0;
+  const compact = f.replace(/[^a-z0-9]/g, "");
+  const words = f.split(/[^a-z0-9]+/).filter(Boolean);
+  if (f === tok) return 6;
+  if (words.includes(tok)) return 5;
+  if (words.some((w) => w.startsWith(tok))) return 4;
+  if (f.startsWith(tok)) return 3;
+  if (compact.includes(tok)) return 2;
+  if (f.includes(tok)) return 1;
+  return 0;
+}
+
+function rankByQuery(items: UnifiedProduct[], query: string): UnifiedProduct[] {
+  const toks = tokenizeQuery(query);
+  if (toks.length === 0) return [...items].sort((a, b) => a.name.localeCompare(b.name));
+
+  const expanded: { token: string; weight: number }[] = [];
+  for (const t of toks) {
+    expanded.push({ token: t, weight: 1 });
+    for (const s of SEARCH_SYNONYMS[t] || []) {
+      if (!toks.includes(s)) expanded.push({ token: s, weight: 0.45 });
+    }
+  }
+  const compactQuery = query.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+  return items
+    .map((p) => {
+      let score = 0;
+      for (const { token, weight } of expanded) {
+        score +=
+          weight *
+          (fieldScore(p.name, token) * 3 +
+            fieldScore(p.brand, token) * 2.2 +
+            fieldScore(p.category, token) * 1.4 +
+            fieldScore(p.sub, token) * 1.6);
+      }
+      if (compactQuery && p.name.toLowerCase().replace(/[^a-z0-9]/g, "").includes(compactQuery)) score += 8;
+      return { p, score };
+    })
+    .filter((e) => e.score > 0)
+    .sort((a, b) => b.score - a.score || b.p.rating - a.p.rating || b.p.reviews - a.p.reviews)
+    .map((e) => e.p);
 }
 
 function applyFilters(items: UnifiedProduct[], f: FilterState): UnifiedProduct[] {
@@ -628,15 +727,17 @@ function SearchContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialQuery = searchParams.get("q") || "";
-  const [debouncedQuery, setDebouncedQuery] = useState(initialQuery);
-  /* Query that has "settled" (stopped changing) — committing to search history
-     and (re)fetching personalised recommendations on every keystroke would be
-     wasteful, so we wait for the user to pause. */
-  const [settleQuery, setSettleQuery] = useState(initialQuery.trim());
+  const [activeQuery, setActiveQuery] = useState(initialQuery);
+  /* Search only runs on submit (Enter / search key), so the committed query is
+     also the "settled" query — no debounce timer needed. */
+  const settleQuery = activeQuery.trim();
   const [recommend, setRecommend] = useState<UnifiedProduct[]>([]);
   const [dbStore, setDbStore] = useState<UnifiedProduct[]>([]);
   const [dbMart, setDbMart] = useState<UnifiedProduct[]>([]);
   const [mlResults, setMlResults] = useState<UnifiedProduct[] | null>(null);
+  /* Which query `mlResults` belongs to — prevents stale results from a previous
+     search being shown while a new one loads. */
+  const [mlQuery, setMlQuery] = useState("");
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [hideTabs, setHideTabs] = useState(false);
   const [visibleCount, setVisibleCount] = useState(48);
@@ -654,9 +755,9 @@ function SearchContent() {
 
   useEffect(() => {
     const params = new URLSearchParams();
-    if (debouncedQuery) params.set("q", debouncedQuery);
+    if (activeQuery) params.set("q", activeQuery);
     router.replace(`/search${params.toString() ? `?${params}` : ""}`, { scroll: false });
-  }, [debouncedQuery, router]);
+  }, [activeQuery, router]);
 
   useEffect(() => {
     const onScroll = () => {
@@ -696,20 +797,21 @@ function SearchContent() {
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { fetchDb(); }, [fetchDb]);
 
-  /* ML/ranked search: once a query appears, ask the backend for ranked results
-     instead of filtering the catalog in the browser. If the API is unreachable
-     we fall back to the client-side substring filter below. */
+  /* Ranked search: only fired for a submitted query. If the API is unreachable
+     or slow we keep the instant client-side ranking below as the fallback. */
   useEffect(() => {
-    const q = debouncedQuery.trim();
-    if (!q || q.length < 2) {
+    const q = activeQuery.trim();
+    if (!q) {
       searchSeq.current += 1;
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setMlResults(null);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setMlQuery("");
       return;
     }
     const seq = ++searchSeq.current;
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 1500);
+    const timer = setTimeout(() => ctrl.abort(), 4000);
     fetch(`${API_BASE}/search?q=${encodeURIComponent(q)}`, {
       headers: { "ngrok-skip-browser-warning": "true" },
       signal: ctrl.signal,
@@ -719,6 +821,7 @@ function SearchContent() {
         if (searchSeq.current !== seq) return;
         if (res.ok && Array.isArray(data.products)) {
           setMlResults(data.products.map((p: DbProduct) => dbToUnified(p, p.source)));
+          setMlQuery(q);
         } else {
           setMlResults(null);
         }
@@ -732,12 +835,7 @@ function SearchContent() {
       clearTimeout(timer);
       ctrl.abort();
     };
-  }, [debouncedQuery]);
-
-  useEffect(() => {
-    const t = setTimeout(() => setSettleQuery(debouncedQuery.trim()), 1200);
-    return () => clearTimeout(t);
-  }, [debouncedQuery]);
+  }, [activeQuery]);
 
   /* Remember what people search for — this is one of the recommendation signals. */
   useEffect(() => {
@@ -853,25 +951,11 @@ function SearchContent() {
     };
   }, [filtersOpen]);
 
-  const clientFiltered = useMemo(() => {
-    let results = allProducts.filter((p) => p.inStock);
+  const clientFiltered = useMemo(() => rankByQuery(allProducts.filter((p) => p.inStock), activeQuery), [allProducts, activeQuery]);
 
-    if (debouncedQuery.trim()) {
-      const q = debouncedQuery.toLowerCase();
-      results = results.filter(
-        (p) =>
-          p.name.toLowerCase().includes(q) ||
-          p.brand.toLowerCase().includes(q) ||
-          p.category.toLowerCase().includes(q) ||
-          p.sub.toLowerCase().includes(q)
-      );
-    }
-
-    results.sort((a, b) => a.name.localeCompare(b.name));
-    return results;
-  }, [allProducts, debouncedQuery]);
-
-  const baseFiltered = mlResults ?? clientFiltered;
+  /* Prefer ranked API results, but only when they belong to the query currently
+     shown. Until then (or if the API is down) the instant client ranking stands. */
+  const baseFiltered = mlQuery === activeQuery.trim() && mlResults ? mlResults : clientFiltered;
 
   const filtered = useMemo(() => applyFilters(baseFiltered, filters), [baseFiltered, filters]);
 
@@ -880,7 +964,7 @@ function SearchContent() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setVisibleCount(48);
-  }, [debouncedQuery, filters]);
+  }, [activeQuery, filters]);
 
   /* Progressive render: grow the visible slice as the sentinel scrolls in */
   useEffect(() => {
@@ -915,7 +999,7 @@ function SearchContent() {
 {/* Search bar + filters */}
           <div className="relative z-10 mx-auto w-[calc(100%-1.5rem)] max-w-[1400px] sm:w-[calc(100%-4rem)]">
             <div ref={panelWrapRef} className="relative flex items-center gap-3 py-2">
-              <SearchInput initialQuery={initialQuery} onDebounced={setDebouncedQuery} light={light} onFocusScroll={() => {
+              <SearchInput initialQuery={initialQuery} onSearch={setActiveQuery} light={light} onFocusScroll={() => {
                 const hero = heroRef.current;
                 if (!hero) return;
                 const r = hero.getBoundingClientRect();
@@ -963,7 +1047,7 @@ function SearchContent() {
               <div className="flex flex-col items-center justify-center py-32">
                 <Search size={48} strokeWidth={1} className={cn("mb-6", light ? "text-onyx/15" : "text-cream/10")} />
                 <p className={cn("text-sm uppercase tracking-[0.3em]", light ? "text-dark-400" : "text-cream-dim/50")}>
-                  {debouncedQuery ? `No results for "${debouncedQuery}"` : activeFilterCount > 0 ? "No products match your filters" : "No products available"}
+                  {activeQuery ? `No results for "${activeQuery}"` : activeFilterCount > 0 ? "No products match your filters" : "No products available"}
                 </p>
               </div>
             ) : (

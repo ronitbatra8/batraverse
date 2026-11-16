@@ -26,57 +26,94 @@ function tokenize(q) {
     .filter(Boolean);
 }
 
-function inField(field, tok) {
-  if (!field) return false;
-  const f = field.toLowerCase();
-  if (f.includes(tok)) return true;
-  const fc = f.replace(/[^a-z0-9]/g, "");
-  if (fc.includes(tok)) return true;
-  if (tok.length >= 4 && f.split(/\s+/).some((w) => w.startsWith(tok))) return true;
-  return false;
+/* Small synonym table so natural-language queries still hit typed catalogue
+   names ("mobile" → "phone", "fridge" → "refrigerator"). Applied with a lower
+   weight than the literal token so exact matches always win. */
+const SYNONYMS = {
+  phone: ["mobile", "smartphone", "cellphone"],
+  mobile: ["phone", "smartphone", "cellphone"],
+  smartphone: ["phone", "mobile"],
+  cellphone: ["phone", "mobile"],
+  laptop: ["notebook", "computer"],
+  computer: ["laptop", "pc"],
+  pc: ["computer", "laptop"],
+  tv: ["television"],
+  television: ["tv"],
+  fridge: ["refrigerator"],
+  refrigerator: ["fridge"],
+  shoes: ["footwear", "sneakers"],
+  sneakers: ["shoes", "footwear"],
+  footwear: ["shoes", "sneakers"],
+  watch: ["watches", "wristwatch"],
+  watches: ["watch", "wristwatch"],
+  earphones: ["earbuds", "headphones"],
+  earbuds: ["earphones", "headphones"],
+  headphones: ["earphones", "headset"],
+  shirt: ["tshirt", "t-shirt", "top"],
+  tshirt: ["shirt", "t-shirt"],
+  "t-shirt": ["tshirt", "shirt"],
+  bag: ["backpack", "handbag"],
+  backpack: ["bag"],
+  ac: ["airconditioner", "air-conditioner"],
+  airconditioner: ["ac"],
+};
+
+/* Position-aware field relevance: exact word > word prefix > string prefix >
+   compact substring > loose substring. Prefix matching is what makes live
+   "op" → "open …" style queries feel instant. */
+function fieldScore(field, tok) {
+  if (!field) return 0;
+  const f = String(field).toLowerCase();
+  if (!f) return 0;
+  const compact = f.replace(/[^a-z0-9]/g, "");
+  const words = f.split(/[^a-z0-9]+/).filter(Boolean);
+  if (f === tok) return 6;
+  if (words.includes(tok)) return 5;
+  if (words.some((w) => w.startsWith(tok))) return 4;
+  if (f.startsWith(tok)) return 3;
+  if (compact.includes(tok)) return 2;
+  if (f.includes(tok)) return 1;
+  return 0;
 }
 
-function keywordScore(p, toks) {
-  let score = 0;
+function expandTokens(toks) {
+  const out = [];
   for (const t of toks) {
-    const name = p.name || "";
-    const brand = p.brand || "";
-    const cat = p.category || "";
-    const sub = p.subCategory || "";
-    const desc = p.description || "";
-    const nameLower = name.toLowerCase();
-    if (inField(name, t)) score += 3;
-    if (nameLower.split(/\s+/).includes(t)) score += 2;
-    if (inField(brand, t)) score += 2;
-    if (inField(cat, t)) score += 1.2;
-    if (inField(sub, t)) score += 1.4;
-    if (inField(desc, t)) score += 0.6;
+    out.push({ token: t, weight: 1 });
+    const syn = SYNONYMS[t];
+    if (syn) {
+      for (const s of syn) {
+        if (!toks.includes(s)) out.push({ token: s, weight: 0.45 });
+      }
+    }
+  }
+  return out;
+}
+
+function keywordScore(p, expanded, phrase) {
+  let score = 0;
+  const name = p.name || "";
+  const brand = p.brand || "";
+  const cat = p.category || "";
+  const sub = p.subCategory || "";
+  const desc = p.description || "";
+  for (const { token, weight } of expanded) {
+    score +=
+      weight *
+      (fieldScore(name, token) * 3 +
+        fieldScore(brand, token) * 2.2 +
+        fieldScore(cat, token) * 1.4 +
+        fieldScore(sub, token) * 1.6 +
+        fieldScore(desc, token) * 0.5);
+  }
+  /* Whole-phrase bonus: "iphone 11" beats products that merely contain both
+     words in different places. */
+  if (phrase.length > 1) {
+    const compactName = name.toLowerCase().replace(/[^a-z0-9]/g, "");
+    const compactPhrase = phrase.toLowerCase().replace(/[^a-z0-9]/g, "");
+    if (compactPhrase && compactName.includes(compactPhrase)) score += 8;
   }
   return score;
-}
-
-/* Reciprocal Rank Fusion: combine two ranked lists by position so a product
-   does well when EITHER keyword or semantic ranking (or both) likes it.
-   Products ranked by BOTH get a bonus — precise keyword + semantic agreement
-   is worth more than either alone. */
-function mergeRanked(keyword, semantic) {
-  const kwSet = new Set(keyword.map((k) => k.id));
-  const semSet = new Set(semantic.map((s) => s.id));
-  const scores = new Map();
-  const push = (list) => {
-    list.forEach((item, i) => {
-      const key = item.id;
-      const add = 1 / (RRF_K + i + 1);
-      scores.set(key, { id: key, rrf: (scores.get(key)?.rrf || 0) + add, item });
-    });
-  };
-  push(keyword);
-  push(semantic);
-  return [...scores.values()]
-    .map((e) => ({ ...e, rrf: kwSet.has(e.id) && semSet.has(e.id) ? e.rrf * 1.35 : e.rrf }))
-    .sort(
-      (a, b) => b.rrf - a.rrf || (b.item.rating || 0) - (a.item.rating || 0) || (b.item.reviewCount || 0) - (a.item.reviewCount || 0)
-    );
 }
 
 async function semanticSearch(query) {
@@ -105,6 +142,7 @@ router.get("/", async (req, res) => {
     if (!q) return res.json({ products: [], engine: "keyword", count: 0 });
 
     const toks = tokenize(q);
+    const expanded = expandTokens(toks);
     const top = Math.min(Number(req.query.top) || 40, 100);
 
     const products = await prisma.product.findMany({
@@ -115,9 +153,14 @@ router.get("/", async (req, res) => {
     if (toks.length === 0) return res.json({ products: [], engine: "keyword", count: 0 });
 
     const keyword = products
-      .map((p) => ({ item: p, score: keywordScore(p, toks) }))
+      .map((p) => ({ item: p, score: keywordScore(p, expanded, q) }))
       .filter((r) => r.score > 0)
-      .sort((a, b) => b.score - a.score)
+      .sort(
+        (a, b) =>
+          b.score - a.score ||
+          (b.item.rating || 0) - (a.item.rating || 0) ||
+          (b.item.reviewCount || 0) - (a.item.reviewCount || 0)
+      )
       .slice(0, KEYWORD_TAKE)
       .map((r) => r.item);
 
@@ -125,15 +168,28 @@ router.get("/", async (req, res) => {
     let engine = "keyword";
     if (semanticHits && semanticHits.length > 0) {
       const byId = new Map(products.map((p) => [p.id, p]));
+      /* Drop weak semantic neighbours: only keep hits close to the best score
+         (and above a floor). Without this, short/unknown queries drag in
+         half the catalogue because every product has *some* similarity. */
+      const bestScore = Math.max(...semanticHits.map((h) => Number(h.score) || 0));
+      const minScore = Math.max(0.3, bestScore - 0.07);
       const semantic = semanticHits
+        .filter((h) => h && (h.score == null || Number(h.score) >= minScore))
         .map((h) => byId.get(h.product_id))
         .filter(Boolean)
         .slice(0, RRF_K);
       if (semantic.length > 0) {
-        engine = "ml";
-        const merged = mergeRanked(keyword, semantic).slice(0, top);
+        engine = "hybrid";
+        const keywordIds = new Set(keyword.map((k) => k.id));
+        const semanticOnly = semantic.filter((s) => !keywordIds.has(s.id));
+        /* Precision first: keyword hits always lead. Semantic neighbours only
+           fill gaps up to a small cap, so an unknown/typo query shows its few
+           closest matches instead of dumping the whole catalogue. Very short
+           queries (1–2 chars) and strong keyword matches get no filler. */
+        const fillCap = q.length < 3 || keyword.length >= 8 ? 0 : 8 - keyword.length;
+        const merged = [...keyword, ...semanticOnly.slice(0, fillCap)].slice(0, top);
         res.set("Cache-Control", "public, max-age=60");
-        return res.json({ products: merged.map((m) => m.item), engine, count: merged.length });
+        return res.json({ products: merged, engine, count: merged.length });
       }
     }
 
