@@ -566,7 +566,7 @@ function LoginContent() {
               </Link>
             </div>
 
-            <a href={typeof window !== "undefined" && window.location.origin.includes("localhost") ? "http://localhost:3001" : "https://sellerbatraverse.vercel.app"} className={actionBtnCls("create", light)}>
+            <a href={typeof window !== "undefined" && window.location.origin.includes("localhost") ? "http://localhost:3001" : "https://sellerbatraverse.vercel.app"} className={cn(actionBtnCls("create", light), "px-3 text-[clamp(9px,2.4vw,11px)] tracking-[0.08em] sm:px-8 sm:tracking-[0.3em]")}>
               <Store size={13} /> Want to become a Seller
             </a>
           </form>
